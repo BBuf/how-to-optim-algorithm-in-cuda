@@ -4,12 +4,13 @@
 
 #include "math.h"
 #include "add.cuh"
+#include "square.cuh"
 #include <cuda_runtime.h>
 
 int zxy_add(int a, int b){
     return add(a, b);
 }
 
-void work(){
-
+int zxy_cal_squares(){
+    return Cal_Squares_Sum();
 }

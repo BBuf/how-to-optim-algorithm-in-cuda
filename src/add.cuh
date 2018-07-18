@@ -3,6 +3,3 @@
 #include "device_launch_parameters.h"
 
 int add(int a,int b);
-
-
-

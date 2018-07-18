@@ -1,8 +1,10 @@
 #include <iostream>
 #include "src/math.h"
-#include <cuda_runtime.h>
+
+using namespace std;
 
 int main() {
-    std::cout << zxy_add(3,5) << std::endl;
+    int ans = zxy_cal_squares();
+    cout << ans << endl;
     return 0;
 }

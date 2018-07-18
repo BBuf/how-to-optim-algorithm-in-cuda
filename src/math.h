@@ -7,6 +7,6 @@
 
 
 int zxy_add(int a, int b);
-void work();
+int zxy_cal_squares();
 
 #endif //CUDA_LEARN_SAMPLES_MATH_H

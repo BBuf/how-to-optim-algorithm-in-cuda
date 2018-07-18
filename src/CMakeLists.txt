@@ -5,4 +5,4 @@ PROJECT(zxy)
 find_package(CUDA QUIET REQUIRED)
 
 # Specify binary name and source file to build it from
-CUDA_ADD_LIBRARY(zxy add.cuh add.cu math.cpp math.h)
+CUDA_ADD_LIBRARY(zxy square.cu square.cuh add.cuh add.cu math.cpp math.h)
