@@ -5,6 +5,7 @@ __global__ void add(int a, int b, int *c)//kernel函数，在gpu上运行。
     *c = a + b;
 }
 
+
 int add(int a,int b)
 {
     int c;
@@ -16,3 +17,5 @@ int add(int a,int b)
     cudaFree(dev_c);//释放cudaMalloc分配的内存。
     return c;
 }
+
+

@@ -4,11 +4,5 @@
 
 int add(int a,int b);
 
-struct TEST
-{
-    int a;
-    int b;
-    int ADD();
-};
 
 
