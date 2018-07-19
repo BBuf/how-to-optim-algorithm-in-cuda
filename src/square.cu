@@ -4,13 +4,13 @@
 #include <curand_mtgp32_kernel.h>
 
 #define DATA_SIZE 10485760
-#define THREAD_NUM 256
+#define THREAD_NUM 128
 int data[DATA_SIZE];
 
 void GenerateNumbers(int *number, int size)
 {
     for (int i = 0; i < size; i++) {
-        number[i] = rand() % 10;
+        number[i] = i % 10;
     }
 }
 __global__ static void sumOfSquares(int *num, int* result, clock_t* time)
@@ -24,9 +24,12 @@ __global__ static void sumOfSquares(int *num, int* result, clock_t* time)
     clock_t  start;
     //只在 thread 0（即 threadIdx.x = 0 的时候）进行记录
     if(tid == 0) start = clock();
-    for (i = tid * size; i < (tid+1)*size; i++) {
+    for (i = tid; i < DATA_SIZE; i+=THREAD_NUM) {
         sum += num[i] * num[i] * num[i];
     }
+//    for (i = tid * size; i < (tid+1)*size; i++) {
+//        sum += num[i] * num[i] * num[i];
+//    }
     result[tid] = sum;
     //计算时间的动作，只在 thread 0（即 threadIdx.x = 0 的时候）进行
     if(tid == 0) *time = clock() - start;
