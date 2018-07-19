@@ -8,8 +8,8 @@
 using namespace std;
 
 #define DATA_SIZE 10485760
-#define MY_THREAD_NUM 512
-#define BLOCK_NUM 128
+#define MY_THREAD_NUM 256
+#define BLOCK_NUM 32
 //32 * 256 = 81902 threads
 int data[DATA_SIZE];
 
@@ -21,18 +21,21 @@ void GenerateNumbers(int *number, int size)
 }
 __global__ static void sumOfSquares(int *num, int* result, unsigned long long* time)
 {
+    //声明一块共享内存
+    extern __shared__ int shared[];
     //表示目前的thread是第几个thread(由0开始计算)
     const int tid = threadIdx.x;
     //表示目前的thread是第几个block(从0开始计算)
     const int bid = blockIdx.x;
     //计算每个线程需要完成的量
 //    const int size = DATA_SIZE / MY_THREAD_NUM;
+    shared[tid] = 0;
     int sum = 0;
     int i;
     //只在 thread 0（即 threadIdx.x = 0 的时候）进行记录, 每个 block 都会记录开始时间及结束时间
-    if(tid == 0){
-        time[bid] = clock();
-    }
+//    if(tid == 0){
+//        time[bid] = clock();
+//    }
     //多线程使用运行内存连续优化技巧
 //    for (i = tid; i < DATA_SIZE; i+=MY_THREAD_NUM) {
 //        sum += num[i] * num[i] * num[i];
@@ -42,13 +45,22 @@ __global__ static void sumOfSquares(int *num, int* result, unsigned long long* t
 //        sum += num[i] * num[i] * num[i];
 //    }
     //多线程使用block和内存连续优化
-    for(i = bid * MY_THREAD_NUM + tid; i < DATA_SIZE; i+=BLOCK_NUM*MY_THREAD_NUM){
-        sum += num[i] * num[i] * num[i];
-    }
+//    for(i = bid * MY_THREAD_NUM + tid; i < DATA_SIZE; i+=BLOCK_NUM*MY_THREAD_NUM){
+//        sum += num[i] * num[i] * num[i];
+//    }
     //Result的数量相应增加
-    result[bid * MY_THREAD_NUM + tid] = sum;
+//    result[bid * MY_THREAD_NUM + tid] = sum;
     //计算时间的动作，只在 thread 0（即 threadIdx.x = 0 的时候）进行
 //    if(tid == 0) *time = clock() - start;
+    //同步 保证每个 thread 都已经把结果写到 shared[tid] 里面
+    __syncthreads();
+    //使用线程0完成加和
+    if(tid == 0){
+        for(i = 1; i < THREAD_NUM; i++){
+            shared[0] += shared[i];
+        }
+        result[bid] = shared[0];
+    }
     //计算时间的动作，只在 thread 0（即 threadIdx.x = 0 的时候）进行,每个 block 都会记录开始时间及结束时间
     if(tid == 0) time[bid + BLOCK_NUM] = clock();
 }
@@ -61,7 +73,7 @@ int Cal_Squares_Sum(){
     unsigned long long* time;
     //cudaMalloc 取得一块显卡内存 ( 其中result用来存储计算结果 )
     cudaMalloc((void**)&gpudata, sizeof(int)* DATA_SIZE);
-    cudaMalloc((void**)&result, sizeof(int)*MY_THREAD_NUM*BLOCK_NUM);
+    cudaMalloc((void**)&result, sizeof(int)*BLOCK_NUM);
     cudaMalloc((void**)&time, sizeof(unsigned long long)*BLOCK_NUM*2);
     //cudaMemcpy 将产生的随机数复制到显卡内存中
     //cudaMemcpyHostToDevice - 从内存复制到显卡内存
@@ -74,29 +86,29 @@ int Cal_Squares_Sum(){
     cudaEventCreate(&start);    //创建Event
     cudaEventCreate(&stop);
     cudaEventRecord( start,0);    //记录当前时间
-    sumOfSquares <<<BLOCK_NUM, MY_THREAD_NUM, 0 >>>(gpudata, result, time);
+    sumOfSquares <<<BLOCK_NUM, MY_THREAD_NUM, THREAD_NUM * sizeof(int) >>>(gpudata, result, time);
     cudaEventRecord( stop,0);    //记录当前时间
     cudaEventSynchronize(start);    //Waits for an event to complete.
     cudaEventSynchronize(stop);    //Waits for an event to complete.Record之前的任务
     cudaEventElapsedTime(&time_elapsed,start,stop);    //计算时间差
     //把结果从显示芯片复制回主内存
-    int sum[MY_THREAD_NUM*BLOCK_NUM];
+    int sum[BLOCK_NUM];
     unsigned long long used_time[BLOCK_NUM*2];
     //cudaMemcpy 将结果从显存中复制回内存
-    cudaMemcpy(&sum, result, sizeof(int) * MY_THREAD_NUM * BLOCK_NUM, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&sum, result, sizeof(int) *  BLOCK_NUM, cudaMemcpyDeviceToHost);
     cudaMemcpy(&used_time, time, sizeof(unsigned long long) * BLOCK_NUM * 2, cudaMemcpyDeviceToHost);
     //used_time是GPU的时钟周期（timestamp），需要除以GPU的运行频率才能得到以秒为单位的时间
     //Free
     int final_sum = 0;
-    for(int i = 0; i < MY_THREAD_NUM * BLOCK_NUM; i++){
+    for(int i = 0; i < BLOCK_NUM; i++){
         final_sum += sum[i];
     }
-    cudaEventDestroy(start);    //destory the event
-    cudaEventDestroy(stop);
     cudaFree(gpudata);
     cudaFree(result);
     cudaFree(time);
     //采取新的计时策略 把每个 block 最早的开始时间，和最晚的结束时间相减，取得总运行时间
+    cudaEventDestroy(start);    //destory the event
+    cudaEventDestroy(stop);
     printf("GPU sum: %d GPU time: %.10f ms\n", final_sum, time_elapsed);
 
     final_sum = 0;
