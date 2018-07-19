@@ -4,6 +4,7 @@
 using namespace std;
 
 int main() {
+    srand(time(NULL));
     bool flag = InitCUDA();
     cout << flag << endl;
     int ans = zxy_cal_squares();
