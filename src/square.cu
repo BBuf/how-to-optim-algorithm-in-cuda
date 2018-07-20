@@ -1,4 +1,4 @@
-// 	Multithreads with syncthreads block optimizer and Update way of cacaulate time
+// 	Multithreads with syncthreads block optimizer and Update way of cacaulate time and BIT
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
