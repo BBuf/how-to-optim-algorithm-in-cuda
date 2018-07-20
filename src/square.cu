@@ -52,13 +52,19 @@ __global__ static void sumOfSquares(int *num, int* result)
     //同步 保证每个 thread 都已经把结果写到 shared[tid] 里面
     __syncthreads();
     //使用线程0完成加和
-    if(tid == 0){
-        for(i = 1; i < MY_THREAD_NUM; i++){
-            shared[0] += shared[i];
+    //树装加法
+    int offset = 1, mask = 1;
+    while(offset < MY_THREAD_NUM){
+        if((tid&mask) == 0){
+            shared[tid] += shared[tid+offset];
         }
+        offset += offset;
+        mask += offset;
+        __syncthreads();
+    }
+    if(tid == 0){
         result[bid] = shared[0];
     }
-    //计算时间的动作，只在 thread 0（即 threadIdx.x = 0 的时候）进行,每个 block 都会记录开始时间及结束时间
 }
 
 int Cal_Squares_Sum(){
