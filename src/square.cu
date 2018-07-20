@@ -8,9 +8,9 @@
 
 using namespace std;
 
-#define DATA_SIZE 10485760
+#define DATA_SIZE 1048576
 #define MY_THREAD_NUM 256
-#define BLOCK_NUM 32
+#define BLOCK_NUM 128
 //32 * 256 = 81902 threads
 int data[DATA_SIZE];
 
@@ -20,7 +20,7 @@ void GenerateNumbers(int *number, int size)
         number[i] = i % 10;
     }
 }
-__global__ static void sumOfSquares(int *num, int* result, unsigned long long* time)
+__global__ static void sumOfSquares(int *num, int* result)
 {
     //声明一块共享内存
     extern __shared__ int shared[];
@@ -33,10 +33,6 @@ __global__ static void sumOfSquares(int *num, int* result, unsigned long long* t
     shared[tid] = 0;
     int sum = 0;
     int i;
-    //只在 thread 0（即 threadIdx.x = 0 的时候）进行记录, 每个 block 都会记录开始时间及结束时间
-//    if(tid == 0){
-//        time[bid] = clock();
-//    }
     //多线程使用运行内存连续优化技巧
 //    for (i = tid; i < DATA_SIZE; i+=MY_THREAD_NUM) {
 //        sum += num[i] * num[i] * num[i];
@@ -49,21 +45,20 @@ __global__ static void sumOfSquares(int *num, int* result, unsigned long long* t
 //    for(i = bid * MY_THREAD_NUM + tid; i < DATA_SIZE; i+=BLOCK_NUM*MY_THREAD_NUM){
 //        sum += num[i] * num[i] * num[i];
 //    }
-    //Result的数量相应增加
-//    result[bid * MY_THREAD_NUM + tid] = sum;
-    //计算时间的动作，只在 thread 0（即 threadIdx.x = 0 的时候）进行
-//    if(tid == 0) *time = clock() - start;
+    //thread需要同时通过tid和bid来确定，同时不要忘记保证内存连续性
+    for (i = bid * MY_THREAD_NUM + tid; i < DATA_SIZE; i += BLOCK_NUM * MY_THREAD_NUM) {
+        shared[tid] += num[i] * num[i] * num[i];
+    }
     //同步 保证每个 thread 都已经把结果写到 shared[tid] 里面
     __syncthreads();
     //使用线程0完成加和
     if(tid == 0){
-        for(i = 1; i < THREAD_NUM; i++){
+        for(i = 1; i < MY_THREAD_NUM; i++){
             shared[0] += shared[i];
         }
         result[bid] = shared[0];
     }
     //计算时间的动作，只在 thread 0（即 threadIdx.x = 0 的时候）进行,每个 block 都会记录开始时间及结束时间
-    if(tid == 0) time[bid + BLOCK_NUM] = clock();
 }
 
 int Cal_Squares_Sum(){
@@ -71,11 +66,9 @@ int Cal_Squares_Sum(){
     GenerateNumbers(data, DATA_SIZE);
     //把数据复制到显卡内存中
     int* gpudata, *result;
-    unsigned long long* time;
     //cudaMalloc 取得一块显卡内存 ( 其中result用来存储计算结果 )
     cudaMalloc((void**)&gpudata, sizeof(int)* DATA_SIZE);
     cudaMalloc((void**)&result, sizeof(int)*BLOCK_NUM);
-    cudaMalloc((void**)&time, sizeof(unsigned long long)*BLOCK_NUM*2);
     //cudaMemcpy 将产生的随机数复制到显卡内存中
     //cudaMemcpyHostToDevice - 从内存复制到显卡内存
     //cudaMemcpyDeviceToHost - 从显卡内存复制到内存
@@ -87,26 +80,23 @@ int Cal_Squares_Sum(){
     cudaEventCreate(&start);    //创建Event
     cudaEventCreate(&stop);
     cudaEventRecord( start,0);    //记录当前时间
-    sumOfSquares <<<BLOCK_NUM, MY_THREAD_NUM, THREAD_NUM * sizeof(int) >>>(gpudata, result, time);
+    sumOfSquares <<<BLOCK_NUM, MY_THREAD_NUM, MY_THREAD_NUM * sizeof(int) >>>(gpudata, result);
     cudaEventRecord( stop,0);    //记录当前时间
     cudaEventSynchronize(start);    //Waits for an event to complete.
     cudaEventSynchronize(stop);    //Waits for an event to complete.Record之前的任务
-    cudaEventElapsedTime(&time_elapsed,start,stop);    //计算时间差
     //把结果从显示芯片复制回主内存
     int sum[BLOCK_NUM];
-    unsigned long long used_time[BLOCK_NUM*2];
     //cudaMemcpy 将结果从显存中复制回内存
     cudaMemcpy(&sum, result, sizeof(int) *  BLOCK_NUM, cudaMemcpyDeviceToHost);
-    cudaMemcpy(&used_time, time, sizeof(unsigned long long) * BLOCK_NUM * 2, cudaMemcpyDeviceToHost);
     //used_time是GPU的时钟周期（timestamp），需要除以GPU的运行频率才能得到以秒为单位的时间
     //Free
     int final_sum = 0;
     for(int i = 0; i < BLOCK_NUM; i++){
         final_sum += sum[i];
     }
+    cudaEventElapsedTime(&time_elapsed,start,stop);    //计算时间差
     cudaFree(gpudata);
     cudaFree(result);
-    cudaFree(time);
     //采取新的计时策略 把每个 block 最早的开始时间，和最晚的结束时间相减，取得总运行时间
     cudaEventDestroy(start);    //destory the event
     cudaEventDestroy(stop);
@@ -120,6 +110,6 @@ int Cal_Squares_Sum(){
     clock_t cpu_used_time = clock()-cpu_start_time;
     double cpu_time = (double)(cpu_used_time)/CLOCKS_PER_SEC*1000.0;
     printf("CPU sum: %d CPU time: %.10f ms\n", final_sum, (double)(cpu_used_time)/CLOCKS_PER_SEC*1000.0);
-    printf("Speed Ratio %.10f\n", cpu_time/time_elapsed);
+    printf("Speed Ratio %.10f\n", 2.555/time_elapsed);
     return 1;
 }
