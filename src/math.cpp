@@ -5,6 +5,7 @@
 #include "math.h"
 #include "add.cuh"
 #include "square.cuh"
+#include "matrix.cuh"
 #include <iostream>
 using namespace std;
 
@@ -14,6 +15,10 @@ int zxy_add(int a, int b){
 
 int zxy_cal_squares(){
     return Cal_Squares_Sum();
+}
+
+void zxy_matrix_mul(){
+    MatrixMul();
 }
 
 void printDeviceProp(const cudaDeviceProp &prop)

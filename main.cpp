@@ -1,13 +1,12 @@
 #include <iostream>
 #include "src/math.h"
-#include <cuda_runtime.h>
 using namespace std;
 
 int main() {
-    srand(time(NULL));
     bool flag = InitCUDA();
-    cout << flag << endl;
-    int ans = zxy_cal_squares();
-    cout << ans << endl;
+//    cout << flag << endl;
+//    int ans = zxy_cal_squares();
+//    cout << ans << endl;
+    zxy_matrix_mul();
     return 0;
 }
