@@ -19,11 +19,20 @@ __global__ static void MatrixMulCUDA(const float *a, const float *b, float *c, i
     const int row = idx / n;
     const int col = idx % n;
     if(row < n && col < n){
-        float sum = 0;
+//        float sum = 0;
+//        for(int i = 0; i < n; i++){
+//            sum += a[row * n + i] * b[i * n + col];
+//        }
+        float t = 0;
+        float y = 0;
         for(int i = 0; i < n; i++){
-            sum += a[row * n + i] * b[i * n + col];
+            float r;
+            y -= a[row * n + i] * b[i * n + col];
+            r = t - y;
+            y = (r - t) + y;
+            t = r;
         }
-        c[row * n + col] = sum;
+        c[row * n + col] = t;
     }
 }
 
@@ -32,7 +41,7 @@ __global__ static void MatrixMulCUDA(const float *a, const float *b, float *c, i
 void RandomMatrix(float *A, int n){
     for(int i = 0; i < n; i++){
         for(int j = 0; j < n; j++){
-            A[i * n + j] = (float)rand() / MY_RAND_MAX + (float)rand() / (MY_RAND_MAX * MY_RAND_MAX);
+            A[i * n + j] = (float)rand() / RAND_MAX + (float)rand() / (RAND_MAX * RAND_MAX);
         }
     }
 }
