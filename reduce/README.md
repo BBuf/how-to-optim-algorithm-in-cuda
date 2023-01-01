@@ -36,6 +36,8 @@ NVIDIA A100-PCIE-40GB , 峰值带宽在 1555 GB/s , CUDA版本为11.8.
 
 我们可以在第8页PPT里面看到，对于每一次迭代都会有两个分支，分别是有竖直的黑色箭头指向的小方块（有效计算的线程）以及其它没有箭头指向的方块，所以每一轮迭代实际上都有大量线程是空闲的，无法最大程度的利用GPU硬件。
 
+> 从这个PPT我们可以计算出，对于一个 Block 来说要完成Reduce Sum，一共有8次迭代，并且每次迭代都会产生warp divergent。
+
 接下来我们先把 BaseLine 的代码抄一下，然后我们设定好一个 GridSize 和 BlockSize 启动 Kernel 测试下性能。在PPT的代码基础上，我么补充一下内存申请以及启动 Kernel 的代码。
 
 ```c++
@@ -102,4 +104,14 @@ int main() {
 |--|--|--|--|
 |reduce_baseline|990.66us|39.57%|~|
 
+
+### 优化手段1: 交错寻址（Interleaved Addressing）
+
+接下来直接NVIDIA的PPT给出了优化手段1:
+
+<img width="854" alt="图片" src="https://user-images.githubusercontent.com/35585791/210174608-dfda63fa-6328-47d6-8843-6051a43bef98.png">
+
+这里是直接针对 BaseLine 中的 warp divergent 问题进行优化，通过调整BaseLine中的分支判断代码使得更多的线程可以走到同一个分支里面，降低迭代过程中的线程资源浪费。具体做法就是把 `if (tid % (2*s) == 0)` 替换成 strided index的方式也就是`int index = 2 * s * tid`，然后判断 index 是否在当前的 block 内。虽然这份优化后的代码没有完全消除if语句，但是我们可以来计算一下这个版本的代码在8次迭代中产生 warp divergent 的次数。对于第一次迭代，0-3号warp的index都是满足<blockDim.x的，而4-7号warp的index都是满足>=blockDim.x的，也就是说这次迭代根本不会出现warp divergent的问题，因为每个warp的32个线程执行的都是相同的分支。接下来对于第二代迭代，0，1两个warp是满足<blockDim.x的，其它warp则满足>=blockDim.x，依然不会出现warp divergent，以此类推直到第4次迭代时0号warp的前16个线程和后16线程会进入不同的分支，会产生一次warp divergent，接下来的迭代都分别会产生一次warp divergent。但从整体上看，这个版本的代码相比于BaseLine的代码产生的warp divergent次数会少得多。
+
+我们继续抄一下这个代码然后进行profile一下。
 
