@@ -30,7 +30,7 @@ NVIDIA A100-PCIE-40GB , 峰值带宽在 1555 GB/s , CUDA版本为11.8.
 
 <img width="897" alt="图片" src="https://user-images.githubusercontent.com/35585791/210165315-b6ff93ae-0be9-4a27-b84e-33a92c050775.png">
 
-这里指出了2个问题，一个是warp divergent，另一个是取模这个操作很昂贵。这里的warp divergent 指的是对于启动 BaseLine Kernel 的一个 block 的 warp 来说，它所有的 thread 执行的指令都是一样的，而 BaseLine Kernel 里面存在 if 分支语句，一个 warp 的 所有 thread 都会执行存在的所有分支，但只会保留满足条件的分支产生的结果。
+这里指出了2个问题，一个是warp divergent，另一个是取模这个操作很昂贵。这里的warp divergent 指的是对于启动 BaseLine Kernel 的一个 block 的 warp 来说，它所有的 thread 执行的指令都是一样的，而 BaseLine Kernel 里面存在 if 分支语句，一个 warp 的32个 thread 都会执行存在的所有分支，但只会保留满足条件的分支产生的结果。
 
 <img width="919" alt="图片" src="https://user-images.githubusercontent.com/35585791/210165714-93dc6ae6-fbc6-416d-8f43-4728891a9ace.png">
 
@@ -95,9 +95,6 @@ int main() {
 
 接下来我们使用 `nvcc -o bin/reduce_v0 reduce_v0_baseline.cu` 编译一下这个源文件，并且使用nsight compute去profile一下。
 
-<img width="1247" alt="图片" src="https://user-images.githubusercontent.com/35585791/210174419-8d28f1ff-d469-47d5-862c-1dcc332dd961.png">
-
-
 性能和带宽的测试情况如下：
 
 |优化手段|耗时(us)|带宽利用率|加速比|
@@ -145,14 +142,12 @@ __global__ void reduce_v1(float *g_idata,float *g_odata){
 }
 ```
 
-<img width="1273" alt="图片" src="https://user-images.githubusercontent.com/35585791/210175902-16e643a0-2548-46f5-96ae-cd87d7b8dfaa.png">
-
 性能和带宽的测试情况如下：
 
 |优化手段|耗时(us)|带宽利用率|加速比|
 |--|--|--|--|
 |reduce_baseline|990.66us|39.57%|~|
-|reduce_v1_interleaved_addressing|484.03us|80.8%|2.04|
+|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
 
 可以看到这个优化还是很有效的，相比于BaseLine的性能有2倍的提升。
 
@@ -211,16 +206,13 @@ __global__ void reduce_v2(float *g_idata,float *g_odata){
 }
 ```
 
-
-<img width="1254" alt="图片" src="https://user-images.githubusercontent.com/35585791/210189289-ab9e6705-3ecd-45c8-bfd4-c290b1ade25f.png">
-
 性能和带宽的测试情况如下：
 
 |优化手段|耗时(us)|带宽利用率|加速比|
 |--|--|--|--|
 |reduce_baseline|990.66us|39.57%|~|
-|reduce_v1_interleaved_addressing|484.03us|80.8%|2.04|
-|reduce_v2_bank_conflict_free|463.74us|83.82%|2.136|
+|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
+|reduce_v2_bank_conflict_free|462.02us|84.81%|2.144|
 
 可以看到相比于优化版本1性能和带宽又提升了一些。
 
@@ -236,18 +228,108 @@ __global__ void reduce_v2(float *g_idata,float *g_odata){
 
 这里的意思就是我们让每一轮迭代的空闲的线程也强行做一点工作，除了从global memory中取数之外再额外做一次加法。但需要注意的是，为了实现这个我们需要把block的数量调成之前的一半，因为这个Kernel现在每次需要管512个元素了。我们继续组织下代码并profile一下：
 
-<img width="1266" alt="图片" src="https://user-images.githubusercontent.com/35585791/210189818-117aaaa1-fc38-4cbc-b234-a04ef1902fd5.png">
+```c++
+#define N 32*1024*1024
+#define BLOCK_SIZE 256
+
+__global__ void reduce_v3(float *g_idata,float *g_odata){
+    __shared__ float sdata[BLOCK_SIZE];
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x*(blockDim.x*2) + threadIdx.x;
+    sdata[tid] = g_idata[i] + g_idata[i + blockDim.x];
+    __syncthreads();
+
+    // do reduction in shared mem
+    for(unsigned int s=blockDim.x/2; s>0; s >>= 1) {
+        if (tid < s){
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+
+    // write result for this block to global mem
+    if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+}
+```
 
 性能和带宽的测试情况如下：
 
 |优化手段|耗时(us)|带宽利用率|加速比|
 |--|--|--|--|
 |reduce_baseline|990.66us|39.57%|~|
-|reduce_v1_interleaved_addressing|484.03us|80.8%|2.04|
-|reduce_v2_bank_conflict_free|463.74us|83.82%|2.136|
-|reduce_v3_idle_threads_free|246.59us|81.85%|4.017|
+|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
+|reduce_v2_bank_conflict_free|462.02us|84.81%|2.144|
+|reduce_v3_idle_threads_free|244.16us|83.16%|4.057|
 
 
+### 优化手段4: 展开最后一个warp
+
+首先来看 PPT 的第20页：
+
+<img width="848" alt="图片" src="https://user-images.githubusercontent.com/35585791/210190048-725af5d0-bd72-427e-8cc2-fe69a29707a9.png">
 
 
+这里的意思是，对于 reduce_v3_idle_threads_free 这个 kernel 来说，它的带宽相比于理论带宽还差得比较远，因为 Reduce 操作并不是算术密集型的算子。因此，一个可能的瓶颈是指令的开销。这里说的指令不是加载，存储或者给计算核心用的辅算术指令。换句话说，这里的指令就是指地址算术指令和循环的开销。
+
+接下来 PPT 21指出了减少指令开销的优化方法：
+
+<img width="853" alt="图片" src="https://user-images.githubusercontent.com/35585791/210190343-481454de-aa01-41e7-860b-73645fc248c8.png">
+
+这里的意思是当reduce_v3_idle_threads_free kernel里面的s<=32时，此时的block中只有一个warp0在干活时，但线程还在进行同步操作。这一条语句造成了极大的指令浪费。由于一个warp的32个线程都是在同一个simd单元上，天然保持了同步的状态，所以当s<=32时，也即只有一个warp在工作时，完全可以把__syncthreads()这条同步语句去掉，使用手动展开的方式来代替。具体做法就是：
+
+<img width="878" alt="图片" src="https://user-images.githubusercontent.com/35585791/210190525-c479f89d-077a-4914-8f92-f858edb4f78a.png">
+
+
+**注意** 这里的warpReduce函数的参数使用了一个volatile修饰符号，volatile的中文意思是“易变的，不稳定的”，对于用volatile修饰的变量，编译器对访问该变量的代码不再优化，总是从它所在的内存读取数据。对于这个例子，如果不使用volatile，对于一个线程来说(假设线程ID就是tid)，它的s_data[tid]可能会被缓存在寄存器里面，且在某个时刻寄存器和shared memory里面s_data[tid]的数值还是不同的。当另外一个线程读取s_data[tid]做加法的时候，也许直接就从shared memory里面读取了旧的数值，从而导致了错误的结果。详情请参考：https://stackoverflow.com/questions/21205471/cuda-in-warp-reduction-and-volatile-keyword?noredirect=1&lq=1
+
+我们继续整理一下代码并profile一下：
+
+
+```c++
+__device__ void warpReduce(volatile float* cache, unsigned int tid){
+    cache[tid]+=cache[tid+32];
+    cache[tid]+=cache[tid+16];
+    cache[tid]+=cache[tid+8];
+    cache[tid]+=cache[tid+4];
+    cache[tid]+=cache[tid+2];
+    cache[tid]+=cache[tid+1];
+}
+
+__global__ void reduce_v4(float *g_idata,float *g_odata){
+    __shared__ float sdata[BLOCK_SIZE];
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x*(blockDim.x*2) + threadIdx.x;
+    sdata[tid] = g_idata[i] + g_idata[i + blockDim.x];
+    __syncthreads();
+
+    // do reduction in shared mem
+    for(unsigned int s=blockDim.x/2; s>32; s >>= 1) {
+        if (tid < s){
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+
+    // write result for this block to global mem
+    if (tid < 32) warpReduce(sdata, tid);
+    if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+}
+```
+
+性能和带宽的测试情况如下：
+
+|优化手段|耗时(us)|带宽利用率|加速比|
+|--|--|--|--|
+|reduce_baseline|990.66us|39.57%|~|
+|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
+|reduce_v2_bank_conflict_free|462.02us|84.81%|2.144|
+|reduce_v3_idle_threads_free|244.16us|83.16%|4.057|
+|reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
+
+
+### 优化手段5: 完全展开循环
 
