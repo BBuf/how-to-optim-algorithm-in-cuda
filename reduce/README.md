@@ -331,7 +331,7 @@ __global__ void reduce_v4(float *g_idata,float *g_odata){
 |reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
 
 
-这个地方我目前是有疑问的，nvidia的ppt指出这个kernel会继续提升性能和带宽，但是在我实测的时候发现性能确实继续提升了，但是带宽的利用率却下降了，目前想不清楚这个原因是什么？这里唯一的区别就是我使用的GPU是 A100-PCIE-40GB，而nvidia gpu上使用的gpu是 G80 GPU 。
+这个地方我目前是有疑问的，nvidia的ppt指出这个kernel会继续提升性能和带宽，但是在我实测的时候发现性能确实继续提升了，但是带宽的利用率却下降了，目前想不清楚这个原因是什么？这里唯一的区别就是我使用的GPU是 A100-PCIE-40GB，而nvidia gpu上使用的gpu是 G80 GPU 。欢迎大佬评论区指点。
 
 <img width="855" alt="图片" src="https://user-images.githubusercontent.com/35585791/210192978-ca711086-3daf-4a2d-bb5a-7f1eb123d347.png">
 
@@ -509,7 +509,7 @@ profile结果：
 
 ## 总结
 
-我这里的测试结果和nvidia ppt里提供的结果有一些出入，nvidia ppt的34页展示的结果是对于每一种优化相比于前一种无论是性能还是带宽都是稳步提升的。但我这里的测试结果不完全是这样，对于 reduce_v4_unroll_last_warp 和 reduce_v5_completely_unroll 这两个优化，虽然耗时近一步减少但是带宽却降低了，我也还没想清楚原因。
+我这里的测试结果和nvidia ppt里提供的结果有一些出入，nvidia ppt的34页展示的结果是对于每一种优化相比于前一种无论是性能还是带宽都是稳步提升的。但我这里的测试结果不完全是这样，对于 reduce_v4_unroll_last_warp 和 reduce_v5_completely_unroll 这两个优化，虽然耗时近一步减少但是带宽却降低了，我也还没想清楚原因。欢迎大佬评论区指点。
 
 
 <img width="835" alt="图片" src="https://user-images.githubusercontent.com/35585791/210202772-99b17637-9623-4703-9bd3-92330526eff5.png">
