@@ -89,7 +89,7 @@ int main() {
 }
 ```
 
-我们这里设定输入数据的长度是 `32*1024*1024` 个float数，然后每个 block 的线程数我们设定为 256 （BLOCK_SIZE = 256， 也就是一个 Block 有 8 个 warp）并且每个 Block 要计算的元素个数也是 256 个，然后当一个 Block 的计算完成后对应一个输出元素。所以对于输出数据来说，它的长度是输入数据长度处以 256 。我们代入 kernel 加载需要的 GridSize（`N / 256`） 和 BlockSize(`256`) 再来理解一下 BaseLine 的 Reduce kernel。
+我们这里设定输入数据的长度是 `32*1024*1024` 个float数 (也就是PPT中的4M数据)，然后每个 block 的线程数我们设定为 256 （BLOCK_SIZE = 256， 也就是一个 Block 有 8 个 warp）并且每个 Block 要计算的元素个数也是 256 个，然后当一个 Block 的计算完成后对应一个输出元素。所以对于输出数据来说，它的长度是输入数据长度处以 256 。我们代入 kernel 加载需要的 GridSize（`N / 256`） 和 BlockSize(`256`) 再来理解一下 BaseLine 的 Reduce kernel。
 
 首先，第 `tid` 号线程会把 global memroy 的第 i 号数据取出来，然后塞到 shared memroy 中。接下来针对已经存储到 shared memroy 中的 256 个元素展开多轮迭代，迭代的过程如 PPT 的第8页所示。完成迭代过程之后，这个 block 负责的256个元素的和都放到了 shared memrory 的0号位置，我们只需要将这个元素写回global memory就做完了。
 
@@ -114,4 +114,140 @@ int main() {
 这里是直接针对 BaseLine 中的 warp divergent 问题进行优化，通过调整BaseLine中的分支判断代码使得更多的线程可以走到同一个分支里面，降低迭代过程中的线程资源浪费。具体做法就是把 `if (tid % (2*s) == 0)` 替换成 strided index的方式也就是`int index = 2 * s * tid`，然后判断 index 是否在当前的 block 内。虽然这份优化后的代码没有完全消除if语句，但是我们可以来计算一下这个版本的代码在8次迭代中产生 warp divergent 的次数。对于第一次迭代，0-3号warp的index都是满足<blockDim.x的，而4-7号warp的index都是满足>=blockDim.x的，也就是说这次迭代根本不会出现warp divergent的问题，因为每个warp的32个线程执行的都是相同的分支。接下来对于第二代迭代，0，1两个warp是满足<blockDim.x的，其它warp则满足>=blockDim.x，依然不会出现warp divergent，以此类推直到第4次迭代时0号warp的前16个线程和后16线程会进入不同的分支，会产生一次warp divergent，接下来的迭代都分别会产生一次warp divergent。但从整体上看，这个版本的代码相比于BaseLine的代码产生的warp divergent次数会少得多。
 
 我们继续抄一下这个代码然后进行profile一下。
+
+```c++
+#define N 32*1024*1024
+#define BLOCK_SIZE 256
+
+__global__ void reduce_v1(float *g_idata,float *g_odata){
+    __shared__ float sdata[BLOCK_SIZE];
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+    sdata[tid] = g_idata[i];
+    __syncthreads();
+
+    // do reduction in shared mem
+    for(unsigned int s=1; s < blockDim.x; s *= 2) {
+        // if (tid % (2*s) == 0) {
+        //     sdata[tid] += sdata[tid + s];
+        // }
+        int index = 2 * s * tid;
+        if (index < blockDim.x) {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+
+    // write result for this block to global mem
+    if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+}
+```
+
+<img width="1273" alt="图片" src="https://user-images.githubusercontent.com/35585791/210175902-16e643a0-2548-46f5-96ae-cd87d7b8dfaa.png">
+
+性能和带宽的测试情况如下：
+
+|优化手段|耗时(us)|带宽利用率|加速比|
+|--|--|--|--|
+|reduce_baseline|990.66us|39.57%|~|
+|reduce_v1_interleaved_addressing|484.03us|80.8%|2.04|
+
+可以看到这个优化还是很有效的，相比于BaseLine的性能有2倍的提升。
+
+### 优化手段2: 解决Bank Conflict
+
+对于 reduce_v1_interleaved_addressing 来说，它最大的问题时产生了 Bank Conflict。使用 shared memory 有以下几个好处：
+
+- 更低的延迟（20-40倍）
+- 更高的带宽（约为15倍）
+- 更细的访问粒度，shared memory是4byte，global memory是32byte
+
+但是 shared memrory 的使用量存在一定上限，而使用 shared memory 要特别小心 bank conflict 。实际上，shared memory 是由 32 个 bank 组成的，如下面这张 PPT 所示：
+
+![](https://user-images.githubusercontent.com/42901638/137441153-9a6fb761-31fb-47d8-80f0-a76f863cd37a.png)
+
+而 bank conflict 指的就是在一个 warp 内，有2个或者以上的线程访问了同一个 bank 上不同地址的内存。比如：
+
+![](https://user-images.githubusercontent.com/42901638/137441265-1df63523-5dfe-4c28-acb0-a470d8003ddf.png)
+
+在 reduce_v1_interleaved_addressing 的 Kernel 中，我们以0号warp为例。在第一次迭代中，0号线程需要去加载 shared memory 的0号和1号地址，然后写回0号地址。此时，0号 warp 的16号线程需要加载 shared memory 的32和33号地址并且写回32号地址。所以，我们在一个warp内同时访问了一个bank的不同内存地址，发生了2路的 Bank Conflict，如上图所示。类似地，在第二次迭代过程中，0号warp的0号线程会加载0号和2号地址并写回0号地址，然后0号warp的8号线程需要加载 shared memory 的32号和34号地址（`2*2*8=32`， `32+2=34`）并写回32号线程，16号线程会加载64号和68号地址，24号线程会加载96号和100号地址。然后0，32，64，96号地址都在一个bank中，所以这里产生了4路的 Bank Conflict 。以此类推，下一次迭代会产生8路的 Bank Conflict，使得整个 Kernel 一直受到 Bank Conflict 的影响。
+
+接下来PPT为我们指出了避免Bank Conflict的方案，那就是把循环迭代的顺序修改一下：
+
+<img width="844" alt="图片" src="https://user-images.githubusercontent.com/35585791/210188948-68d02219-fcc3-40eb-8def-9d6c6515c220.png">
+
+为啥这样就可以避免Bank Conflict呢？我们继续分析一下0号wap的线程，首先在第一轮迭代中，0号线程现在需要加载0号以及128号地址，并且写回0号地址。而1号线程需要加载1号和129号地址并写回1号地址。2号线程需要加载2号和130号地址并写回2号地址。我们可以发现第0个warp的线程在第一轮迭代中刚好加载shared memory的一行数据，不会产生 bank conflict。接下来对于第2次迭代，0号warp仍然也是刚好加载shared memory的一行数据，不会产生 bank conflict 。对于第三次迭代，也是这样。而对于第4次迭代，0号线程load shared memory 0号和16号地址，而这个时候16号线程什么都不干被跳过了，因为s=16，16-31号线程不满足if的条件。整体过程如PPT的14页：
+
+<img width="882" alt="图片" src="https://user-images.githubusercontent.com/35585791/210189163-bc265a22-614c-439f-8c15-77d01c974f09.png">
+
+
+接下来我们修改下代码再profile一下：
+
+```c++
+#define N 32*1024*1024
+#define BLOCK_SIZE 256
+
+__global__ void reduce_v2(float *g_idata,float *g_odata){
+    __shared__ float sdata[BLOCK_SIZE];
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+    sdata[tid] = g_idata[i];
+    __syncthreads();
+
+    // do reduction in shared mem
+    for(unsigned int s=blockDim.x/2; s>0; s >>= 1) {
+        if (tid < s){
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+
+    // write result for this block to global mem
+    if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+}
+```
+
+
+<img width="1254" alt="图片" src="https://user-images.githubusercontent.com/35585791/210189289-ab9e6705-3ecd-45c8-bfd4-c290b1ade25f.png">
+
+性能和带宽的测试情况如下：
+
+|优化手段|耗时(us)|带宽利用率|加速比|
+|--|--|--|--|
+|reduce_baseline|990.66us|39.57%|~|
+|reduce_v1_interleaved_addressing|484.03us|80.8%|2.04|
+|reduce_v2_bank_conflict_free|463.74us|83.82%|2.136|
+
+可以看到相比于优化版本1性能和带宽又提升了一些。
+
+### 优化手段3: 解决 Idle 线程
+
+接下来PPT 17指出，reduce_v2_bank_conflict_free 的 kernel 浪费了大量的线程。对于第一轮迭代只有128个线程在工作，而第二轮迭代只有64个线程工作，第三轮迭代只有32和线程工作，以此类推，在每一轮迭代中都有大量的线程是空闲的。
+
+<img width="832" alt="图片" src="https://user-images.githubusercontent.com/35585791/210189409-b6703003-964b-4cfd-9229-8d3362e90b1e.png">
+
+那么可以如何避免这种情况呢？PPT 18给了一个解决方法：
+
+<img width="841" alt="图片" src="https://user-images.githubusercontent.com/35585791/210189468-3517392b-9677-4c52-be5b-6dee7e63db68.png">
+
+这里的意思就是我们让每一轮迭代的空闲的线程也强行做一点工作，除了从global memory中取数之外再额外做一次加法。但需要注意的是，为了实现这个我们需要把block的数量调成之前的一半，因为这个Kernel现在每次需要管512个元素了。我们继续组织下代码并profile一下：
+
+<img width="1266" alt="图片" src="https://user-images.githubusercontent.com/35585791/210189818-117aaaa1-fc38-4cbc-b234-a04ef1902fd5.png">
+
+性能和带宽的测试情况如下：
+
+|优化手段|耗时(us)|带宽利用率|加速比|
+|--|--|--|--|
+|reduce_baseline|990.66us|39.57%|~|
+|reduce_v1_interleaved_addressing|484.03us|80.8%|2.04|
+|reduce_v2_bank_conflict_free|463.74us|83.82%|2.136|
+|reduce_v3_idle_threads_free|246.59us|81.85%|4.017|
+
+
+
+
 
