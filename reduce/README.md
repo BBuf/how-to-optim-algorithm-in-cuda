@@ -1,6 +1,6 @@
 ## reduce优化学习笔记
 
-这里记录学习 NIVDIA 的[reduce优化官方博客](https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf) 以及 [Liu-xiandong的cuda优化工程之reduce部分博客](https://github.com/Liu-xiandong/How_to_optimize_in_GPU/tree/master/reduce) 做的笔记。
+这里记录学习 NIVDIA 的[reduce优化官方博客](https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf) 做的笔记。完整实验代码见：https://github.com/BBuf/how-to-optim-algorithm-in-cuda
 
 ### 问题介绍
 
@@ -331,5 +331,196 @@ __global__ void reduce_v4(float *g_idata,float *g_odata){
 |reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
 
 
+这个地方我目前是有疑问的，nvidia的ppt指出这个kernel会继续提升性能和带宽，但是在我实测的时候发现性能确实继续提升了，但是带宽的利用率却下降了，目前想不清楚这个原因是什么？这里唯一的区别就是我使用的GPU是 A100-PCIE-40GB，而nvidia gpu上使用的gpu是 G80 GPU 。
+
+<img width="855" alt="图片" src="https://user-images.githubusercontent.com/35585791/210192978-ca711086-3daf-4a2d-bb5a-7f1eb123d347.png">
+
 ### 优化手段5: 完全展开循环
+
+在 reduce_v4_unroll_last_warp kernel 的基础上就很难再继续优化了，但为了极致的性能NVIDIA的PPT上给出了对for循环进行完全展开的方案。
+
+<img width="852" alt="图片" src="https://user-images.githubusercontent.com/35585791/210197961-a7b30a16-7894-4fab-aaf8-4cac6daf8dc0.png">
+
+这种方案的实现如下：
+
+<img width="856" alt="图片" src="https://user-images.githubusercontent.com/35585791/210198028-1c9d5acd-a674-4db3-a8c9-06efeab076ee.png">
+
+kernel的代码实现如下：
+
+```c++
+template <unsigned int blockSize>
+__device__ void warpReduce(volatile float* cache,int tid){
+    if(blockSize >= 64)cache[tid]+=cache[tid+32];
+    if(blockSize >= 32)cache[tid]+=cache[tid+16];
+    if(blockSize >= 16)cache[tid]+=cache[tid+8];
+    if(blockSize >= 8)cache[tid]+=cache[tid+4];
+    if(blockSize >= 4)cache[tid]+=cache[tid+2];
+    if(blockSize >= 2)cache[tid]+=cache[tid+1];
+}
+
+template <unsigned int blockSize>
+__global__ void reduce_v5(float *g_idata,float *g_odata){
+    __shared__ float sdata[BLOCK_SIZE];
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x*(blockDim.x*2) + threadIdx.x;
+    sdata[tid] = g_idata[i] + g_idata[i + blockDim.x];
+    __syncthreads();
+
+    // do reduction in shared mem
+    if(blockSize>=512){
+        if(tid<256){
+            sdata[tid]+=sdata[tid+256];
+        }
+        __syncthreads();
+    }
+    if(blockSize>=256){
+        if(tid<128){
+            sdata[tid]+=sdata[tid+128];
+        }
+        __syncthreads();
+    }
+    if(blockSize>=128){
+        if(tid<64){
+            sdata[tid]+=sdata[tid+64];
+        }
+        __syncthreads();
+    }
+    
+    // write result for this block to global mem
+    if(tid<32)warpReduce<blockSize>(sdata,tid);
+    if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+}
+```
+
+性能和带宽的测试情况如下：
+
+|优化手段|耗时(us)|带宽利用率|加速比|
+|--|--|--|--|
+|reduce_baseline|990.66us|39.57%|~|
+|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
+|reduce_v2_bank_conflict_free|462.02us|84.81%|2.144|
+|reduce_v3_idle_threads_free|244.16us|83.16%|4.057|
+|reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
+|reduce_v5_completely_unroll|158.78us|56.94%|6.239|
+
+### 优化手段6: 调节BlockSize和GridSize
+
+PPT的第31页为我们展示了最后一个优化技巧：
+
+<img width="852" alt="图片" src="https://user-images.githubusercontent.com/35585791/210200927-25fcca1e-2b3c-443f-847d-47314bfaaeb2.png">
+
+这里的意思就是我们还可以通过调整GridSize和BlockSize的方式获得更好的性能收益，也就是说一个线程负责更多的元素计算。对应到代码的修改就是：
+
+<img width="858" alt="图片" src="https://user-images.githubusercontent.com/35585791/210201113-f653c9bf-fda9-437f-bdad-0d6dc16d452c.png">
+
+这里再贴一下kernel的代码：
+
+```c++
+template <unsigned int blockSize>
+__device__ void warpReduce(volatile float* cache,int tid){
+    if(blockSize >= 64)cache[tid]+=cache[tid+32];
+    if(blockSize >= 32)cache[tid]+=cache[tid+16];
+    if(blockSize >= 16)cache[tid]+=cache[tid+8];
+    if(blockSize >= 8)cache[tid]+=cache[tid+4];
+    if(blockSize >= 4)cache[tid]+=cache[tid+2];
+    if(blockSize >= 2)cache[tid]+=cache[tid+1];
+}
+
+template <unsigned int blockSize, int NUM_PER_THREAD>
+__global__ void reduce_v6(float *g_idata,float *g_odata){
+    __shared__ float sdata[BLOCK_SIZE];
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x*(blockDim.x * NUM_PER_THREAD) + threadIdx.x;
+    sdata[tid] = 0;
+    #pragma unroll
+    for(int iter=0; iter<NUM_PER_THREAD; iter++){
+        sdata[tid] += g_idata[i+iter*blockSize];
+    }
+    __syncthreads();
+
+    // do reduction in shared mem
+    if(blockSize>=512){
+        if(tid<256){
+            sdata[tid]+=sdata[tid+256];
+        }
+        __syncthreads();
+    }
+    if(blockSize>=256){
+        if(tid<128){
+            sdata[tid]+=sdata[tid+128];
+        }
+        __syncthreads();
+    }
+    if(blockSize>=128){
+        if(tid<64){
+            sdata[tid]+=sdata[tid+64];
+        }
+        __syncthreads();
+    }
+    
+    // write result for this block to global mem
+    if(tid<32)warpReduce<blockSize>(sdata,tid);
+    if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+}
+
+int main() {
+    float *input_host = (float*)malloc(N*sizeof(float));
+    float *input_device;
+    cudaMalloc((void **)&input_device, N*sizeof(float));
+    for (int i = 0; i < N; i++) input_host[i] = 2.0;
+    cudaMemcpy(input_device, input_host, N*sizeof(float), cudaMemcpyHostToDevice);
+
+    const int block_num = 1024;
+    const int NUM_PER_BLOCK = N / block_num;
+    const int NUM_PER_THREAD = NUM_PER_BLOCK / BLOCK_SIZE;
+    float *output_host = (float*)malloc((block_num) * sizeof(float));
+    float *output_device;
+    cudaMalloc((void **)&output_device, (block_num) * sizeof(float));
+    
+    dim3 grid(block_num, 1);
+    dim3 block(BLOCK_SIZE, 1);
+    reduce_v6<BLOCK_SIZE ,NUM_PER_THREAD><<<grid, block>>>(input_device, output_device);
+    cudaMemcpy(output_device, output_host, block_num * sizeof(float), cudaMemcpyDeviceToHost);
+    return 0;
+}
+```
+
+profile结果：
+
+<img width="1266" alt="图片" src="https://user-images.githubusercontent.com/35585791/210202386-ce382782-0543-4e20-9ea4-8bc14b3aac08.png">
+
+性能和带宽的测试情况如下：
+
+|优化手段|耗时(us)|带宽利用率|加速比|
+|--|--|--|--|
+|reduce_baseline|990.66us|39.57%|~|
+|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
+|reduce_v2_bank_conflict_free|462.02us|84.81%|2.144|
+|reduce_v3_idle_threads_free|244.16us|83.16%|4.057|
+|reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
+|reduce_v5_completely_unroll|158.78us|56.94%|6.239|
+|reduce_v6_multi_add|105.47us|85.75%|9.392|
+
+在把block_num从65536调整到1024之后，无论是性能还是带宽都达到了最强，相比于最初的BaseLine加速了9.4倍。
+
+## 总结
+
+我这里的测试结果和nvidia ppt里提供的结果有一些出入，nvidia ppt的34页展示的结果是对于每一种优化相比于前一种无论是性能还是带宽都是稳步提升的。但我这里的测试结果不完全是这样，对于 reduce_v4_unroll_last_warp 和 reduce_v5_completely_unroll 这两个优化，虽然耗时近一步减少但是带宽却降低了，我也还没想清楚原因。
+
+
+<img width="835" alt="图片" src="https://user-images.githubusercontent.com/35585791/210202772-99b17637-9623-4703-9bd3-92330526eff5.png">
+
+并且最终的Kernel带宽利用率为 73 / 86.4 = 84.5% ，和我在A100上的reduce_v6_multi_add kernel的测试结果基本相当。
+
+后续我再换个gpu试一试，把数据同步到这里：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/reduce/README.md
+
+## 参考
+
+- https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
+- https://zhuanlan.zhihu.com/p/426978026
+- https://mp.weixin.qq.com/s/1_ao9xM6Qk3JaavptChXew
 
