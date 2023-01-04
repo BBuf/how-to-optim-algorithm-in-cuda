@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cuda_fp16.h>
 using namespace std;
-#define N 1*1024
+#define N 32*1024*1024
 #define kBlockSize 256
 
 // vector inner product
