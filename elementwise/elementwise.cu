@@ -209,6 +209,11 @@ struct MultiplyFunctor {
   }
 };
 
+__global__ void mul(float *x, float *y, float* z){
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  z[idx] = x[idx] * y[idx];
+}
+
 int main(){
     float *x_host = (float*)malloc(N*sizeof(float));
     float *x_device;
@@ -226,6 +231,14 @@ int main(){
     float *output_device;
     cudaMalloc((void **)&output_device, N * sizeof(float));
 
+    // naive elementwise
+    int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
+    dim3 grid(block_num, 1);
+    dim3 block(kBlockSize, 1);
+    mul<<<grid, block>>>(x_device, y_device, output_device);
+    cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // elementwise template
     Binary(MultiplyFunctor<float>(), N, output_device, x_device, y_device);
     cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
     free(x_host);
