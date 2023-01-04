@@ -3,6 +3,7 @@
 #include <time.h>
 #include <algorithm>
 #include <iostream>
+#include <cuda_fp16.h>
 using namespace std;
 
 #define N 32 * 1024 * 1024
@@ -209,38 +210,61 @@ struct MultiplyFunctor {
   }
 };
 
-__global__ void mul(float *x, float *y, float* z){
+template<>
+struct MultiplyFunctor<half> {
+  __device__ half operator()(half x, half y) const {
+    return x*y;
+  }
+#if (__CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000)
+  __device__ void Apply2(half* z, const half* x, const half* y) const {
+    const half2 x2 = *(reinterpret_cast<const half2*>(x));
+    const half2 y2 = *(reinterpret_cast<const half2*>(y));
+    *reinterpret_cast<half2*>(z) = __hmul2(x2, y2);
+  }
+#endif  // (__CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000)
+};
+
+template<typename T>
+__global__ void mul(T *x, T *y, T* z){
   int idx = threadIdx.x + blockIdx.x * blockDim.x;
   z[idx] = x[idx] * y[idx];
 }
 
+template<>
+__global__ void mul(half *x, half *y, half* z){
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  z[idx] = x[idx] * y[idx];
+}
+
+
+
 int main(){
-    float *x_host = (float*)malloc(N*sizeof(float));
-    float *x_device;
-    cudaMalloc((void **)&x_device, N*sizeof(float));
+    half *x_host = (half*)malloc(N*sizeof(half));
+    half *x_device;
+    cudaMalloc((void **)&x_device, N*sizeof(half));
     for (int i = 0; i < N; i++) x_host[i] = 2.0;
-    cudaMemcpy(x_device, x_host, N*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(x_device, x_host, N*sizeof(half), cudaMemcpyHostToDevice);
 
-    float *y_host = (float*)malloc(N*sizeof(float));
-    float *y_device;
-    cudaMalloc((void **)&y_device, N*sizeof(float));
+    half *y_host = (half*)malloc(N*sizeof(half));
+    half *y_device;
+    cudaMalloc((void **)&y_device, N*sizeof(half));
     for (int i = 0; i < N; i++) y_host[i] = 2.0;
-    cudaMemcpy(y_device, y_host, N*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(y_device, y_host, N*sizeof(half), cudaMemcpyHostToDevice);
 
-    float *output_host = (float*)malloc(N * sizeof(float));
-    float *output_device;
-    cudaMalloc((void **)&output_device, N * sizeof(float));
+    half *output_host = (half*)malloc(N * sizeof(half));
+    half *output_device;
+    cudaMalloc((void **)&output_device, N * sizeof(half));
 
     // naive elementwise
     int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
     dim3 grid(block_num, 1);
     dim3 block(kBlockSize, 1);
-    mul<<<grid, block>>>(x_device, y_device, output_device);
-    cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
+    mul<half><<<grid, block>>>(x_device, y_device, output_device);
+    cudaMemcpy(output_device, output_host, N * sizeof(half), cudaMemcpyDeviceToHost);
 
     // elementwise template
-    Binary(MultiplyFunctor<float>(), N, output_device, x_device, y_device);
-    cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
+    Binary(MultiplyFunctor<half>(), N, output_device, x_device, y_device);
+    cudaMemcpy(output_device, output_host, N * sizeof(half), cudaMemcpyDeviceToHost);
     free(x_host);
     free(y_host);
     free(output_host);
@@ -249,3 +273,40 @@ int main(){
     cudaFree(output_device);
     return 0;
 }
+
+// float dtype
+// int main(){
+//     float *x_host = (float*)malloc(N*sizeof(float));
+//     float *x_device;
+//     cudaMalloc((void **)&x_device, N*sizeof(float));
+//     for (int i = 0; i < N; i++) x_host[i] = 2.0;
+//     cudaMemcpy(x_device, x_host, N*sizeof(float), cudaMemcpyHostToDevice);
+
+//     float *y_host = (float*)malloc(N*sizeof(float));
+//     float *y_device;
+//     cudaMalloc((void **)&y_device, N*sizeof(float));
+//     for (int i = 0; i < N; i++) y_host[i] = 2.0;
+//     cudaMemcpy(y_device, y_host, N*sizeof(float), cudaMemcpyHostToDevice);
+
+//     float *output_host = (float*)malloc(N * sizeof(float));
+//     float *output_device;
+//     cudaMalloc((void **)&output_device, N * sizeof(float));
+
+//     // naive elementwise
+//     int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
+//     dim3 grid(block_num, 1);
+//     dim3 block(kBlockSize, 1);
+//     mul<float><<<grid, block>>>(x_device, y_device, output_device);
+//     cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
+
+//     // elementwise template
+//     Binary(MultiplyFunctor<float>(), N, output_device, x_device, y_device);
+//     cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
+//     free(x_host);
+//     free(y_host);
+//     free(output_host);
+//     cudaFree(x_device);
+//     cudaFree(y_device);
+//     cudaFree(output_device);
+//     return 0;
+// }
