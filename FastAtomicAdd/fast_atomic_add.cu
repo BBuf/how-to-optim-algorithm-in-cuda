@@ -106,6 +106,7 @@ int main(){
     half *output_host = (half*)malloc(2 * sizeof(half));
     half *output_device;
     cudaMalloc((void **)&output_device, 2 * sizeof(half));
+    cudaMemset(&output_device, 0, sizeof(half) * 2);
     Pack<half, 2>* output_pack = reinterpret_cast<Pack<half, 2>*>(output_device);
 
     int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
