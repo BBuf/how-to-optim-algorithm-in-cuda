@@ -79,7 +79,7 @@ __global__ void dot(Pack<T, pack_size>* a, Pack<T, pack_size>* b, Pack<T, pack_s
     const int nStep = gridDim.x * blockDim.x;
     double temp = 0.0;
     int gid = blockIdx.x * blockDim.x + threadIdx.x;
-    while (gid < n) {
+    while (gid < n / pack_size) {
         for (int i = 0; i < pack_size; i++) {
             temp += static_cast<double>(a[gid].elem[i]) * static_cast<double>(b[gid].elem[i]);
         }
@@ -99,7 +99,7 @@ int main(){
     half *y_host = (half*)malloc(N*sizeof(half));
     half *y_device;
     cudaMalloc((void **)&y_device, N*sizeof(half));
-    for (int i = 0; i < N; i++) y_host[i] = 0.001;
+    for (int i = 0; i < N; i++) y_host[i] = 1.0;
     cudaMemcpy(y_device, y_host, N*sizeof(half), cudaMemcpyHostToDevice);
     Pack<half, 2>* y_pack = reinterpret_cast<Pack<half, 2>*>(y_device);
 
@@ -109,12 +109,12 @@ int main(){
     cudaMemset(&output_device, 0, sizeof(half) * 2);
     Pack<half, 2>* output_pack = reinterpret_cast<Pack<half, 2>*>(output_device);
 
-    int32_t block_num = (N / 2 + kBlockSize - 1) / kBlockSize;
+    int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
     dim3 grid(block_num, 1);
     dim3 block(kBlockSize, 1);
-    dot<half, 2><<<grid, block>>>(x_pack, y_pack, output_pack, N / 2);
+    dot<half, 2><<<grid, block>>>(x_pack, y_pack, output_pack, N);
     cudaMemcpy(output_host, output_device, 2 * sizeof(half), cudaMemcpyDeviceToHost);
-    printf("%.6f\n", static_cast<float>(output_host[0])); // the right answer should be 0.001*0.001*N=0.000001*32*1024*1024=33.554432
+    printf("%.6f\n", static_cast<float>(output_host[0])); // the right answer should be 0.001*1.0*N=0.001*32*1024*1024=33.554432
 
     free(x_host);
     free(y_host);
