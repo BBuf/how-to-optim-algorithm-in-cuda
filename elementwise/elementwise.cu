@@ -261,11 +261,11 @@ int main(){
     dim3 grid(block_num, 1);
     dim3 block(kBlockSize, 1);
     mul<half><<<grid, block>>>(x_device, y_device, output_device);
-    cudaMemcpy(output_device, output_host, N * sizeof(half), cudaMemcpyDeviceToHost);
+    cudaMemcpy(output_host, output_device, N * sizeof(half), cudaMemcpyDeviceToHost);
 
     // elementwise template
     Binary(MultiplyFunctor<half>(), N, output_device, x_device, y_device);
-    cudaMemcpy(output_device, output_host, N * sizeof(half), cudaMemcpyDeviceToHost);
+    cudaMemcpy(output_host, output_device, N * sizeof(half), cudaMemcpyDeviceToHost);
     free(x_host);
     free(y_host);
     free(output_host);
@@ -298,11 +298,11 @@ int main(){
 //     dim3 grid(block_num, 1);
 //     dim3 block(kBlockSize, 1);
 //     mul<float><<<grid, block>>>(x_device, y_device, output_device);
-//     cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
+//     cudaMemcpy(output_host, output_device, N * sizeof(float), cudaMemcpyDeviceToHost);
 
 //     // elementwise template
 //     Binary(MultiplyFunctor<float>(), N, output_device, x_device, y_device);
-//     cudaMemcpy(output_device, output_host, N * sizeof(float), cudaMemcpyDeviceToHost);
+//     cudaMemcpy(output_host, output_device, N * sizeof(float), cudaMemcpyDeviceToHost);
 //     free(x_host);
 //     free(y_host);
 //     free(output_host);

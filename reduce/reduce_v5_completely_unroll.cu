@@ -65,7 +65,7 @@ int main() {
     dim3 grid(block_num, 1);
     dim3 block(BLOCK_SIZE, 1);
     reduce_v5<BLOCK_SIZE><<<grid, block>>>(input_device, output_device);
-    cudaMemcpy(output_device, output_host, block_num * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(output_host, output_device, block_num * sizeof(float), cudaMemcpyDeviceToHost);
     return 0;
 }
 

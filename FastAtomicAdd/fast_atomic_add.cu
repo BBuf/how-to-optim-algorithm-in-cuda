@@ -117,7 +117,7 @@ int main(){
     dim3 grid(block_num, 1);
     dim3 block(kBlockSize, 1);
     dot<half, 2><<<grid, block>>>(x_pack, y_pack, output_pack, N);
-    cudaMemcpy(output_device, output_host, 2 * sizeof(half), cudaMemcpyDeviceToHost);
+    cudaMemcpy(output_host, output_device, 2 * sizeof(half), cudaMemcpyDeviceToHost);
     printf("%.6f\n", static_cast<float>(output_host[0])); // the right answer should be 0.001*0.001*N=0.000001*32*1024*1024=33.554432
 
     free(x_host);

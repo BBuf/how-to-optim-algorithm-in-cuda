@@ -41,6 +41,6 @@ int main() {
     dim3 grid(N / BLOCK_SIZE, 1);
     dim3 block(BLOCK_SIZE, 1);
     reduce_v2<<<grid, block>>>(input_device, output_device);
-    cudaMemcpy(output_device, output_host, block_num * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(output_host, output_device, block_num * sizeof(float), cudaMemcpyDeviceToHost);
     return 0;
 }
