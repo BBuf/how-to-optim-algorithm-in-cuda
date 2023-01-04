@@ -52,11 +52,6 @@ __device__ __forceinline__ void FastAdd(T* base, size_t offset, const size_t len
 
 // vector inner product
 
-template<typename T>
-struct DefaultComputeType {
-  using type = T;
-};
-
 template<typename T, size_t pack_size>
 struct alignas(sizeof(T) * pack_size) Pack {
   T elem[pack_size];
