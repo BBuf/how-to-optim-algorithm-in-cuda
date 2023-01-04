@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cuda_fp16.h>
 using namespace std;
-#define N 32*1024*2024
+#define N 1*1024
 #define kBlockSize 256
 
 // FastAdd is referenced from
@@ -59,7 +59,7 @@ struct alignas(sizeof(T) * pack_size) Pack {
 
 template<typename T, int32_t pack_size>
 __device__ __inline__ void AtomicAdd(Pack<T, pack_size>* address,
-                                     double val) {
+                                     T val) {
 #pragma unroll
   for (int i = 0; i < pack_size; ++i) {
     atomicAdd(reinterpret_cast<T*>(address) + i, static_cast<T>(val));
@@ -67,7 +67,7 @@ __device__ __inline__ void AtomicAdd(Pack<T, pack_size>* address,
 }
 
 template<>
-__device__ __inline__ void AtomicAdd<half, 2>(Pack<half, 2>* address, double val) {
+__device__ __inline__ void AtomicAdd<half, 2>(Pack<half, 2>* address, half val) {
   half2 h2_val;
   h2_val.x = static_cast<half>(val);
   h2_val.y = static_cast<half>(val);
@@ -77,11 +77,11 @@ __device__ __inline__ void AtomicAdd<half, 2>(Pack<half, 2>* address, double val
 template<typename T, int32_t pack_size>
 __global__ void dot(Pack<T, pack_size>* a, Pack<T, pack_size>* b, Pack<T, pack_size>* c, int n){
     const int nStep = gridDim.x * blockDim.x;
-    double temp = 0.0;
+    T temp = 0.0;
     int gid = blockIdx.x * blockDim.x + threadIdx.x;
     while (gid < n / pack_size) {
         for (int i = 0; i < pack_size; i++) {
-            temp += static_cast<double>(a[gid].elem[i]) * static_cast<double>(b[gid].elem[i]);
+            temp = temp + a[gid].elem[i] * b[gid].elem[i];
         }
         gid += nStep;
     }
@@ -92,7 +92,7 @@ int main(){
     half *x_host = (half*)malloc(N*sizeof(half));
     half *x_device;
     cudaMalloc((void **)&x_device, N*sizeof(half));
-    for (int i = 0; i < N; i++) x_host[i] = 0.001;
+    for (int i = 0; i < N; i++) x_host[i] = 1.0;
     cudaMemcpy(x_device, x_host, N*sizeof(half), cudaMemcpyHostToDevice);
     Pack<half, 2>* x_pack = reinterpret_cast<Pack<half, 2>*>(x_device);
 
@@ -114,8 +114,7 @@ int main(){
     dim3 block(kBlockSize, 1);
     dot<half, 2><<<grid, block>>>(x_pack, y_pack, output_pack, N);
     cudaMemcpy(output_host, output_device, 2 * sizeof(half), cudaMemcpyDeviceToHost);
-    printf("%.6f\n", static_cast<float>(output_host[0])); // the right answer should be 0.001*1.0*N=0.001*32*1024*1024=33.554432
-
+    printf("%.6f\n", static_cast<double>(output_host[0]));
     free(x_host);
     free(y_host);
     free(output_host);
