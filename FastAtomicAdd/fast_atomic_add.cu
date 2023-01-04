@@ -87,8 +87,8 @@ __global__ void dot(Pack<T, pack_size>* a, Pack<T, pack_size>* b, Pack<T, pack_s
     while (gid < n) {
         for (int i = 0; i < pack_size; i++) {
             temp += static_cast<double>(a[gid].elem[i]) * static_cast<double>(b[gid].elem[i]);
-            gid += nStep;
         }
+        gid += nStep;
     }
     AtomicAdd<T, pack_size>(c, temp);
 }
