@@ -109,10 +109,10 @@ int main(){
     cudaMemset(&output_device, 0, sizeof(half) * 2);
     Pack<half, 2>* output_pack = reinterpret_cast<Pack<half, 2>*>(output_device);
 
-    int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
+    int32_t block_num = (N / 2 + kBlockSize - 1) / kBlockSize;
     dim3 grid(block_num, 1);
     dim3 block(kBlockSize, 1);
-    dot<half, 2><<<grid, block>>>(x_pack, y_pack, output_pack, N);
+    dot<half, 2><<<grid, block>>>(x_pack, y_pack, output_pack, N / 2);
     cudaMemcpy(output_host, output_device, 2 * sizeof(half), cudaMemcpyDeviceToHost);
     printf("%.6f\n", static_cast<float>(output_host[0])); // the right answer should be 0.001*0.001*N=0.000001*32*1024*1024=33.554432
 
