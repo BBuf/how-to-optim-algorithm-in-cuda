@@ -31,7 +31,9 @@
 
 可以看到无论是性能还是带宽，使用 oneflow 的 elementwise 模板相比于原始实现都有较大提升。
 
-### 3. 学习笔记相关博客
+### 3. FastAtomicAdd
+
+### 4. 学习笔记相关博客
 
 - [【BBuf 的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)

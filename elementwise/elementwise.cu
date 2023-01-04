@@ -7,6 +7,7 @@
 using namespace std;
 
 #define N 32 * 1024 * 1024
+// elementwise implementation copyed from https://github.com/Oneflow-Inc/oneflow/blob/master/oneflow/core/cuda/elementwise.cuh
 constexpr int kBlockSize = 256;
 constexpr int kNumWaves = 32;
 
