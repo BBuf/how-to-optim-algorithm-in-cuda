@@ -1,6 +1,6 @@
 ## how-to-optim-algorithm-in-cuda
 
-本工程记录如何基于 cuda 优化一些常见的算法。
+本工程记录如何基于 cuda 优化一些常见的算法。请注意，下面的介绍都分别对应了子目录的代码实现，所以想复现性能的话请查看对应子目录下面的 README 。
 
 ### 1. reduce学习
 
@@ -49,7 +49,25 @@
 
 可以看到使用pack half的方式和直接使用half的fastAtomicAdd方式得到的性能结果一致，均比原始的half的原子加快3-4倍。
 
-### 4. 学习笔记相关博客
+### 4. UpsampleNearest2D
+
+upsample_nearest_2d.cu 展示了 oneflow 对 upsample_nearest2d 的前后向的优化 kernel 的用法，性能和带宽的测试情况如下 (A100 PCIE 40G)：
+
+|框架|数据类型|Op类型|带宽利用率|耗时|
+|--|--|--|--|--|
+| PyTorch | Float32 | UpsampleNearest2D forward | 28.30% | 111.42us |
+| PyTorch | Float32 | UpsampleNearest2D backward | 60.16% | 65.12us |
+| OneFlow | Float32 |UpsampleNearest2D forward | 52.18% | 61.44us |
+| OneFlow | Float32 |UpsampleNearest2D backward | 77.66% | 50.56us |
+| PyTorch | Float16 | UpsampleNearest2D forward | 16.99% | 100.38us |
+| PyTorch | Float16 | UpsampleNearest2D backward | 31.56% | 57.38us |
+| OneFlow | Float16 |UpsampleNearest2D forward | 43.26% | 35.36us |
+| OneFlow | Float16 |UpsampleNearest2D backward | 44.82% | 40.26us |
+
+可以看到基于 oneflow upsample_nearest2d 的前后向的优化 kernel 可以获得更好的带宽利用率和性能。
+
+
+### 5. 学习笔记相关博客
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
