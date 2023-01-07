@@ -64,7 +64,7 @@ upsample_nearest_2d.cu 展示了 oneflow 对 upsample_nearest2d 的前后向的�
 | OneFlow | Float16 |UpsampleNearest2D forward | 43.26% | 35.36us |
 | OneFlow | Float16 |UpsampleNearest2D backward | 44.82% | 40.26us |
 
-可以看到基于 oneflow upsample_nearest2d 的前后向的优化 kernel 可以获得更好的带宽利用率和性能。
+可以看到基于 oneflow upsample_nearest2d 的前后向的优化 kernel 可以获得更好的带宽利用率和性能。注意这里的 profile 使用的是 oneflow 脚本，而不是 upsample_nearest_2d.cu ，详情请看 [UpsampleNearest2D/README.md](UpsampleNearest2D/README.md) 。
 
 
 ### 5. 学习笔记相关博客
