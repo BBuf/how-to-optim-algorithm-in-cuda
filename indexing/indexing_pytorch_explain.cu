@@ -577,6 +577,7 @@ void index_add_cuda_impl(const Tensor& self, int64_t dim, const Tensor& index, c
   // 获取GPU SM的数量
   const int mpc = at::cuda::getCurrentDeviceProperties()->multiProcessorCount;
 
+
 #define SMALL_INDEX(TENSOR_TYPE, INDICES_TYPE, TYPE, SELF_DIM, SOURCE_DIM, IDX_DIM)     \
   indexFuncSmallIndex<TENSOR_TYPE, INDICES_TYPE, TYPE, SELF_DIM, SOURCE_DIM, IDX_DIM>   \
     <<<smallIndexGrid, smallIndexBlock, 0, stream>>>(                                   \
@@ -634,7 +635,11 @@ void index_add_cuda_impl(const Tensor& self, int64_t dim, const Tensor& index, c
 
         // A reasonable choice for when to have each thread iterate over
         // index to choose
-        // 这里的意思就是分类讨论什么时候让每个线程跨index去做操作
+        // 这里的意思就是分类讨论什么时候跨index去做选择，也即只遍历一次index完成计算
+        // template <typename T, typename IndicesType, typename IndexType, int DstDim, int SrcDim, int IdxDim,
+        //  typename func_t>
+        
+        // 判断条件为当index的元素数量<=16时启用indexFuncSmallIndex kernel
         if (numIndex <= 16) {
           if (selfInfo.dims == 1 && sourceInfo.dims == 1 && indContig) {
             SMALL_INDEX(scalar_t, index_t, unsigned int, 1, 1, -2);
