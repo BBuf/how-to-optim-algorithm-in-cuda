@@ -388,6 +388,19 @@ static ptrdiff_t getSliceSize(const Tensor & dst,
 // 这个kernel实际上适用于几乎所有问题大小的选择，但如果选择的索引数量很大，
 // 那么indexFuncLargeIndex Kernel是增加并行度的更好选择。
 // 下面的innerSize就是输人的self张量忽略dim维度的切片大小，对于每一个indices[i]，我们都要处理innerSize个元素的copy
+
+// selfAddDim(dstAddDim) = 0
+// sourceAddDim(srcAddDim) = 0
+// sliceSize(innerSize) = 3
+// selfAddDimSize(dstAddDimSize) = 5
+// selfNumel(dstNumel) = 15
+// selfInfo.sizes(dst): 1, 3, 
+// selfInfo.strides(dst): 3, 1,
+// sourceInfo.sizes(src): 1, 3, 
+// sourceInfo.strides(src): 3, 1
+// indexInfo.sizes(indices): 3, 
+// indexInfo.strides(indices): 1,
+
 template <typename T, typename IndicesType, typename IndexType, int DstDim, int SrcDim, int IdxDim,
           typename func_t>
 __global__ void indexFuncSmallIndex(cuda::detail::TensorInfo<T, IndexType> dst,
@@ -440,6 +453,9 @@ __global__ void indexFuncSmallIndex(cuda::detail::TensorInfo<T, IndexType> dst,
 // the number of indices chosen is small, then the
 // indexFuncSmallIndex kernel is a better choice to reduce memory
 // accesses.
+// 如果索引的数量很大，我们更喜欢使用在这个Kernel来平衡跨index的并行度。
+// 这个Kernel实际上适用于几乎所有问题大小的选择，但如果选择的索引数量很少，
+// 那么indexFuncSmallIndex Kernel是减少内存访问的更好的选择
 template <typename T, typename IndicesType, typename IndexType, int DstDim, int SrcDim, int IdxDim,
           bool IndexIsMajor, typename func_t>
 __global__ void indexFuncLargeIndex(cuda::detail::TensorInfo<T, IndexType> dst,
@@ -455,6 +471,7 @@ __global__ void indexFuncLargeIndex(cuda::detail::TensorInfo<T, IndexType> dst,
                                     T alpha) {
   // We stride over the output including the indexed dimension
   // (totalSize), and calculate the destination index point based on that
+  // 我们跨过包含索引维度（totalSize）的输出，并基于此计算目标索引点
   for (IndexType linearIndex = blockIdx.x * blockDim.x + threadIdx.x;
        linearIndex < totalSize;
        linearIndex += gridDim.x * blockDim.x) {
@@ -492,10 +509,13 @@ __global__ void indexFuncLargeIndex(cuda::detail::TensorInfo<T, IndexType> dst,
 // - Returns true if some dimension inside the slice has lower stride than
 //   sliceStride.  The simplest example is a 2-D contiguous tensor with sliceDim
 //   == 0 (that is, each slice is a row).
+// 如果切片内的某个维度的步幅小于 sliceStride，则返回 true。 最简单的示例是 sliceDim == 0 的二维连续张量（即，每个切片都是一行）
 //
 //   In this case, we choose the CUDA kernel that processes the data in
 //   "index-major order".  For example, if thread count equals slice size, then
 //   all threads process slice #0 in lockstep, and then slice #1, and so on.
+// 在这种情况下，我们选择以“索引优先顺序”处理数据的 CUDA Kernel。 
+// 例如，如果线程数等于切片大小，则所有线程都以锁步方式处理切片 #0，然后是切片 #1，依此类推。
 //
 // - Otherwise (i.e., sliceStride has the lowest value), this function returns
 //   false.  The simplest example is a 2-D contiguous tensor with sliceDim == 1
@@ -522,6 +542,11 @@ bool indexShouldBeMajor(cuda::detail::TensorInfo<scalar_t, unsigned int> &info,
 }
 
 // self[index[i], :, :] += alpha * src[i, :, :]  # if dim == 0
+// 我们以下面这个例子来展开理解
+// x = torch.ones(5, 3)
+// t = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=torch.float)
+// index = torch.tensor([0, 4, 2])
+// x.index_add_(0, index, t)
 void index_add_cuda_impl(const Tensor& self, int64_t dim, const Tensor& index, const Tensor& source, const Scalar& alpha, const Tensor& result) {
   if (!result.is_same(self)) {
     result.copy_(self);
@@ -553,16 +578,21 @@ void index_add_cuda_impl(const Tensor& self, int64_t dim, const Tensor& index, c
   // -the number of index we are choosing, which is the total size
   // of the tensor `index`.
   // ‘source’ 被分成2部分：
-  // 我们正在索引的每个切片的大小，这是忽略维度 `dim` 的张量的总大小。由 getSliceSize 获得。
+  // 我们正在索引的每个切片的大小，这是忽略维度 `dim` 的self张量的总大小。由 getSliceSize 获得。
   // 我们选择的index大小，即张量 “index” 的总大小。 由下面的 const ptrdiff_t numIndex = index.numel(); 获得
+  // sliceSize = 3
   const ptrdiff_t sliceSize = getSliceSize(self_, dim, index, source_);
   // source 张量的总大小
+  // sourceTotalSize = 9
   const ptrdiff_t sourceTotalSize = source.numel();
   // self张量在dim维度的大小
+  // selfAddDimSize = 5
   const int64_t selfAddDimSize = self_.size(dim);
   // index张量的大小
+  // numIndex = 3
   const ptrdiff_t numIndex = index.numel();
   // self张量的大小
+  // selfNumel = 15
   const int64_t selfNumel = self_.numel();
 
   // 如果正在索引的每个切片的大小为0，直接返回。也就是特判一下0-size Tensor
@@ -572,11 +602,19 @@ void index_add_cuda_impl(const Tensor& self, int64_t dim, const Tensor& index, c
   // 获取cudaStream对象
   const cudaStream_t stream = at::cuda::getCurrentCUDAStream();
   // 判断index是否是contiguous的
+  // indContig: 1
   const bool indContig = index.is_contiguous();
 
   // 获取GPU SM的数量
   const int mpc = at::cuda::getCurrentDeviceProperties()->multiProcessorCount;
 
+
+
+// selfAddDim = 0
+// sourceAddDim = 0
+// sliceSize = 3
+// selfAddDimSize = 5
+// selfNumel = 15
 
 #define SMALL_INDEX(TENSOR_TYPE, INDICES_TYPE, TYPE, SELF_DIM, SOURCE_DIM, IDX_DIM)     \
   indexFuncSmallIndex<TENSOR_TYPE, INDICES_TYPE, TYPE, SELF_DIM, SOURCE_DIM, IDX_DIM>   \
@@ -610,13 +648,18 @@ void index_add_cuda_impl(const Tensor& self, int64_t dim, const Tensor& index, c
       cuda::detail::canUse32BitIndexMath(source) &&
       cuda::detail::canUse32BitIndexMath(index)) {
     AT_DISPATCH_ALL_TYPES_AND_COMPLEX_AND4(at::ScalarType::Bool, at::ScalarType::Half, at::ScalarType::BFloat16, at::ScalarType::ComplexHalf, result.scalar_type(), "index_add", [&] {
-      // 获取self张量的size，stride以及数据指针data_ptr，并打包到selfInfo数据结构中
+      // 获取 self_ 张量的 size，stride 以及数据指针 data_ptr，并打包到 selfInfo 数据结构中
       cuda::detail::TensorInfo<scalar_t, unsigned int> selfInfo =
           cuda::detail::getTensorInfo<scalar_t, unsigned int>(self_);
       // 获取selfInfo数据结构的dim维度
+      // selfAddDim: 0
       const int selfAddDim = selfInfo.collapseDims(dim);
       // 这个操作是把selfInfo数据结构的selfAddDim维度的大小设置为1
       selfInfo.reduceDim(selfAddDim);
+      // selfInfo.sizes: 1, 3, 
+      // selfInfo.strides: 3, 1,
+
+
       // 获取alpha的数值大小
       const auto alpha_value = alpha.to<scalar_t>();
       AT_DISPATCH_INDEX_TYPES(index.scalar_type(), "index_add_cuda_", [&] () {
@@ -624,20 +667,28 @@ void index_add_cuda_impl(const Tensor& self, int64_t dim, const Tensor& index, c
         auto sourceInfo =
           cuda::detail::getTensorInfo<scalar_t, unsigned int>(source_);
         // 获取sourceInfo数据结构的dim维度
+        // sourceAddDim: 0
         const int sourceAddDim = sourceInfo.collapseDims(dim);
         // 这个操作是把sourceInfo数据结构的sourceAddDim维度的大小设置为1
         sourceInfo.reduceDim(sourceAddDim);
+        // sourceInfo.sizes: 1, 3, 
+        // sourceInfo.strides: 3, 1,
 
         // 获取index张量的size，stride以及数据指针data_ptr，并打包到indexInfo数据结构中
         auto indexInfo =
         cuda::detail::getTensorInfo<index_t, unsigned int>(index);
         indexInfo.collapseDims();
+        // indexInfo.sizes: 3, 
+        // indexInfo.strides: 1,
 
         // A reasonable choice for when to have each thread iterate over
         // index to choose
         // 这里的意思就是分类讨论什么时候跨index去做选择，也即只遍历一次index完成计算
         // template <typename T, typename IndicesType, typename IndexType, int DstDim, int SrcDim, int IdxDim,
         //  typename func_t>
+
+        // selfInfo.dims: 2
+        // sourceInfo.dims: 2
         
         // 判断条件为当index的元素数量<=16时启用indexFuncSmallIndex kernel
         if (numIndex <= 16) {
