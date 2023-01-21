@@ -506,6 +506,10 @@ profile结果：
 
 在把block_num从65536调整到1024之后，无论是性能还是带宽都达到了最强，相比于最初的BaseLine加速了9.4倍。
 
+## PyTorch Block Reduce
+
+
+
 ## 总结
 
 我这里的测试结果和nvidia ppt里提供的结果有一些出入，nvidia ppt的34页展示的结果是对于每一种优化相比于前一种无论是性能还是带宽都是稳步提升的。但我这里的测试结果不完全是这样，对于 reduce_v4_unroll_last_warp 和 reduce_v5_completely_unroll 这两个优化，虽然耗时近一步减少但是带宽却降低了，我也还没想清楚原因。欢迎大佬评论区指点。
