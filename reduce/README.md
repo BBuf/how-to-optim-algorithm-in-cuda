@@ -508,7 +508,74 @@ profile结果：
 
 ## PyTorch Block Reduce
 
+接下来我们介绍一下 PyTorch 的 Block Reduce 方案，https://zhuanlan.zhihu.com/p/584936904 这篇文章介绍得比较详细。我在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/reduce/pytorch_block_reduce.cu 这里也整理一些方便理解的注释。
+总的来说就是利用 warp 原语 `__shfl_down_sync` 来对一个warp内的val进行规约求和。可以单独编译的.cu文件实现在：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/reduce/reduce_v7_shfl_down_sync.cu 。我们贴一下c++的实现：
 
+```c++
+#define N 32*1024*1024
+#define BLOCK_SIZE 256
+#define WARP_SIZE 32
+
+template <unsigned int blockSize>
+__device__ __forceinline__ float warpReduceSum(float sum) {
+    if (blockSize >= 32)sum += __shfl_down_sync(0xffffffff, sum, 16); // 0-16, 1-17, 2-18, etc.
+    if (blockSize >= 16)sum += __shfl_down_sync(0xffffffff, sum, 8);// 0-8, 1-9, 2-10, etc.
+    if (blockSize >= 8)sum += __shfl_down_sync(0xffffffff, sum, 4);// 0-4, 1-5, 2-6, etc.
+    if (blockSize >= 4)sum += __shfl_down_sync(0xffffffff, sum, 2);// 0-2, 1-3, 4-6, 5-7, etc.
+    if (blockSize >= 2)sum += __shfl_down_sync(0xffffffff, sum, 1);// 0-1, 2-3, 4-5, etc.
+    return sum;
+}
+
+
+template <unsigned int blockSize, int NUM_PER_THREAD>
+__global__ void reduce7(float *g_idata,float *g_odata, unsigned int n){
+    float sum = 0;
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x * (blockSize * NUM_PER_THREAD) + threadIdx.x;
+
+    #pragma unroll
+    for(int iter=0; iter<NUM_PER_THREAD; iter++){
+        sum += g_idata[i+iter*blockSize];
+    }
+    
+    // Shared mem for partial sums (one per warp in the block)
+    static __shared__ float warpLevelSums[WARP_SIZE]; 
+    const int laneId = threadIdx.x % WARP_SIZE;
+    const int warpId = threadIdx.x / WARP_SIZE;
+
+    sum = warpReduceSum<blockSize>(sum);
+
+    if(laneId == 0 )warpLevelSums[warpId] = sum;
+    __syncthreads();
+    // read from shared memory only if that warp existed
+    sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[laneId] : 0;
+    // Final reduce using first warp
+    if (warpId == 0) sum = warpReduceSum<blockSize/WARP_SIZE>(sum); 
+    // write result for this block to global mem
+    if (tid == 0) g_odata[blockIdx.x] = sum;
+}
+```
+
+profile结果：
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/a91c13a707b043c1918e63a563716581.png)
+
+性能和带宽的测试情况如下：
+
+|优化手段|耗时(us)|带宽利用率|加速比|
+|--|--|--|--|
+|reduce_baseline|990.66us|39.57%|~|
+|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
+|reduce_v2_bank_conflict_free|462.02us|84.81%|2.144|
+|reduce_v3_idle_threads_free|244.16us|83.16%|4.057|
+|reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
+|reduce_v5_completely_unroll|158.78us|56.94%|6.239|
+|reduce_v6_multi_add|105.47us|85.75%|9.392|
+|reduce_v7_shfl_down_sync|101.7us|87.42%|9.74|
+
+可以看到基于 warp 原语 `__shfl_down_sync` 进行优化之后，带宽利用率可以达到 87.42% ，并且耗时也是最低的。
 
 ## 总结
 
