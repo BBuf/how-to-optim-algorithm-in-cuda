@@ -8,7 +8,7 @@
 
 ### 1. reduce
 
-这里记录学习 NIVDIA 的[reduce优化官方博客](https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf) 做的笔记。完整实验代码见[这里](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/reduce) , 原理讲解请看：[【BBuf的CUDA笔记】三，reduce优化入门学习笔记](https://zhuanlan.zhihu.com/p/596012674)
+这里记录学习 NIVDIA 的[reduce优化官方博客](https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf) 做的笔记。完整实验代码见[这里](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/reduce) , 原理讲解请看：[【BBuf的CUDA笔记】三，reduce优化入门学习笔记](https://zhuanlan.zhihu.com/p/596012674) 。后续又添加了 PyTorch BlockReduce 模板以及在这个模板的基础上额外加了一个数据 Pack ,又获得了一些带宽的提升。详细数据如下：
 
 性能和带宽的测试情况如下 (A100 PCIE 40G)：
 
@@ -21,6 +21,8 @@
 |reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
 |reduce_v5_completely_unroll|158.78us|56.94%|6.239|
 |reduce_v6_multi_add|105.47us|85.75%|9.392|
+|reduce_v7_shfl_down_sync|101.7us|87.42%|9.74|
+|reduce_v8_shfl_down_sync_pack|99.71us|89.76%|9.935|
 
 ### 2. elementwise
 

@@ -7,4 +7,6 @@ all:
 	nvcc -o bin/reduce_v5 reduce_v5_completely_unroll.cu
 	nvcc -o bin/reduce_v6 reduce_v6_multi_add.cu
 	nvcc -o bin/reduce_v7 reduce_v7_shfl_down_sync.cu
+	nvcc -o bin/reduce_v8 reduce_v8_shfl_down_sync_pack.cu
+
 
