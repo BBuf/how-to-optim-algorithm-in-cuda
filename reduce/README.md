@@ -720,5 +720,6 @@ profile结果：
 - https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
 - https://zhuanlan.zhihu.com/p/426978026
 - https://mp.weixin.qq.com/s/1_ao9xM6Qk3JaavptChXew
+- https://zhuanlan.zhihu.com/p/559549740
 
 
