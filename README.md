@@ -12,17 +12,7 @@
 
 性能和带宽的测试情况如下 (A100 PCIE 40G)：
 
-|优化手段|耗时(us)|带宽利用率|加速比|
-|--|--|--|--|
-|reduce_baseline|990.66us|39.57%|~|
-|reduce_v1_interleaved_addressing|479.58us|81.74%|2.06|
-|reduce_v2_bank_conflict_free|462.02us|84.81%|2.144|
-|reduce_v3_idle_threads_free|244.16us|83.16%|4.057|
-|reduce_v4_unroll_last_warp|167.10us|54.10%|5.928|
-|reduce_v5_completely_unroll|158.78us|56.94%|6.239|
-|reduce_v6_multi_add|105.47us|85.75%|9.392|
-|reduce_v7_shfl_down_sync|101.7us|87.42%|9.74|
-|reduce_v8_shfl_down_sync_pack|99.71us|89.76%|9.935|
+![图片](https://user-images.githubusercontent.com/35585791/213908763-480d0c07-5709-4829-9903-db17a0ecca89.png)
 
 ### 2. elementwise
 

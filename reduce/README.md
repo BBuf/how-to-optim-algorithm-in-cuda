@@ -702,7 +702,10 @@ profile结果：
 |reduce_v7_shfl_down_sync|101.7us|87.42%|9.74|
 |reduce_v8_shfl_down_sync_pack|99.71us|89.76%|9.935|
 
-基于 Pack 以及选择更适合硬件的 Block 数量可以继续提升 Reduce Kernel 的带宽和性能。
+基于 Pack 以及选择更适合硬件的 Block 数量可以继续提升 Reduce Kernel 的带宽和性能。画了个图更直观一点：
+
+![图片](https://user-images.githubusercontent.com/35585791/213908763-480d0c07-5709-4829-9903-db17a0ecca89.png)
+
 
 ## 总结
 
