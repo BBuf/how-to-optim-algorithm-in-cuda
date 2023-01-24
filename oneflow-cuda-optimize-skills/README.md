@@ -10,6 +10,8 @@
 - 优化transpose op在诸如形状 [a, 1, b] , perm [0, 2, 1] 情形下的性能：https://github.com/Oneflow-Inc/oneflow/pull/9416 。Permute/Transpose 算子之前的优化工作可以在 https://zhuanlan.zhihu.com/p/425587014 这里查看。这个优化目前也是只要调用到transpose并且输入Tensor的shape满足上面的条件就是开启的。
 - GroupNorm 支持 NHWC 优化以及FastDivmod优化。https://github.com/Oneflow-Inc/oneflow/pull/9368 & https://github.com/Oneflow-Inc/oneflow/pull/9373 。这里主要是支持Stable Diffusion所做的两个优化。GroupNorm这个算子是在 https://github.com/Oneflow-Inc/oneflow/issues/7784 中引入的，要开启这些优化只需要掉用`oneflow.nn.GroupNorm`即可。
 - Matmul的累加支持half，通过环境变量ONEFLOW_MATMUL_ALLOW_HALF_PRECISION_ACCUMULATION启动。https://github.com/Oneflow-Inc/oneflow/pull/9459 。这里的背景应该是在FastTransformer或者VIT对Stable Diffusion的推理中，都有选择性使用FP16来进行推理，虽然这可能造成一些精度问题。
+- 提供 conv 的 cutlass 版本实现。https://github.com/Oneflow-Inc/oneflow/pull/9569 & https://github.com/Oneflow-Inc/oneflow/pull/9599 。基于 cutlass 实现的 conv，在更多平台上获得比较高的性能。（这也是revert掉之前cudnn支持conv和bias_add融合算子的原因）。在Stable Diffusion中用到了。要开启这个优化需要指定环境变量：ONEFLOW_KERENL_CONV_ENABLE_CUTLASS_IMPL。
+- 大幅优化 broadcast element-wise binary 一族算子反向计算时的性能 (https://github.com/Oneflow-Inc/oneflow/pull/8339) 。属于系统层次Kernel的优化，很多网络都会用到 broadcast element-wise binary 一族算子。
 
 
 ### cuda fuse kernel
@@ -47,9 +49,34 @@ model_output = oneflow._C.fused_weighted_sum([self.ets[-1], self.ets[-2], self.e
 ![](https://user-images.githubusercontent.com/63904514/199904551-46dfdc0d-3eac-4dee-b91a-d566e2020f51.png)
 
 然后 PR 9520引入了cutlass的dual_gemm进一步压缩kernel数量并实现更高的性能。
+- 新增 tensorrt flash attention 的 实现。https://github.com/Oneflow-Inc/oneflow/pull/9524 & https://github.com/Oneflow-Inc/oneflow/pull/9581 。这个也是用在 Stable Diffusion的优化中。当ONEFLOW_KERENL_ENABLE_TRT_FLASH_ATTN_IMPL和ONEFLOW_MATMUL_ALLOW_HALF_PRECISION_ACCUMULATION这两个环境变量开启时并且输入数据（q,k,v）的形状以及data_type满足特定条件时会启动这个fuse kernel。使用的方法为通过MLIR中的子图匹配加重写。后续在mlir一节中会提到。
+
+- 新增 融合算子 BinaryCrossEntropyWithLogitsReduceMean。https://github.com/Oneflow-Inc/oneflow/pull/8476 用在HugeCTR模型中提升性能。这个fuse kernel由oneflow nn.Graph的job rewrite Pass管理，无法显示开启。
+- 新增基于 cublasLt 开发的高性能矩阵乘 Fused kernel。(https://github.com/Oneflow-Inc/oneflow/pull/8462, https://github.com/Oneflow-Inc/oneflow/pull/8222, https://github.com/Oneflow-Inc/oneflow/pull/8063) 。应用在 OneEmbedding 中，由oneflow nn.Graph的job rewrite Pass管理，无法显示开启。
+- 提供新的环境变量优化开关： ONEFLOW_ENABLE_MULTI_TENSOR_MODEL_UPDATE 和 ONEFLOW_FUSE_MODEL_UPDATE_CAST 。ONEFLOW_ENABLE_MULTI_TENSOR_MODEL_UPDATE 表示提供MultiTensor的支持，可以将模型更新时的碎Op融合到一起减少Kernel Launch的开销。ONEFLOW_FUSE_MODEL_UPDATE_CAST 表示在 AMP 情形下，支持将 Optimizer model update kernel 和下一轮前向的 cast 算子融合。https://github.com/Oneflow-Inc/oneflow/pull/8373 。这里的优化技巧在很多地方都能用到比如 YOLOv5 就用到了。
+- 支持 fused MLP 反向。https://github.com/Oneflow-Inc/oneflow/pull/8462 。来自oneembedding的优化，这里使用了多Stream来计算MLP的反向，值得学习，思路应该启发自HugeCTR。使用方式直接看PR。
+- fuse embedding interaction 。https://github.com/Oneflow-Inc/oneflow/pull/8586 。也是oneembedding的一个fuse kernel，没有找到相关资料原始的Pattern和用法暂不清楚。
+- ONEFLOW_ONE_EMBEDDING_FUSED_MLP_ASYNC_GRAD 环境变量打开后在FusedMLPGrad中支持将Dropout融合到FusedMLPGrad Kernel中。https://github.com/Oneflow-Inc/oneflow/pull/8633 。这个优化应用到 OneEmbedding 中。
+- 支持 Fused BCE loss。https://github.com/Oneflow-Inc/oneflow/pull/8734 。还是oneembedding的优化，在dlrm中前向 bce + cast_f2h -> out，后向 constant_like + bce_grad ->dx，用pass将它们fuse起来在一个kernel中，减少kernel个数及空隙。使用方法：由nn.Graph的job pass来管理。
+
 
 ### Primitive 更新
 
+除了运行时接口，Execution Provider 还定义了一组计算接口，用来描述深度学习框架中常用到的计算，用于简化硬件适配过程中算子的开发工作，该组接口被称之为 Primitive。相比于 Execution Provider 提供的运行时接口，Primitive 提供的接口更加松散和灵活，不同接口之间相互独立，每一个接口表示了某种硬件设备可以提供的特定的计算能力。与运行时接口类似，Primitive 系列接口的抽象更贴近设备端，开发者无需深入了解 OneFlow 的机制便可以开展适配工作。不同于在适配运行时接口时，开发者需要实现 Execution Provider 提供的所有接口，开发者在适配 Primitive 过程中，可以根据项目实际情况选择性的适配。
+
+> v0.8.0
+- 新增 `ep::primitive` 基础功能的单元测试  (https://github.com/Oneflow-Inc/oneflow/pull/8099)
+- 完善了部分 Primitive `log_softmax`, `softmax`, `copynd`, `Memset`, `Memcpy`, `matmul` , `add`, binary, unary, `matmul`, `batch_matmul`, fill 等计算的单元测试 (https://github.com/Oneflow-Inc/oneflow/pull/8132, https://github.com/Oneflow-Inc/oneflow/pull/8139, https://github.com/Oneflow-Inc/oneflow/pull/8137, https://github.com/Oneflow-Inc/oneflow/pull/8109, https://github.com/Oneflow-Inc/oneflow/pull/8143, https://github.com/Oneflow-Inc/oneflow/pull/8108, https://github.com/Oneflow-Inc/oneflow/pull/8154, https://github.com/Oneflow-Inc/oneflow/pull/8154, https://github.com/Oneflow-Inc/oneflow/pull/8118 ， https://github.com/Oneflow-Inc/oneflow/pull/8291)
+- 新增 `ep::primitive::constant_pad` ，优化性能，移除过时的 pad grad，使用 pad 做 pad 的反向 (https://github.com/Oneflow-Inc/oneflow/pull/8152)
+- 在 Kernel 中使用 unary 的 primitive 接口代替原实现 (https://github.com/Oneflow-Inc/oneflow/pull/8270)
+- 新增环境变量 ONEFLOW_EP_CUDA_CUBLAS_WORKSPACE_SIZE_MB ，用于配置 cublas workspace size (https://github.com/Oneflow-Inc/oneflow/pull/8478)
+- scalar logical kernel 支持 primitive (https://github.com/Oneflow-Inc/oneflow/pull/8531)
+- 使用 primitive 实现 logical not kernel (https://github.com/Oneflow-Inc/oneflow/pull/8544)
+- 迁移全部的 activation kernel 使用 primitive (https://github.com/Oneflow-Inc/oneflow/pull/8300)
+- bias add kernel 支持 primitive (https://github.com/Oneflow-Inc/oneflow/pull/8512)
+
+
+> v0.9.0
 - 实现高性能的  `ep::primitive::BroadcastElementwiseUnary `  一族接口 (https://github.com/Oneflow-Inc/oneflow/pull/8384)
 - 实现 `ep::primitive::ScalarXX` math 一族接口 (https://github.com/Oneflow-Inc/oneflow/pull/8612)
 - 使用 primitive 实现 Unary Math 一族的算子 (https://github.com/Oneflow-Inc/oneflow/pull/8936)
@@ -58,3 +85,31 @@ model_output = oneflow._C.fused_weighted_sum([self.ets[-1], self.ets[-2], self.e
 
 
 ### mlir graph rewrite
+
+> v0.9.0
+- 支持 JIT 编译 LR 代码  (https://github.com/Oneflow-Inc/oneflow/pull/8500 , https://github.com/Oneflow-Inc/oneflow/pull/8870)
+- 完善对 CSE 和 Folding 共同作用的情况支持 (https://github.com/Oneflow-Inc/oneflow/pull/9430)
+- IR 支持分布式描述 sbp signature ： MLIR SBP Dialect (https://github.com/Oneflow-Inc/oneflow/pull/8492)
+- 新增 `TosaMakeBroadcastablePass` 以减少不必要的 reshape 的创建 (https://github.com/Oneflow-Inc/oneflow/pull/8923)
+- 支持 MLIR 代码生成 launch oneflow kernels (https://github.com/Oneflow-Inc/oneflow/pull/8980)
+- `ONEFLOW_MLIR_PREFER_NHWC ` 优化支持更多的算子 (https://github.com/Oneflow-Inc/oneflow/pull/9335)
+- 支持 fp16 情形下的 constant folding 优化 (https://github.com/Oneflow-Inc/oneflow/pull/9337)
+- 基于 mlir-pdll 实现算子的融合重写优化 (https://github.com/Oneflow-Inc/oneflow/pull/9406 , https://github.com/Oneflow-Inc/oneflow/pull/9464 , https://github.com/Oneflow-Inc/oneflow/pull/9474  , https://github.com/Oneflow-Inc/oneflow/pull/9539  , https://github.com/Oneflow-Inc/oneflow/pull/9477 , https://github.com/Oneflow-Inc/oneflow/pull/9557)
+  - FusedPadConv2d
+  - DeleteSameDtypeCastop
+  - FusedScaleTrilPattern
+- 新增 OKL Dialect，开启 ONEFLOW_MLIR_FUSE_KERNEL_LAUNCH = 1，启动oneflow kernel launch功能打包计算型op，降低 kernel launch开销。 (https://github.com/Oneflow-Inc/oneflow/pull/9144)
+- 支持 fused_matmul_bias 融合优化 (https://github.com/Oneflow-Inc/oneflow/pull/9517)
+
+> v0.8.0
+- Cast 消除 pass (https://github.com/Oneflow-Inc/oneflow/pull/7837 )
+- 使用 MLIR 完成 常量折叠 和 融合 Conv + BN 的构图优化  (https://github.com/Oneflow-Inc/oneflow/pull/7799)
+- 在 OneFlow C++ API 中支持常量折叠优化  (https://github.com/Oneflow-Inc/oneflow/pull/8124)
+- 给 parsed module 提供容错检查 (https://github.com/Oneflow-Inc/oneflow/pull/8299)
+- 修复常量折叠单测的 BUG  (https://github.com/Oneflow-Inc/oneflow/pull/8340)
+- IREE 支持 (https://github.com/Oneflow-Inc/oneflow/pull/8249)
+- 增加 `oneflow_iree(python)` 到 CI (https://github.com/Oneflow-Inc/oneflow/pull/8431)
+- 移除 IR 中冗余的 output_lbns (https://github.com/Oneflow-Inc/oneflow/pull/8409)
+- 提供 Variable -> constant  的 转换标记  (https://github.com/Oneflow-Inc/oneflow/pull/8412)
+- 移除 IR 中硬编码处理的属性  (https://github.com/Oneflow-Inc/oneflow/pull/8420)
+- 实现 AutoNHWC Pass，并提供 `ONEFLOW_MLIR_PREFER_NHWC` 环境变量，支持将常见网络的 data format 自动转换为 channels last 优化，在支持 FP16 的 NVIDIA 显卡上有明显加速效果 (https://github.com/Oneflow-Inc/oneflow/pull/7890)
