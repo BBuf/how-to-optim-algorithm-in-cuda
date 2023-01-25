@@ -19,7 +19,7 @@ FasterTransformer 编码器支持以下配置。
 
 在 FasterTransformer v1.0 中，我们提供了高度优化的 BERT 等效编码器模型。 接下来，基于Effective Transformer的思想，我们在  FasterTransformer v2.1 中通过去除无用的 padding 来进一步优化BERT推理，并提供 Effective FasterTransformer。 在 FasterTransformer v3.0 中，我们提供了 INT8 量化推理以获得更好的性能。 在 FasterTransformer v3.1 中，我们优化了 INT8 Kernel 以提高 INT8 推理的性能，并将 TensorRT 的多头注意力插件集成到 FasterTransformer 中。 在 FasterTransformer v4.0 中，我们添加了多头注意力 Kernel 支持 V100 的  FP16 模式和 T4, A100 的 INT8 模式。 下图演示了除 INT8 外的这些优化的流程图。 在FasterTransformer v5.0中，我们重构了代码，将 mask building 和 padding 移动到 Bert 的 forward 函数中，并在 Ampere GPU 上基于稀疏特性来加速GEMM。 在 FasterTransformer v5.1 中，我们支持对 Bert FP16 进行进行多节点多 GPU 推理。
 
-![图片](https://user-images.githubusercontent.com/35585791/214251375-4c7baf5a-6cfa-4965-a0b5-c346f1ca4494.png)
+![Figure 1](https://user-images.githubusercontent.com/35585791/214251375-4c7baf5a-6cfa-4965-a0b5-c346f1ca4494.png)
 
 
 BERT 模型是 google 在2018年提出的。FasterTransformer 的encoder 相当于 BERT 模型，但是做了很多优化。 图 1 最左边的流程显示了 FasterTransformer 中的优化。 经过优化后，FasterTransformer 仅使用 8 或 6 个 gemms（蓝色块）和 6 个自定义 CUDA kernel（绿色块）来实现一个 transformer 块。
@@ -28,7 +28,7 @@ BERT 模型是 google 在2018年提出的。FasterTransformer 的encoder 相当�
 
 为了进一步提高多头注意力的性能，我们集成了 TensorRT 的多头注意力，将整个注意力计算融合到一个内核中。 源代码在[这里](https://github.com/NVIDIA/TensorRT/tree/master/plugin/bertQKVToContextPlugin)。 该内核同时支持 Effective FasterTransformer 和标准 BERT 模型。 图 1 中的第三个和第四个流程图显示了工作流程。 有了这样的内核，我们就不用担心多头注意力的填充问题了。 这个内核需要另一个偏移量，如图 2 所示。
 
-![图片](https://user-images.githubusercontent.com/35585791/214252591-4d71c23a-a7db-4e98-a983-354471d509a3.png)
+![Figure 2](https://user-images.githubusercontent.com/35585791/214252591-4d71c23a-a7db-4e98-a983-354471d509a3.png)
 
 > 第一个偏移量 [0, 0, 1, 3, 3, 3]比较好理解，直接和[0, 1, 2, 3, 4, 5]迭代就可以得到原始的位置了。第二个偏移量是从0位置开始，记录连续的原始token个数，比如我们将[0, 2, 3, 6]做差分，得到[2, 1, 3]也对应了原始的数据中每行做的padding的tokn数目。
 
@@ -81,7 +81,7 @@ BERT 模型是 google 在2018年提出的。FasterTransformer 的encoder 相当�
 
 在 FasterTransformer v4.0 中，我们实现了两条 INT8 推理的流水线，如图 3 所示。对于 int8_mode == 1 (int8v1)，我们不量化残差连接，使用 int32 作为 int8 gemms 的输出，并对权重采用逐通道的量化方式。 对于 int8_mode == 2 (int8v2)，我们量化残差连接，使用 int8 作为 int8 gemms 的输出，并对权重采用逐张量的量化。 一般来说，int8_mode == 1 的精度更高，而 int8_mode == 2 的性能更好。
 
-![图片](https://user-images.githubusercontent.com/35585791/214326474-12581f25-b921-4ba3-88b6-d9dca62f4e14.png)
+![Figure 3](https://user-images.githubusercontent.com/35585791/214326474-12581f25-b921-4ba3-88b6-d9dca62f4e14.png)
 
 |               feature               | int8_mode == 1 | int8_mode == 2 |
 | :---------------------------------: | :------------: | :------------: |
@@ -96,4 +96,93 @@ BERT 模型是 google 在2018年提出的。FasterTransformer 的encoder 相当�
 在 FasterTransformer v5.1 中，我们支持 BERT 模型的多 GPU 多节点推理。
 
 ### 优化点解读
+
+优化主要是针对 Figure 1 也就是 BERT 的编码器模块的各个组件来讲。我么先把 BERT 的多头注意力机制的实现贴一下（代码来自：https://github.com/codertimo/BERT-pytorch/blob/master/bert_pytorch/model/attention/multi_head.py），方便下面的讲解：
+
+```python
+import torch.nn as nn
+
+class Attention(nn.Module):
+    """
+    Compute 'Scaled Dot Product Attention
+    """
+
+    def forward(self, query, key, value, mask=None, dropout=None):
+        scores = torch.matmul(query, key.transpose(-2, -1)) \
+                 / math.sqrt(query.size(-1))
+
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, -1e9)
+
+        p_attn = F.softmax(scores, dim=-1)
+
+        if dropout is not None:
+            p_attn = dropout(p_attn)
+
+        return torch.matmul(p_attn, value), 
+
+
+class MultiHeadedAttention(nn.Module):
+    """
+    Take in model size and number of heads.
+    """
+
+    def __init__(self, h, d_model, dropout=0.1):
+        super().__init__()
+        assert d_model % h == 0
+
+        # We assume d_v always equals d_k
+        self.d_k = d_model // h
+        self.h = h
+
+        self.linear_layers = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(3)])
+        self.output_linear = nn.Linear(d_model, d_model)
+        self.attention = Attention()
+
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, query, key, value, mask=None):
+        batch_size = query.size(0)
+
+        # 1) Do all the linear projections in batch from d_model => h x d_k
+        query, key, value = [l(x).view(batch_size, -1, self.h, self.d_k).transpose(1, 2)
+                             for l, x in zip(self.linear_layers, (query, key, value))]
+
+        # 2) Apply attention on all the projected vectors in batch.
+        x, attn = self.attention(query, key, value, mask=mask, dropout=self.dropout)
+
+        # 3) "Concat" using a view and apply a final linear.
+        x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.h * self.d_k)
+
+        return self.output_linear(x)
+```
+
+#### Compute Q, K, V by three GEMMs or one Batch GEMM
+
+这里的意思就是计算 Q，K，V 的时候有两种方式，一种是用3个单独的gemm算子对应FastTransformer v1.0版本的这段代码：https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.h#L162-L193 。另外一种就是通过一个 Batch GEMM算子同时完成对 Q, K, V 的计算，对应这段代码：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/layers/attention_layers/FusedAttentionLayer.cu#L131。
+
+
+#### add_QKV_bias 优化
+
+这个是针对上面forward函数中 (1) 这部分存在的分别对 Q, K, V进行bias_add以及transpose的优化，将其融合成一个cuda kernel。从 https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L327-L343 这里启动 add_QKV_bias 的参数来看，对于FP32，FastTransformer是启动 batch_size * seq_len * 3 个 Block， 每个 Block 里面启动 head_num * size_per_head 个线程只处理一个token（对应head_num * size_per_head次计算）的 bias_add 计算。我们注意到这里还将输入的shape进行了改变，也就是将原始的[batch_size, seq_length, head_num * size_per_head] -> [batch_size, seq_length, head_num, size_per_head]（对应 `.view(batch_size, -1, self.h, self.d_k)`）->[batch_size, head_num, seq_length, size_per_head]（对应`.transpose(1, 2)`），这个过程对应了 `https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L149` 这里的索引代码。
+
+而对于FP16模式，FastTransformer是启动 batch_size * seq_len 个 Block，,每个 Block 里面启动 head_num * size_per_head 个线程同时处理QKV的同一个token（对应head_num * size_per_head次计算），在实际计算时会把half pack成half2进行计算：https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L172 ，并使用了half2相关的数学函数。这样不仅仅可以达到2倍于half的访存带宽和计算吞吐，还可以极大地减少指令的发射数量。
+
+#### 高效的softmax kernel
+
+这里我没有怎么看，因为oneflow已经有一个比Fast Transformer更好的softmax kernel实现了。对应 https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L189-L268 。
+
+可以看：https://zhuanlan.zhihu.com/p/341059988
+
+#### transpose kernel
+
+代码实现在：https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L270-L298 。调用这个 kernel 是在：https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L397-L416 。
+
+
+这个 kernel 是对应上面 BERT 的 Encoder 部分的：
+
+```python
+x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.h * self.d_k)
+```
+
 
