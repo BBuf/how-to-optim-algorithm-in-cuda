@@ -1,5 +1,7 @@
 ## 这里总结 FasterTransformer Encoder(BERT) 的cuda相关优化技巧
 
+> 解读：https://github.com/NVIDIA/FasterTransformer/blob/main/docs/bert_guide.md ，优化点解读之前是翻译了下 Faster Transformer BERT 的文档，然后省略了运行样例等环节，主要是解读下 BERT 的优化技巧。也就是 bert workflow 这张图。 
+
 ### FasterTransformer BERT
 
 
