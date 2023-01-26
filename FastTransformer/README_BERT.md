@@ -164,7 +164,9 @@ class MultiHeadedAttention(nn.Module):
 
 #### add_QKV_bias 优化
 
-这个是针对上面forward函数中 (1) 这部分存在的分别对 Q, K, V进行bias_add以及transpose的优化，将其融合成一个cuda kernel。从 https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L327-L343 这里启动 add_QKV_bias 的参数来看，对于FP32，FastTransformer是启动 batch_size * seq_len * 3 个 Block， 每个 Block 里面启动 head_num * size_per_head 个线程只处理一个token（对应head_num * size_per_head次计算）的 bias_add 计算。我们注意到这里还将输入的shape进行了改变，也就是将原始的[batch_size, seq_length, head_num * size_per_head] -> [batch_size, seq_length, head_num, size_per_head]（对应 `.view(batch_size, -1, self.h, self.d_k)`）->[batch_size, head_num, seq_length, size_per_head]（对应`.transpose(1, 2)`），这个过程对应了 `https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L149` 这里的索引代码。
+这个是针对上面forward函数中 (1) 这部分存在的分别对 Q, K, V进行bias_add以及transpose的优化，将其融合成一个cuda kernel。从 https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L327-L343 这里启动 add_QKV_bias 的参数来看。
+
+对于FP32，FastTransformer是启动 batch_size * seq_len * 3 个 Block， 每个 Block 里面启动 head_num * size_per_head 个线程只处理一个token（对应 head_num * size_per_head 次计算）的 bias_add 计算。我们注意到这里还将输入的shape进行了改变，也就是将原始的[batch_size, seq_length, head_num * size_per_head] -> [batch_size, seq_length, head_num, size_per_head]（对应 `.view(batch_size, -1, self.h, self.d_k)`）->[batch_size, head_num, seq_length, size_per_head]（对应`.transpose(1, 2)`），这个过程对应了 `https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L149` 这里的索引代码。
 
 而对于FP16模式，FastTransformer是启动 batch_size * seq_len 个 Block，,每个 Block 里面启动 head_num * size_per_head 个线程同时处理QKV的同一个token（对应head_num * size_per_head次计算），在实际计算时会把half pack成half2进行计算：https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L172 ，并使用了half2相关的数学函数。这样不仅仅可以达到2倍于half的访存带宽和计算吞吐，还可以极大地减少指令的发射数量。
 
@@ -183,6 +185,63 @@ class MultiHeadedAttention(nn.Module):
 
 ```python
 x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.h * self.d_k)
+```
+
+这里的 x 的 shape 仍然和之前的 q 的 shape 一致， 为[batch_size, head_num, seq_length, size_per_head]。因为Attetion 层不会改变输入的形状，因为 Attention 的计算过程是：q * k 转置(.transpose(2, 3))，除以 d_k ** 0.5，输出维度是 [b, head_num , seq_length, seq_length] 即单词和单词直接的相似性 ，然后对最后一个维度进行 softmax 操作得到 [b, head_num, seq_length, seq_length] , 最后和 v（shape 也是 [batch_size, head_num, seq_length, size_per_head]） 做一个矩阵乘法，结果的 shape 和输入的 shape 形状都是：[batch_size, head_num, seq_length, size_per_head] 。因此这里的 `x.transpose(1, 2)` 就是把 shape 为 [batch_size, head_num, seq_length, size_per_head] 的 x 重新排列为 [batch_size, head_num, size_per_head, seq_length]。然后 `x.contiguous().view(batch_size, -1, self.h * self.d_k)` 进一步将 shape 重新排列为 [batch_size, seq_length, head_num * size_per_head] 。
+
+对于 FP32 模式，启动 batch_size * head_num * seq_length 个 Block , 然后每个 Block 启动 size_per_head 个线程处理一个序列（一个序列对应 size_per_head 个元素）。如下：
+
+```c++
+const int seq_per_block = 1;
+      grid.x = batch_size * head_num * seq_len / seq_per_block;
+      block.x = seq_per_block * size_per_head;
+      transpose<DataType_><<<grid, block, 0, stream>>>(transpose_dst_, dst, 
+          batch_size, seq_len, head_num, size_per_head);
+```
+
+而 transpose 的kernel实现也比较简单，根据blockIdx.x计算下batch_id和seq_id以及head_id（输入 x 的 shape 为 [batch_size, head_num, seq_length, size_per_head]）：
+
+```c++
+template<typename T>
+__global__
+void transpose(T* src, T* dst, const int batch_size, const int seq_len, const int head_num, const int size_per_head)
+{
+  int batch_id = blockIdx.x / (head_num * seq_len);
+  int seq_id = blockIdx.x % seq_len;
+  int head_id = (blockIdx.x % (head_num * seq_len))/ seq_len;
+  dst[batch_id * (head_num * seq_len * size_per_head) + seq_id * head_num * size_per_head
+    + head_id * size_per_head + threadIdx.x] = src[blockIdx.x * size_per_head + threadIdx.x];
+}
+
+```
+
+对于 half 来说，采用和 add_QKV_bias 一样的优化方式，每个 block 处理 4 个sequence。具体来说，就是现在启动 batch_size * head_num * seq_len / 4 个 Block， 每个 Block 使用 2 * size_per_head 个线程处理 4 个序列。为什么 2 * size_per_head 个线程可以处理 4 个序列（一个序列对应 size_per_head 个元素），原因是因为使用了 half2 来做数据读取。half 类型的 kernel 实现如下：
+
+```c++
+  __inline__ __device__
+int target_index(int id1, int id2, int id3, int id4, int dim_1, int dim_2, int dim_3, int dim_4)
+{
+  return id1 * (dim_2 * dim_3 * dim_4) + id3 * (dim_2 * dim_4) + id2 * dim_4 + id4;
+}
+
+template<>
+  __global__
+void transpose(__half* src, __half* dst,
+    const int batch_size, const int seq_len, const int head_num, const int size_per_head)
+{
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  int batch_id = tid / (head_num * seq_len * size_per_head);
+  int head_id = (tid % (head_num * seq_len * size_per_head)) / (seq_len * size_per_head);
+  int seq_id = (tid % (seq_len * size_per_head)) / size_per_head;
+  int id = tid % size_per_head;
+
+  int target_id = target_index(batch_id, head_id, seq_id, id, batch_size, head_num, seq_len, size_per_head);
+  half2* src_ptr = (half2*)src;
+  half2* dst_ptr = (half2*)dst;
+
+  dst_ptr[target_id] = src_ptr[tid];
+}
 ```
 
 
