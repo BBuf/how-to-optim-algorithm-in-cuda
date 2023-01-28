@@ -51,5 +51,9 @@ GPT 是 Decooding 模型的一种变体，没有 Encoder 模块，没有交叉�
 
 ![Fig 1. Workflow of GPT model](https://user-images.githubusercontent.com/35585791/215260593-c5db412c-f67e-4167-83dc-51f44b284758.png)
 
-Fig 1展示了 FasterTransformer GPT 的工作流程。 与 BERT 和编码器-解码器结构不同，GPT 接收一些输入 id 作为上下文，并生成相应的输出 id 作为响应。
+Fig 1展示了 FasterTransformer GPT 的工作流程。 与 BERT 和编码器-解码器结构不同，GPT 接收一些输入 id 作为上下文，并生成相应的输出 id 作为响应。在这个工作流中，主要的瓶颈是 GptDecoderLayer （Transformer块），因为当我们增加层数的时候耗时也是线性增加的。在GPT-3中，GptDecoderLayer占用了大约95%的时间。
+
+Faster Transformer把整个工作流分成了两个部分。第一个部分是：“根据上下文context(也就是输入ids)计算k/v cache”。第二个部分是：“自回归的生成输出ids”。这两部分的操作类似，但是selfAttention部分的输入tensors的形状是不一样的。所以Faster Transformer提供了2种计算方式，如Fig2所示。在`DecoderSelfAttention`里面，query的序列长度总是1，所以我们使用自定义的fused masked multi-head attention kernel 进行处理。另一方面，在`ContextSelfAttention`中，query的序列长度最大时输入的长度，所以我们使用cuBLAS来利用TensorCore。
+
+
 
