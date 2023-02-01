@@ -54,11 +54,11 @@ model_output = oneflow._C.fused_weighted_sum([self.ets[-1], self.ets[-2], self.e
 - 新增 融合算子 BinaryCrossEntropyWithLogitsReduceMean。https://github.com/Oneflow-Inc/oneflow/pull/8476 用在HugeCTR模型中提升性能。这个fuse kernel由oneflow nn.Graph的job rewrite Pass管理，无法显示开启。
 - 新增基于 cublasLt 开发的高性能矩阵乘 Fused kernel。(https://github.com/Oneflow-Inc/oneflow/pull/8462, https://github.com/Oneflow-Inc/oneflow/pull/8222, https://github.com/Oneflow-Inc/oneflow/pull/8063) 。应用在 OneEmbedding 中，由oneflow nn.Graph的job rewrite Pass管理，无法显示开启。
 - 提供新的环境变量优化开关： ONEFLOW_ENABLE_MULTI_TENSOR_MODEL_UPDATE 和 ONEFLOW_FUSE_MODEL_UPDATE_CAST 。ONEFLOW_ENABLE_MULTI_TENSOR_MODEL_UPDATE 表示提供MultiTensor的支持，可以将模型更新时的碎Op融合到一起减少Kernel Launch的开销。ONEFLOW_FUSE_MODEL_UPDATE_CAST 表示在 AMP 情形下，支持将 Optimizer model update kernel 和下一轮前向的 cast 算子融合。https://github.com/Oneflow-Inc/oneflow/pull/8373 。这里的优化技巧在很多地方都能用到比如 YOLOv5 就用到了。
-- 支持 fused MLP 反向。https://github.com/Oneflow-Inc/oneflow/pull/8462 。来自oneembedding的优化，这里使用了多Stream来计算MLP的反向，值得学习，思路应该启发自HugeCTR。使用方式直接看PR。
 - fuse embedding interaction 。https://github.com/Oneflow-Inc/oneflow/pull/8586 。也是oneembedding的一个fuse kernel，没有找到相关资料原始的Pattern和用法暂不清楚。
 - ONEFLOW_ONE_EMBEDDING_FUSED_MLP_ASYNC_GRAD 环境变量打开后在FusedMLPGrad中支持将Dropout融合到FusedMLPGrad Kernel中。https://github.com/Oneflow-Inc/oneflow/pull/8633 。这个优化应用到 OneEmbedding 中。
 - 支持 Fused BCE loss。https://github.com/Oneflow-Inc/oneflow/pull/8734 。还是oneembedding的优化，在dlrm中前向 bce + cast_f2h -> out，后向 constant_like + bce_grad ->dx，用pass将它们fuse起来在一个kernel中，减少kernel个数及空隙。使用方法：由nn.Graph的job pass来管理。
-
+- 支持 FusedMLP Kernel，可以将多个串行的 MatMul 以及 BiasAdd 和 ReLU 融合到一起。来自oneembedding的优化，https://github.com/Oneflow-Inc/oneflow/pull/7391 。使用方式直接看PR。
+- 支持 Fused MLP 反向。https://github.com/Oneflow-Inc/oneflow/pull/8462 。来自oneembedding的优化，这里使用了多Stream来计算MLP的反向，值得学习，思路应该启发自HugeCTR。使用方式直接看PR。
 
 ### Primitive 更新
 
