@@ -18,7 +18,7 @@
 
 - 实现fused_fast_gelu_mul：https://github.com/Oneflow-Inc/oneflow/pull/9397 。这个fuse kernel用在MT5模型中。使用方式：手动调用`oneflow._C.fused_fast_gelu_mul`。
 - 优化RMSNorm这个op。https://github.com/Oneflow-Inc/oneflow/pull/9380 。也是在MT5模型中用到，这里的主要优化技巧就是做kernel fuse。
-- 支持 fuse linear 优化，将Linear中的matmul和bias_add融合在一起。https://github.com/Oneflow-Inc/oneflow/pull/9369 。在Transformer相关的模型中有用到，并且在Stable Diffusion模型中也有用到。使用的方式为打开ONEFLOW_KERNEL_ENABLE_FUSED_LINEAR环境变量。这个优化额外引入了2次reshape操作，后续又优化掉了这两个操作，对应 https://github.com/Oneflow-Inc/oneflow/pull/9441 和 https://github.com/Oneflow-Inc/oneflow/pull/9494。
+- 支持 fuse linear 优化，将Linear中的matmul和bias_add融合在一起。https://github.com/Oneflow-Inc/oneflow/pull/9369 。在Transformer相关的模型中有用到，并且在Stable Diffusion模型中也有用到。使用的方式为打开ONEFLOW_KERNEL_ENABLE_FUSED_LINEAR环境变量。这个优化额外引入了2次reshape操作，后续又优化掉了这两个操作，对应 https://github.com/Oneflow-Inc/oneflow/pull/9441 和 https://github.com/Oneflow-Inc/oneflow/pull/9494 。
 - 支持fuse conv 和 bias_add 算子的优化。https://github.com/Oneflow-Inc/oneflow/pull/9395 ，掉用cudnn的cudnnConvolutionBiasActivationForward进行实现，但是这个fuse后续被去掉了，原因是因为其在某些版本的 cudnn 的情况下在特定 GPU上会出现bad case，性能大幅衰退的情况， cutlass 是开源的，有问题好查，使用 cutlass 还有一个重要原因是支持 half 的累加。具体见：https://github.com/Oneflow-Inc/oneflow/pull/9613 ，在Stable Diffusion中性能表现优异，需要使用 ONEFLOW_KERENL_CONV_ENABLE_CUTLASS_IMPL 环境变量打开。
 - 支持fused_bias_add_scale_mask_softmax_dropout算子。https://github.com/Oneflow-Inc/oneflow/pull/9401 。可以将：
 
