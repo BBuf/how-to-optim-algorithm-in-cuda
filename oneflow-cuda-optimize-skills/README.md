@@ -99,7 +99,7 @@ model_output = oneflow._C.fused_weighted_sum([self.ets[-1], self.ets[-2], self.e
   - DeleteSameDtypeCastop
   - FusedScaleTrilPattern
 - 新增 OKL Dialect，开启 ONEFLOW_MLIR_FUSE_KERNEL_LAUNCH = 1，启动oneflow kernel launch功能打包计算型op，降低 kernel launch开销。 (https://github.com/Oneflow-Inc/oneflow/pull/9144)
-- 支持 fused_matmul_bias 融合优化 (https://github.com/Oneflow-Inc/oneflow/pull/9517) 。支持 grouped_matmul 和 grouped_matmul_bias 融合算子，将一堆同时执行并且数据没有前后依赖关系的matmul+bias_add算子融合成一个cuda kernel，降低kernel launch开销。https://github.com/Oneflow-Inc/oneflow/pull/9413 。在Stable Diffusion模型中用到了，使用的方法为通过MLIR中的子图匹配加重写。后续在mlir一节中会提到。
+- 支持 grouped_matmul_bias(batch_gemm) 融合优化 (https://github.com/Oneflow-Inc/oneflow/pull/9517) 。支持 grouped_matmul 和 grouped_matmul_bias 融合算子，将一堆同时执行并且数据没有前后依赖关系的matmul+bias_add算子融合成一个cuda kernel，降低kernel launch开销。https://github.com/Oneflow-Inc/oneflow/pull/9413 。在Stable Diffusion模型中用到了，使用的方法为通过MLIR中的子图匹配加重写。后续在mlir一节中会提到。
 
 > v0.8.0
 - Cast 消除 pass (https://github.com/Oneflow-Inc/oneflow/pull/7837 )
