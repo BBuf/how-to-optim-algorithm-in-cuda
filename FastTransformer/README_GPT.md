@@ -53,12 +53,12 @@ GPT 是 Decooding 模型的一种变体，没有 Encoder 模块，没有交叉�
 
 Fig 1展示了 FasterTransformer GPT 的工作流程。 与 BERT 和编码器-解码器结构不同，GPT 接收一些输入 id 作为上下文，并生成相应的输出 id 作为响应。在这个工作流中，主要的瓶颈是 GptDecoderLayer （Transformer块），因为当我们增加层数的时候耗时也是线性增加的。在GPT-3中，GptDecoderLayer占用了大约95%的时间。
 
-Faster Transformer把整个工作流分成了两个部分。第一个部分是：“根据上下文context(也就是输入ids)计算k/v cache”。第二个部分是：“自回归的生成输出ids”。这两部分的操作类似，但是selfAttention部分的输入tensors的形状是不一样的。所以Faster Transformer提供了2种计算方式，如Fig2所示。在`DecoderSelfAttention`里面，query的序列长度总是1，所以我们使用自定义的fused masked multi-head attention kernel 进行处理。另一方面，在`ContextSelfAttention`中，query的序列长度最大时输入的长度，所以我们使用cuBLAS来利用TensorCore。
+FasterTransformer把整个工作流分成了两个部分。第一个部分是：“根据上下文context(也就是输入ids)计算k/v cache”。第二个部分是：“自回归的生成输出ids”。这两部分的操作类似，但是selfAttention部分的输入tensors的形状是不一样的。所以FasterTransformer提供了2种计算方式，如Fig2所示。在`DecoderSelfAttention`里面，query的序列长度总是1，所以我们使用自定义的fused masked multi-head attention kernel 进行处理。另一方面，在`ContextSelfAttention`中，query的序列长度最大时输入的长度，所以我们使用cuBLAS来利用TensorCore。
 
 ![Fig 2. Comparison between different self attention. ](https://user-images.githubusercontent.com/35585791/215273633-d29b9430-2559-4d6f-b4a7-9f73a231a006.png)
 
 
-> 这个地方没有理解为什么要分成2个Attention，因为自回归的解码也是需要把输入的句子 padding 到最大的长度吧。这里的seq_len为1的情况是什么时候发生呢？我看了一下hugging face的GPT，似乎没有找到对应的位置。然后在FasterTransformer的GPT C++实现中也没有找到这个DecoderSelfAttention的实现：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/models/multi_gpu_gpt/ParallelGptContextDecoder.cc 。不过本文主要是在后面介绍下 Faster Transformer 的优化点以及优缺点，这个暂时不影响解读。
+> 这个地方没有理解为什么要分成2个Attention，因为自回归的解码也是需要把输入的句子 padding 到最大的长度吧。这里的seq_len为1的情况是什么时候发生呢？我看了一下hugging face的GPT，似乎没有找到对应的位置。然后在FasterTransformer的GPT C++实现中也没有找到这个DecoderSelfAttention的实现：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/models/multi_gpu_gpt/ParallelGptContextDecoder.cc 。不过本文主要是在后面介绍下 FasterTransformer 的优化点以及优缺点，这个暂时不影响解读。
 
 以下示例演示如何运行多 GPU 和多节点 GPT 模型。
 
@@ -162,12 +162,31 @@ Faster Transformer把整个工作流分成了两个部分。第一个部分是�
 
 - `is_context_qk_buf_float_`（是否对 GPT context QK GEMM 使用浮点累加）默认设置为 false。 如果您遇到与 GPT Context注意力模块相关的准确性问题，请尝试在 ParallelGpt.h 中启用它。
 
-### 优化点解读
+### CUDA相关优化点解读
 
 1. TensorRT fused multi-head attention kernel: 和 BERT 一样对于 GPT 的 ContextSelfAttention，FasterTransformer 使用 TensorRT 的 fused multi-head attention kernel 将 batch GEMM，softmax, GEMM，transpose 等操作都合并成一个 cuda kernel，不仅可以减少数据搬提升带宽利用率还可以减少 kernel launch 的开销。在 GPT 中对应了如下的实现：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/layers/attention_layers/GptContextAttentionLayer.h 。然后在 GPT 的 DecoderLayer 实现中被调用：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/models/multi_gpu_gpt/ParallelGptContextDecoder.cc#L547 。
-2. AddBiasResidualLayerNorm：在 Decoder 中将 Attention 的最后一个 Linear 的 bias_add，残差连接（elementwise_add）以及 LayerNorm 合并成一个 AddBiasResidualLayerNorm Kernel，降低 Kernel Launch 开销以及提升访问带宽。对应到 Faster Transformer中的代码实现在：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/kernels/layernorm_kernels.cu#L24 。
-3. GeluFFN：从Fig1中的示意图可以看到 GeluFFN 包含两个 Linear 层，中间夹了一个 GeLU 的激活函数，这里做的优化是把第一个 Linear 层的 bias_add 和 GeLU 激活函数 fuse 到一起，也就是 AddBiasGeLU Kernel。对应到 Faster Transformer 的代码在：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/kernels/activation_kernels.cu#L401 。
-4. AddBiasResidual：从Fig1的示意图可以看到，Decoder的最后一层就是 AddBiasResidual，这个Kernel就是把 bias_add 和 残差连接(element_wise add) 融合到一起。对应到 Faster Transformer 中的 https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/kernels/add_residual_kernels.cu#L22 。
-5. GEMM 试跑：和BERT一样仍然是在运行模型之前先试跑一下 GPT 网络中涉及到的GEMM的尺寸，并且保存 GEMM 性能最高的超参数配置，这个对于 cublas 和 cutlass 实现的卷积应该都是成立的。对应到 Faster Transformer中的：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/models/multi_gpu_gpt/gpt_gemm.cc 。
-6. 高效的 LayerNorm：在 TensorFlow 里面 LayerNorm 是零碎的 Kernel 拼接的，在 Faster Transformer 中实现了一个 LayerNorm Kernel 来完成这个功能。实际上 PyTorch/OneFlow 等框架也有 LayerNorm Kernel，并且 OneFlow 的 LayerNorm 性能最强，可以看：https://zhuanlan.zhihu.com/p/443026261 。
+2. AddBiasResidualLayerNorm：在 Decoder 中将 Attention 的最后一个 Linear 的 bias_add，残差连接（elementwise_add）以及 LayerNorm 合并成一个 AddBiasResidualLayerNorm Kernel，降低 Kernel Launch 开销以及提升访问带宽。对应到 FasterTransformer中的代码实现在：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/kernels/layernorm_kernels.cu#L24 。
+3. GeluFFN：从Fig1中的示意图可以看到 GeluFFN 包含两个 Linear 层，中间夹了一个 GeLU 的激活函数，这里做的优化是把第一个 Linear 层的 bias_add 和 GeLU 激活函数 fuse 到一起，也就是 AddBiasGeLU Kernel。对应到 FasterTransformer 的代码在：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/kernels/activation_kernels.cu#L401 。
+4. AddBiasResidual：从Fig1的示意图可以看到，Decoder的最后一层就是 AddBiasResidual，这个Kernel就是把 bias_add 和 残差连接(element_wise add) 融合到一起。对应到 FasterTransformer 中的 https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/kernels/add_residual_kernels.cu#L22 。
+5. GEMM 试跑：和BERT一样仍然是在运行模型之前先试跑一下 GPT 网络中涉及到的GEMM的尺寸，并且保存 GEMM 性能最高的超参数配置，这个对于 cublas 和 cutlass 实现的卷积应该都是成立的。对应到 FasterTransformer中的：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/models/multi_gpu_gpt/gpt_gemm.cc 。
+6. 高效的 LayerNorm：在 TensorFlow 里面 LayerNorm 是零碎的 Kernel 拼接的，在 FasterTransformer 中实现了一个 LayerNorm Kernel 来完成这个功能。实际上 PyTorch/OneFlow 等框架也有 LayerNorm Kernel，并且 OneFlow 的 LayerNorm 性能最强，可以看：https://zhuanlan.zhihu.com/p/443026261 。
 7. GEMM 的 FP16 累加：上面提到 is_context_qk_buf_float_ 参数，在 GPT 的 fp8 实现中，默认使用 GEMM 的 FP16 累加而非 FP32 累加，进一步提升性能，但是也可能带来精度问题。https://github.com/NVIDIA/FasterTransformer/blob/6ea1c77c7fabf1a046463eceddce1839efc63e60/src/fastertransformer/models/gpt_fp8/GptFP8.h#L47 ，最近我做一个大模型的推理工作时也发现如果基于 cutlass 的 gemm 使用 FP16 累加，最后生成的结果会部分乱码，所以这个优化必须用环境变量或者类似于这里用一个单独的参数来控制。
+
+> 和通信相关的实现以及shared_context相关的优化这里就不提了，代码的可读性比较差，我个人建议有需要的读者学习下某些kernel的实现即可。
+
+### FasterTransformer 优点
+从之前对 BERT 的优化点介绍以及这里对 GPT 的优化点介绍，我们可以发现
+FasterTransformer集成了大量针对Transformer架构的优化，并且实现了各种Transformer架构中常见的各种fuse pattern对应的kernel。并且较为完整的支持了Transformer架构的int8推理，整体的性能始终保持在一个SOTA水平。对于我这种入门CUDA优化的学习者来说有一定的学习意义。此外，FasterTransformer也将实现的这些组件注册到TensorFlow，PyTorch等框架中使得读者可以对常见的Transformer架构进行推理。
+
+
+### FasterTransformer 缺点
+CUDA Kernel之外的代码写得很抽象，特别对于多卡模式来说需要用户手动管理通信和模型切分，这个门槛是很高的。如果用户想基于FasterTreansformer这个框架实现新的Transformer架构的网络会非常困难，必须要非常了解FasterTransformer才可以。除了要手动管理通信以及模型切分之外，如果用户的新模型中出现了新的组件不仅要实现CUDA Kernel还需要手动管理内存的申请和释放，比如GPT的内存申请和释放：https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/models/multi_gpu_gpt/ParallelGpt.cc#L96-L270 稍微不注意就可能内存泄露。最近试跑了一个第三方模型的FasterTransformer实现，就出现了类似的问题。
+
+个人认为 FasterTransformer 的整体架构实现的用户体验类似于 “九转大肠”，易用性方面我还是比较看好 PyTorch ，OneFlow 等将内存管理，通信集成到框架底层用户新增模型只需要关心自定义 CUDA Kernel 的传统深度学习框架。个人建议可以学习下 FasterTransformer 某些 CUDA Kernel 实现，但基于这个框架来搭建应用要慎重。如果基于 PyTorch，OneFlow 等框架能将大量的 Transformer 架构性能追平甚至超越 FasterTransformer 就完全没必要折磨自己。
+
+## 总结
+
+这里总结了一下 FasterTransformer 里面和 CUDA Kernel相关的优化技巧，并且给出了Kernel实现的位置，并从易用性，性能多方便对比了 FasterTransformer 和 PyTorch/OneFlow 等框架的优缺点，供大家参考学习。
+
+
+
