@@ -22,6 +22,9 @@ struct MaxOp {
   __device__ __forceinline__ T operator()(const T& a, const T& b) const { return max(a, b); }
 };
 
+// 每个 Warp 处理一行或两行元素，每行的Reduce操作 需要做 Warp 内的 Reduce 操作，
+// 我们实现 WarpAllReduce 来完成 Warp 内各线程间的求 Global Max 和 Global Sum 操作，
+// WarpAllReduce 是利用Warp级别原语 __shfl_xor_sync 实现的，代码如下。
 template<template<typename> class ReductionOp, typename T, int thread_group_width = kWarpSize>
 __inline__ __device__ T WarpAllReduce(T val) {
   for (int mask = thread_group_width / 2; mask > 0; mask /= 2) {
@@ -30,6 +33,7 @@ __inline__ __device__ T WarpAllReduce(T val) {
   return val;
 }
 
+// BlockReduce 使用 cub 进行实现
 template<template<typename> class ReductionOp, typename T, int block_size>
 __inline__ __device__ T BlockAllReduce(T val) {
   typedef cub::BlockReduce<T, block_size> BlockReduce;
@@ -41,6 +45,7 @@ __inline__ __device__ T BlockAllReduce(T val) {
   return result_broadcast;
 }
 
+// 定义各种数据类型下面的 inf 值
 template<typename T>
 __inline__ __device__ T Inf();
 
@@ -54,6 +59,7 @@ __inline__ __device__ double Inf<double>() {
   return CUDART_INF;
 }
 
+// 定义 exp 函数，OF_SOFTMAX_USE_FAST_MATH 这个宏表示开启 FAST_MATH 的 exp
 template<typename T>
 __inline__ __device__ T Exp(T x);
 
@@ -71,6 +77,7 @@ __inline__ __device__ double Exp<double>(double x) {
   return exp(x);
 }
 
+// 定义 div 函数，OF_SOFTMAX_USE_FAST_MATH 这个宏表示开启 FAST_MATH 的 div
 template<typename T>
 __inline__ __device__ T Div(T a, T b);
 
@@ -88,6 +95,7 @@ __inline__ __device__ double Div<double>(double a, double b) {
   return a / b;
 }
 
+// 定义 log 函数，OF_SOFTMAX_USE_FAST_MATH 这个宏表示开启 FAST_MATH 的 log
 template<typename T>
 __inline__ __device__ T Log(T x);
 
@@ -104,6 +112,8 @@ __inline__ __device__ double Log<double>(double x) {
   return log(x);
 }
 
+// 对于 cuda kernel 来说，启动多少个线程块（grid_size）来做计算？
+// 具体可以参考俊丞大佬这篇 [如何设置CUDA Kernel中的grid_size和block_size？ ](https://mp.weixin.qq.com/s/1_ao9xM6Qk3JaavptChXew)
 inline cudaError_t GetNumBlocks(int64_t block_size, int64_t max_blocks, int64_t waves,
                                 int* num_blocks) {
   int dev;
@@ -126,6 +136,8 @@ inline cudaError_t GetNumBlocks(int64_t block_size, int64_t max_blocks, int64_t 
   return cudaSuccess;
 }
 
+// 定义默认的计算类型，一般的数据类型进行 softmax 计算时计算类型就是自己，
+// 而对于 half（或者bfp16） 来说我们往往需要将计算类型 fallback 到 float 来避免精度损失
 template<typename T>
 struct DefaultComputeType {
   using type = T;
@@ -143,6 +155,12 @@ struct DefaultComputeType<nv_bfloat16> {
 };
 #endif  // CUDA_VERSION >= 11000
 
+// GetPackType 结构体中使用了 std::aligned_storage 先声明了一个内存对齐的数据类型 type ，
+// 注意这个 type 的内存长度为 pack_size * sizeof(T) 。然后这里的 T 是我们需要进行 Pack 
+// 的数据类型，而 pack_size 则表示我们需要 Pack 的元素个数。接下来我们看到 Pack 联合体中
+// 声明了 storage 和 elem 两个数组，它们共用同一段对齐的内存。然后 Pack 联合体的入口有一个
+// 检查: static_assert(sizeof(PackType<T, pack_size>) == sizeof(T) * pack_size, ""); 
+// 这是用来判断我们之前声明的 type 的内存长度是否符合预期。
 template<typename T, int N>
 struct GetPackType {
   using type = typename std::aligned_storage<N * sizeof(T), N * sizeof(T)>::type;
@@ -161,6 +179,7 @@ union Pack {
   T elem[N];
 };
 
+// 下面分别定义了两个代表输入输出的数据结构
 template<typename SRC, typename DST>
 struct DirectLoad {
   DirectLoad(const SRC* src, int64_t row_size) : src(src), row_size(row_size) {}
@@ -191,15 +210,33 @@ struct DirectStore {
   int64_t row_size;
 };
 
+// 
 enum class Algorithm {
   kSoftmax = 0,
   kLogSoftmax = 1,
 };
 
+// 使用 `load.template load<pack_size>(ptr, row_id, col_id);`
+// 和`store.template store<pack_size>(ptr, row_id, col_id);` 进行读取和写入
+// 使用LOAD和STORE有两个好处：1、可以在CUDA Kernel中只关心计算类型ComputeType，而不用关心具体的数据类型T。
+// 2、只需要加几行代码就可以快速支持Softmax和其他Kernel Fuse，减少带宽需求，提升整体性能。
+// 普通的SoftmaxKernel直接使用DirectLoad和DirectStore，FusedSoftmaxKernel如FusedScaleSoftmaxDropoutKernel
+// 只需要定义一个ScaleLoad结构和一个DropoutStore结构用于对输入x做Scale预处理和对输出y做Dropout后处理。
+// ComputeType代表计算类型。pack_size代表向量化访存操作的pack元素的个数，我们将几个元素pack起来读写，提升带宽利用率。
+// cols_per_thread代表每个线程处理的元素个数。thread_group_width代表处理元素的线程组的宽度，
+// 当cols > pack_size * warp_size时，thread_group_width就是warp_size，即32。
+// 当cols < pack_size * warp_size时，就根据cols大小用1/2个warp或1/4个warp来处理每行的元素。
+// 采用更小的thread_group_width后，WarpAllReduce需要执行的轮次也相应减少。
+// rows_per_access代表每个thread_group一次处理的行数，当cols较小，thread_group_width不是warp_size 32时，
+// 若rows能被2整除，我们就让每个线程处理2行来增加指令并行度，从而提升性能。
+// padding代表当前是否做了padding，若cols不是warp_size的整数倍，我们会把它padding到最近的整数倍处理。
+// algorithm代表使用的算法，可选项有Algorithm::kSoftmax或Algorithm::kLogSoftmax。
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int cols_per_thread,
          int thread_group_width, int rows_per_access, bool padding, Algorithm algorithm>
 __global__ void SoftmaxWarpImpl(LOAD load, STORE store, const int64_t rows, const int64_t cols) {
+  // 我们需要保证每个线程处理的元素个数可以被 pack_size 整除
   static_assert(cols_per_thread % pack_size == 0, "");
+  // 
   static_assert(thread_group_width <= kWarpSize, "");
   static_assert(kWarpSize % thread_group_width == 0, "");
   constexpr int num_packs = cols_per_thread / pack_size;

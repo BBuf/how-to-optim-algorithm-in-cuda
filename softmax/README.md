@@ -6,7 +6,9 @@ OneFlow 已经有SoftMax的实现介绍：https://zhuanlan.zhihu.com/p/341059988
 
 OneFlow 的 softmax 实现被独立到了一个头文件中方便广大开发者使用或者改进，地址为：https://github.com/Oneflow-Inc/oneflow/blob/master/oneflow/core/cuda/softmax.cuh 。
 
-我这里也直接将其搬过来使用并更详细的了解了其中的原理最后测试下性能，需要注意的是oneflow版本的softmax实现依赖了nvidia cub的block reduce，因为要在外面单独运行这个实现需要手动编译下 cub 才可以。接下来展示一下cub的完全编译流程：
+#### 环境准备
+
+我这里也直接将其搬过来使用并更详细的了解了其中的原理最后测试下性能，需要注意的是oneflow版本的softmax实现依赖了nvidia cub的block reduce，因为要在外面单独运行这个实现需要手动编译下 cub 才可以。接下来展示一下 cub 的完全编译流程：
 
 1. 构建trust
 
@@ -56,6 +58,8 @@ $ make -j16
 set(CMAKE_CUDA_ARCHITECTURES 80) # 80对应修改为你自己的 GPU 架构
 set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 ```
+
+#### 优化解读
 
 
 
