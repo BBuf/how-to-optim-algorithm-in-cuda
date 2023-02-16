@@ -227,33 +227,49 @@ enum class Algorithm {
 // 当cols > pack_size * warp_size时，thread_group_width就是warp_size，即32。
 // 当cols < pack_size * warp_size时，就根据cols大小用1/2个warp或1/4个warp来处理每行的元素。
 // 采用更小的thread_group_width后，WarpAllReduce需要执行的轮次也相应减少。
-// rows_per_access代表每个thread_group一次处理的行数，当cols较小，thread_group_width不是warp_size 32时，
+// rows_per_access代表每个线程组一次处理的行数，当cols较小，thread_group_width不是warp_size 32时，
 // 若rows能被2整除，我们就让每个线程处理2行来增加指令并行度，从而提升性能。
 // padding代表当前是否做了padding，若cols不是warp_size的整数倍，我们会把它padding到最近的整数倍处理。
 // algorithm代表使用的算法，可选项有Algorithm::kSoftmax或Algorithm::kLogSoftmax。
+
+// CUDA Kernel执行的主体循环逻辑如下，首先根据 num_cols信息算出每个线程要处理的cols_per_thread，
+// 每个线程分配`rows_per_access * cols_per_thread`大小的寄存器，将输入x读到寄存器中，后续计算均从寄存器中读取。
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int cols_per_thread,
          int thread_group_width, int rows_per_access, bool padding, Algorithm algorithm>
 __global__ void SoftmaxWarpImpl(LOAD load, STORE store, const int64_t rows, const int64_t cols) {
   // 我们需要保证每个线程处理的元素个数可以被 pack_size 整除
   static_assert(cols_per_thread % pack_size == 0, "");
-  // 
+  // 处理元素的线程组的宽度需要小于等于kWarpSize，并且需要被kWarpSize整除
   static_assert(thread_group_width <= kWarpSize, "");
   static_assert(kWarpSize % thread_group_width == 0, "");
+  // 每个线程处理的pack后的元素个数
   constexpr int num_packs = cols_per_thread / pack_size;
-  assert(cols <= cols_per_thread * thread_group_width);
+  // 需要保证 cols <= 每个线程处理的元素个数 * 处理元素的线程组的宽度
+  assert(cols <= cols_per_thread  * thread_group_width);
+  // 开一块共享内存，行数为每个线程组一次处理的行数，列数为每个线程处理的元素个数
   ComputeType buf[rows_per_access][cols_per_thread];
+
+  // 获取全局的线程组id
   const int global_thread_group_id = blockIdx.x * blockDim.y + threadIdx.y;
+  // 获取全局线程组的数量
   const int num_global_thread_group = gridDim.x * blockDim.y;
+  // lane id，表示当前 thread 在当前 lane 中的索引
   const int lane_id = threadIdx.x;
+  // step 表示全局线程组的数量 * 每个线程组一次处理的行数
   const int64_t step = num_global_thread_group * rows_per_access;
+  // for 循环的开始为 row = 全局的线程组id * 每个线程组一次处理的行数，结束为总行数
   for (int64_t row = global_thread_group_id * rows_per_access; row < rows; row += step) {
+    // 开辟一块共享内存记录当前线程组处理的每一行的最大值
     ComputeType thread_max[rows_per_access];
 #pragma unroll
     for (int row_id = 0; row_id < rows_per_access; ++row_id) {
+      // 把 thread_max[row_id] 初始化为 -inf
       thread_max[row_id] = -Inf<ComputeType>();
+      // 获取第 row_id 行的共享内存数据
       ComputeType* row_buf = buf[row_id];
 #pragma unroll
       for (int pack_id = 0; pack_id < num_packs; ++pack_id) {
+        // pack的偏移量
         const int pack_offset = pack_id * pack_size;
         const int col = (pack_id * thread_group_width + lane_id) * pack_size;
         if (!padding || col < cols) {
@@ -268,11 +284,13 @@ __global__ void SoftmaxWarpImpl(LOAD load, STORE store, const int64_t rows, cons
         }
       }
     }
+    // 开辟一块共享内存记录属于同一个warp的线程组的每一行的最大值，也就是需要进行一次warpReduce max
     ComputeType warp_max[rows_per_access];
 #pragma unroll
     for (int row_id = 0; row_id < rows_per_access; ++row_id) {
       warp_max[row_id] = WarpAllReduce<MaxOp, ComputeType, thread_group_width>(thread_max[row_id]);
     }
+    // 开辟一块共享内存记录当前线程组处理的每一行的sum
     ComputeType thread_sum[rows_per_access];
 #pragma unroll
     for (int row_id = 0; row_id < rows_per_access; ++row_id) {
@@ -287,10 +305,12 @@ __global__ void SoftmaxWarpImpl(LOAD load, STORE store, const int64_t rows, cons
           row_buf[i] -= warp_max[row_id];
           thread_sum[row_id] += Exp(row_buf[i]);
         } else {
-          __trap();
+          __trap(); // 内核的执行被中止并在主机程序中引发中断。
         }
       }
     }
+    // 开辟一块共享内存记录属于同一个warp的线程组的每一行的sum (注意这里考虑了指数运算的安全性，
+    // 实际上求的是sum{exp(x_i-max{x_i})})，也就是需要进行一次warpReduce sum
     ComputeType warp_sum[rows_per_access];
 #pragma unroll
     for (int row_id = 0; row_id < rows_per_access; ++row_id) {
