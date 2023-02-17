@@ -242,20 +242,27 @@ __global__ void SoftmaxWarpImpl(LOAD load, STORE store, const int64_t rows, cons
   // 处理元素的线程组的宽度需要小于等于kWarpSize，并且需要被kWarpSize整除
   static_assert(thread_group_width <= kWarpSize, "");
   static_assert(kWarpSize % thread_group_width == 0, "");
-  // 每个线程处理的pack后的元素个数
+  // 每个线程处理的 pack 后的元素个数
   constexpr int num_packs = cols_per_thread / pack_size;
-  // 需要保证 cols <= 每个线程处理的元素个数 * 处理元素的线程组的宽度
+  // 需要保证 cols <= 每个线程处理的元素个数 * 处理元素的线程组的宽度 ，因为这个地方是每个 Warp 处理一行或两行元素
   assert(cols <= cols_per_thread  * thread_group_width);
   // 开一块共享内存，行数为每个线程组一次处理的行数，列数为每个线程处理的元素个数
   ComputeType buf[rows_per_access][cols_per_thread];
 
+  // int grid_dim_x;
+  // dim3 block_dim(thread_group_width, thread_groups_per_block);
+  // 从下面启动 SoftmaxWarpImpl 的参数来看，这里使用的是一维的 grid，二维的 block，
+  // 并且 block 的长度为处理元素的线程组的宽度，block 的宽度为每个 block 的线程组的个数
+  // 注意启动 kernel 时每个 block 的总线程数是 128 ，如果 thread_group_width = 32
+  // 那么 thread_groups_per_block = 128 / 32 = 4
   // 获取全局的线程组id
   const int global_thread_group_id = blockIdx.x * blockDim.y + threadIdx.y;
   // 获取全局线程组的数量
   const int num_global_thread_group = gridDim.x * blockDim.y;
-  // lane id，表示当前 thread 在当前 lane 中的索引
+  // lane id，表示当前 thread 在当前 lane 中的索引，注意 threadIdx.x 在这个 kernel 里面是不可能超越一个 warp (32) 的
+  // 所以这里省掉了取模
   const int lane_id = threadIdx.x;
-  // step 表示全局线程组的数量 * 每个线程组一次处理的行数
+  // step 表示循环计数器大小为 全局线程组的数量 * 每个线程组一次处理的行数
   const int64_t step = num_global_thread_group * rows_per_access;
   // for 循环的开始为 row = 全局的线程组id * 每个线程组一次处理的行数，结束为总行数
   for (int64_t row = global_thread_group_id * rows_per_access; row < rows; row += step) {
@@ -326,7 +333,7 @@ __global__ void SoftmaxWarpImpl(LOAD load, STORE store, const int64_t rows, cons
         } else if (algorithm == Algorithm::kLogSoftmax) {
           row_buf[i] -= Log(warp_sum[row_id]);
         } else {
-          __trap();
+          __trap();// 内核的执行被中止并在主机程序中引发中断。
         }
       }
 #pragma unroll
