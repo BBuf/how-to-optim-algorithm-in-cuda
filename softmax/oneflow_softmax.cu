@@ -8,7 +8,9 @@
 #include <cub/cub.cuh>
 #include <math_constants.h>
 using namespace std;
-
+#define CUDA_CHECK()  if( (cudaPeekAtLastError()) != cudaSuccess ) \
+  {printf("Error %s at %s:%d\n", cudaGetErrorString(cudaGetLastError()), \
+   __FILE__,__LINE__-1); exit(-1);}
 
 constexpr int kWarpSize = 32;
 
@@ -526,7 +528,7 @@ struct DispatchSoftmaxWarpImplPackSize {
   }
 };
 
-// 每个Warp处理一行或两行元素时的dispatch接口
+// 每个Warp处理一行或两行元素时最原始的dispatch接口
 template<typename LOAD, typename STORE, typename ComputeType, Algorithm algorithm>
 inline cudaError_t DispatchSoftmaxWarpImpl(cudaStream_t stream, LOAD load, STORE store,
                                            const int64_t rows, const int64_t cols) {
@@ -782,7 +784,7 @@ template<typename LOAD, typename STORE, typename ComputeType>
 inline typename std::enable_if<!std::is_same<ComputeType, double>::value, cudaError_t>::type
 DispatchSoftmax(cudaStream_t stream, LOAD load, STORE store, const int64_t rows,
                 const int64_t cols) {
-  if (cols < 1024) 
+  if (cols < 1024) {
     return DispatchSoftmaxWarpImpl<LOAD, STORE, ComputeType, Algorithm::kSoftmax>(
         stream, load, store, rows, cols);
   } else {
@@ -1421,14 +1423,14 @@ DispatchLogSoftmaxGrad(cudaStream_t stream, LOAD_Y load_y, LOAD_DY load_dy, STOR
 }
 
 int main(){
-  const int rows = 1;
+  const int rows = 49152;
   const int cols = 32;
   const int N = rows * cols;
   using ComputeType = typename DefaultComputeType<float>::type;
   float* input_host = (float*)malloc(N*sizeof(float));
   float *input_device;
   cudaMalloc((void **)&input_device, N*sizeof(float));
-  for (int i = 0; i < N; i++) input_host[i] = 0.1;
+  for (int i = 0; i < N; i++) input_host[i] = 1.0;
   cudaMemcpy(input_device, input_host, N*sizeof(float), cudaMemcpyHostToDevice);
   DirectLoad<float, ComputeType> load(input_device, cols);
 
@@ -1439,10 +1441,12 @@ int main(){
   
   cudaStream_t stream;
   cudaStreamCreate(&stream);
-  cudaError_t err = DispatchSoftmax<decltype(load), decltype(store), ComputeType>(
+  DispatchSoftmax<decltype(load), decltype(store), ComputeType>(
         stream, load, store, rows, cols);
+  CUDA_CHECK();
   cudaMemcpy(output_host, output_device, N * sizeof(float), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
+  // 1 / 32 = 0.03125
   for (int i = 0; i < 32; i++){
     printf("%.5f\n", output_host[i]);
   }

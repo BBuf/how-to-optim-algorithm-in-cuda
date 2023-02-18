@@ -92,7 +92,7 @@ int main() {
 
 首先，第 `tid` 号线程会把 global memroy 的第 i 号数据取出来，然后塞到 shared memroy 中。接下来针对已经存储到 shared memroy 中的 256 个元素展开多轮迭代，迭代的过程如 PPT 的第8页所示。完成迭代过程之后，这个 block 负责的256个元素的和都放到了 shared memrory 的0号位置，我们只需要将这个元素写回global memory就做完了。
 
-接下来我们使用 `nvcc -o bin/reduce_v0 reduce_v0_baseline.cu` 编译一下这个源文件，并且使用nsight compute去profile一下。
+接下来我们使用 `/usr/local/cuda/bin/nvcc -o bin/reduce_v0 reduce_v0_baseline.cu` 编译一下这个源文件，并且使用nsight compute去profile一下。
 
 性能和带宽的测试情况如下：
 
