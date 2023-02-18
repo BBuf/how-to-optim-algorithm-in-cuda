@@ -1445,7 +1445,6 @@ int main(){
         stream, load, store, rows, cols);
   CUDA_CHECK();
   cudaMemcpy(output_host, output_device, N * sizeof(float), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
   // 1 / 32 = 0.03125
   for (int i = 0; i < 32; i++){
     printf("%.5f\n", output_host[i]);
