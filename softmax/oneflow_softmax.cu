@@ -252,7 +252,7 @@ __global__ void SoftmaxWarpImpl(LOAD load, STORE store, const int64_t rows, cons
   // int grid_dim_x;
   // dim3 block_dim(thread_group_width, thread_groups_per_block);
   // 从下面启动 SoftmaxWarpImpl 的参数来看，这里使用的是一维的 grid，二维的 block，
-  // 并且 block 的长度为处理元素的线程组的宽度，block 的宽度为每个 block 的线程组的个数
+  // 并且 block 的长度为处理元素的线程组的宽度（warp_size），block 的宽度为每个 block 的线程组的个数
   // 注意启动 kernel 时每个 block 的总线程数是 128 ，如果 thread_group_width = 32
   // 那么 thread_groups_per_block = 128 / 32 = 4
   // 获取全局的线程组id
@@ -351,13 +351,22 @@ template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int
          int thread_group_width, int rows_per_access, bool padding, Algorithm algorithm>
 inline cudaError_t LaunchSoftmaxWarpImpl(cudaStream_t stream, LOAD load, STORE store,
                                          const int64_t rows, const int64_t cols) {
+  // 每个 Block 里面设置 128 个线程
   constexpr int block_size = 128;
+  // GPU 一次可以调度 SM 数量 * 每个 SM 最大 block 数个 block，
+  // 因为每个 block 的计算量相等，所以所有 SM 应几乎同时完成这些 block 的计算，
+  // 然后处理下一批，这其中的每一批被称之为一个 wave。
+  // grid_size 设置为可以满足足够多的 wave，也就是这里定义的 waves
   constexpr int waves = 32;
+  // block_size 需要整除处理元素的线程组的宽度
   static_assert(block_size % thread_group_width == 0, "");
+  // 每个 block 的线程组的个数，如果这里 thread_group_width = 32，那么 thread_groups_per_block = 4
   constexpr int thread_groups_per_block = block_size / thread_group_width;
   dim3 block_dim(thread_group_width, thread_groups_per_block);
+  // 根据数据的大小计算最多设置多少个 block ，就是数据的行数 / 每个线程组一次处理的行数
   const int64_t num_blocks =
       (rows / rows_per_access + thread_groups_per_block - 1) / thread_groups_per_block;
+  // 根据上述的设置以及硬件本身的限制计算最终启动的 block 数
   int grid_dim_x;
   {
     cudaError_t err = GetNumBlocks(block_size, num_blocks, waves, &grid_dim_x);
@@ -373,6 +382,7 @@ template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int
          int thread_group_width, int rows_per_access, Algorithm algorithm>
 inline cudaError_t DispatchSoftmaxWarpImplPadding(cudaStream_t stream, LOAD load, STORE store,
                                                   const int64_t rows, const int64_t cols) {
+  // 如果每个线程处理的元素个数 * 处理元素的线程组的宽度(warp_size)和cols相等，就不需要padding
   if (cols == cols_per_thread * thread_group_width) {
     return LaunchSoftmaxWarpImpl<LOAD, STORE, ComputeType, pack_size, cols_per_thread,
                                  thread_group_width, rows_per_access, false, algorithm>(
@@ -388,6 +398,8 @@ template<typename LOAD, typename STORE, typename ComputeType, int pack_size, Alg
 typename std::enable_if<pack_size == 1, cudaError_t>::type DispatchSoftmaxWarpImplCols(
     cudaStream_t stream, LOAD load, STORE store, const int64_t rows, const int64_t cols) {
   if (cols <= 0) { return cudaErrorInvalidValue; }
+// 这里是对比数据的列数(cols)和线程组的宽度*pack_size，如果满足条件就dispatch到对应的线程组宽度(warp_size)，
+// 注意这里是一个线程处理 pack_size 个元素
 #define DEFINE_ONE_ELIF(thread_group_width)                                                        \
   else if (cols <= (thread_group_width)*pack_size) {                                               \
     if (rows % 2 == 0) {                                                                           \
@@ -407,6 +419,7 @@ typename std::enable_if<pack_size == 1, cudaError_t>::type DispatchSoftmaxWarpIm
   DEFINE_ONE_ELIF(16)
   DEFINE_ONE_ELIF(32)
 #undef DEFINE_ONE_ELIF
+// 如果上面的条件都不满足，那么直接一个线程处理col个元素，而不是pack_size个元素
 #define DEFINE_ONE_ELIF(col)                                                                      \
   else if (cols <= (col)*kWarpSize) {                                                             \
     return DispatchSoftmaxWarpImplPadding<LOAD, STORE, ComputeType, pack_size, col, kWarpSize, 1, \
@@ -449,6 +462,7 @@ typename std::enable_if<pack_size == 1, cudaError_t>::type DispatchSoftmaxWarpIm
   }
 }
 
+// 同理，dispatch pack_size==2情况下的kernel
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, Algorithm algorithm>
 typename std::enable_if<pack_size == 2, cudaError_t>::type DispatchSoftmaxWarpImplCols(
     cudaStream_t stream, LOAD load, STORE store, const int64_t rows, const int64_t cols) {
@@ -512,6 +526,7 @@ struct DispatchSoftmaxWarpImplPackSize {
   }
 };
 
+// 每个Warp处理一行或两行元素时的dispatch接口
 template<typename LOAD, typename STORE, typename ComputeType, Algorithm algorithm>
 inline cudaError_t DispatchSoftmaxWarpImpl(cudaStream_t stream, LOAD load, STORE store,
                                            const int64_t rows, const int64_t cols) {
@@ -519,6 +534,19 @@ inline cudaError_t DispatchSoftmaxWarpImpl(cudaStream_t stream, LOAD load, STORE
                                                                                 rows, cols);
 }
 
+// 一个 Block 处理一行元素，行 Reduce 需要做 Block 内的 Reduce 操作，需要做 Block 内线程同步，
+// 利用 BlockAllReduce 完成 Warp 内各线程间的求 Global Max 和 Global Sum 操作。
+// BlockAllReduce 是借助 Cub 的 BlockReduce 方法实现的。
+// 执行的主体循环逻辑如下，根据 num_cols算出需要的 Shared Memory 大小作为 Launch Kernel 参数，
+// 借助 Shared Memory 保存输入，后续计算直接从 Shared Memory 读取。
+
+// 由于 SM 内的 Shared Memory 资源同样有限，因此当 num_cols超过一定范围，kernel 启动时申请 Shared Memory 超过最大限制，
+// 就会出现无法启动的问题，因此，仅在调用 cudaOccupancyMaxActiveBlocksPerMultiprocessor 返回值大于0时采用 Shared Memory 方案。
+// 此外，需要注意的是，由于 Block 内线程要做同步，当 SM 中正在调度执行的一个 Block 到达同步点时，SM 内可执行 Warp 逐渐减少，
+// 若同时执行的 Block 只有一个，则 SM 中可同时执行的 Warp 会在此时逐渐降成0，会导致计算资源空闲，造成浪费，若此时同时有其他 Block 在执行，
+// 则在一个 Block 到达同步点时仍然有其他 Block 可以执行。当 block_size 越小时，SM 可同时调度的 Block 越多，因此在这种情况下 block_size 越小越好。
+// 但是当在调大 block_size，SM 能同时调度的 Block 数不变的情况下，block_size 应该是越大越好，越大就有越好的并行度。
+// 因此代码中在选择 block_size 时，对不同 block_size 都计算了 cudaOccupancyMaxActiveBlocksPerMultiprocessor，若结果相同，使用较大的 block_size。
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int block_size,
          Algorithm algorithm>
 __global__ void SoftmaxBlockSMemImpl(LOAD load, STORE store, const int64_t rows,
@@ -754,7 +782,7 @@ template<typename LOAD, typename STORE, typename ComputeType>
 inline typename std::enable_if<!std::is_same<ComputeType, double>::value, cudaError_t>::type
 DispatchSoftmax(cudaStream_t stream, LOAD load, STORE store, const int64_t rows,
                 const int64_t cols) {
-  if (cols < 1024) {
+  if (cols < 1024) 
     return DispatchSoftmaxWarpImpl<LOAD, STORE, ComputeType, Algorithm::kSoftmax>(
         stream, load, store, rows, cols);
   } else {
@@ -1393,6 +1421,34 @@ DispatchLogSoftmaxGrad(cudaStream_t stream, LOAD_Y load_y, LOAD_DY load_dy, STOR
 }
 
 int main(){
-  printf("enter here\n");
+  const int rows = 1;
+  const int cols = 32;
+  const int N = rows * cols;
+  using ComputeType = typename DefaultComputeType<float>::type;
+  float* input_host = (float*)malloc(N*sizeof(float));
+  float *input_device;
+  cudaMalloc((void **)&input_device, N*sizeof(float));
+  for (int i = 0; i < N; i++) input_host[i] = 0.1;
+  cudaMemcpy(input_device, input_host, N*sizeof(float), cudaMemcpyHostToDevice);
+  DirectLoad<float, ComputeType> load(input_device, cols);
+
+  float *output_host = (float*)malloc(N * sizeof(float));
+  float *output_device;
+  cudaMalloc((void **)&output_device, N * sizeof(float));
+  DirectStore<ComputeType, float> store(output_device, cols);
+  
+  cudaStream_t stream;
+  cudaStreamCreate(&stream);
+  cudaError_t err = DispatchSoftmax<decltype(load), decltype(store), ComputeType>(
+        stream, load, store, rows, cols);
+  cudaMemcpy(output_host, output_device, N * sizeof(float), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
+  for (int i = 0; i < 32; i++){
+    printf("%.5f\n", output_host[i]);
+  }
+  cudaFree(input_device);
+  cudaFree(output_device);
+  free(input_host);
+  free(output_host);
   return 0;
 }
