@@ -8,6 +8,9 @@
 #include <cub/cub.cuh>
 #include <math_constants.h>
 using namespace std;
+
+// source from https://github.com/Oneflow-Inc/oneflow/blob/master/oneflow/core/cuda/softmax.cuh
+
 #define CUDA_CHECK()  if( (cudaPeekAtLastError()) != cudaSuccess ) \
   {printf("Error %s at %s:%d\n", cudaGetErrorString(cudaGetLastError()), \
    __FILE__,__LINE__-1); exit(-1);}
