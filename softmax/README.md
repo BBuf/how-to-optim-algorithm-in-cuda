@@ -59,7 +59,194 @@ set(CMAKE_CUDA_ARCHITECTURES 80) # 80对应修改为你自己的 GPU 架构
 set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 ```
 
+最后在编译 `oneflow_softmax.cu` 这个源文件时我们需要额外指定一下 cub 的头文件路径：
+
+```shell
+/usr/local/cuda/bin/nvcc -arch=sm_80 -o bin/oneflow_softmax oneflow_softmax.cu -I/home/xxx/thrust/dependencies/cub/build/headers
+```
+
 #### 优化解读
+
+在 如何实现一个高效的Softmax CUDA kernel？——OneFlow 性能优化分享 (https://zhuanlan.zhihu.com/p/341059988) 这篇文章中已经较为详细的阐述了 OneFlow 的 softmax cuda kernel的优化技巧，我这里就不重复讲解其中的内容了。不过当时阅读这个文章的时候感觉对其中一些代码细节以及用法还有一些疑问，本次我在重新阅读的过程中为 oneflow 的 softmax cuda kernel添加了详细的注释以及用法示例。oneflow softmax cuda kernel要求输入数据的shape为（`num_rows, num_cols`），然后根据 `num_cols` 的大小进行分段处理：
+
+![](https://user-images.githubusercontent.com/35585791/219940288-0691fb60-befd-4f73-9667-0288561cd4a7.png)
+
+oneflow cuda kernel实现中最复杂的就是第一种实现（一个 warp 处理一行或者两行），为了方便感兴趣的读者理解，我为这部分实现添加了详细的注释：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/softmax/oneflow_softmax.cu#L12-L540 。由于篇幅太长可以自行查看，欢迎交流。
+
+当输入数据的列数也就是 `1024 < num_cols <= 4096` 时，oneflow softmax kernel使用一个 Block 来处理一行，并且借助 Shared Memory 来保存中间的计算结果。第二种实现的代码实现和解释如下：
+
+```c++
+// 一个 Block 处理一行元素， 利用 BlockAllReduce 完成 Warp 内各线程间的求 Global Max 和 Global Sum 操作。
+// BlockAllReduce 是借助 Cub 的 BlockReduce 方法实现的。
+
+template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int block_size,
+         Algorithm algorithm>
+__global__ void SoftmaxBlockSMemImpl(LOAD load, STORE store, const int64_t rows,
+                                     const int64_t cols) {
+  extern __shared__ __align__(sizeof(double)) unsigned char shared_buf[];
+  auto* buf = reinterpret_cast<ComputeType*>(shared_buf);
+  const int tid = threadIdx.x;
+  assert(cols % pack_size == 0);
+  const int num_packs = cols / pack_size;
+  // 一个 Block 处理一行元素
+  for (int64_t row = blockIdx.x; row < rows; row += gridDim.x) {
+    // 当前线程的最大值初始化为 -inf
+    ComputeType thread_max = -Inf<ComputeType>();
+    // 以向量化的方式加载一行数据，然后执行pack reduce操作
+    // 这里的 pack reduce操作我在 https://zhuanlan.zhihu.com/p/596012674 最后一节也有介绍
+    for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
+      ComputeType pack[pack_size];
+      load.template load<pack_size>(pack, row, pack_id * pack_size);
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) {
+        buf[i * num_packs + pack_id] = pack[i];
+        thread_max = max(thread_max, pack[i]);
+      }
+    }
+    // 执行block reduce获取当前行（由一个 Block 进行处理）的最大值
+    const ComputeType row_max = BlockAllReduce<MaxOp, ComputeType, block_size>(thread_max);
+    ComputeType thread_sum = 0;
+    for (int col = tid; col < cols; col += block_size) {
+      if (algorithm == Algorithm::kSoftmax) {
+        const ComputeType exp_x = Exp(buf[col] - row_max);
+        buf[col] = exp_x;
+        thread_sum += exp_x;
+      } else {
+        const ComputeType x = buf[col] - row_max;
+        buf[col] = x;
+        thread_sum += Exp(x);
+      }
+    }
+    // 同理，获得当前行的sum
+    const ComputeType row_sum = BlockAllReduce<SumOp, ComputeType, block_size>(thread_sum);
+    // 计算结果并写回到全局内存中
+    for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
+      ComputeType pack[pack_size];
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) {
+        if (algorithm == Algorithm::kSoftmax) {
+          pack[i] = Div(buf[i * num_packs + pack_id], row_sum);
+        } else if (algorithm == Algorithm::kLogSoftmax) {
+          pack[i] = buf[i * num_packs + pack_id] - Log(row_sum);
+        } else {
+          __trap();
+        }
+      }
+      store.template store<pack_size>(pack, row, pack_id * pack_size);
+    }
+  }
+}
+
+template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int block_size,
+         Algorithm algorithm>
+inline cudaError_t LaunchSoftmaxBlockSMemImpl(cudaStream_t stream, LOAD load, STORE store, int smem,
+                                              const int64_t rows, const int64_t cols) {
+  constexpr int waves = 32;
+  int grid_dim_x;
+  {
+    cudaError_t err = GetNumBlocks(block_size, rows, waves, &grid_dim_x);
+    if (err != cudaSuccess) { return err; }
+  }
+  SoftmaxBlockSMemImpl<LOAD, STORE, ComputeType, pack_size, block_size, algorithm>
+      <<<grid_dim_x, block_size, smem, stream>>>(load, store, rows, cols);
+  return cudaPeekAtLastError();
+}
+
+// 执行的主体循环逻辑如下，根据 num_cols算出需要的 Shared Memory 大小作为 Launch Kernel 参数，
+// 借助 Shared Memory 保存输入，后续计算直接从 Shared Memory 读取。
+// 由于 SM 内的 Shared Memory 资源同样有限，因此当 num_cols超过一定范围，kernel 启动时申请 Shared Memory 超过最大限制，
+// 就会出现无法启动的问题，因此，仅在调用 cudaOccupancyMaxActiveBlocksPerMultiprocessor 返回值大于0时采用 Shared Memory 方案。
+// 此外，需要注意的是，由于 Block 内线程要做同步，当 SM 中正在调度执行的一个 Block 到达同步点时，SM 内可执行 Warp 逐渐减少，
+// 若同时执行的 Block 只有一个，则 SM 中可同时执行的 Warp 会在此时逐渐降成0，会导致计算资源空闲，造成浪费，若此时同时有其他 Block 在执行，
+// 则在一个 Block 到达同步点时仍然有其他 Block 可以执行。当 block_size 越小时，SM 可同时调度的 Block 越多，因此在这种情况下 block_size 越小越好。
+// 但是当在调大 block_size，SM 能同时调度的 Block 数不变的情况下，block_size 应该是越大越好，越大就有越好的并行度。
+// 因此代码中在选择 block_size 时，对不同 block_size 都计算了 cudaOccupancyMaxActiveBlocksPerMultiprocessor，若结果相同，使用较大的 block_size。
+template<typename LOAD, typename STORE, typename ComputeType, int pack_size, Algorithm algorithm>
+inline cudaError_t TryDispatchSoftmaxBlockSMemImplBlockSize(cudaStream_t stream, LOAD load,
+                                                            STORE store, const int64_t rows,
+                                                            const int64_t cols, bool* success) {
+  // 设置4个不同的block_size
+  constexpr int block_size_conf_1 = 128;
+  constexpr int block_size_conf_2 = 256;
+  constexpr int block_size_conf_3 = 512;
+  constexpr int block_size_conf_4 = 1024;
+  // 计算第二种方案需要的共享内存大小
+  const size_t smem = cols * sizeof(ComputeType);
+  int max_active_blocks_conf_1;
+  {
+    // 占用计算器API cudaOccupancyMaxActiveBlocksPerMultiprocessor可以根据 kernel 的 block 大小和共享内存使用情况提供占用率预测。
+    cudaError_t err = cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_active_blocks_conf_1,
+        SoftmaxBlockSMemImpl<LOAD, STORE, ComputeType, pack_size, block_size_conf_1, algorithm>,
+        block_size_conf_1, smem);
+    if (err != cudaSuccess) { return err; }
+  }
+  if (max_active_blocks_conf_1 <= 0) {
+    *success = false;
+    return cudaSuccess;
+  }
+  // ... 省略了一部分代码
+  return LaunchSoftmaxBlockSMemImpl<LOAD, STORE, ComputeType, pack_size, block_size_conf_1,
+                                    algorithm>(stream, load, store, smem, rows, cols);
+}
+
+```
+
+在第二种实现中，需要特别注意的是给 Shared memory 赋值过程中，若采用下面方法，当 pack size=2，每个线程写连续两个4 byte 地址，就会产生 Bank Conflicts。
+
+```c++
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) {
+        buf[pack_id * pack_size * i] = pack[i];
+        thread_max = max(thread_max, pack[i]);
+      }
+```
+
+因此，在实现(2)中，对Shared memory采用了新的内存布局，避免了同一个Warp访问相同bank的不同地址，避免了Bank Conflicts。
+
+```c++
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) {
+        buf[num_packs * i + pack_id] = pack[i];
+        thread_max = max(thread_max, pack[i]);
+      }
+```
+
+我们需要仔细思考一下这里的原因，我们知道使用 shared memory 要特别小心 bank conflict 。实际上，shared memory 是由 32 个 bank 组成的，如下面这张 PPT 所示：
+
+![](https://img-blog.csdnimg.cn/img_convert/2311377826f1d93005ea7400ef89d32d.png)
+
+而 bank conflict 指的就是在一个 warp 内，有2个或者以上的线程访问了同一个 bank 上不同地址的内存。比如：
+
+![](https://img-blog.csdnimg.cn/img_convert/dbb83814a35c4de8c303e1bb2ed5079d.png)
+
+当 pack_size=1，每个线程连续写4个字节时，每个warp刚好完整访问shared memory的一行，这个时候并不会出现bank conflict。而当pack_size=2时，每个线程写连续2个4字节时（可以看成8个字节），这个时候以0号warp为例，0号线程访问的地址在第0和第1个 bank，1号线程访问的地址在第2和第3个 bank，以此类推，16号线程访问地址又在第0和第1个 bank内，和0号线程访问了同一个bank的不同地址，此时即产生了 Bank Conflicts。实际上这里的连续写就对应了这段代码：
+
+```c++
+for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
+      ComputeType pack[pack_size];
+      load.template load<pack_size>(pack, row, pack_id * pack_size);
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) {
+        buf[pack_id * pack_size * i] = pack[i];
+        thread_max = max(thread_max, pack[i]);
+      }
+    }
+```
+
+要避免它产生的bank conflict，就需要对内存的布局进行调整，把它从按行连续写（【num_packs, pack_size】）变成按列的非连续写（【pack_size, num_packs】）。
+
+```c++
+    for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
+      ComputeType pack[pack_size];
+      load.template load<pack_size>(pack, row, pack_id * pack_size);
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) {
+        buf[i * num_packs + pack_id] = pack[i];
+        thread_max = max(thread_max, pack[i]);
+      }
+    }
+```
 
 
 

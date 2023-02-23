@@ -539,19 +539,9 @@ inline cudaError_t DispatchSoftmaxWarpImpl(cudaStream_t stream, LOAD load, STORE
                                                                                 rows, cols);
 }
 
-// 一个 Block 处理一行元素，行 Reduce 需要做 Block 内的 Reduce 操作，需要做 Block 内线程同步，
-// 利用 BlockAllReduce 完成 Warp 内各线程间的求 Global Max 和 Global Sum 操作。
+// 一个 Block 处理一行元素， 利用 BlockAllReduce 完成 Warp 内各线程间的求 Global Max 和 Global Sum 操作。
 // BlockAllReduce 是借助 Cub 的 BlockReduce 方法实现的。
-// 执行的主体循环逻辑如下，根据 num_cols算出需要的 Shared Memory 大小作为 Launch Kernel 参数，
-// 借助 Shared Memory 保存输入，后续计算直接从 Shared Memory 读取。
 
-// 由于 SM 内的 Shared Memory 资源同样有限，因此当 num_cols超过一定范围，kernel 启动时申请 Shared Memory 超过最大限制，
-// 就会出现无法启动的问题，因此，仅在调用 cudaOccupancyMaxActiveBlocksPerMultiprocessor 返回值大于0时采用 Shared Memory 方案。
-// 此外，需要注意的是，由于 Block 内线程要做同步，当 SM 中正在调度执行的一个 Block 到达同步点时，SM 内可执行 Warp 逐渐减少，
-// 若同时执行的 Block 只有一个，则 SM 中可同时执行的 Warp 会在此时逐渐降成0，会导致计算资源空闲，造成浪费，若此时同时有其他 Block 在执行，
-// 则在一个 Block 到达同步点时仍然有其他 Block 可以执行。当 block_size 越小时，SM 可同时调度的 Block 越多，因此在这种情况下 block_size 越小越好。
-// 但是当在调大 block_size，SM 能同时调度的 Block 数不变的情况下，block_size 应该是越大越好，越大就有越好的并行度。
-// 因此代码中在选择 block_size 时，对不同 block_size 都计算了 cudaOccupancyMaxActiveBlocksPerMultiprocessor，若结果相同，使用较大的 block_size。
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int block_size,
          Algorithm algorithm>
 __global__ void SoftmaxBlockSMemImpl(LOAD load, STORE store, const int64_t rows,
@@ -561,8 +551,12 @@ __global__ void SoftmaxBlockSMemImpl(LOAD load, STORE store, const int64_t rows,
   const int tid = threadIdx.x;
   assert(cols % pack_size == 0);
   const int num_packs = cols / pack_size;
+  // 一个 Block 处理一行元素
   for (int64_t row = blockIdx.x; row < rows; row += gridDim.x) {
+    // 当前线程的最大值初始化为 -inf
     ComputeType thread_max = -Inf<ComputeType>();
+    // 以向量化的方式加载一行数据，然后执行pack reduce操作
+    // 这里的 pack reduce操作我在 https://zhuanlan.zhihu.com/p/596012674 最后一节也有介绍
     for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
       ComputeType pack[pack_size];
       load.template load<pack_size>(pack, row, pack_id * pack_size);
@@ -572,6 +566,7 @@ __global__ void SoftmaxBlockSMemImpl(LOAD load, STORE store, const int64_t rows,
         thread_max = max(thread_max, pack[i]);
       }
     }
+    // 执行block reduce获取当前行（由一个 Block 进行处理）的最大值
     const ComputeType row_max = BlockAllReduce<MaxOp, ComputeType, block_size>(thread_max);
     ComputeType thread_sum = 0;
     for (int col = tid; col < cols; col += block_size) {
@@ -585,7 +580,9 @@ __global__ void SoftmaxBlockSMemImpl(LOAD load, STORE store, const int64_t rows,
         thread_sum += Exp(x);
       }
     }
+    // 同理，获得当前行的sum
     const ComputeType row_sum = BlockAllReduce<SumOp, ComputeType, block_size>(thread_sum);
+    // 计算结果并写回到全局内存中
     for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
       ComputeType pack[pack_size];
 #pragma unroll
@@ -618,17 +615,29 @@ inline cudaError_t LaunchSoftmaxBlockSMemImpl(cudaStream_t stream, LOAD load, ST
   return cudaPeekAtLastError();
 }
 
+// 执行的主体循环逻辑如下，根据 num_cols算出需要的 Shared Memory 大小作为 Launch Kernel 参数，
+// 借助 Shared Memory 保存输入，后续计算直接从 Shared Memory 读取。
+// 由于 SM 内的 Shared Memory 资源同样有限，因此当 num_cols超过一定范围，kernel 启动时申请 Shared Memory 超过最大限制，
+// 就会出现无法启动的问题，因此，仅在调用 cudaOccupancyMaxActiveBlocksPerMultiprocessor 返回值大于0时采用 Shared Memory 方案。
+// 此外，需要注意的是，由于 Block 内线程要做同步，当 SM 中正在调度执行的一个 Block 到达同步点时，SM 内可执行 Warp 逐渐减少，
+// 若同时执行的 Block 只有一个，则 SM 中可同时执行的 Warp 会在此时逐渐降成0，会导致计算资源空闲，造成浪费，若此时同时有其他 Block 在执行，
+// 则在一个 Block 到达同步点时仍然有其他 Block 可以执行。当 block_size 越小时，SM 可同时调度的 Block 越多，因此在这种情况下 block_size 越小越好。
+// 但是当在调大 block_size，SM 能同时调度的 Block 数不变的情况下，block_size 应该是越大越好，越大就有越好的并行度。
+// 因此代码中在选择 block_size 时，对不同 block_size 都计算了 cudaOccupancyMaxActiveBlocksPerMultiprocessor，若结果相同，使用较大的 block_size。
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, Algorithm algorithm>
 inline cudaError_t TryDispatchSoftmaxBlockSMemImplBlockSize(cudaStream_t stream, LOAD load,
                                                             STORE store, const int64_t rows,
                                                             const int64_t cols, bool* success) {
+  // 设置4个不同的block_size
   constexpr int block_size_conf_1 = 128;
   constexpr int block_size_conf_2 = 256;
   constexpr int block_size_conf_3 = 512;
   constexpr int block_size_conf_4 = 1024;
+  // 计算第二种方案需要的共享内存大小
   const size_t smem = cols * sizeof(ComputeType);
   int max_active_blocks_conf_1;
   {
+    // 占用计算器API cudaOccupancyMaxActiveBlocksPerMultiprocessor可以根据 kernel 的 block 大小和共享内存使用情况提供占用率预测。
     cudaError_t err = cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_conf_1,
         SoftmaxBlockSMemImpl<LOAD, STORE, ComputeType, pack_size, block_size_conf_1, algorithm>,
