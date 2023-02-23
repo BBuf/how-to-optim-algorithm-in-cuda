@@ -73,6 +73,8 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 
 oneflow cuda kernel实现中最复杂的就是第一种实现（一个 warp 处理一行或者两行），为了方便感兴趣的读者理解，我为这部分实现添加了详细的注释：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/softmax/oneflow_softmax.cu#L12-L540 。由于篇幅太长可以自行查看，欢迎交流。
 
+------------------分割线-----------------
+
 当输入数据的列数也就是 `1024 < num_cols <= 4096` 时，oneflow softmax kernel使用一个 Block 来处理一行，并且借助 Shared Memory 来保存中间的计算结果。第二种实现的代码实现和解释如下：
 
 ```c++
@@ -248,7 +250,140 @@ for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
     }
 ```
 
+还是当pack_size=2时，每个线程写连续2个4字节时（可以看成8个字节），这个时候以0号warp为例，0号线程访问的地址总是0号 bank，1号线程访问的地址在总是1号 bank，以此类推，现在这种数据排布方法并不会产生 Bank Conflicts。
+
+------------------分割线-----------------
+
+oneflow softmax kernel的最后一种实现是针对仍然是一个 Block 处理一行元素，不同的是，不再用 Shared Memory 缓存输入x，而是在每次计算时重新读输入 x，这种实现没有最大 num_cols的限制，可以支持任意大小。
+
+此外，需要注意的是，在这种实现中，block_size 应该设越大越好，block_size 越大，SM 中能同时并行执行的 Block 数就越少，对 cache 的需求就越少，就有更多机会命中 Cache，多次读x不会多次访问 Global Memory，因此在实际测试中，在能利用 Cache 情况下，有效带宽不会因为读3次x而降低几倍。代码实现如下：
+
+```c++
+template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int block_size,
+         Algorithm algorithm>
+__global__ void SoftmaxBlockUncachedImpl(LOAD load, STORE store, const int64_t rows,
+                                         const int64_t cols) {
+  const int tid = threadIdx.x;
+  assert(cols % pack_size == 0);
+  const int num_packs = cols / pack_size;
+  for (int64_t row = blockIdx.x; row < rows; row += gridDim.x) {
+    ComputeType thread_max = -Inf<ComputeType>();
+    for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
+      ComputeType pack[pack_size];
+      load.template load<pack_size>(pack, row, pack_id * pack_size);
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) { thread_max = max(thread_max, pack[i]); }
+    }
+    const ComputeType row_max = BlockAllReduce<MaxOp, ComputeType, block_size>(thread_max);
+    ComputeType thread_sum = 0;
+    for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
+      ComputeType pack[pack_size];
+      load.template load<pack_size>(pack, row, pack_id * pack_size);
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) { thread_sum += Exp(pack[i] - row_max); }
+    }
+    const ComputeType row_sum = BlockAllReduce<SumOp, ComputeType, block_size>(thread_sum);
+    for (int pack_id = tid; pack_id < num_packs; pack_id += block_size) {
+      ComputeType pack[pack_size];
+      load.template load<pack_size>(pack, row, pack_id * pack_size);
+#pragma unroll
+      for (int i = 0; i < pack_size; ++i) {
+        if (algorithm == Algorithm::kSoftmax) {
+          pack[i] = Div(Exp(pack[i] - row_max), row_sum);
+        } else if (algorithm == Algorithm::kLogSoftmax) {
+          pack[i] = (pack[i] - row_max) - Log(row_sum);
+        } else {
+          __trap();
+        }
+      }
+      store.template store<pack_size>(pack, row, pack_id * pack_size);
+    }
+  }
+}
+```
+
+第三种实现的代码较为简单，就不仔细添加注释了。
+
+### FasterTransformer Softmax
+
+接下来我们看一下 FasterTransformer 的 softmax kernel实现，这部分的代码实现在：https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L189-L268 。是需要注意的是这里的 kernel 需要传入一个 mask 的输入作用于解码器，这个大家应该都比较熟悉，是 transformer 架构解码器的一个操作，因为解码的时候我们无法看到句子中当前 token 的后续 token。这个地方为了便于对比 oneflow 的 softmax kernel，我在最小实现中屏蔽掉了这个 mask 只对输入做一个裸的 softmax 运算来对比性能。我的最小实现代码位置在：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/softmax/faster_transformer_softmax.cu 。
+
+这个代码和 oneflow softmax kernel的第三种实现类似，我们先来看一下如何启动FasterTransformer的2种softmax kernel：
+
+```c++
+// input shape: [bacth_size, head_num, seq_len, seq_len]
+  const int batch_size = 32;
+  const int head_num = 64;
+  const int seq_len = 32;
+  const float scaler = 1.0;
+  const int N = batch_size * head_num * seq_len * seq_len;
+
+  float* input_host = (float*)malloc(N*sizeof(float));
+  float *input_device;
+  cudaMalloc((void **)&input_device, N*sizeof(float));
+  for (int i = 0; i < N; i++) input_host[i] = 1.0;
+  cudaMemcpy(input_device, input_host, N*sizeof(float), cudaMemcpyHostToDevice);
+  cudaStream_t stream;
+  cudaStreamCreate(&stream);
+  dim3 grid, block;
+  if(seq_len <= 32)
+    block.x = 32;
+  else if(seq_len > 32 && seq_len <= 64)
+    block.x = 64;
+  else if(seq_len > 64 && seq_len <= 128)
+    block.x = 128;
+  else if(seq_len > 128 && seq_len <= 256)
+    block.x = 256;
+  else if(seq_len > 256 && seq_len <= 512)
+    block.x = 512;
+  else
+    block.x = 1024;
+  // 如果 batch_size 和 head_num 的乘积 <= 120，block 数量设置为 batch_size * head_num * seq_len，也就是一个 block 负责处理 seq_len 个元素
+  if(batch_size * head_num <= 120)
+  {
+    grid.x = batch_size * head_num * seq_len;
+    softmax_kernel_v2<float><<<grid, block, 0, stream>>>(input_device, /*attr_mask*/ batch_size, head_num, seq_len, scaler); 
+  }
+  // 否则，block的数量设置为 batch_size * head_num, 也就是一个 block 负责处理 seq_len * seq_len 个元素
+  else
+  {
+    grid.x = batch_size * head_num;
+    softmax_kernel<float><<<grid, block, 0, stream>>>(input_device, /*attr_mask*/ batch_size, head_num, seq_len, scaler); 
+  }
+  float *output_host = (float*)malloc(N * sizeof(float));
+  cudaMemcpy(output_host, input_device, N * sizeof(float), cudaMemcpyDeviceToHost);
+  // 1 / 32 = 0.03125
+  for (int i = 0; i < 32; i++){
+    printf("%.5f\n", output_host[i]);
+  }
+```
+
+对于这里的 softmax_kernel 以及 softmax_kernel_v2 它们的输入参数都是一致的：
+
+```c++
+// 以 BERT 为例
+// query, key, value shape: [batch_size, head_num, seq_len, size_per_head]
+// qk_buf shape: [batch_size, head_num, seq_len, seq_len]
+// attr_mask shape: [seq_len, seq_len]
+// scaler: 缩放系数
+template <typename T>
+__global__
+void softmax_kernel(T* qk_buf_, /*const T* attr_mask*/ const int batch_size, const int head_num, const int seq_len, 
+  const T scaler){
+    ...
+  }
+```
+
+也就是说FasterTransformer里面的softmax kernel需要满足输入数据的shape是 [batch_size, head_num, seq_len, seq_len]，然后在最后一个维度上进行 softmax 得到每个句子里面的单词和单词的相似度。
+
+从上面启动 kernel 的代码来看，trick也非常简单，首先根据 seq_len 来选一个合适的 block_size，然后如果 batch_size 和 head_num 的乘积 <= 120，block 数量设置为 batch_size * head_num * seq_len，也就是一个 block 负责处理 seq_len 个元素。否则，block的数量设置为 batch_size * head_num, 也就是一个 block 负责处理 seq_len * seq_len 个元素。kernel的代码实现就是一个经典的 block reduce代码，这里就不再赘述。可以直接查看我上面给出的最小代码的链接：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/softmax/faster_transformer_softmax.cu 。
 
 
-### FasterTransformer
+### 性能对比
 
+
+
+### 总结
+
+
+这篇文章主要学习了oneflow的softmax kernel实现以及Faster Transformer softmax kernel的实现，并以个人的角度分别解析了原理和代码实现，最后对性能和带宽做一个横向对比方便大家直观的感受到oneflow softmax kernel的优越性。我目前处于尽可能去读懂oneflow的一些优秀的cuda实现的阶段，做一些知识储备，同时也调研和学习下相关的一些优化库的的cuda kernel。欢迎大家一起交流学习。

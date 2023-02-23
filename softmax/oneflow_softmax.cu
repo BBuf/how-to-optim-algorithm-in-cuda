@@ -714,6 +714,15 @@ inline cudaError_t TryDispatchSoftmaxBlockSMemImpl(cudaStream_t stream, LOAD loa
       stream, load, store, rows, cols, success);
 }
 
+// 和实现2一样，仍然是一个 Block 处理一行元素，
+// 不同的是，不再用 Shared Memory 缓存输入x，
+// 而是在每次计算时重新读输入 x，
+// 这种实现没有最大 num_cols的限制，可以支持任意大小。
+// 此外，需要注意的是，在这种实现中，block_size 应该设越大越好，
+// block_size 越大，SM 中能同时并行执行的 Block 数就越少，
+// 对 cache 的需求就越少，就有更多机会命中 Cache，
+// 多次读x不会多次访问 Global Memory，因此在实际测试中，
+// 在能利用 Cache 情况下，有效带宽不会因为读3次x而降低几倍。
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, int block_size,
          Algorithm algorithm>
 __global__ void SoftmaxBlockUncachedImpl(LOAD load, STORE store, const int64_t rows,
@@ -759,13 +768,17 @@ __global__ void SoftmaxBlockUncachedImpl(LOAD load, STORE store, const int64_t r
 template<typename LOAD, typename STORE, typename ComputeType, int pack_size, Algorithm algorithm>
 inline cudaError_t LaunchSoftmaxBlockUncachedImpl(cudaStream_t stream, LOAD load, STORE store,
                                                   const int64_t rows, const int64_t cols) {
+  // 每个 Block 使用 1024 个线程
   constexpr int block_size = 1024;
+  // waves 需要满足32组
   constexpr int waves = 32;
+  // 根据 BlockSize 以及硬件参数计算 Block 数量
   int grid_dim_x;
   {
     cudaError_t err = GetNumBlocks(block_size, rows, waves, &grid_dim_x);
     if (err != cudaSuccess) { return err; }
   }
+  // 启动第三者实现的 cuda kernel
   SoftmaxBlockUncachedImpl<LOAD, STORE, ComputeType, pack_size, block_size, algorithm>
       <<<grid_dim_x, block_size, 0, stream>>>(load, store, rows, cols);
   return cudaPeekAtLastError();
@@ -775,6 +788,7 @@ template<typename LOAD, typename STORE, typename ComputeType, Algorithm algorith
 struct DispatchSoftmaxBlockUncachedImplPackSize {
   cudaError_t operator()(cudaStream_t stream, LOAD load, STORE store, const int64_t rows,
                          const int64_t cols) {
+    // 如果 cols % 2 == 0，就执行 pack2，否则不 pack
     if (cols % 2 == 0) {
       return LaunchSoftmaxBlockUncachedImpl<LOAD, STORE, ComputeType, 2, algorithm>(
           stream, load, store, rows, cols);
