@@ -381,6 +381,16 @@ void softmax_kernel(T* qk_buf_, /*const T* attr_mask*/ const int batch_size, con
 
 ### 性能对比
 
+使用ncu在A100 PCIE 40G上进行profile，以FasterTransformer为准，我们挑选如下的几个shape（batch_size, num_heads, seq_len, seq_len）我们只变化 seq_len：
+- (32, 64, 16, 16)
+- (32, 64, 32, 32)
+- (32, 64, 64, 64)
+- (32, 64, 128, 128)
+- (32, 64, 512, 512)
+- (32, 64, 1024, 1024)
+
+对于 oneflow 的实现来说，我们只需要把 num_rows 设置成 batch_size * num_heads * seq_len ，把 num_cols 设置成 seq_len 即可。接下来我们分别测试下上面这些情况下 oneflow 和 FasterTransformer cuda kernel 的性能和带宽表现：
+
 
 
 ### 总结
