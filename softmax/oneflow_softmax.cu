@@ -1449,8 +1449,8 @@ DispatchLogSoftmaxGrad(cudaStream_t stream, LOAD_Y load_y, LOAD_DY load_dy, STOR
 }
 
 int main(){
-  const int rows = 49152;
-  const int cols = 32;
+  const int rows = 32 * 64 * 512;
+  const int cols = 512;
   const int N = rows * cols;
   using ComputeType = typename DefaultComputeType<float>::type;
   float* input_host = (float*)malloc(N*sizeof(float));

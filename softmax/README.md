@@ -387,11 +387,23 @@ void softmax_kernel(T* qk_buf_, /*const T* attr_mask*/ const int batch_size, con
 - (32, 64, 64, 64)
 - (32, 64, 128, 128)
 - (32, 64, 512, 512)
-- (32, 64, 1024, 1024)
 
-对于 oneflow 的实现来说，我们只需要把 num_rows 设置成 batch_size * num_heads * seq_len ，把 num_cols 设置成 seq_len 即可。接下来我们分别测试下上面这些情况下 oneflow 和 FasterTransformer cuda kernel 的性能和带宽表现：
+对于 oneflow 的实现来说，我们只需要把 num_rows 设置成 batch_size * num_heads * seq_len ，把 num_cols 设置成 seq_len 即可。接下来我们分别测试下上面这些情况下 oneflow 和 FasterTransformer softmax cuda kernel 的性能表现（此处设定数据类型都为 float ）：
 
+| seq_len |框架|耗时(us)|
+|--|--|--|
+| 16 | FasterTransformer | 26.43 |
+| 16 | OneFlow | 9.66 |
+| 32 | FasterTransformer | 46.40 |
+| 32 | OneFlow | 18.91 |
+| 64 | FasterTransformer | 120.16 |
+| 64 | OneFlow | 59.65 |
+| 128 | FasterTransformer | 430.18 |
+| 128 | OneFlow | 208.93 |
+| 512 | FasterTransformer | 6090 |
+| 512 | OneFlow | 3100 |
 
+可以看到在各个 seq_len 下，oneflow 的 softmax cuda kernel性能均显著优于 FasterTransformer 的 cuda kernel性能，优化是非常有效的。
 
 ### 总结
 

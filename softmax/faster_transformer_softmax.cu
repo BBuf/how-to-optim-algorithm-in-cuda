@@ -166,7 +166,7 @@ int main(){
   // input shape: [bacth_size, head_num, seq_len, seq_len]
   const int batch_size = 32;
   const int head_num = 64;
-  const int seq_len = 32;
+  const int seq_len = 512;
   const float scaler = 1.0;
   const int N = batch_size * head_num * seq_len * seq_len;
 
