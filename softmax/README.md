@@ -1,12 +1,18 @@
-## SoftMax 的不同实现
+## 0x1. OneFlow/FasterTransformer SoftMax CUDA Kernel 实现学习
 
-### OneFlow Softmax
+这篇文章主要学习了oneflow的softmax kernel实现以及Faster Transformer softmax kernel的实现，并以个人的角度分别解析了原理和代码实现，最后对性能做一个对比方便大家直观的感受到oneflow softmax kernel相比于FasterTransformer的优越性。我目前处于尽可能去理解oneflow的一些优秀的cuda实现的阶段，做一些知识储备，同时也调研和学习下相关的一些优化库的的cuda kernel。欢迎大家关注这个仓库 https://github.com/BBuf/how-to-optim-algorithm-in-cuda 一起交流学习。性能测试结果如下：
+
+![图片](https://user-images.githubusercontent.com/35585791/221142822-1c2ef670-00e2-4782-98de-d35a4eebd33c.png)
+
+可以看到在各个 seq_len 下，oneflow 的 softmax cuda kernel性能均显著优于 FasterTransformer 的 cuda kernel性能，优化是非常有效的。测试的细节请看下面的 0x4. 性能测试章节。
+
+### 0x2. OneFlow Softmax
 
 OneFlow 已经有SoftMax的实现介绍：https://zhuanlan.zhihu.com/p/341059988 。我这里会更加详细的介绍其中的代码，最后和 Faster Transformer 的实现做一个对比。
 
 OneFlow 的 softmax 实现被独立到了一个头文件中方便广大开发者使用或者改进，地址为：https://github.com/Oneflow-Inc/oneflow/blob/master/oneflow/core/cuda/softmax.cuh 。
 
-#### 环境准备
+#### 0x2.1 环境准备
 
 我这里也直接将其搬过来使用并更详细的了解了其中的原理最后测试下性能，需要注意的是oneflow版本的softmax实现依赖了nvidia cub的block reduce，因为要在外面单独运行这个实现需要手动编译下 cub 才可以。接下来展示一下 cub 的完全编译流程：
 
@@ -65,7 +71,7 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 /usr/local/cuda/bin/nvcc -arch=sm_80 -o bin/oneflow_softmax oneflow_softmax.cu -I/home/xxx/thrust/dependencies/cub/build/headers
 ```
 
-#### 优化解读
+#### 0x2.2 优化解读
 
 在 如何实现一个高效的Softmax CUDA kernel？——OneFlow 性能优化分享 (https://zhuanlan.zhihu.com/p/341059988) 这篇文章中已经较为详细的阐述了 OneFlow 的 softmax cuda kernel的优化技巧，我这里就不重复讲解其中的内容了。不过当时阅读这个文章的时候感觉对其中一些代码细节以及用法还有一些疑问，本次我在重新阅读的过程中为 oneflow 的 softmax cuda kernel添加了详细的注释以及用法示例。oneflow softmax cuda kernel要求输入数据的shape为（`num_rows, num_cols`），然后根据 `num_cols` 的大小进行分段处理：
 
@@ -304,7 +310,7 @@ __global__ void SoftmaxBlockUncachedImpl(LOAD load, STORE store, const int64_t r
 
 第三种实现的代码较为简单，就不仔细添加注释了。
 
-### FasterTransformer Softmax
+### 0x3. FasterTransformer Softmax
 
 接下来我们看一下 FasterTransformer 的 softmax kernel实现，这部分的代码实现在：https://github.com/NVIDIA/FasterTransformer/blob/release/v1.0_tag/fastertransformer/cuda/open_attention.cu#L189-L268 。是需要注意的是这里的 kernel 需要传入一个 mask 的输入作用于解码器，这个大家应该都比较熟悉，是 transformer 架构解码器的一个操作，因为解码的时候我们无法看到句子中当前 token 的后续 token。这个地方为了便于对比 oneflow 的 softmax kernel，我在最小实现中屏蔽掉了这个 mask 只对输入做一个裸的 softmax 运算来对比性能。我的最小实现代码位置在：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/softmax/faster_transformer_softmax.cu 。
 
@@ -379,7 +385,7 @@ void softmax_kernel(T* qk_buf_, /*const T* attr_mask*/ const int batch_size, con
 从上面启动 kernel 的代码来看，trick也非常简单，首先根据 seq_len 来选一个合适的 block_size，然后如果 batch_size 和 head_num 的乘积 <= 120，block 数量设置为 batch_size * head_num * seq_len，也就是一个 block 负责处理 seq_len 个元素。否则，block的数量设置为 batch_size * head_num, 也就是一个 block 负责处理 seq_len * seq_len 个元素。kernel的代码实现就是一个经典的 block reduce代码，这里就不再赘述。可以直接查看我上面给出的最小代码的链接：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/softmax/faster_transformer_softmax.cu 。
 
 
-### 性能对比
+### 0x4. 性能对比
 
 使用ncu在A100 PCIE 40G上进行profile，以FasterTransformer为准，我们挑选如下的几个shape（batch_size, num_heads, seq_len, seq_len）我们只变化 seq_len：
 - (32, 64, 16, 16)
@@ -403,9 +409,14 @@ void softmax_kernel(T* qk_buf_, /*const T* attr_mask*/ const int batch_size, con
 | 512 | FasterTransformer | 6090 |
 | 512 | OneFlow | 3100 |
 
+为了更直观，这里画一个图：
+
+![图片](https://user-images.githubusercontent.com/35585791/221142822-1c2ef670-00e2-4782-98de-d35a4eebd33c.png)
+
+
 可以看到在各个 seq_len 下，oneflow 的 softmax cuda kernel性能均显著优于 FasterTransformer 的 cuda kernel性能，优化是非常有效的。
 
-### 总结
+### 0x5. 总结
 
 
-这篇文章主要学习了oneflow的softmax kernel实现以及Faster Transformer softmax kernel的实现，并以个人的角度分别解析了原理和代码实现，最后对性能和带宽做一个横向对比方便大家直观的感受到oneflow softmax kernel的优越性。我目前处于尽可能去读懂oneflow的一些优秀的cuda实现的阶段，做一些知识储备，同时也调研和学习下相关的一些优化库的的cuda kernel。欢迎大家一起交流学习。
+这篇文章主要学习了oneflow的softmax kernel实现以及Faster Transformer softmax kernel的实现，并以个人的角度分别解析了原理和代码实现，最后对性能做一个对比方便大家直观的感受到oneflow softmax kernel相比于FasterTransformer的优越性。我目前处于尽可能去理解oneflow的一些优秀的cuda实现的阶段，做一些知识储备，同时也调研和学习下相关的一些优化库的的cuda kernel。欢迎大家关注这个仓库 https://github.com/BBuf/how-to-optim-algorithm-in-cuda 一起交流学习。
