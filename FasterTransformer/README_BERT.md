@@ -189,9 +189,9 @@ class MultiHeadedAttention(nn.Module):
 x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.h * self.d_k)
 ```
 
-这里的 x 的 shape 仍然和之前的 q 的 shape 一致， 为[batch_size, head_num, seq_length, size_per_head]。因为Attetion 层不会改变输入的形状，因为 Attention 的计算过程是：q * k 转置(.transpose(2, 3))，除以 d_k ** 0.5，输出维度是 [b, head_num , seq_length, seq_length] 即单词和单词直接的相似性 ，然后对最后一个维度进行 softmax 操作得到 [b, head_num, seq_length, seq_length] , 最后和 v（shape 也是 [batch_size, head_num, seq_length, size_per_head]） 做一个矩阵乘法，结果的 shape 和输入的 shape 形状都是：[batch_size, head_num, seq_length, size_per_head] 。因此这里的 `x.transpose(1, 2)` 就是把 shape 为 [batch_size, head_num, seq_length, size_per_head] 的 x 重新排列为 [batch_size, head_num, size_per_head, seq_length]。然后 `x.contiguous().view(batch_size, -1, self.h * self.d_k)` 进一步将 shape 重新排列为 [batch_size, seq_length, head_num * size_per_head] 。
+这里的 x 的 shape 仍然和之前的 q 的 shape 一致， 为[batch_size, head_num, seq_length, size_per_head]。因为Attetion 层不会改变输入的形状，因为 Attention 的计算过程是：q * k 转置(.transpose(2, 3))，除以 d_k ** 0.5，输出维度是 [batch_size, head_num , seq_length, seq_length] 即单词和单词直接的相似性 ，然后对最后一个维度进行 softmax 操作得到 [batch_size, head_num, seq_length, seq_length] , 最后和 v（shape 也是 [batch_size, head_num, seq_length, size_per_head]） 做一个矩阵乘法，结果的 shape 和输入的 shape 形状都是：[batch_size, head_num, seq_length, size_per_head] 。因此这里的 `x.transpose(1, 2)` 就是把 shape 为 [batch_size, head_num, seq_length, size_per_head] 的 x 重新排列为 [batch_size, head_num, size_per_head, seq_length]。然后 `x.contiguous().view(batch_size, -1, self.h * self.d_k)` 进一步将 shape 重新排列为 [batch_size, seq_length, head_num * size_per_head] 。
 
-对于 FP32 模式，启动 batch_size * head_num * seq_length 个 Block , 然后每个 Block 启动 size_per_head 个线程处理一个序列（一个序列对应 size_per_head 个元素）。如下：
+对于 FP32 模式，启动 batch_size * head_num * seq_length 个 Block , 然后每个 Block 启动 size_per_head 个线程处理一个token（一个token对应 size_per_head 个元素）。如下：
 
 ```c++
 const int seq_per_block = 1;
