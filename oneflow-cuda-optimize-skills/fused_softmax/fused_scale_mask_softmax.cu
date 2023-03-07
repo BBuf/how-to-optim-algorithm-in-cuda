@@ -1462,16 +1462,24 @@ class NdIndexOffsetHelper {
  public:
   NdIndexOffsetHelper() = default;
 
+  // 这段代码是一个构造函数模板，它的功能是根据给定的多维数组的维度初始化一个用于计算偏移量的辅助类。
+  // 它的参数是一个可变参数模板，表示可以接受任意个数和类型的参数，但是第一个参数必须是一个T类型的值，
+  // 后面的参数必须是一个参数包。它的函数体是一个调用另一个函数的语句，这个函数是用于初始化步长数组的。
+  // 它使用了一个宏OF_DEVICE_FUNC，这个宏可能是用于指定函数在哪个设备上运行的，比如GPU或者CPU。
+  // 这个构造函数模板可能是用于实现一些多维数组的操作，比如插值或者转置。
   template<class... Ts>
   OF_DEVICE_FUNC explicit NdIndexOffsetHelper(T d0, Ts... dims) {
     constexpr int n = 1 + sizeof...(dims);
     static_assert(n <= N, "");
     T dims_arr[n] = {d0, static_cast<T>(dims)...};
+    // 初始化strides信息
     InitStrides(dims_arr, n);
   }
 
+  // 从一个类型为T的数组进行构造，并初始化strides信息，注意这里的strides长度设置为N
   OF_DEVICE_FUNC explicit NdIndexOffsetHelper(const T* dims) { InitStrides(dims, N); }
 
+  // 从一个类型为U的数组进行构造，并初始化strides信息，注意这里的strides长度设置为N
   template<typename U>
   OF_DEVICE_FUNC explicit NdIndexOffsetHelper(const U* dims) {
     T dims_arr[N];
@@ -1479,8 +1487,10 @@ class NdIndexOffsetHelper {
     InitStrides(dims_arr, N);
   }
 
+  // 从一个类型为T的数组进行构造，并初始化strides信息，注意这里的strides长度自定义为n
   OF_DEVICE_FUNC explicit NdIndexOffsetHelper(const T* dims, int n) { InitStrides(dims, n); }
 
+  // 从一个类型为U的数组进行构造，并初始化strides信息，注意这里的strides长度自定义为n
   template<typename U>
   OF_DEVICE_FUNC explicit NdIndexOffsetHelper(const U* dims, int n) {
     T dims_arr[N];
@@ -1490,17 +1500,26 @@ class NdIndexOffsetHelper {
     InitStrides(dims_arr, n);
   }
 
+  // virtual 表示这是一个虚析构函数，用于在删除基类指针时调用派生类的析构函数，避免内存泄漏。
+  // ~NdIndexOffsetHelper() 表示这是 NdIndexOffsetHelper 类的析构函数，用于释放类对象占用的资源。
+  // = default; 表示这是一个默认的析构函数，没有自定义的操作，让编译器自动生成。
   virtual ~NdIndexOffsetHelper() = default;
 
+  // 这段代码是一个模板函数，用于根据一个N维索引数组计算一个一维偏移量。函数的参数和返回值都是模板类型T，可以是任意数值类型。函数的主要步骤如下：
   OF_DEVICE_FUNC T NdIndexToOffset(const T* index) const {
+    // 定义一个变量offset，初始值为0，用于存储最终的偏移量。
     T offset = 0;
 #ifdef __CUDA_ARCH__
 #pragma unroll
 #endif
+    // 使用一个循环，从0到N-1，遍历索引数组的每一个元素。在循环中，使用一个数组stride_，
+    // 用于存储每一个维度的步长，即每增加一个单位的索引，偏移量增加多少。
+    // 将索引数组的第i个元素乘以步长数组的第i个元素，然后累加到offset上。
     for (int i = 0; i < N; ++i) { offset += index[i] * stride_[i]; }
     return offset;
   }
-
+  
+  // 类似上面，不过这里是从0到n进行循环
   OF_DEVICE_FUNC T NdIndexToOffset(const T* index, int n) const {
     assert(n <= N);
     T offset = 0;
@@ -1513,6 +1532,12 @@ class NdIndexOffsetHelper {
     return offset;
   }
 
+  // 这段代码是一个函数模板，它的功能是根据给定的多维索引计算一个一维偏移量。
+  // 它的参数是一个可变参数模板，表示可以接受任意个数和类型的参数，但是第一个
+  // 参数必须是一个T类型的值，后面的参数必须是一个参数包。它的返回值也是一个T类型的值。
+  // 它的函数体是一个循环，用于累加每个维度的索引乘以对应的步长，得到最终的偏移量。
+  // 它使用了一个宏OF_DEVICE_FUNC，这个宏可能是用于指定函数在哪个设备上运行的，
+  // 比如GPU或者CPU。这个函数模板可能是用于实现一些多维数组的操作，比如插值或者转置。
   template<class... Ts>
   OF_DEVICE_FUNC T NdIndexToOffset(T d0, Ts... others) const {
     constexpr int n = 1 + sizeof...(others);
@@ -1531,6 +1556,11 @@ class NdIndexOffsetHelper {
     return offset;
   }
 
+  // 这段代码是一个成员函数模板，它的功能是根据给定的一维偏移量计算一个多维索引。
+  // 它的参数是一个T类型的值，表示偏移量，和一个T类型的指针，表示索引数组。
+  // 它的函数体是一个循环，用于逐个维度地计算索引值，然后更新剩余的偏移量。
+  // 它使用了一个宏OF_DEVICE_FUNC，这个宏可能是用于指定函数在哪个设备上运行的，比如GPU或者CPU 。
+  // 这个成员函数模板可能是用于实现一些多维数组的操作，比如插值或者转置。
   OF_DEVICE_FUNC void OffsetToNdIndex(T offset, T* index) const {
     T remaining = offset;
 #ifdef __CUDA_ARCH__
@@ -1544,6 +1574,19 @@ class NdIndexOffsetHelper {
     index[N - 1] = remaining;
   }
 
+  // 这段代码是用C++语言编写的，它定义了一个名为OffsetToNdIndex的函数，
+  // 该函数的功能是将一维的偏移量转换为高维的索引1。这个函数是OneFlow的内部类，
+  // OneFlow是一个深度学习框架，它支持分布式训练和推理。这个函数的参数有三个，分别是：
+  // offset: 一个整数，表示一维的偏移量。
+  // index: 一个整数数组，用于存储转换后的高维索引。
+  // n: 一个整数，表示高维的维度数，不能超过N，N是一个常量。
+  // 函数的主要逻辑是：
+  // 首先，用一个变量remaining存储offset的值。
+  // 然后，用一个循环遍历从0到N-1的整数i。
+  // 在循环中，如果i小于n，那么就用remaining除以stride_[i]得到一个整数idx，这个stride_[i]是一个预定义的数组，表示每个维度的步长。
+  // 然后，将idx赋值给index[i]，并用remaining减去idx乘以stride_[i]，更新remaining的值。
+  // 最后，结束循环。
+  // 这个函数的作用是将一维的偏移量映射到高维的索引，这在深度学习中有很多应用，比如Unfold和Fold算子，它们可以将图像的局部区域转换为一维的向量，或者反过来。
   OF_DEVICE_FUNC void OffsetToNdIndex(T offset, T* index, int n) const {
     assert(n <= N);
     T remaining = offset;
@@ -1559,6 +1602,22 @@ class NdIndexOffsetHelper {
     }
   }
 
+  // 它定义了一个名为OffsetToNdIndex的函数模板，该函数模板的功能和之前的函数类似，
+  // 也是将一维的偏移量转换为高维的索引，但是它可以接受不同数量的参数。这个函数模板的参数有两个，分别是：
+  // offset: 一个整数，表示一维的偏移量。
+  // d0, others: 一系列的整数引用，用于存储转换后的高维索引。
+  // 函数模板的主要逻辑是：
+  // 首先，用一个常量n表示参数的个数，它等于1加上others的个数。
+  // 然后，用一个静态断言检查n是否小于等于N，N是一个常量。
+  // 然后，用一个指针数组index存储d0和others的地址。
+  // 然后，用一个变量remaining存储offset的值。
+  // 然后，用一个循环遍历从0到n-2的整数i。
+  // 在循环中，如果i小于n-1，那么就用remaining除以stride_[i]得到一个整数idx，这个stride_[i]是一个预定义的数组，表示每个维度的步长。
+  // 然后，将idx赋值给index[i]所指向的变量，并用remaining减去idx乘以stride_[i]，更新remaining的值。
+  // 最后，根据n和N的关系，分两种情况处理最后一个参数：
+  // 如果n等于N，那么就将remaining赋值给index[n-1]所指向的变量。
+  // 如果n小于N，那么就用remaining除以stride_[n-1]得到一个整数，赋值给index[n-1]所指向的变量。
+  // 这个函数模板的作用是将一维的偏移量映射到高维的索引，它可以根据不同的参数个数进行重载，这是C++的一种泛型编程的特性
   template<class... Ts>
   OF_DEVICE_FUNC void OffsetToNdIndex(T offset, T& d0, Ts&... others) const {
     constexpr int n = 1 + sizeof...(others);
@@ -1583,6 +1642,17 @@ class NdIndexOffsetHelper {
   OF_DEVICE_FUNC constexpr int Size() const { return N; }
 
  protected:
+  // 这段代码也是用C++语言编写的，它定义了一个名为InitStrides的函数，
+  // 该函数的功能是初始化stride_数组，该数组表示每个维度的步长。这个函数的参数有两个，分别是：
+  // dims: 一个整数数组，表示高维的维度大小。
+  // n: 一个整数，表示高维的维度数，不能超过N，N是一个常量。
+  // 函数的主要逻辑是：
+  // 首先，用一个循环遍历从n-1到N-1的整数i。
+  // 在循环中，将stride_[i]赋值为1。
+  // 然后，用一个循环遍历从n-2到0的整数i。
+  // 在循环中，将stride_[i]赋值为dims[i+1]乘以stride_[i+1]。
+  // 这个函数的作用是计算每个维度的步长，这在之前的OffsetToNdIndex函数中有用到，它可以根据不同的维度大小和维度数进行初始化。
+
   OF_DEVICE_FUNC void InitStrides(const T* dims, const int n) {
     for (int i = n - 1; i < N; ++i) { stride_[i] = 1; }
     for (int i = n - 2; i >= 0; --i) { stride_[i] = dims[i + 1] * stride_[i + 1]; }
