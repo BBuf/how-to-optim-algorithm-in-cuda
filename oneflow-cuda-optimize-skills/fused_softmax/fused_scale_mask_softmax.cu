@@ -1662,6 +1662,23 @@ class NdIndexOffsetHelper {
 };
 
 // fused_softmax
+// 这个函数的功能是简化两个张量的广播维度，使它们能够进行算术运算。
+// 广播是一种在不同形状的张量之间进行运算的方法，它会将较小的张量扩展到较大的张量的形状上。
+// 这段代码的输入参数有：
+// num_a_dims: 张量A的维度数
+// a_dims: 张量A的每个维度的大小
+// num_b_dims: 张量B的维度数
+// b_dims: 张量B的每个维度的大小
+// simplified_num_dims: 简化后的广播维度数
+// simplified_a_dims: 简化后的张量A的每个维度的大小
+// simplified_b_dims: 简化后的张量B的每个维度的大小
+// 这段代码的主要逻辑是：
+// 首先，找到两个张量的最大维度数，然后用一个闭包函数MakeGetDim来获取每个张量在每个维度上的大小，如果维度数不足，就用1来填充。
+// 然后，遍历每个维度，计算两个张量在该维度上的最大值，作为广播后的维度大小。
+// 如果该维度大小为1，就跳过，否则就判断是否可以和上一个维度合并，如果可以，就乘以上一个维度的大小，
+// 如果不可以，就添加到简化后的维度数组中，并记录是否是广播维度。
+// 最后，返回简化后的广播维度数和两个张量的简化后的维度大小。
+// 这段代码的目的是为了减少广播运算的开销，提高深度学习的性能。
 inline void SimplifyBroadcastDims(size_t num_a_dims, const int64_t* a_dims, size_t num_b_dims,
                                   const int64_t* b_dims, size_t* simplified_num_dims,
                                   int64_t* simplified_a_dims, int64_t* simplified_b_dims) {
@@ -1702,6 +1719,17 @@ inline void SimplifyBroadcastDims(size_t num_a_dims, const int64_t* a_dims, size
   }
 }
 
+// 它的功能是定义一个结构体，用于存储广播掩码softmax的参数。
+// 广播掩码softmax是一种在不同形状的张量之间进行softmax运算的方法，
+// 它会将较小的张量扩展到较大的张量的形状上，并用一个掩码张量来指定哪些位置需要计算softmax，
+// 哪些位置需要填充一个固定的值。这个结构体的成员变量有：
+// src_index_helper: 一个用于计算源张量索引的辅助类
+// mask_index_helper: 一个用于计算掩码张量索引的辅助类
+// mask_dims: 掩码张量的每个维度的大小
+// row_size: 每一行的元素个数
+// fill: 填充的值
+// scale: softmax的缩放因子
+// 这个结构体的目的是为了方便在内核函数中使用广播掩码softmax的参数，提高深度学习的性能。
 template<size_t num_dims, typename IndexType>
 struct BroadcastMaskSoftmaxParams {
   NdIndexOffsetHelper<IndexType, num_dims> src_index_helper;
@@ -1712,12 +1740,47 @@ struct BroadcastMaskSoftmaxParams {
   float scale;
 };
 
+// 它的功能是定义一个结构体，用于存储逐元素掩码softmax的参数。
+// 逐元素掩码softmax是一种在相同形状的张量之间进行softmax运算的方法，
+// 它会用一个掩码张量来指定哪些位置需要计算softmax，哪些位置需要填充一个固定的值。
+// 这个结构体的成员变量有：
+// row_size: 每一行的元素个数
+// fill: 填充的值
+// scale: softmax的缩放因子
+// 这个结构体的目的是为了方便在内核函数中使用逐元素掩码softmax的参数，提高深度学习的性能。
 struct ElementwiseMaskSoftmaxParams {
   int64_t row_size;
   float fill;
   float scale;
 };
 
+// 它的功能是定义一个模板类，用于在内核函数中加载广播掩码softmax的输入。它的模板参数有：
+// SRC: 源张量的数据类型
+// DST: 目标张量的数据类型
+// MASK: 掩码张量的数据类型
+// num_dims: 张量的维度数
+// IndexType: 索引的数据类型
+// 它的构造函数接受以下参数：
+// src: 源张量的指针
+// mask: 掩码张量的指针
+// params: 广播掩码softmax的参数，是一个BroadcastMaskSoftmaxParams结构体的实例
+// 它的成员函数有：
+// load: 一个模板函数，用于从源张量和掩码张量中加载N个元素，并将它们存储到目标张量中。它接受以下参数：
+// dst: 目标张量的指针
+// row: 当前的行号
+// col: 当前的列号
+// 它的内部逻辑是：
+// 根据行号和列号计算源张量的偏移量
+// 根据偏移量计算源张量的多维索引
+// 根据多维索引计算掩码张量的偏移量
+// 从源张量和掩码张量中读取N个元素，分别存储到pack和mask_pack中
+// 遍历N个元素，如果掩码张量的元素为0，就将目标张量的元素设为填充值，否则就将源张量的元素乘以缩放因子，并转换为目标张量的数据类型
+// 这个模板类的成员变量有：
+// src: 源张量的指针
+// mask: 掩码张量的指针
+// mask_dims: 掩码张量的每个维度的大小，是一个数组
+// params: 广播掩码softmax的参数，是一个BroadcastMaskSoftmaxParams结构体的实例
+// 这个模板类的目的是为了方便在内核函数中使用广播掩码softmax的输入，提高深度学习的性能。
 template<typename SRC, typename DST, typename MASK, size_t num_dims, typename IndexType>
 struct BroadcastScaleMaskLoad {
   BroadcastScaleMaskLoad(const SRC* src, const MASK* mask,
@@ -1759,6 +1822,27 @@ struct BroadcastScaleMaskLoad {
   BroadcastMaskSoftmaxParams<num_dims, IndexType> params;
 };
 
+// 它的功能是定义一个模板类，用于在内核函数中加载逐元素掩码softmax的输入。它的模板参数有：
+// SRC: 源张量的数据类型
+// DST: 目标张量的数据类型
+// MASK: 掩码张量的数据类型
+// 它的构造函数接受以下参数：
+// src: 源张量的指针
+// mask: 掩码张量的指针
+// param: 逐元素掩码softmax的参数，是一个ElementwiseMaskSoftmaxParams结构体的实例
+// load: 一个模板函数，用于从源张量和掩码张量中加载N个元素，并将它们存储到目标张量中。它接受以下参数：
+// dst: 目标张量的指针
+// row: 当前的行号
+// col: 当前的列号
+// 它的内部逻辑是：
+// 根据行号和列号计算源张量和掩码张量的偏移量
+// 从源张量和掩码张量中读取N个元素，分别存储到pack和mask_pack中
+// 遍历N个元素，如果掩码张量的元素为0，就将目标张量的元素设为填充值，否则就将源张量的元素乘以缩放因子，并转换为目标张量的数据类型
+// 这个模板类的成员变量有：
+// src: 源张量的指针
+// mask: 掩码张量的指针
+// param: 逐元素掩码softmax的参数，是一个ElementwiseMaskSoftmaxParams结构体的实例
+// 这个模板类的目的是为了方便在内核函数中使用逐元素掩码softmax的输入，提高深度学习的性能。
 template<typename SRC, typename DST, typename MASK>
 struct ElementwiseScaleMaskLoad {
   ElementwiseScaleMaskLoad(const SRC* src, const MASK* mask, ElementwiseMaskSoftmaxParams param)
@@ -1784,6 +1868,33 @@ struct ElementwiseScaleMaskLoad {
   ElementwiseMaskSoftmaxParams param;
 };
 
+// 它的功能是定义一个模板类，用于在内核函数中存储广播掩码softmax的输出。它的模板参数有：
+// SRC: 源张量的数据类型
+// DST: 目标张量的数据类型
+// MASK: 掩码张量的数据类型
+// num_dims: 张量的维度数
+// IndexType: 索引类型
+// 它的构造函数接受以下参数：
+// dst: 目标张量的指针
+// mask: 掩码张量的指针
+// params: 广播掩码softmax的参数，是一个BroadcastMaskSoftmaxParams结构体的实例
+// 它的成员函数有：
+// store: 用于从源张量加载N个元素，并将它们存储到目标张量中。它接受以下参数：
+// src: 源张量的指针
+// row: 当前的行号
+// col: 当前的列号
+// 它的内部逻辑是：
+// 根据行号和列号计算源张量和目标张量的偏移量
+// 根据偏移量计算源张量和掩码张量的索引
+// 从掩码张量中读取N个元素，存储到mask_pack中
+// 遍历N个元素，如果掩码张量的元素为0，就将目标张量的元素设为填充值，否则就将源张量的元素乘以缩放因子，并转换为目标张量的数据类型
+// 将目标张量的元素存储到pack中，并写入到目标张量中
+// 这个模板类的成员变量有：
+// dst: 目标张量的指针
+// mask: 掩码张量的指针
+// mask_dims: 掩码张量的维度数组
+// params: 广播掩码softmax的参数，是一个BroadcastMaskSoftmaxParams结构体的实例
+// 这个模板类的目的是为了方便在内核函数中使用广播掩码softmax的输出，提高深度学习的性能。
 template<typename SRC, typename DST, typename MASK, size_t num_dims, typename IndexType>
 struct BroadcastScaleMaskStore {
   BroadcastScaleMaskStore(DST* dst, const MASK* mask,
@@ -1825,6 +1936,24 @@ struct BroadcastScaleMaskStore {
   BroadcastMaskSoftmaxParams<num_dims, IndexType> params;
 };
 
+// 它的功能是定义一个模板类，用于在内核函数中存储逐元素掩码softmax的输出。它的模板参数有：
+// SRC: 源张量的数据类型
+// DST: 目标张量的数据类型
+// MASK: 掩码张量的数据类型
+// 它的构造函数接受以下参数：
+// dst: 目标张量的指针
+// mask: 掩码张量的指针
+// params: 逐元素掩码softmax的参数，是一个ElementwiseMaskSoftmaxParams结构体的实例
+// 它的成员函数有：
+// store: 一个模板函数，用于从源张量中读取N个元素，并将它们存储到目标张量中。它接受以下参数：
+// src: 源张量的指针
+// row: 当前的行号
+// col: 当前的列号
+// 它的内部逻辑是：
+// 根据行号和列号计算源张量和目标张量的偏移量
+// 根据偏移量从掩码张量中读取N个元素，存储到mask_pack中
+// 遍历N个元素，如果掩码张量的元素为0，就将目标张量的元素设为填充值，否则就将源张量的元素乘以缩放因子，并转换为目标张量的数据类型
+// 将目标张量的元素存储到pack中，并写入到目标张量中
 template<typename SRC, typename DST, typename MASK>
 struct ElementwiseScaleMaskStore {
   ElementwiseScaleMaskStore(DST* dst, const MASK* mask, ElementwiseMaskSoftmaxParams params)
@@ -1850,6 +1979,15 @@ struct ElementwiseScaleMaskStore {
   ElementwiseMaskSoftmaxParams params;
 };
 
+// 这段代码定义了一个名为 MaskScaleLoad 的结构体，它有两个模板参数 SRC 和 DST，
+// 分别表示源数据类型和目标数据类型。这个结构体有四个成员变量，分别是 src、mask、row_size 和 scale，
+// 它们都是构造函数的参数。src 是一个指向源数据的指针，mask 是一个指向布尔值的指针，row_size 是一个表示每行数据的大小的整数，
+// scale 是一个表示缩放因子的源数据类型的值。这个结构体还有一个模板成员函数 load，它有一个模板参数 N，表示每次加载的数据的数量（pack size）。
+// 这个函数有三个参数，分别是 dst、row 和 col，表示要加载数据的目标地址、行号和列号。
+// 这个函数的功能是从 src 和 mask 中读取 N 个数据，分别转换为目标数据类型，然后用 mask 的值和 scale 的值相乘，再和原始的输入相乘，
+// 最后存储到 dst 中。这个函数使用了一些 C++ 的特性，比如 reinterpret_cast、Pack、PackType 和 static_cast，
+// 它们都是用于类型转换和数据封装的工具。这个函数还使用了一个编译器指令 #pragma unroll，它是用于循环展开的优化技术。
+// 这段代码可能是用于图像处理或者机器学习的领域，因为它涉及到了数据的加载、缩放和掩码的操作。
 template<typename SRC, typename DST>
 struct MaskScaleLoad {
   MaskScaleLoad(const SRC* src, const bool* mask, int64_t row_size, SRC scale)
@@ -1872,6 +2010,27 @@ struct MaskScaleLoad {
   int64_t row_size;
   SRC scale;
 };
+
+// 这段代码是一个 C++ 的模板结构体，它定义了一个 DropoutStore 类，用于在神经网络中实现 dropout 的功能。
+// Dropout 是一种正则化技术，它可以随机地将一些神经元的输出置为零，从而减少过拟合的风险。
+// DropoutStore 类有以下几个成员变量和一个成员函数：
+// dst: 一个指向 DST 类型的指针，用于存储 dropout 后的输出。
+// softmax_y: 一个指向 DST 类型的指针，用于存储 softmax 的输出。
+// mask: 一个指向 bool 类型的指针，用于存储 dropout 的掩码，表示哪些神经元被置为零。
+// row_size: 一个 int64_t 类型的变量，用于表示每一行的元素个数。
+// scale: 一个 DST 类型的变量，用于表示 dropout 的缩放因子，通常为 1 / (1 - dropout_rate)。
+// store: 一个模板函数，用于将 SRC 类型的输入转换为 DST 类型，并根据 mask 和 scale 计算 dropout 后的输出，
+// 同时将 softmax 的输出也保存下来。这个函数接受三个参数，分别是 src，row 和 col，表示输入的指针，行号和列号。
+// 这个函数还使用了一个模板参数 N（pack size），表示每次处理的元素个数。这个函数的主要逻辑是：
+// 定义三个 Pack 结构体，分别用于存储 softmax 的输出，dropout 的输出和 mask 的值。
+// Pack 是一个模板结构体，它可以将 N 个元素打包成一个存储单元，以提高内存的访问效率。
+// 计算当前处理的元素在内存中的偏移量，根据偏移量从 mask 中读取 N 个 bool 值，并将其转换为 Pack 结构体。
+// 使用一个循环，对每个元素进行如下操作：
+// 将 SRC 类型的输入转换为 DST 类型，并赋值给 softmax 的输出。
+// 根据 mask 的值，将输入乘以 scale，并赋值给 dropout 的输出。
+// 将 softmax 的输出和 dropout 的输出的 Pack 结构体转换为存储单元，并写入到 softmax_y 和 dst 中。
+// 这段代码的优点是它可以高效地实现 dropout 的功能，同时保存 softmax 的输出，以便于后续的计算。
+// 它也使用了模板和类型转换的技术，来保证数据的兼容性和安全性。它还使用了循环展开的优化技术，来减少循环的开销和提高性能。
 
 template<typename SRC, typename DST>
 struct DropoutStore {
