@@ -2060,15 +2060,11 @@ struct DropoutStore {
   DST scale;
 };
 
-
-template<typename T, typename ComputeType, typename MASK, int num_dims>
-void LaunchBroadcastForwardKernel(cudaStream_t stream, const T* x, T* y, T* softmax_y,
-                                  const MASK* mask, const bool* dropout_mask,
+template<typename T, typename ComputeType, typename MASK, size_t num_dims>
+void LaunchBroadcastForwardKernel(cudaStream_t stream, const T* x, T* y, const MASK* mask,
                                   const int64_t elem_cnt, const int64_t rows, const int64_t cols,
-                                  const float fill, const float scale, const float dropout_scale,
-                                  const int64_t* input_dims, const int64_t* mask_dims) {
-  DropoutStore<ComputeType, T> store(y, softmax_y, dropout_mask, cols,
-                                                          dropout_scale);
+                                  const float fill, const float scale, const int64_t* input_dims,
+                                  const int64_t* mask_dims) {
   NdIndexOffsetHelper<int32_t, num_dims> input_index_helper(input_dims);
   NdIndexOffsetHelper<int32_t, num_dims> mask_index_helper(mask_dims);
   BroadcastMaskSoftmaxParams<num_dims, int32_t> params;
@@ -2080,71 +2076,84 @@ void LaunchBroadcastForwardKernel(cudaStream_t stream, const T* x, T* y, T* soft
   params.scale = scale;
   BroadcastScaleMaskLoad<T, ComputeType, MASK, num_dims, int32_t> load(x, mask,
                                                                                             params);
-  DispatchSoftmax<decltype(load), decltype(store), ComputeType>(
-      stream, load, store, rows, cols);
-  CUDA_CHECK();
+  DirectStore<ComputeType, T> store(y, cols);
+  (DispatchSoftmax<decltype(load), decltype(store), ComputeType>(
+      stream, load, store, rows, cols));
+   CUDA_CHECK();
 }
 
 template<typename T, typename ComputeType, typename MASK>
-void LaunchElementwiseForwardKernel(cudaStream_t stream, const T* x, T* y, T* softmax_y,
-                                    const MASK* mask, const bool* dropout_mask, const int64_t rows,
-                                    const int64_t cols, const float fill, const float scale,
-                                    const float dropout_scale) {
+void LaunchElementwiseForwardKernel(cudaStream_t stream, const T* x, T* y, const MASK* mask,
+                                    const int64_t rows, const int64_t cols, const float fill,
+                                    const float scale) {
   ElementwiseMaskSoftmaxParams params;
   params.row_size = cols;
   params.fill = fill;
   params.scale = scale;
   ElementwiseScaleMaskLoad<T, ComputeType, MASK> load(x, mask, params);
-  DropoutStore<ComputeType, T> store(y, softmax_y, dropout_mask, cols,
-                                                          dropout_scale);
-  DispatchSoftmax<decltype(load), decltype(store), ComputeType>(
-      stream, load, store, rows, cols);
-  CUDA_CHECK();
-}
-
-template<typename T, typename ComputeType, typename MASK, int num_dims>
-void LaunchBroadcastBackwardKernel(cudaStream_t stream, const T* softmax_y, const T* dy, T* dx,
-                                   const MASK* mask, const bool* dropout_mask,
-                                   const int64_t elem_cnt, const int64_t rows, const int64_t cols,
-                                   const float fill, const float scale, const float dropout_scale,
-                                   const int64_t* input_dims, const int64_t* mask_dims) {
-  MaskScaleLoad<T, ComputeType> load_dy(dy, dropout_mask, cols, dropout_scale);
-  NdIndexOffsetHelper<int32_t, num_dims> input_index_helper(input_dims, num_dims);
-  NdIndexOffsetHelper<int32_t, num_dims> mask_index_helper(mask_dims, num_dims);
-  BroadcastMaskSoftmaxParams<num_dims, int32_t> params;
-  params.src_index_helper = input_index_helper;
-  params.mask_index_helper = mask_index_helper;
-  params.mask_dims = mask_dims;
-  params.row_size = cols;
-  params.fill = fill;
-  params.scale = scale;
-  DirectLoad<T, ComputeType> load_softmax_y(softmax_y, cols);
-  BroadcastScaleMaskStore<ComputeType, T, MASK, num_dims, int32_t> store(
-      dx, mask, params);
-  DispatchSoftmaxGrad<decltype(load_softmax_y), decltype(load_dy),
-                                                    decltype(store), ComputeType>(
-      stream, load_softmax_y, load_dy, store, rows, cols);
-  CUDA_CHECK();
-}
-
-template<typename T, typename ComputeType, typename MASK>
-void LaunchElementwiseBackwardKernel(cudaStream_t stream, const T* softmax_y, const T* dy, T* dx,
-                                     const MASK* mask, const bool* dropout_mask, const int64_t rows,
-                                     const int64_t cols, const float fill, const float scale,
-                                     const float dropout_scale) {
-  ElementwiseMaskSoftmaxParams params;
-  params.row_size = cols;
-  params.fill = fill;
-  params.scale = scale;
-  DirectLoad<T, ComputeType> load_softmax_y(softmax_y, cols);
-  MaskScaleLoad<T, ComputeType> load_dy(dy, dropout_mask, cols, dropout_scale);
-  ElementwiseScaleMaskStore<ComputeType, T, MASK> store(dx, mask, params);
-  DispatchSoftmaxGrad<decltype(load_softmax_y), decltype(load_dy),
-                                                    decltype(store), ComputeType>(
-      stream, load_softmax_y, load_dy, store, rows, cols);
-  CUDA_CHECK();
+  DirectStore<ComputeType, T> store(y, cols);
+  (DispatchSoftmax<decltype(load), decltype(store), ComputeType>(
+      stream, load, store, rows, cols));
+   CUDA_CHECK();
 }
 
 int main(){
+    const int batch_size = 4;
+    const int num_heads = 8;
+    const int seq_length = 64;
+    const int N = batch_size * num_heads * seq_length * seq_length;
+
+    float* x_host = (float*)malloc(N*sizeof(float));
+    float *x_device;
+    cudaMalloc((void **)&x_device, N*sizeof(float));
+    for (int i = 0; i < N; i++) x_host[i] = 1.0;
+    cudaMemcpy(x_device, x_host, N*sizeof(float), cudaMemcpyHostToDevice);
+
+    float* y_host = (float*)malloc(N*sizeof(float));
+    float *y_device;
+    cudaMalloc((void **)&y_device, N*sizeof(float));
+
+    bool *mask_host = (bool*)malloc(N*sizeof(bool));
+    bool* mask_device;
+    cudaMalloc((void **)&mask_device, N*sizeof(bool));
+    for (int i = 0; i < N; i++) mask_host[i] = true;
+    cudaMemcpy(mask_device, mask_host, N*sizeof(bool), cudaMemcpyHostToDevice);
+    const float mask_fill_value = -10000.0;
+    const float scale_value = 2.0;
+    const int64_t cols = seq_length;
+    const int64_t rows = N / seq_length;
+    const size_t num_input_dims = 4;
+    const int64_t input_dims[4] = {batch_size, num_heads, seq_length, seq_length};
+    const size_t num_mask_dims = 4;
+    const int64_t mask_dims[4] = {batch_size, num_heads, seq_length, seq_length};
+    using ComputeType = typename DefaultComputeType<float>::type;
+    size_t simplified_num_dims = 0;
+    int64_t simplified_input_dims[4];
+    int64_t simplified_mask_dims[4];
+
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+    SimplifyBroadcastDims(num_input_dims, input_dims, num_mask_dims, mask_dims,
+                                               &simplified_num_dims, simplified_input_dims,
+                                               simplified_mask_dims);
+    if (simplified_num_dims == 1) {
+      LaunchElementwiseForwardKernel<float, ComputeType, bool>(stream, x_device, y_device,
+          mask_device, rows, cols, mask_fill_value, scale_value);
+    }
+#define DEFINE_ONE_ELIF(dims)                                                               \
+  else if (simplified_num_dims == dims) {                                                   \
+    LaunchBroadcastForwardKernel<float, ComputeType, bool, dims>(                               \
+        stream, x_device, y_device, \
+        mask_device, N, rows, cols, mask_fill_value, scale_value,             \
+        simplified_input_dims, simplified_mask_dims);                                       \
+  }
+    DEFINE_ONE_ELIF(2)
+    DEFINE_ONE_ELIF(3)
+    DEFINE_ONE_ELIF(4)
+#undef DEFINE_ONE_ELIF
+    else {
+      exit(-1);
+    }
+
     return 0;
 }
