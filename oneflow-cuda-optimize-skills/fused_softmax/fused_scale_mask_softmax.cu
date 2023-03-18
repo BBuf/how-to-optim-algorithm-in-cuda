@@ -2154,6 +2154,16 @@ int main(){
     else {
       exit(-1);
     }
-
+    cudaMemcpy(y_host, y_device, N * sizeof(float), cudaMemcpyDeviceToHost);
+    // 1 / 64 = 0.015625
+    for (int i = 0; i < 32; i++){
+      printf("%.6f\n", y_host[i]);
+    }
+    cudaFree(x_device);
+    cudaFree(y_device);
+    cudaFree(mask_device);
+    free(x_host);
+    free(y_host);
+    free(mask_host);
     return 0;
 }
