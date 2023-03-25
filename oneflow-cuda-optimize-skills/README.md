@@ -59,6 +59,7 @@ model_output = oneflow._C.fused_weighted_sum([self.ets[-1], self.ets[-2], self.e
 - 支持 Fused BCE loss。https://github.com/Oneflow-Inc/oneflow/pull/8734 。还是oneembedding的优化，在dlrm中前向 bce + cast_f2h -> out，后向 constant_like + bce_grad ->dx，用pass将它们fuse起来在一个kernel中，减少kernel个数及空隙。使用方法：由nn.Graph的job pass来管理。
 - 支持 FusedMLP Kernel，可以将多个串行的 MatMul 以及 BiasAdd 和 ReLU 融合到一起。来自oneembedding的优化，https://github.com/Oneflow-Inc/oneflow/pull/7391 。使用方式直接看PR。
 - 支持 Fused MLP 反向。https://github.com/Oneflow-Inc/oneflow/pull/8462 。来自oneembedding的优化，这里使用了多Stream来计算MLP的反向，值得学习，思路应该启发自HugeCTR。使用方式直接看PR。
+- quick_gelu。https://github.com/Oneflow-Inc/oneflow/pull/9623 。将`x / (1 + torch.exp(-1.702 * torch.abs(x))) * torch.exp(0.851 * (x - torch.abs(x)))`融合起来。使用方式直接调用`flow._C.quick_gelu`。
 
 ### Primitive 更新
 
