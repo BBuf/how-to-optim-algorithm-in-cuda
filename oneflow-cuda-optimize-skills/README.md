@@ -114,3 +114,16 @@ model_output = oneflow._C.fused_weighted_sum([self.ets[-1], self.ets[-2], self.e
 - 提供 Variable -> constant  的 转换标记  (https://github.com/Oneflow-Inc/oneflow/pull/8412)
 - 移除 IR 中硬编码处理的属性  (https://github.com/Oneflow-Inc/oneflow/pull/8420)
 - 实现 AutoNHWC Pass，并提供 `ONEFLOW_MLIR_PREFER_NHWC` 环境变量，支持将常见网络的 data format 自动转换为 channels last 优化，在支持 FP16 的 NVIDIA 显卡上有明显加速效果 (https://github.com/Oneflow-Inc/oneflow/pull/7890)
+
+### CodeGeeX 优化手段解析
+
+针对CodeGeeX大模型的推理，OneFlow做了什么优化可以超越NVIDIA FasterTransformer库的推理速度呢？
+
+- quick_gelu融合优化。https://github.com/THUDM/CodeGeeX/blob/main/codegeex/oneflow/codegeex_model.py#L7-L11 指的是将`x / (1 + torch.exp(-1.702 * torch.abs(x))) * torch.exp(0.851 * (x - torch.abs(x)))` 这个elementwise操作组合成的pattern融合成一个算子，在oneflow中为`flow._C.quick_gelu`。
+- grouped_matmul_bias优化。https://github.com/THUDM/CodeGeeX/blob/main/codegeex/oneflow/codegeex_model.py#L101-L108 指的是将一堆同时执行并且数据没有前后依赖关系的matmul+bias_add算子融合成一个cuda kernel，降低kernel launch的开销。https://github.com/Oneflow-Inc/oneflow/pull/9413。
+- 更高效的fused attention kernel（在oneflow中使用`flow._C.fused_multi_head_attention_inference_v2`调用）。在oneflow中引入了cutlass的fmha以及TensorRT的FlashAttention实现，可以在不同的数据规模调用最优的fmha实现。在此基础上oneflow针对Q，K，V可能存在的不同数据排布进行优化，具体来说oneflow的fused_multi_head_attention_inference_v2接口支持手动配置Q，K，V这三个输入tensor的数据排布。比如在CodeGeeX里面，Q，K，V的shape是[seq_lenght, batch_size, num_heads * hidden_size_per_attention_head]，我们就可以直接把Q，K，V的数据排布配置成`MB(HK)`，并且输出的数据排布也配置成MB(HK)，这样就可以避免在把Q，K，V传入fused_multi_head_attention_inference_v2之前需要额外做的reshape带来的开销了，同样输出Tensor的reshape开销也可以避免。https://github.com/THUDM/CodeGeeX/blob/main/codegeex/oneflow/codegeex_model.py#L253-L264 。这部分的cuda实现分成很多pr，这里指一下路：https://github.com/Oneflow-Inc/oneflow/pull/9950 & https://github.com/Oneflow-Inc/oneflow/pull/9933。
+- CodeGeeX和大多数的自回归模型一样有一个增量推理阶段，需要把当前的key,value和上一轮的key,value concat起来，也就是：https://github.com/THUDM/CodeGeeX/blob/main/codegeex/oneflow/codegeex_model.py#L135-L140 。针对这个特殊的操作，我们也开发了一个可以配置输入输出数据排布的fuse kernel，把两个concat操作融合起来降低kernel launch以及reshape的开销。https://github.com/THUDM/CodeGeeX/blob/main/codegeex/oneflow/codegeex_model.py#L239 。在oneflow中对应https://github.com/Oneflow-Inc/oneflow/pull/9963 。
+- fused matmul+bias。https://github.com/THUDM/CodeGeeX/blob/main/tests/test_inference_oneflow.py#L14 。具体来说就是将Linear中的matmul和bias_add融合在一起。https://github.com/Oneflow-Inc/oneflow/pull/9369。
+
+上述优化既适用于FP16模式，也适用于INT8模式，接下来我们聊一下INT8 weight only quantization的motivation以及优化。经过调研，FasterTransformer的INT8模式采用了weight only quantization的方式，也就是只对Linear层的权重进行量化，但是在计算的时候仍然要反量化回FP16和Activation进行矩阵乘计算。按道理来说，加入了反量化之后速度应该变慢才对，为什么这里使用了INT8 weight quantization之后反而能加速最终的推理速度呢？这是因为在这个网络中，推理时的batch_size以及seq_length都是1，这个时候的矩阵乘法退化到了一个向量和一个矩阵相乘的情况，实际上类似于卷积神经网络中的全连接层，是一个典型的访存密集型算子。所以这里对weight进行反量化和矩阵乘法可以fuse到一起来进行加速（原因是减少了访存）。在oneflow中的实现对应：https://github.com/Oneflow-Inc/oneflow/pull/9900 。然后我基于这个算子在CodeGeeX中实现了OneFlow INT8版本的推理脚本：https://github.com/THUDM/CodeGeeX/blob/main/codegeex/quantization/quantize_oneflow.py
+
