@@ -36,4 +36,5 @@ zero 3 是前向需要 allgather 一次完整的 fp16 参数，计算完成之�
 
 完整原理可参考[李沐对zero的论文精读](https://www.bilibili.com/video/BV1tY411g7ZT/?spm_id_from=333.788&vd_source=4dffb0fbabed4311f4318e8c6d253a10) 。
 
+也可以参考[ZeRO+DeepSpeed:微软发布的高效大规模训练套件(含详细分布式训练流程)](https://zhuanlan.zhihu.com/p/108571246)
 
