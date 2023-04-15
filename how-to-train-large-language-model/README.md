@@ -5,6 +5,7 @@
 ## 博客和文章收集
 
 ### 大模型知识介绍
+- [ChatGPT 背后的“功臣”——RLHF 技术详解](https://www.cnblogs.com/huggingface/p/17040315.html)
 
 ### 大模型训练技术
 
