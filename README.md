@@ -81,7 +81,11 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 ![图片](https://user-images.githubusercontent.com/35585791/221142822-1c2ef670-00e2-4782-98de-d35a4eebd33c.png)
 
-### 9. 学习笔记相关博客
+### 9. how-to-train-and-eval-large-language-model
+
+收集了和大语言模型原理，训练，推理，数据标注的相关文章。
+
+### 10. 学习笔记相关博客
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
