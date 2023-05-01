@@ -31,6 +31,8 @@
 - [ChatGPT开源替代来了！参数量200亿，在4300万条指令上微调而成](https://zhuanlan.zhihu.com/p/613609788)
 - [这是Meta版ChatGPT雏形？开源、一块GPU就能跑，1/10参数量打败GPT-3](https://zhuanlan.zhihu.com/p/609544219)
 - [​B站UP主硬核自制智能音箱：有ChatGPT加持，才是真・智能](https://zhuanlan.zhihu.com/p/599602043)
+- [ChatGPT 中文调教指南。各种场景使用指南。学习怎么让它听你的话](https://github.com/PlexPt/awesome-chatgpt-prompts-zh)
+- [ChatGPT提示工程师｜AI大神吴恩达教你写提示词](https://www.bilibili.com/video/BV1No4y1t7Zn/?vd_source=4dffb0fbabed4311f4318e8c6d253a10)
 
 ### 大模型训练技术
 
