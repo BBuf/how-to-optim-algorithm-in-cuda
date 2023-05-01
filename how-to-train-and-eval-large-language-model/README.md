@@ -31,6 +31,8 @@
 - [ChatGPT开源替代来了！参数量200亿，在4300万条指令上微调而成](https://zhuanlan.zhihu.com/p/613609788)
 - [这是Meta版ChatGPT雏形？开源、一块GPU就能跑，1/10参数量打败GPT-3](https://zhuanlan.zhihu.com/p/609544219)
 - [​B站UP主硬核自制智能音箱：有ChatGPT加持，才是真・智能](https://zhuanlan.zhihu.com/p/599602043)
+- [熔岩羊驼LLaVA来了：像GPT-4一样可以看图聊天，无需邀请码，在线可玩](https://zhuanlan.zhihu.com/p/624442883)
+- [3天近一万Star，无差体验GPT-4识图能力，MiniGPT-4看图聊天、还能草图建网站](https://zhuanlan.zhihu.com/p/623731818)
 - [ChatGPT 中文调教指南。各种场景使用指南。学习怎么让它听你的话](https://github.com/PlexPt/awesome-chatgpt-prompts-zh)
 - [ChatGPT提示工程师｜AI大神吴恩达教你写提示词](https://www.bilibili.com/video/BV1No4y1t7Zn/?vd_source=4dffb0fbabed4311f4318e8c6d253a10)
 
@@ -51,6 +53,8 @@
 - [LLM Inference CookBook（持续更新）](https://zhuanlan.zhihu.com/p/619596323)
 - [优化故事: BLOOM 模型推理](https://mp.weixin.qq.com/s/yzVqh4d6ynNROJxHycDUXg)
 - [GPTQ-for-LLaMa 量化分析和优化](https://zhuanlan.zhihu.com/p/625701227)
+- [Web-LLM:机器学习编译纯浏览器运行大模型](https://zhuanlan.zhihu.com/p/622271247)
+- [陈天奇等人新作引爆AI界：手机原生跑大模型，算力不是问题了](https://mp.weixin.qq.com/s/uQGAu1v-6ApgZHVkZJsUdQ)
 
 ### 大模型数据标注
 
