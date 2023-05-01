@@ -50,6 +50,7 @@
 - [[大模型技术祛魅]关于FlexGen的一点理解](https://zhuanlan.zhihu.com/p/610853654)
 - [LLM Inference CookBook（持续更新）](https://zhuanlan.zhihu.com/p/619596323)
 - [优化故事: BLOOM 模型推理](https://mp.weixin.qq.com/s/yzVqh4d6ynNROJxHycDUXg)
+- [GPTQ-for-LLaMa 量化分析和优化](https://zhuanlan.zhihu.com/p/625701227)
 
 ### 大模型数据标注
 
