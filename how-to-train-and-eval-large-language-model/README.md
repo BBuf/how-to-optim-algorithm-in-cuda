@@ -79,6 +79,9 @@
     - Repo: https://github.com/OptimalScale/LMFlow
 - Firefly(流萤)
     - Repo: https://github.com/yangjianxin1/Firefly
+- Vicuna(小羊驼)
+    - Blog: https://zhuanlan.zhihu.com/p/618699807
+    - Repo: https://github.com/lm-sys/FastChat
 
 
 ### 大模型数据标注
