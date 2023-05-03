@@ -56,5 +56,30 @@
 - [Web-LLM:机器学习编译纯浏览器运行大模型](https://zhuanlan.zhihu.com/p/622271247)
 - [陈天奇等人新作引爆AI界：手机原生跑大模型，算力不是问题了](https://mp.weixin.qq.com/s/uQGAu1v-6ApgZHVkZJsUdQ)
 
+### 大模型仓库收集
+
+- Baize (白泽)
+    - Paper: https://arxiv.org/pdf/2304.01196.pdf
+    - Demo: https://huggingface.co/spaces/project-baize/Baize-7B
+    - Repo: https://github.com/project-baize/baize-chatbot
+- Luotuo (骆驼，Chinese)
+    - Repo: https://github.com/LC1332/Luotuo-Chinese-LLM
+- Koala (考拉)
+    - Blog: https://bair.berkeley.edu/blog/2023/04/03/koala/
+    - Demo: https://chat.lmsys.org/?model=koala-13b
+    - Repo: https://github.com/young-geng/EasyLM
+- Wombat（袋熊）
+    - Paper: https://arxiv.org/pdf/2304.05302.pdf
+    - Repo: https://github.com/GanjinZero/RRHF
+- GPT4All
+    - Report: https://s3.amazonaws.com/static.nomic.ai/gpt4all/2023_GPT4All_Technical_Report.pdf
+    - Repo: https://github.com/nomic-ai/gpt4all
+- LMFlow
+    - Demo: https://lmflow.com/
+    - Repo: https://github.com/OptimalScale/LMFlow
+- Firefly(流萤)
+    - Repo: https://github.com/yangjianxin1/Firefly
+
+
 ### 大模型数据标注
 

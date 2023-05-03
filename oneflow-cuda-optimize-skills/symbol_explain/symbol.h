@@ -29,15 +29,21 @@ namespace oneflow {
 template<typename T>
 struct SymbolUtil;
 
+// 这段代码定义了一个模板类Symbol,它封装了一个指向类型T的指针 ptr_。
 template<typename T>
 class Symbol final {
  public:
+  // Symbol():构造一个nullptr指针
   Symbol() : ptr_(nullptr) {}
+  // Symbol(const T& obj):构造一个指向obj的指针
   Symbol(const T& obj) : ptr_(GetOrCreatePtr(obj)) {}
+  // Symbol(const Symbol& rhs):拷贝构造函数,默认实现
   Symbol(const Symbol& rhs) = default;
+  // Symbol(Symbol&& rhs):移动构造函数,默认实现
   Symbol(Symbol&& rhs) = default;
   ~Symbol() = default;
 
+  // 显式转换为bool:检查ptr_是否为nullptr
   explicit operator bool() const { return ptr_ != nullptr; }
   const T* operator->() const { return ptr_; }
   const T& operator*() const { return *ptr_; }
