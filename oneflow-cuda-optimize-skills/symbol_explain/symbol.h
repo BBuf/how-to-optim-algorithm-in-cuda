@@ -131,6 +131,12 @@ struct SymbolUtil final {
   // 此方法首先在ThreadLocalSymbolMap中查找对象obj的共享指针。
   // 如果找到,直接返回;如果未找到,调用模板参数GetIter4ObjectAndHashValue查找全局SymbolMap。
   // 找到后,将其添加到ThreadLocalSymbolMap和ThreadLocalSymbolPtrSet中,并返回共享指针。
+
+  // GetIter4ObjectAndHashValue 是SymbolUtil::LocalThreadGetOr()方法的模板参数。
+  // 它代表一个函数,该函数接受一个对象obj和其哈希值hash_value作为参数,并返回该对象在SymbolMap中的迭代器。
+  // 也就是说,当LocalThreadGetOr()在线程本地SymbolMap中未找到对象obj时,它会调用这个模板参数
+  // GetIter4ObjectAndHashValue去全局SymbolMap中查找该对象。如果找到,就返回其迭代器,
+  // 并将该对象添加到线程本地的SymbolMap和SymbolPtrSet中。
   template<typename SymbolMap::iterator (*GetIter4ObjectAndHashValue)(const T&, size_t)>
   static const std::shared_ptr<const T>& LocalThreadGetOr(const T& obj) {
     auto* thread_local_symbol_map = ThreadLocalSymbolMap();
@@ -175,6 +181,9 @@ struct SymbolUtil final {
   }
 };
 
+// 如果ptr_为nullptr,返回一个静态的空shared_ptr
+// 否则,调用SymbolUtil::SharedFromObject获取ptr_指向的对象的共享指针,并返回
+// 该方法使我们可以随时获取Symbol管理的对象的共享指针,这增加了Symbol的灵活性。
 template<typename T>
 const std::shared_ptr<const T>& Symbol<T>::shared_from_symbol() const {
   if (this->ptr_ == nullptr) {
@@ -184,11 +193,17 @@ const std::shared_ptr<const T>& Symbol<T>::shared_from_symbol() const {
   return SymbolUtil<T>::SharedFromObject(*this->ptr_);
 }
 
+// 调用SymbolUtil::GetOrCreatePtr获取对象obj的指针, 返回获取的指针
+// 这是Symbol构造函数中调用的方法,用于确保能获取obj的指针。
+
 template<typename T>
 const T* Symbol<T>::GetOrCreatePtr(const T& obj) {
   return SymbolUtil<T>::GetOrCreatePtr(obj).get();
 }
 
+// 接受一个对象obj作为参数
+// 使用obj构造一个Symbol对象并返回
+// 这是一个工厂方法,用于简化Symbol对象的构造。我们可以写Symbol<T> s = SymbolOf(obj);构造一个Symbol对象。
 template<typename T>
 Symbol<T> SymbolOf(const T& obj) {
   return Symbol<T>(obj);
@@ -198,6 +213,20 @@ Symbol<T> SymbolOf(const T& obj) {
 
 namespace std {
 
+// 这段代码为Symbol<T>模板类定义了一个hash结构。它重载了operator()方法,使我们可以直接使用std::hash<Symbol<T>>来获取一个Symbol<T>对象的哈希值。
+// 具体来说,该hash结构将运算符()定义为简单地委托到Symbol<T>对象的hash_value()方法。
+// 这意味着,当我们调用std::hash<Symbol<T>>(symbol)时,它会直接调用symbol.hash_value()并返回结果。
+// cpp
+// Symbol<int> s(1);
+// size_t hash = std::hash<Symbol<int>>()(s); 
+// Equivalent to `size_t hash = s.hash_value();`
+// 因为我们定义了这个hash结构,所以现在可以使用std::hash直接获取Symbol对象的哈希值,而不需要直接调用hash_value()方法。
+// 这增加了Symbol类的灵活性,使其可以用于更多基于哈希的场景。
+// 举个例子,现在我们可以直接将Symbol对象用作std::unordered_map的键:
+// cpp
+// std::unordered_map<Symbol<int>, std::string> map;
+// map[Symbol<int>(1)] = "one";
+// 这是因为std::unordered_map要求其键类型可哈希,而我们为Symbol定义的这个hash结构满足了这个需求。
 template<typename T>
 struct hash<oneflow::Symbol<T>> final {
   size_t operator()(const oneflow::Symbol<T>& symbol) const { return symbol.hash_value(); }
