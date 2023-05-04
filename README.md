@@ -102,4 +102,35 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 ### 11. 学习资料收集
 
+#### 专栏
+
+- [CUDA编程入门及优化 专栏by jie.hang](https://www.zhihu.com/column/c_1522503697624346624)
+- [深入浅出GPU优化 专栏by 有了琦琦的棍子](https://www.zhihu.com/column/c_1437330196193640448)
+
+#### 文章
+
 - [图文并茂，超详细解读nms cuda拓展源码](https://zhuanlan.zhihu.com/p/466169614)
+- [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
+- [简单读读WeightOnly](https://zhuanlan.zhihu.com/p/622334595)
+- [LLM Inference CookBook（持续更新）](https://zhuanlan.zhihu.com/p/619596323)
+- [NVIDIA的custom allreduce](https://zhuanlan.zhihu.com/p/611229620)
+- [[论文速读] FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://zhuanlan.zhihu.com/p/548811565)
+- [CUDA随笔之Stream的使用](https://zhuanlan.zhihu.com/p/51402722)
+- [简单读读FasterTransformer](https://zhuanlan.zhihu.com/p/589442432)
+- [cutlass FusedMultiheadAttention代码解读](https://zhuanlan.zhihu.com/p/600373700)
+- [简单谈谈CUDA Reduce](https://zhuanlan.zhihu.com/p/559549740)
+- [CUTLASS: Fast Linear Algebra in CUDA C++](https://zhuanlan.zhihu.com/p/461060382)
+- [CUDA GroupNorm NHWC优化](https://zhuanlan.zhihu.com/p/596871310)
+- [传统 CUDA GEMM 不完全指北](https://zhuanlan.zhihu.com/p/584236348)
+- [怎么评估内存带宽的指标，并进行优化?](https://www.zhihu.com/question/424477202/answer/2322341112)
+- [TensorRT Diffusion模型优化点](https://zhuanlan.zhihu.com/p/592713879)
+- [NVIDIA GPU性能优化基础](https://zhuanlan.zhihu.com/p/577412348)
+- [一文理解 PyTorch 中的 SyncBatchNorm](https://zhuanlan.zhihu.com/p/555881100)
+- [如何开发机器学习系统：高性能GPU矩阵乘法](https://zhuanlan.zhihu.com/p/531498210)
+- [CUDA SGEMM矩阵乘法优化笔记——从入门到cublas](https://zhuanlan.zhihu.com/p/518857175)
+- [Dropout算子的bitmask优化](https://zhuanlan.zhihu.com/p/517766170)
+- [面向 Tensor Core 的算子自动生成](https://zhuanlan.zhihu.com/p/502935328)
+- [PICASSO论文学习](https://zhuanlan.zhihu.com/p/500026086)
+- [CUDA翻译：How to Access Global Memory Efficiently in CUDA C/C++ Kernels](https://zhuanlan.zhihu.com/p/473133201)
+- [CUDA Pro Tips翻译：Write Flexible Kernels with Grid-Stride Loops](https://zhuanlan.zhihu.com/p/472952257)
+- [[施工中] CUDA GEMM 理论性能分析与 kernel 优化](https://zhuanlan.zhihu.com/p/441146275)
