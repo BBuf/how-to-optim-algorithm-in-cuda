@@ -6,8 +6,10 @@
 
 ### 大模型知识介绍
 
+- [深入理解NLP Subword算法：BPE、WordPiece、ULM](https://zhuanlan.zhihu.com/p/86965595)
 - [ChatGPT 背后的“功臣”——RLHF 技术详解](https://www.cnblogs.com/huggingface/p/17040315.html)
 - [深入浅出，解析ChatGPT背后的工作原理](https://zhuanlan.zhihu.com/p/597100830)
+- [这是Meta版ChatGPT雏形？开源、一块GPU就能跑，1/10参数量打败GPT-3](https://zhuanlan.zhihu.com/p/609544219)
 - [LLaMA模型惨遭泄漏，Meta版ChatGPT被迫「开源」！GitHub斩获8k星，评测大量出炉](https://zhuanlan.zhihu.com/p/612009979)
 - [LeCun狂赞：600刀GPT-3.5平替！ 斯坦福70亿参数「羊驼」爆火，LLaMA杀疯了](https://zhuanlan.zhihu.com/p/613880958)
 - [LeCun转赞：在苹果M1/M2芯片上跑LLaMA！130亿参数模型仅需4GB内存](https://zhuanlan.zhihu.com/p/613602977)
@@ -29,12 +31,12 @@
 - [斯坦福70亿参数开源模型媲美GPT-3.5，100美元即可复现](https://zhuanlan.zhihu.com/p/614212219)
 - [真·ChatGPT平替：无需显卡，MacBook、树莓派就能运行LLaMA](https://zhuanlan.zhihu.com/p/613923687)
 - [ChatGPT开源替代来了！参数量200亿，在4300万条指令上微调而成](https://zhuanlan.zhihu.com/p/613609788)
-- [这是Meta版ChatGPT雏形？开源、一块GPU就能跑，1/10参数量打败GPT-3](https://zhuanlan.zhihu.com/p/609544219)
 - [​B站UP主硬核自制智能音箱：有ChatGPT加持，才是真・智能](https://zhuanlan.zhihu.com/p/599602043)
 - [熔岩羊驼LLaVA来了：像GPT-4一样可以看图聊天，无需邀请码，在线可玩](https://zhuanlan.zhihu.com/p/624442883)
 - [3天近一万Star，无差体验GPT-4识图能力，MiniGPT-4看图聊天、还能草图建网站](https://zhuanlan.zhihu.com/p/623731818)
 - [ChatGPT 中文调教指南。各种场景使用指南。学习怎么让它听你的话](https://github.com/PlexPt/awesome-chatgpt-prompts-zh)
 - [ChatGPT提示工程师｜AI大神吴恩达教你写提示词](https://www.bilibili.com/video/BV1No4y1t7Zn/?vd_source=4dffb0fbabed4311f4318e8c6d253a10)
+- [[分析] 浅谈ChatGPT的Tokenizer](https://zhuanlan.zhihu.com/p/626621158)
 
 ### 大模型训练技术
 
@@ -59,6 +61,9 @@
 
 ### 大模型仓库收集
 
+- LLaMA:
+    - Paper: https://research.facebook.com/publications/llama-open-and-efficient-foundation-language-models/
+    - Github: https://github.com/facebookresearch/llama
 - Baize (白泽)
     - Paper: https://arxiv.org/pdf/2304.01196.pdf
     - Demo: https://huggingface.co/spaces/project-baize/Baize-7B
@@ -84,7 +89,9 @@
 - Vicuna(小羊驼)
     - Blog: https://zhuanlan.zhihu.com/p/618699807
     - Repo: https://github.com/lm-sys/FastChat
-
+- LLaVA
+    - Paper: https://arxiv.org/pdf/2304.08485.pdf
+    - Demo: https://llava-vl.github.io/
 
 ### 大模型数据标注
 
