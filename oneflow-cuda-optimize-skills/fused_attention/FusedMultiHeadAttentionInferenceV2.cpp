@@ -335,6 +335,7 @@ class FusedMultiHeadAttentionInferenceV2Functor {
           << "The query_seq_start tensor should not be None when the query tensor is BM-Packed.";
     }
 
+    // key的batch_size，seq_length，num_heads，hidden_size_per_attention_head
     int64_t k_b = 0;
     int64_t k_m = 0;
     int64_t k_h = 0;

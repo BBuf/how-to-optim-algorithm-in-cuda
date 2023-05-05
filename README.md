@@ -83,7 +83,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 ![图片](https://user-images.githubusercontent.com/35585791/221142822-1c2ef670-00e2-4782-98de-d35a4eebd33c.png)
 
-### 9. how-to-train-and-eval-large-language-model
+### 9. large-language-model-note
 
 收集了和大语言模型原理，训练，推理，数据标注的相关文章。
 

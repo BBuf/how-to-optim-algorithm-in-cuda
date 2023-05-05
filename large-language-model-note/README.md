@@ -42,6 +42,7 @@
 - [在一张 24 GB 的消费级显卡上用 RLHF 微调 20B LLMs](https://www.cnblogs.com/huggingface/p/17245966.html)
 - [人手一个ChatGPT！微软DeepSpeed Chat震撼发布，一键RLHF训练千亿级大模型](https://zhuanlan.zhihu.com/p/621379646)
 - [大型语言模型(LLM)训练指南🚀](https://zhuanlan.zhihu.com/p/611325149)
+- [“StackLLaMA”: 用 RLHF 训练 LLaMA 的手把手教程](https://zhuanlan.zhihu.com/p/626896135)
 
 ### 大模型推理技术
 
@@ -63,6 +64,7 @@
     - Demo: https://huggingface.co/spaces/project-baize/Baize-7B
     - Repo: https://github.com/project-baize/baize-chatbot
 - Luotuo (骆驼，Chinese)
+    - Blog: https://zhuanlan.zhihu.com/p/617221484 后半部分
     - Repo: https://github.com/LC1332/Luotuo-Chinese-LLM
 - Koala (考拉)
     - Blog: https://bair.berkeley.edu/blog/2023/04/03/koala/
