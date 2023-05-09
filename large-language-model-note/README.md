@@ -6,6 +6,8 @@
 
 ### 大模型知识介绍
 
+- [拆解追溯 ChatGPT各项能力的起源](https://zhuanlan.zhihu.com/p/607469120)
+- [ChatGPT 的突现能力，我们是否真的面临范式转变？](https://zhuanlan.zhihu.com/p/622052864)
 - [深入理解NLP Subword算法：BPE、WordPiece、ULM](https://zhuanlan.zhihu.com/p/86965595)
 - [ChatGPT 背后的“功臣”——RLHF 技术详解](https://www.cnblogs.com/huggingface/p/17040315.html)
 - [深入浅出，解析ChatGPT背后的工作原理](https://zhuanlan.zhihu.com/p/597100830)
@@ -37,6 +39,9 @@
 - [ChatGPT 中文调教指南。各种场景使用指南。学习怎么让它听你的话](https://github.com/PlexPt/awesome-chatgpt-prompts-zh)
 - [ChatGPT提示工程师｜AI大神吴恩达教你写提示词](https://www.bilibili.com/video/BV1No4y1t7Zn/?vd_source=4dffb0fbabed4311f4318e8c6d253a10)
 - [[分析] 浅谈ChatGPT的Tokenizer](https://zhuanlan.zhihu.com/p/626621158)
+- [OPT-175B是如何炼成的](https://zhuanlan.zhihu.com/p/622061951)
+- [Meta复刻GPT-3“背刺”OpenAI，完整模型权重及训练代码全公开](https://zhuanlan.zhihu.com/p/509100358)
+- [Limitations of LLaMA](https://zhuanlan.zhihu.com/p/618776565)
 
 ### 大模型训练技术
 
@@ -58,6 +63,7 @@
 - [GPTQ-for-LLaMa 量化分析和优化](https://zhuanlan.zhihu.com/p/625701227)
 - [Web-LLM:机器学习编译纯浏览器运行大模型](https://zhuanlan.zhihu.com/p/622271247)
 - [陈天奇等人新作引爆AI界：手机原生跑大模型，算力不是问题了](https://mp.weixin.qq.com/s/uQGAu1v-6ApgZHVkZJsUdQ)
+- [NLP（十一）：大语言模型的模型量化(INT8)技术](https://zhuanlan.zhihu.com/p/627436535)
 
 ### 大模型仓库收集
 
