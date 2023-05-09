@@ -42,6 +42,8 @@
 - [OPT-175B是如何炼成的](https://zhuanlan.zhihu.com/p/622061951)
 - [Meta复刻GPT-3“背刺”OpenAI，完整模型权重及训练代码全公开](https://zhuanlan.zhihu.com/p/509100358)
 - [Limitations of LLaMA](https://zhuanlan.zhihu.com/p/618776565)
+- [Hugging News #0506: StarCoder, DeepFloyd/IF 好多新的重量级模型](https://zhuanlan.zhihu.com/p/627319332)
+- [StarCoder: 最先进的代码大模型](https://zhuanlan.zhihu.com/p/627840388)
 
 ### 大模型训练技术
 
