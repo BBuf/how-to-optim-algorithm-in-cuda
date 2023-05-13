@@ -6,8 +6,12 @@
 
 ### 大模型知识介绍
 
+- [ChatGPT技术解析系列之：GPT1、GPT2与GPT3](https://zhuanlan.zhihu.com/p/609367098)
+- [ChatGPT技术解析系列之：训练框架InstructGPT](https://zhuanlan.zhihu.com/p/605516116)
+- [ChatGPT技术解析系列之：赋予GPT写代码能力的Codex](https://zhuanlan.zhihu.com/p/611313567)
 - [拆解追溯 ChatGPT各项能力的起源](https://zhuanlan.zhihu.com/p/607469120)
 - [ChatGPT 的突现能力，我们是否真的面临范式转变？](https://zhuanlan.zhihu.com/p/622052864)
+- [复杂推理：大型语言模型的"北极星"能力](https://zhuanlan.zhihu.com/p/628855304)
 - [深入理解NLP Subword算法：BPE、WordPiece、ULM](https://zhuanlan.zhihu.com/p/86965595)
 - [ChatGPT 背后的“功臣”——RLHF 技术详解](https://www.cnblogs.com/huggingface/p/17040315.html)
 - [深入浅出，解析ChatGPT背后的工作原理](https://zhuanlan.zhihu.com/p/597100830)
@@ -44,6 +48,12 @@
 - [Limitations of LLaMA](https://zhuanlan.zhihu.com/p/618776565)
 - [Hugging News #0506: StarCoder, DeepFloyd/IF 好多新的重量级模型](https://zhuanlan.zhihu.com/p/627319332)
 - [StarCoder: 最先进的代码大模型](https://zhuanlan.zhihu.com/p/627840388)
+- [VideoChat🦜: 基于视频指令数据微调的聊天机器人](https://zhuanlan.zhihu.com/p/628712512)
+- [MiniGPT-4 本地部署 RTX 3090](https://zhuanlan.zhihu.com/p/624417097)
+- [更擅长推理的LLaMA大模型，支持中文！](https://zhuanlan.zhihu.com/p/628688680)
+- [点击鼠标，让ChatGPT更懂视觉任务！](https://zhuanlan.zhihu.com/p/628266214)
+- [[分析] ROPE的不同实现：llama&palm](https://zhuanlan.zhihu.com/p/627536105)
+- [羊驼系列大模型和ChatGPT差多少？详细测评后，我沉默了](https://zhuanlan.zhihu.com/p/629085937)
 
 ### 大模型训练技术
 
@@ -52,6 +62,12 @@
 - [人手一个ChatGPT！微软DeepSpeed Chat震撼发布，一键RLHF训练千亿级大模型](https://zhuanlan.zhihu.com/p/621379646)
 - [大型语言模型(LLM)训练指南🚀](https://zhuanlan.zhihu.com/p/611325149)
 - [“StackLLaMA”: 用 RLHF 训练 LLaMA 的手把手教程](https://zhuanlan.zhihu.com/p/626896135)
+- [图解大模型训练之：流水线并行（Pipeline Parallelism），以Gpipe为例](https://zhuanlan.zhihu.com/p/613196255)
+- [图解大模型训练之：数据并行上篇(DP, DDP与ZeRO)](https://zhuanlan.zhihu.com/p/617133971)
+- [图解大模型训练之：数据并行下篇( DeepSpeed ZeRO，零冗余优化)](https://zhuanlan.zhihu.com/p/618865052)
+- [图解大模型训练之：张量模型并行(TP)，Megatron-LM](https://zhuanlan.zhihu.com/p/622212228)
+- [图解大模型系列之：Megatron源码解读1，分布式环境初始化](https://zhuanlan.zhihu.com/p/629121480)
+- [深度学习里，模型并行中怎么将模型拆分？](https://www.zhihu.com/question/319355346/answer/2985459442)
 
 ### 大模型推理技术
 
@@ -66,6 +82,7 @@
 - [Web-LLM:机器学习编译纯浏览器运行大模型](https://zhuanlan.zhihu.com/p/622271247)
 - [陈天奇等人新作引爆AI界：手机原生跑大模型，算力不是问题了](https://mp.weixin.qq.com/s/uQGAu1v-6ApgZHVkZJsUdQ)
 - [NLP（十一）：大语言模型的模型量化(INT8)技术](https://zhuanlan.zhihu.com/p/627436535)
+- [大(语言)模型推理原理及加速](https://zhuanlan.zhihu.com/p/628511161)
 
 ### 大模型仓库收集
 
