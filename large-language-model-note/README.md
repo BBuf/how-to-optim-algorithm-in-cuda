@@ -6,6 +6,7 @@
 
 ### 大模型知识介绍
 
+- [Transformer模型的基础演算](https://mp.weixin.qq.com/s/0Er0UOk6Wdky-0gzeQxK0g)
 - [ChatGPT技术解析系列之：GPT1、GPT2与GPT3](https://zhuanlan.zhihu.com/p/609367098)
 - [ChatGPT技术解析系列之：训练框架InstructGPT](https://zhuanlan.zhihu.com/p/605516116)
 - [ChatGPT技术解析系列之：赋予GPT写代码能力的Codex](https://zhuanlan.zhihu.com/p/611313567)
@@ -119,4 +120,6 @@
     - Demo: https://llava-vl.github.io/
 
 ### 大模型数据标注
+
+- [详谈大模型训练中的数据收集、处理与模型影响：A Survey of Large Language Models工作中的数据总结](https://mp.weixin.qq.com/s/bHsb631KA5AaulBHNT5m9w)
 
