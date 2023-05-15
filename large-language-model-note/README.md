@@ -7,6 +7,7 @@
 ### 大模型知识介绍
 
 - [Transformer模型的基础演算](https://mp.weixin.qq.com/s/0Er0UOk6Wdky-0gzeQxK0g)
+- [通向AGI之路：大型语言模型（LLM）技术精要](https://zhuanlan.zhihu.com/p/597586623)
 - [ChatGPT技术解析系列之：GPT1、GPT2与GPT3](https://zhuanlan.zhihu.com/p/609367098)
 - [ChatGPT技术解析系列之：训练框架InstructGPT](https://zhuanlan.zhihu.com/p/605516116)
 - [ChatGPT技术解析系列之：赋予GPT写代码能力的Codex](https://zhuanlan.zhihu.com/p/611313567)
@@ -55,6 +56,8 @@
 - [点击鼠标，让ChatGPT更懂视觉任务！](https://zhuanlan.zhihu.com/p/628266214)
 - [[分析] ROPE的不同实现：llama&palm](https://zhuanlan.zhihu.com/p/627536105)
 - [羊驼系列大模型和ChatGPT差多少？详细测评后，我沉默了](https://zhuanlan.zhihu.com/p/629085937)
+- [【开源骆驼】更好的翻译prompt，中英文token比例，比alpaca更强的中文数据集WizardLM](https://zhuanlan.zhihu.com/p/629379775)
+- [ImageBind: 表征大一统？也许还有一段距离](https://zhuanlan.zhihu.com/p/629389992)
 
 ### 大模型训练技术
 
@@ -69,6 +72,8 @@
 - [图解大模型训练之：张量模型并行(TP)，Megatron-LM](https://zhuanlan.zhihu.com/p/622212228)
 - [图解大模型系列之：Megatron源码解读1，分布式环境初始化](https://zhuanlan.zhihu.com/p/629121480)
 - [深度学习里，模型并行中怎么将模型拆分？](https://www.zhihu.com/question/319355346/answer/2985459442)
+- [Transformers DeepSpeed官方文档](https://zhuanlan.zhihu.com/p/621572871)
+- [当红炸子鸡 LoRA，是当代微调 LLMs 的正确姿势？](https://zhuanlan.zhihu.com/p/618894919)
 
 ### 大模型推理技术
 
@@ -84,6 +89,7 @@
 - [陈天奇等人新作引爆AI界：手机原生跑大模型，算力不是问题了](https://mp.weixin.qq.com/s/uQGAu1v-6ApgZHVkZJsUdQ)
 - [NLP（十一）：大语言模型的模型量化(INT8)技术](https://zhuanlan.zhihu.com/p/627436535)
 - [大(语言)模型推理原理及加速](https://zhuanlan.zhihu.com/p/628511161)
+- [AI算力碎片化：矩阵乘法的启示](https://zhuanlan.zhihu.com/p/624425308)
 
 ### 大模型仓库收集
 
