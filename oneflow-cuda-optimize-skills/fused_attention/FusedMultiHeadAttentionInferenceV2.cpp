@@ -205,8 +205,8 @@ class FusedMultiHeadAttentionInferenceFunctor {
 
 class FusedMultiHeadAttentionInferenceV2Functor {
  public:
-  // 定义了一个OpExprCacheKey结构体,用于缓存OpExpr(运算表达式)。
-  // 它包含3个布尔类型字段,表示是否有attn_bias,seq_start,key_seq_len输入。
+  // 定义了一个 OpExprCacheKey 结构体,用于缓存 OpExpr (运算表达式)。
+  // 它包含 3 个布尔类型字段,表示是否有 attn_bias, seq_start ,key_seq_len 输入。
   // 还定义了==和Hash运算符,用于后续的unordered_map中查找OpExpr。
   struct OpExprCacheKey {
     bool has_attn_bias = false;
@@ -222,11 +222,11 @@ class FusedMultiHeadAttentionInferenceV2Functor {
       return Hash(key.has_attn_bias, key.has_seq_start, key.has_key_seq_len);
     }
   };
-  // 定义了一个unordered_map,键值为OpExprCacheKey,值类型为std::shared_ptr<OpExpr>,用于缓存运算表达式。
+  // 定义了一个 unordered_map, 键值为 OpExprCacheKey, 值类型为 std::shared_ptr<OpExpr>, 用于缓存运算表达式。
   using OpExprCache =
       std::unordered_map<OpExprCacheKey, std::shared_ptr<OpExpr>, OpExprCacheKeyHash>;
-  // 在构造函数中,遍历attn_bias,seq_start和key_seq_len的所有组合,构建对应的multi_head_attention_inference运算表达式,并缓存到op_cache_中。
-  // 后续可以通过OpExprCacheKey快速从op_cache_中查找对应的OpExpr,从而加速推理进程。
+  // 在构造函数中,遍历 attn_bias,seq_start 和 key_seq_len 的所有组合,构建对应的 multi_head_attention_inference 运算表达式,并缓存到 op_cache_ 中。
+  // 后续可以通过 OpExprCacheKey 快速从 op_cache_ 中查找对应的 OpExp r,从而加速推理进程。
   FusedMultiHeadAttentionInferenceV2Functor() {
     for (bool has_attn_bias : {false, true}) {
       for (bool has_seq_start : {false, true}) {
@@ -258,30 +258,44 @@ class FusedMultiHeadAttentionInferenceV2Functor {
       const Optional<one::Tensor>& attn_bias, const std::string& output_layout,
       const Optional<float>& scale, const Optional<bool>& causal,
       const Optional<std::string>& attn_mask_type, const int64_t& causal_diagonal_offset) const {
-    // 确定mask的对角矩阵长什么样，比如causal_from_top_left表示这个对角线矩阵是左上角的
+    // 确定 mask 这个对角矩阵长什么样，比如 causal_from_top_left 表示这个对角线矩阵是左上角的
     std::string attn_mask_type_val = "none";
     if (attn_mask_type) {
+      // 确保 causal 为空,因为 attn_mask_type 和 causal 不能同时指定
       CHECK(!causal) << "Only one of attn_mask_type and causal can be specified at the same time.";
+      // 将 attn_mask_type_val 设置为 attn_mask_type 的值
       attn_mask_type_val = *JUST(attn_mask_type);
+      // 检查 attn_mask_type_val 的值必须为 "none"、"causal_from_top_left" 或 "causal_from_bottom_right" 中的一个
       CHECK_OR_RETURN(attn_mask_type_val == "none" || attn_mask_type_val == "causal_from_top_left"
                       || attn_mask_type_val == "causal_from_bottom_right")
           << "The value of attn_mask_type should be one of 'none', 'causal_from_top_left' or "
              "'causal_from_bottom_right'";
     } else if (causal && JUST(causal)) {
+      // 否则,如果 causal 有值,则将 attn_mask_type_val 设置为 "causal_from_top_left"
       attn_mask_type_val = "causal_from_top_left";
     } else {
       // do nothing
     }
-    // causal_diagonal_offset表示对角线矩阵的起始位置
+    // causal_diagonal_offset 表示对角线矩阵的起始位置
     CHECK_GE_OR_RETURN(causal_diagonal_offset, 0)
         << "The value of causal_diagonal_offset should be greater or equal to 0.";
 
-    // 定义一个可选的batch size变量。后续会根据是否有seq_start输入来决定是否对其赋值。
+    // 定义一个可选的 batch size 变量。后续会根据是否有 seq_start 输入来决定是否对其赋值。
     Optional<int64_t> batch_size;
     std::shared_ptr<one::Tensor> query_seq_start_tensor;
     std::shared_ptr<one::Tensor> key_seq_start_tensor;
-    // 如果有seq_start输入,解析seq_start tensor,检查shape和其他输入的一致性,并 cache 住这两个tensor。
-    // 否则,检查相关的其它输入(key_seq_len)是否也为none
+    // 1. 如果 query_seq_start 有值,则执行如下检查:
+    //   - key_seq_start 也必须有值,两个变量要同时为空或同时不为空
+    //   - query_max_seq_len 和 key_max_seq_len 不能为空
+    //   - 将 query_seq_start 和 key_seq_start 赋值给之前定义的张量变量
+    //   - 检查 query_seq_start_tensor 的维度必须为1
+    //   - 检查 query_seq_start_tensor 和 key_seq_start_tensor 的形状必须相同
+    //   - 检查 query_seq_start_tensor 的大小必须大于1
+    //   - 从 query_seq_start_tensor 获取 batch_size
+    //   - 如果 key_seq_len 有值,检查它的维度为1,大小等于 batch_size
+    // 2. 否则,如果 query_seq_start 为空,则
+    //   - key_seq_start 也必须为空
+    //   - key_seq_len 也必须为空
     if (query_seq_start) {
       CHECK_OR_RETURN(key_seq_start) << "The tensors query_seq_start and key_seq_start should both "
                                         "be None or both not be None at the same time.";
@@ -317,17 +331,17 @@ class FusedMultiHeadAttentionInferenceV2Functor {
     std::shared_ptr<one::Tensor> value_tensor;
     std::string value_tensor_layout;
 
-    // query的batch_size，seq_length，num_heads，hidden_size_per_attention_head
+    // query 的 batch_size，seq_length，num_heads，hidden_size_per_attention_head
     int64_t q_b = 0;
     int64_t q_m = 0;
     int64_t q_h = 0;
     int64_t q_k = 0;
-    // query的batch_size维度和seq_length维度是否pack在一起
+    // query 的 batch_size 维度和 seq_length 维度是否 pack 在一起
     bool q_bm_packed = false;
-    // 使用ParseDims根据query的shape以及query_layout来解析维度
+    // 使用 ParseDims 根据 query 的 shape 以及 query_layout 来解析维度
     JUST(ParseDims("query", *query->shape(), query_layout, batch_size, query_max_seq_len,
                    Optional<int64_t>(), query_head_size, &q_b, &q_m, &q_h, &q_k, &q_bm_packed));
-    // query的hidden_size_per_attention_head需要满足被8整除
+    // query 的 hidden_size_per_attention_head 需要满足被 8 整除
     CHECK_EQ_OR_RETURN(q_k % 8, 0)
         << "The size of dimension 'K' of the query tensor should be a multiple of 8.";
     if (q_bm_packed) {
@@ -335,17 +349,20 @@ class FusedMultiHeadAttentionInferenceV2Functor {
           << "The query_seq_start tensor should not be None when the query tensor is BM-Packed.";
     }
 
-    // key的batch_size，seq_length，num_heads，hidden_size_per_attention_head
+    // key 的 batch_size，seq_length，num_heads，hidden_size_per_attention_head
     int64_t k_b = 0;
     int64_t k_m = 0;
     int64_t k_h = 0;
     int64_t k_k = 0;
+    // key 的 batch_size 维度和 seq_length 维度是否 pack 在一起
     bool k_bm_packed = false;
     if (key) {
       key_tensor = JUST(key);
       key_tensor_layout = *JUST(key_layout);
+      // 解析 key_tensor 的维度,得到 k_b、k_m、k_h、k_k 和 k_bm_packed 等值
       JUST(ParseDims("key", *key_tensor->shape(), key_tensor_layout, q_b, key_max_seq_len,
                      Optional<int64_t>(), q_k, &k_b, &k_m, &k_h, &k_k, &k_bm_packed));
+      // 检查 k_b 与 q_b 相等, k_h 与 q_h 相等, k_bm_packed 与 q_bm_packed 相等
       CHECK_EQ_OR_RETURN(k_b, q_b) << "The size of dimension 'B' of the key tensor should be the "
                                       "same as that of the query tensor.";
       CHECK_EQ_OR_RETURN(k_h, q_h) << "The size of dimension 'H' of the key tensor should be the "
@@ -355,11 +372,15 @@ class FusedMultiHeadAttentionInferenceV2Functor {
              "BM-Packed at the same time.";
 
     } else {
+      // 如果 key 为空，则检查 query_layout 必须为 "BM(H3K)" 或 "MB(H3K)"
       CHECK_OR_RETURN(query_layout == "BM(H3K)" || query_layout == "MB(H3K)")
           << "The value of query_layout should be 'BM(H3K)' or 'MB(H3K)' when the key tensor is "
              "None.";
+      // 将 query 赋值给 key_tensor
       key_tensor = query;
+      // 将 query_layout 赋值给 key_tensor_layout
       key_tensor_layout = query_layout;
+      // 将 q_b、q_m、q_h、q_k 和 q_bm_packed 的值赋给 k_b、k_m、k_h、k_k 和 k_bm_packed
       k_b = q_b;
       k_m = q_m;
       k_h = q_h;
@@ -367,14 +388,17 @@ class FusedMultiHeadAttentionInferenceV2Functor {
       k_bm_packed = q_bm_packed;
     }
 
+    // value 的 batch_size，seq_length，num_heads，hidden_size_per_attention_head
     int64_t v_b = 0;
     int64_t v_m = 0;
     int64_t v_h = 0;
     int64_t v_k = 0;
+    // value 的 batch_size 维度和 seq_length 维度是否 pack 在一起
     bool v_bm_packed = false;
     if (value) {
       value_tensor = JUST(value);
       value_tensor_layout = *JUST(value_layout);
+      // 解析 value_tensor 的维度,得到 k_b、k_m、k_h、k_k 和 k_bm_packed 等值
       JUST(ParseDims("value", *value_tensor->shape(), value_tensor_layout, q_b, k_m, q_h,
                      Optional<int64_t>(), &v_b, &v_m, &v_h, &v_k, &v_bm_packed));
       CHECK_EQ_OR_RETURN(v_b, q_b) << "The size of dimension 'B' of the value tensor should be the "
@@ -402,14 +426,18 @@ class FusedMultiHeadAttentionInferenceV2Functor {
     }
 
     if (attn_bias) {
+      // 获取 attn_bias 的形状 attn_bias_shape 和维度数 num_attn_bias_axes
       const auto attn_bias_shape = JUST(attn_bias)->shape();
       const int64_t num_attn_bias_axes = attn_bias_shape->NumAxes();
+      // 检查 num_attn_bias_axes 必须大于 0 小于等于 4
       CHECK_OR_RETURN(num_attn_bias_axes > 0 && num_attn_bias_axes <= 4)
           << "The number of dimensions of attn_bias should be greater than 0 and less than or "
              "equal to 4.";
+      // 检查 attn_bias_shape 的最后一维(即 -1 维)必须大于等于 key_tensor 的 m 维
       CHECK_GE_OR_RETURN(attn_bias_shape->At(num_attn_bias_axes - 1), k_m)
           << "The size of the -1 dimension of attn_bias should be greater than or equal to the "
              "dimension 'M' of the key tensor";
+      // 检查 attn_bias_shape 的最后一维必须能被 8 整除
       CHECK_EQ_OR_RETURN(attn_bias_shape->At(num_attn_bias_axes - 1) % 8, 0)
           << "The size of the -1 dimension of attn_bias should be a multiple of 8.";
       if (num_attn_bias_axes >= 2) {
