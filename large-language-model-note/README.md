@@ -61,6 +61,10 @@
 - [羊驼系列大模型和ChatGPT差多少？详细测评后，我沉默了](https://zhuanlan.zhihu.com/p/629085937)
 - [【开源骆驼】更好的翻译prompt，中英文token比例，比alpaca更强的中文数据集WizardLM](https://zhuanlan.zhihu.com/p/629379775)
 - [ImageBind: 表征大一统？也许还有一段距离](https://zhuanlan.zhihu.com/p/629389992)
+- [训练开销骤减，10%成本定制专属类GPT-4多模态大模型](https://mp.weixin.qq.com/s/UqBEGLpF6H7NU9jyqbvRLg)
+- [国内首个可复现的RLHF基准，北大团队开源 PKU-Beaver](https://mp.weixin.qq.com/s/O1RDHrmEg99zCil8ycqOGQ)
+- [大模型迎来「开源季」，盘点过去一个月那些开源的LLM和数据集](https://mp.weixin.qq.com/s/VleZkQT6Vga7vqZP8pvgQQ)
+- [超越GPT-4！华人团队爆火InstructBLIP抢跑看图聊天，开源项目横扫多项SOTA](https://mp.weixin.qq.com/s/jI1cf7FDYJscHDZKiNvoug)
 
 ### 大模型训练技术
 
