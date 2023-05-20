@@ -109,6 +109,8 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 #### 文章
 
+- [FlashAttention图解（如何加速Attention）](https://zhuanlan.zhihu.com/p/626079753)
+- [GPU内存(显存)的理解与基本使用](https://zhuanlan.zhihu.com/p/462191421)
 - [图文并茂，超详细解读nms cuda拓展源码](https://zhuanlan.zhihu.com/p/466169614)
 - [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
 - [简单读读WeightOnly](https://zhuanlan.zhihu.com/p/622334595)

@@ -63,8 +63,11 @@
 - [ImageBind: 表征大一统？也许还有一段距离](https://zhuanlan.zhihu.com/p/629389992)
 - [训练开销骤减，10%成本定制专属类GPT-4多模态大模型](https://mp.weixin.qq.com/s/UqBEGLpF6H7NU9jyqbvRLg)
 - [国内首个可复现的RLHF基准，北大团队开源 PKU-Beaver](https://mp.weixin.qq.com/s/O1RDHrmEg99zCil8ycqOGQ)
+- [北大紧跟步伐开源PKU-Beaver (河狸)——不仅支持RLHF训练, 还开源RLHF训练数据](https://zhuanlan.zhihu.com/p/630326764)
 - [大模型迎来「开源季」，盘点过去一个月那些开源的LLM和数据集](https://mp.weixin.qq.com/s/VleZkQT6Vga7vqZP8pvgQQ)
 - [超越GPT-4！华人团队爆火InstructBLIP抢跑看图聊天，开源项目横扫多项SOTA](https://mp.weixin.qq.com/s/jI1cf7FDYJscHDZKiNvoug)
+- [基于 ChatGLM-6B 搭建个人专属知识库](https://zhuanlan.zhihu.com/p/629558941)
+- [大模型-LLM分布式训练框架总结](https://zhuanlan.zhihu.com/p/623746805)
 
 ### 大模型训练技术
 
@@ -82,6 +85,7 @@
 - [Transformers DeepSpeed官方文档](https://zhuanlan.zhihu.com/p/621572871)
 - [当红炸子鸡 LoRA，是当代微调 LLMs 的正确姿势？](https://zhuanlan.zhihu.com/p/618894919)
 - [GLM、LLAMA用Accelerate+deepspeed做RLHF时可能遇到的问题](https://zhuanlan.zhihu.com/p/629614251)
+- [GPT fine-tune实战： 训练我自己的 ChatGPT🚀🚀🚀](https://zhuanlan.zhihu.com/p/616504594)
 
 ### 大模型推理技术
 
