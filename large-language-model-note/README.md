@@ -14,6 +14,7 @@
 - [ChatGPT技术解析系列之：GPT1、GPT2与GPT3](https://zhuanlan.zhihu.com/p/609367098)
 - [ChatGPT技术解析系列之：训练框架InstructGPT](https://zhuanlan.zhihu.com/p/605516116)
 - [ChatGPT技术解析系列之：赋予GPT写代码能力的Codex](https://zhuanlan.zhihu.com/p/611313567)
+- [大模型推理性能优化之KV Cache解读](https://zhuanlan.zhihu.com/p/630832593)
 - [拆解追溯 ChatGPT各项能力的起源](https://zhuanlan.zhihu.com/p/607469120)
 - [ChatGPT 的突现能力，我们是否真的面临范式转变？](https://zhuanlan.zhihu.com/p/622052864)
 - [复杂推理：大型语言模型的"北极星"能力](https://zhuanlan.zhihu.com/p/628855304)
@@ -86,6 +87,7 @@
 - [当红炸子鸡 LoRA，是当代微调 LLMs 的正确姿势？](https://zhuanlan.zhihu.com/p/618894919)
 - [GLM、LLAMA用Accelerate+deepspeed做RLHF时可能遇到的问题](https://zhuanlan.zhihu.com/p/629614251)
 - [GPT fine-tune实战： 训练我自己的 ChatGPT🚀🚀🚀](https://zhuanlan.zhihu.com/p/616504594)
+- [DeepSpeed之ZeRO系列：将显存优化进行到底](https://zhuanlan.zhihu.com/p/513571706)
 
 ### 大模型推理技术
 
