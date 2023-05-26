@@ -70,6 +70,10 @@
 - [超越GPT-4！华人团队爆火InstructBLIP抢跑看图聊天，开源项目横扫多项SOTA](https://mp.weixin.qq.com/s/jI1cf7FDYJscHDZKiNvoug)
 - [基于 ChatGLM-6B 搭建个人专属知识库](https://zhuanlan.zhihu.com/p/629558941)
 - [大模型-LLM分布式训练框架总结](https://zhuanlan.zhihu.com/p/623746805)
+- [没有RLHF，一样媲美GPT-4、Bard，Meta发布650亿参数语言模型LIMA](https://mp.weixin.qq.com/s/Oze93Brun-AQUBI5Tt1b6w)
+- [在Transformer时代重塑RNN，RWKV将非Transformer架构扩展到数百亿参数](https://mp.weixin.qq.com/s/cg8F4cE6JGij7JJJivUqxg)
+- [马腾宇团队新出大模型预训练优化器，比Adam快2倍，成本减半](https://mp.weixin.qq.com/s/L_66ZWTeLE43gQtSi1reEw)
+- [跑分达ChatGPT的99%，人类难以分辨！开源「原驼」爆火，iPhone都能微调大模型了](https://mp.weixin.qq.com/s/1ZrPtBmgkklFk2_TvOhK_w)
 
 ### 大模型训练技术
 
