@@ -8,6 +8,7 @@
 
 - [分析transformer模型的参数量、计算量、中间激活、KV cache](https://zhuanlan.zhihu.com/p/624740065)
 - [Transformer模型的基础演算](https://mp.weixin.qq.com/s/0Er0UOk6Wdky-0gzeQxK0g)
+- [Transformer 估算 101](https://zhuanlan.zhihu.com/p/630582034)
 - [通向AGI之路：大型语言模型（LLM）技术精要](https://zhuanlan.zhihu.com/p/597586623)
 - [Transformer学习笔记二：Self-Attention（自注意力机制）](https://zhuanlan.zhihu.com/p/455399791)
 - [Transformer学习笔记三：为什么Transformer要用LayerNorm/Batch Normalization & Layer Normalization （批量&层标准化)](https://zhuanlan.zhihu.com/p/456863215)
@@ -88,6 +89,13 @@
 - [GLM、LLAMA用Accelerate+deepspeed做RLHF时可能遇到的问题](https://zhuanlan.zhihu.com/p/629614251)
 - [GPT fine-tune实战： 训练我自己的 ChatGPT🚀🚀🚀](https://zhuanlan.zhihu.com/p/616504594)
 - [DeepSpeed之ZeRO系列：将显存优化进行到底](https://zhuanlan.zhihu.com/p/513571706)
+- [大模型也内卷，Vicuna训练及推理指南，效果碾压斯坦福羊驼](https://zhuanlan.zhihu.com/p/624012908)
+- [一键式 RLHF 训练 DeepSpeed Chat（一）：理论篇](https://zhuanlan.zhihu.com/p/626159553)
+- [使用DeepSpeed/P-Tuning v2对ChatGLM-6B进行微调](https://zhuanlan.zhihu.com/p/622351059)
+- [从0到1基于ChatGLM-6B使用LoRA进行参数高效微调](https://zhuanlan.zhihu.com/p/621793987)
+- [足够惊艳，使用Alpaca-Lora基于LLaMA(7B)二十分钟完成微调，效果比肩斯坦福羊驼](https://zhuanlan.zhihu.com/p/619426866)
+- [基于LLaMA-7B/Bloomz-7B1-mt复现开源中文对话大模型BELLE及GPTQ量化](https://zhuanlan.zhihu.com/p/618876472)
+- [从0到1复现斯坦福羊驼（Stanford Alpaca 7B）](https://zhuanlan.zhihu.com/p/618321077)
 
 ### 大模型推理技术
 
@@ -104,6 +112,10 @@
 - [NLP（十一）：大语言模型的模型量化(INT8)技术](https://zhuanlan.zhihu.com/p/627436535)
 - [大(语言)模型推理原理及加速](https://zhuanlan.zhihu.com/p/628511161)
 - [AI算力碎片化：矩阵乘法的启示](https://zhuanlan.zhihu.com/p/624425308)
+- [大大大模型部署方案抛砖引玉](https://mp.weixin.qq.com/s/e6ymQZs5MY1pdodC7eg8iQ)
+- [BELLE(LLaMA-7B/Bloomz-7B1-mt)大模型使用GPTQ量化后推理性能测试](https://zhuanlan.zhihu.com/p/621128368)
+- [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
+
 
 ### 大模型仓库收集
 
