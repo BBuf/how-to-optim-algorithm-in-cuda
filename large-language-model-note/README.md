@@ -6,6 +6,7 @@
 
 ### 大模型知识介绍
 
+- [《A Survey of Large Language Models》笔记](https://zhuanlan.zhihu.com/p/631065995)
 - [分析transformer模型的参数量、计算量、中间激活、KV cache](https://zhuanlan.zhihu.com/p/624740065)
 - [Transformer模型的基础演算](https://mp.weixin.qq.com/s/0Er0UOk6Wdky-0gzeQxK0g)
 - [Transformer 估算 101](https://zhuanlan.zhihu.com/p/630582034)
@@ -74,6 +75,7 @@
 - [在Transformer时代重塑RNN，RWKV将非Transformer架构扩展到数百亿参数](https://mp.weixin.qq.com/s/cg8F4cE6JGij7JJJivUqxg)
 - [马腾宇团队新出大模型预训练优化器，比Adam快2倍，成本减半](https://mp.weixin.qq.com/s/L_66ZWTeLE43gQtSi1reEw)
 - [跑分达ChatGPT的99%，人类难以分辨！开源「原驼」爆火，iPhone都能微调大模型了](https://mp.weixin.qq.com/s/1ZrPtBmgkklFk2_TvOhK_w)
+- [大模型词表扩充必备工具SentencePiece](https://zhuanlan.zhihu.com/p/630696264)
 
 ### 大模型训练技术
 
@@ -100,6 +102,7 @@
 - [足够惊艳，使用Alpaca-Lora基于LLaMA(7B)二十分钟完成微调，效果比肩斯坦福羊驼](https://zhuanlan.zhihu.com/p/619426866)
 - [基于LLaMA-7B/Bloomz-7B1-mt复现开源中文对话大模型BELLE及GPTQ量化](https://zhuanlan.zhihu.com/p/618876472)
 - [从0到1复现斯坦福羊驼（Stanford Alpaca 7B）](https://zhuanlan.zhihu.com/p/618321077)
+- [如何使用 Megatron-LM 训练语言模型](https://zhuanlan.zhihu.com/p/633160974)
 
 ### 大模型推理技术
 
