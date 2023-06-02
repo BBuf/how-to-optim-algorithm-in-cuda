@@ -76,6 +76,7 @@
 - [马腾宇团队新出大模型预训练优化器，比Adam快2倍，成本减半](https://mp.weixin.qq.com/s/L_66ZWTeLE43gQtSi1reEw)
 - [跑分达ChatGPT的99%，人类难以分辨！开源「原驼」爆火，iPhone都能微调大模型了](https://mp.weixin.qq.com/s/1ZrPtBmgkklFk2_TvOhK_w)
 - [大模型词表扩充必备工具SentencePiece](https://zhuanlan.zhihu.com/p/630696264)
+- [RWKV – transformer 与 RNN 的强强联合](https://zhuanlan.zhihu.com/p/633735524)
 
 ### 大模型训练技术
 
@@ -103,6 +104,11 @@
 - [基于LLaMA-7B/Bloomz-7B1-mt复现开源中文对话大模型BELLE及GPTQ量化](https://zhuanlan.zhihu.com/p/618876472)
 - [从0到1复现斯坦福羊驼（Stanford Alpaca 7B）](https://zhuanlan.zhihu.com/p/618321077)
 - [如何使用 Megatron-LM 训练语言模型](https://zhuanlan.zhihu.com/p/633160974)
+- [[源码解析] 模型并行分布式训练Megatron (1) --- 论文&基础 ](https://juejin.cn/post/7057837676430360584)
+- [[源码解析] 模型并行分布式训练Megatron (2) --- 整体架构 ](https://juejin.cn/post/7061942798957674504)
+- [[源码解析] 模型并行分布式训练 Megatron (3) ---模型并行实现 ](https://juejin.cn/post/7062256365636419592)
+- [[源码解析] 模型并行分布式训练 Megatron (4) --- 如何设置各种并行 ](https://juejin.cn/post/7063030243224879140)
+- [[源码解析] 模型并行分布式训练Megatron (5) --Pipedream Flush ](https://juejin.cn/post/7064496967828635655)
 
 ### 大模型推理技术
 
@@ -122,7 +128,8 @@
 - [大大大模型部署方案抛砖引玉](https://mp.weixin.qq.com/s/e6ymQZs5MY1pdodC7eg8iQ)
 - [BELLE(LLaMA-7B/Bloomz-7B1-mt)大模型使用GPTQ量化后推理性能测试](https://zhuanlan.zhihu.com/p/621128368)
 - [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
-
+- [模型推理服务化框架Triton保姆式教程（一）：快速入门](https://zhuanlan.zhihu.com/p/629336492)
+- [模型推理服务化框架Triton保姆式教程（二）：架构解析](https://zhuanlan.zhihu.com/p/634143650)
 
 ### 大模型仓库收集
 
