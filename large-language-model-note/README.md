@@ -112,6 +112,7 @@
 
 ### 大模型推理技术
 
+- [大幅优化推理过程，字节高性能Transformer推理库获IPDPS 2023最佳论文奖 ](https://mp.weixin.qq.com/s/5TM4PXTUBZuOfZlltFfrsQ)
 - [CodeGeeX百亿参数大模型的调优笔记：比FasterTransformer更快的解决方案](https://zhuanlan.zhihu.com/p/617027615)
 - [优化故事: BLOOM 模型推理](https://mp.weixin.qq.com/s/yzVqh4d6ynNROJxHycDUXg)
 - [大型语言模型的推理演算](https://mp.weixin.qq.com/s/2wfUQNsH4IRuJEF39mebUQ)
