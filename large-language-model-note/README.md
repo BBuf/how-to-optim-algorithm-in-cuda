@@ -91,6 +91,7 @@
 - [图解大模型训练之：数据并行下篇( DeepSpeed ZeRO，零冗余优化)](https://zhuanlan.zhihu.com/p/618865052)
 - [图解大模型训练之：张量模型并行(TP)，Megatron-LM](https://zhuanlan.zhihu.com/p/622212228)
 - [图解大模型系列之：Megatron源码解读1，分布式环境初始化](https://zhuanlan.zhihu.com/p/629121480)
+- [图解大模型训练之：Megatron源码解读2，模型并行](https://zhuanlan.zhihu.com/p/634377071)
 - [深度学习里，模型并行中怎么将模型拆分？](https://www.zhihu.com/question/319355346/answer/2985459442)
 - [Transformers DeepSpeed官方文档](https://zhuanlan.zhihu.com/p/621572871)
 - [当红炸子鸡 LoRA，是当代微调 LLMs 的正确姿势？](https://zhuanlan.zhihu.com/p/618894919)
@@ -110,6 +111,7 @@
 - [[源码解析] 模型并行分布式训练 Megatron (3) ---模型并行实现 ](https://juejin.cn/post/7062256365636419592)
 - [[源码解析] 模型并行分布式训练 Megatron (4) --- 如何设置各种并行 ](https://juejin.cn/post/7063030243224879140)
 - [[源码解析] 模型并行分布式训练Megatron (5) --Pipedream Flush ](https://juejin.cn/post/7064496967828635655)
+- [Pytorch Distributed Data Parallal](https://fazzie-key.cool/2022/01/23/ddp/)
 
 ### 大模型推理技术
 
