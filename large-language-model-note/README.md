@@ -78,6 +78,9 @@
 - [跑分达ChatGPT的99%，人类难以分辨！开源「原驼」爆火，iPhone都能微调大模型了](https://mp.weixin.qq.com/s/1ZrPtBmgkklFk2_TvOhK_w)
 - [大模型词表扩充必备工具SentencePiece](https://zhuanlan.zhihu.com/p/630696264)
 - [RWKV – transformer 与 RNN 的强强联合](https://zhuanlan.zhihu.com/p/633735524)
+- [Falcon 登陆 Hugging Face 生态](https://zhuanlan.zhihu.com/p/637676443)
+- [详解大模型RLHF过程（配代码解读）](https://zhuanlan.zhihu.com/p/624589622)
+- [详解Transformer-XL](https://zhuanlan.zhihu.com/p/271984518)
 
 ### 大模型训练技术
 
@@ -138,6 +141,7 @@
 
 ### 大模型仓库收集
 
+- [Awesome-Chinese-LLM：收集和梳理中文LLM相关的开源模型、应用、数据集及教程等资料](https://mp.weixin.qq.com/s/Oy6XZNyN3kpsC6TfQYQb7A)
 - LLaMA:
     - Paper: https://research.facebook.com/publications/llama-open-and-efficient-foundation-language-models/
     - Github: https://github.com/facebookresearch/llama
