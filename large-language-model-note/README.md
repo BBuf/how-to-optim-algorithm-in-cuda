@@ -115,6 +115,10 @@
 - [[源码解析] 模型并行分布式训练 Megatron (4) --- 如何设置各种并行 ](https://juejin.cn/post/7063030243224879140)
 - [[源码解析] 模型并行分布式训练Megatron (5) --Pipedream Flush ](https://juejin.cn/post/7064496967828635655)
 - [Pytorch Distributed Data Parallal](https://fazzie-key.cool/2022/01/23/ddp/)
+- [大模型参数高效微调技术原理综述（七）-最佳实践、总结](https://zhuanlan.zhihu.com/p/636999010)
+- [【万字长文】LLaMA, ChatGLM, BLOOM的参数高效微调实践](https://zhuanlan.zhihu.com/p/635710004)
+- [CPT：兼顾理解和生成的中文预训练模型](https://zhuanlan.zhihu.com/p/421402341)
+- [大模型流水线并行（Pipeline）实战](https://zhuanlan.zhihu.com/p/636488690)
 
 ### 大模型推理技术
 
