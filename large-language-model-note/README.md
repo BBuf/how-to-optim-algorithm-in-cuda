@@ -88,6 +88,8 @@
 - [LLM学习记录（一）--关于大模型的一些知识](https://zhuanlan.zhihu.com/p/624918286)
 - [UC伯克利LLM排行榜首次重磅更新！GPT-4稳居榜首，全新330亿参数「小羊驼」位列开源第一](https://zhuanlan.zhihu.com/p/607403006)
 - [【Falcon Paper】我们是靠洗数据洗败 LLaMA 的！](https://zhuanlan.zhihu.com/p/637996787)
+- [[中文开源震撼首发]33B QLoRA大语言模型Anima真的太强大了！QLoRA技术可能是AI转折点！](https://zhuanlan.zhihu.com/p/638058537)
+- [详解大模型RLHF过程（配代码解读）](https://zhuanlan.zhihu.com/p/624589622)
 
 ### 大模型训练技术
 
@@ -130,6 +132,8 @@
 - [QLoRA：4-bit级别的量化+LoRA方法，用3090在DB-GPT上打造基于33B LLM的个人知识库](https://zhuanlan.zhihu.com/p/634516004)
 - [大模型高效微调综述上：Adapter Tuning、AdaMix、PET、Prefix-Tuning、Prompt Tuning、P-tuning、P-tuning v2](https://zhuanlan.zhihu.com/p/638809556)
 - [大模型高效微调综述下： DiffPruning、BitFit、LoRa、AdaLoRA、MAM Adapters、UniPELT](https://zhuanlan.zhihu.com/p/639068809)
+- [RLHF实践中的框架使用与一些坑 (TRL, LMFlow)](https://zhuanlan.zhihu.com/p/636358058)
+- [QLoRA: 4bit量化+LoRA训练=瞬间起飞](https://zhuanlan.zhihu.com/p/634256206)
 
 ### 大模型推理技术
 
