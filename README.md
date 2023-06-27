@@ -110,6 +110,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 #### 文章
 
 - [FlashAttention图解（如何加速Attention）](https://zhuanlan.zhihu.com/p/626079753)
+- [FlashAttention:加速计算,节省显存, IO感知的精确注意力](https://zhuanlan.zhihu.com/p/639228219)
 - [GPU内存(显存)的理解与基本使用](https://zhuanlan.zhihu.com/p/462191421)
 - [图文并茂，超详细解读nms cuda拓展源码](https://zhuanlan.zhihu.com/p/466169614)
 - [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
@@ -137,3 +138,5 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [CUDA Pro Tips翻译：Write Flexible Kernels with Grid-Stride Loops](https://zhuanlan.zhihu.com/p/472952257)
 - [[施工中] CUDA GEMM 理论性能分析与 kernel 优化](https://zhuanlan.zhihu.com/p/441146275)
 - [CUDA Ampere Tensor Core HGEMM 矩阵乘法优化笔记 —— Up To 131 TFLOPS!](https://zhuanlan.zhihu.com/p/555339335)
+- [Nvidia Tensor Core-CUDA HGEMM优化进阶](https://zhuanlan.zhihu.com/p/639297098)
+- [CUDA C++ Best Practices Guide Release 12.1笔记（一）](https://zhuanlan.zhihu.com/p/636103380)

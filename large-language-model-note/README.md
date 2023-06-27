@@ -81,9 +81,17 @@
 - [Falcon 登陆 Hugging Face 生态](https://zhuanlan.zhihu.com/p/637676443)
 - [详解大模型RLHF过程（配代码解读）](https://zhuanlan.zhihu.com/p/624589622)
 - [详解Transformer-XL](https://zhuanlan.zhihu.com/p/271984518)
+- [教科书级数据is all you need：1.3B小模型逆袭大模型的秘密](https://zhuanlan.zhihu.com/p/608004441)
+- [清华第二代60亿参数ChatGLM2开源！中文榜居首，碾压GPT-4，推理提速42%](https://zhuanlan.zhihu.com/p/639888131)
+- [NLP（十七）：从 FlashAttention 到 PagedAttention, 如何进一步优化 Attention 性能](https://zhuanlan.zhihu.com/p/638468472)
+- [AGI最前沿：GPT-4之后大模型学术进展速览](https://zhuanlan.zhihu.com/p/639165892)
+- [LLM学习记录（一）--关于大模型的一些知识](https://zhuanlan.zhihu.com/p/624918286)
+- [UC伯克利LLM排行榜首次重磅更新！GPT-4稳居榜首，全新330亿参数「小羊驼」位列开源第一](https://zhuanlan.zhihu.com/p/607403006)
+- [【Falcon Paper】我们是靠洗数据洗败 LLaMA 的！](https://zhuanlan.zhihu.com/p/637996787)
 
 ### 大模型训练技术
 
+- [【LLM】从零开始训练大模型](https://zhuanlan.zhihu.com/p/636270877)
 - [千亿参数开源大模型 BLOOM 背后的技术](https://codeuuu.com/p/68022.html) 这里主要总结了并行相关的技术以及使用的一些坑，然后对训练过程中可能出现的问题进行描述。
 - [在一张 24 GB 的消费级显卡上用 RLHF 微调 20B LLMs](https://www.cnblogs.com/huggingface/p/17245966.html)
 - [人手一个ChatGPT！微软DeepSpeed Chat震撼发布，一键RLHF训练千亿级大模型](https://zhuanlan.zhihu.com/p/621379646)
@@ -119,6 +127,9 @@
 - [【万字长文】LLaMA, ChatGLM, BLOOM的参数高效微调实践](https://zhuanlan.zhihu.com/p/635710004)
 - [CPT：兼顾理解和生成的中文预训练模型](https://zhuanlan.zhihu.com/p/421402341)
 - [大模型流水线并行（Pipeline）实战](https://zhuanlan.zhihu.com/p/636488690)
+- [QLoRA：4-bit级别的量化+LoRA方法，用3090在DB-GPT上打造基于33B LLM的个人知识库](https://zhuanlan.zhihu.com/p/634516004)
+- [大模型高效微调综述上：Adapter Tuning、AdaMix、PET、Prefix-Tuning、Prompt Tuning、P-tuning、P-tuning v2](https://zhuanlan.zhihu.com/p/638809556)
+- [大模型高效微调综述下： DiffPruning、BitFit、LoRa、AdaLoRA、MAM Adapters、UniPELT](https://zhuanlan.zhihu.com/p/639068809)
 
 ### 大模型推理技术
 
@@ -142,6 +153,8 @@
 - [模型推理服务化框架Triton保姆式教程（一）：快速入门](https://zhuanlan.zhihu.com/p/629336492)
 - [模型推理服务化框架Triton保姆式教程（二）：架构解析](https://zhuanlan.zhihu.com/p/634143650)
 - [模型推理服务化框架Triton保姆式教程（三）：开发实践](https://zhuanlan.zhihu.com/p/634444666)
+- [【自然语言处理】【大模型】大语言模型BLOOM推理工具测试]https://zhuanlan.zhihu.com/p/608004441)
+- [使用bitsandbytes、4 位量化和 QLoRA 使 LLM 更易于访问](https://zhuanlan.zhihu.com/p/632287465)
 
 ### 大模型仓库收集
 
@@ -181,4 +194,8 @@
 ### 大模型数据标注
 
 - [详谈大模型训练中的数据收集、处理与模型影响：A Survey of Large Language Models工作中的数据总结](https://mp.weixin.qq.com/s/bHsb631KA5AaulBHNT5m9w)
+
+### 李沐论文精度文字版专栏
+
+- [李沐论文精度文字版专栏](https://www.zhihu.com/column/c_1656053216138719233)
 
