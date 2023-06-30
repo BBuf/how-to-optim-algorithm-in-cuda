@@ -90,6 +90,7 @@
 - [【Falcon Paper】我们是靠洗数据洗败 LLaMA 的！](https://zhuanlan.zhihu.com/p/637996787)
 - [[中文开源震撼首发]33B QLoRA大语言模型Anima真的太强大了！QLoRA技术可能是AI转折点！](https://zhuanlan.zhihu.com/p/638058537)
 - [详解大模型RLHF过程（配代码解读）](https://zhuanlan.zhihu.com/p/624589622)
+- [羊驼家族大模型集体进化！32k上下文追平GPT-4，成本忽略不计](https://zhuanlan.zhihu.com/p/640156580)
 
 ### 大模型训练技术
 
@@ -134,6 +135,9 @@
 - [大模型高效微调综述下： DiffPruning、BitFit、LoRa、AdaLoRA、MAM Adapters、UniPELT](https://zhuanlan.zhihu.com/p/639068809)
 - [RLHF实践中的框架使用与一些坑 (TRL, LMFlow)](https://zhuanlan.zhihu.com/p/636358058)
 - [QLoRA: 4bit量化+LoRA训练=瞬间起飞](https://zhuanlan.zhihu.com/p/634256206)
+- [baichuan-7B 模型使用/训练/Lora/测评](https://zhuanlan.zhihu.com/p/637343740)
+- [LLM - finetuning - 踩坑经验之谈](https://zhuanlan.zhihu.com/p/639462205)
+- [使用 RLHF 训练 LLaMA 的实践指南：StackLLaMA](https://zhuanlan.zhihu.com/p/631832914)
 
 ### 大模型推理技术
 
@@ -198,6 +202,7 @@
 ### 大模型数据标注
 
 - [详谈大模型训练中的数据收集、处理与模型影响：A Survey of Large Language Models工作中的数据总结](https://mp.weixin.qq.com/s/bHsb631KA5AaulBHNT5m9w)
+- [过去三个月，LLaMA系模型发展如何？指令微调的核心问题又是什么？ ](https://mp.weixin.qq.com/s/cXPNyOeK9vFjJcgxc_LqZQ)
 
 ### 李沐论文精度文字版专栏
 
