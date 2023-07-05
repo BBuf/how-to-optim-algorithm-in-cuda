@@ -91,6 +91,11 @@
 - [[中文开源震撼首发]33B QLoRA大语言模型Anima真的太强大了！QLoRA技术可能是AI转折点！](https://zhuanlan.zhihu.com/p/638058537)
 - [详解大模型RLHF过程（配代码解读）](https://zhuanlan.zhihu.com/p/624589622)
 - [羊驼家族大模型集体进化！32k上下文追平GPT-4，成本忽略不计](https://zhuanlan.zhihu.com/p/640156580)
+- [大模型LLM知识整理](https://zhuanlan.zhihu.com/p/641109766)
+- [Relative position embedding](https://zhuanlan.zhihu.com/p/364828960)
+- [ICLR 2023 Spotlight | ViT-Adapter：针对原始ViT结构设计密集预测任务适配器](https://zhuanlan.zhihu.com/p/608272954)
+- [DevChat：将 GPT-4 无缝融入 VS Code，极致提升你的编程体验](https://zhuanlan.zhihu.com/p/640807148)
+- [OpenAI早就不卷大模型，开始卷AI Agents了？这是一篇来自OpenAI应用研究主管关于Agent的万字长文](https://zhuanlan.zhihu.com/p/640634046)
 
 ### 大模型训练技术
 
@@ -138,6 +143,8 @@
 - [baichuan-7B 模型使用/训练/Lora/测评](https://zhuanlan.zhihu.com/p/637343740)
 - [LLM - finetuning - 踩坑经验之谈](https://zhuanlan.zhihu.com/p/639462205)
 - [使用 RLHF 训练 LLaMA 的实践指南：StackLLaMA](https://zhuanlan.zhihu.com/p/631832914)
+- [预训练模型时代：告别finetune, 拥抱adapter](https://zhuanlan.zhihu.com/p/451440421)
+- [ChatGLM2微调保姆级教程~](https://zhuanlan.zhihu.com/p/641047705)
 
 ### 大模型推理技术
 

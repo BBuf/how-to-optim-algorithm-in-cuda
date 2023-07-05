@@ -123,6 +123,8 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [cutlass FusedMultiheadAttention代码解读](https://zhuanlan.zhihu.com/p/600373700)
 - [简单谈谈CUDA Reduce](https://zhuanlan.zhihu.com/p/559549740)
 - [CUTLASS: Fast Linear Algebra in CUDA C++](https://zhuanlan.zhihu.com/p/461060382)
+- [cutlass源码导读（1）——API与设计理念](https://zhuanlan.zhihu.com/p/588953452)
+- [cutlass源码导读（2）——Gemm的计算流程](https://zhuanlan.zhihu.com/p/592689326)
 - [CUDA GroupNorm NHWC优化](https://zhuanlan.zhihu.com/p/596871310)
 - [传统 CUDA GEMM 不完全指北](https://zhuanlan.zhihu.com/p/584236348)
 - [怎么评估内存带宽的指标，并进行优化?](https://www.zhihu.com/question/424477202/answer/2322341112)
@@ -141,3 +143,4 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [Nvidia Tensor Core-CUDA HGEMM优化进阶](https://zhuanlan.zhihu.com/p/639297098)
 - [CUDA C++ Best Practices Guide Release 12.1笔记（一）](https://zhuanlan.zhihu.com/p/636103380)
 - [CUDA 矩阵乘法终极优化指南](https://zhuanlan.zhihu.com/p/410278370)
+- [如何用CUDA写有CuBLAS 90%性能的GEMM Kernel](https://zhuanlan.zhihu.com/p/631227862)
