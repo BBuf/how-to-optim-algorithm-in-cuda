@@ -4,6 +4,16 @@
 
 ## 博客和文章收集
 
+### RWKV
+- [github仓库](https://github.com/BlinkDL/RWKV-LM)
+- [rwkv论文原理解读](https://www.zhihu.com/question/602564718)
+- [RWKV的微调教学，以及RWKV World：支持世界所有语言的生成+对话+任务+代码](https://zhuanlan.zhihu.com/p/638326262)
+- [RWKV：用RNN达到Transformer性能，且支持并行模式和长程记忆，既快又省显存，已在14B参数规模检验](https://zhuanlan.zhihu.com/p/599150009)
+- [谈谈 RWKV 系列的 prompt 设计，模型选择，解码参数设置](https://zhuanlan.zhihu.com/p/639629050)
+- [RWKV进展：一键生成论文，纯CPU高速INT4，纯CUDA脱离pytorch，ctx8192不耗显存不变慢](https://zhuanlan.zhihu.com/p/626083366)
+- [实例：手写 CUDA 算子，让 Pytorch 提速 20 倍（某特殊算子）](https://zhuanlan.zhihu.com/p/476297195)
+- [pengbo的专栏](https://www.zhihu.com/people/bopengbopeng/posts)
+
 ### 大模型知识介绍
 
 - [《A Survey of Large Language Models》笔记](https://zhuanlan.zhihu.com/p/631065995)
