@@ -11,7 +11,10 @@
 - [RWKV：用RNN达到Transformer性能，且支持并行模式和长程记忆，既快又省显存，已在14B参数规模检验](https://zhuanlan.zhihu.com/p/599150009)
 - [谈谈 RWKV 系列的 prompt 设计，模型选择，解码参数设置](https://zhuanlan.zhihu.com/p/639629050)
 - [RWKV进展：一键生成论文，纯CPU高速INT4，纯CUDA脱离pytorch，ctx8192不耗显存不变慢](https://zhuanlan.zhihu.com/p/626083366)
+- [开源1.5/3/7B中文小说模型：显存3G就能跑7B模型，几行代码即可调用](https://zhuanlan.zhihu.com/p/609154637)
+- [发布几个RWKV的Chat模型（包括英文和中文）7B/14B欢迎大家玩](https://zhuanlan.zhihu.com/p/618011122)
 - [实例：手写 CUDA 算子，让 Pytorch 提速 20 倍（某特殊算子）](https://zhuanlan.zhihu.com/p/476297195)
+- [BlinkDL/RWKV-World-7B gradio demo](https://huggingface.co/spaces/BlinkDL/RWKV-World-7B/tree/main)
 - [pengbo的专栏](https://www.zhihu.com/people/bopengbopeng/posts)
 
 ### 大模型知识介绍
@@ -106,8 +109,13 @@
 - [ICLR 2023 Spotlight | ViT-Adapter：针对原始ViT结构设计密集预测任务适配器](https://zhuanlan.zhihu.com/p/608272954)
 - [DevChat：将 GPT-4 无缝融入 VS Code，极致提升你的编程体验](https://zhuanlan.zhihu.com/p/640807148)
 - [OpenAI早就不卷大模型，开始卷AI Agents了？这是一篇来自OpenAI应用研究主管关于Agent的万字长文](https://zhuanlan.zhihu.com/p/640634046)
+- [为什么说大模型训练很难？](https://www.zhihu.com/question/498271491/answer/3052744672)
+- [LLM学习记录（五）--超简单的RoPE理解方式](https://zhuanlan.zhihu.com/p/642289220)
+- [langchain源码剖析-模块整体介绍【1】](https://zhuanlan.zhihu.com/p/640848809)
+- [如何为GPT/LLM模型添加额外知识？](https://www.zhihu.com/question/591935281/answer/2995472929)
+- [LLaMA Plus版来了，谷歌推出LongLLaMA，不仅让你的大模型更集中注意力，还能处理超长上线文](https://zhuanlan.zhihu.com/p/642551367)
 
-### 大模型训练技术
+### 大模型训练和微调技术
 
 - [【LLM】从零开始训练大模型](https://zhuanlan.zhihu.com/p/636270877)
 - [千亿参数开源大模型 BLOOM 背后的技术](https://codeuuu.com/p/68022.html) 这里主要总结了并行相关的技术以及使用的一些坑，然后对训练过程中可能出现的问题进行描述。
@@ -155,6 +163,9 @@
 - [使用 RLHF 训练 LLaMA 的实践指南：StackLLaMA](https://zhuanlan.zhihu.com/p/631832914)
 - [预训练模型时代：告别finetune, 拥抱adapter](https://zhuanlan.zhihu.com/p/451440421)
 - [ChatGLM2微调保姆级教程~](https://zhuanlan.zhihu.com/p/641047705)
+- [LLM训练指南:Token及模型参数准备](https://zhuanlan.zhihu.com/p/636812912)
+- [单样本微调给ChatGLM2注入知识~](https://zhuanlan.zhihu.com/p/642357133)
+- [想要微调清华chatglm6b模型，数据集给多少条比较合适？](https://www.zhihu.com/question/596950521/answer/3109759716)
 
 ### 大模型推理技术
 
@@ -180,6 +191,9 @@
 - [模型推理服务化框架Triton保姆式教程（三）：开发实践](https://zhuanlan.zhihu.com/p/634444666)
 - [【自然语言处理】【大模型】大语言模型BLOOM推理工具测试]https://zhuanlan.zhihu.com/p/608004441)
 - [使用bitsandbytes、4 位量化和 QLoRA 使 LLM 更易于访问](https://zhuanlan.zhihu.com/p/632287465)
+- [NLP（十七）：从 FlashAttention 到 PagedAttention, 如何进一步优化 Attention 性能](https://zhuanlan.zhihu.com/p/638468472)
+- [【LLM 加速技巧】Muti Query Attention 和 Attention with Linear Bias（附源码）](https://zhuanlan.zhihu.com/p/634236135)
+- [如何优化transformer的attention?](https://www.zhihu.com/question/602057035/answer/3046820082)
 
 ### 大模型仓库收集
 
@@ -220,6 +234,10 @@
 
 - [详谈大模型训练中的数据收集、处理与模型影响：A Survey of Large Language Models工作中的数据总结](https://mp.weixin.qq.com/s/bHsb631KA5AaulBHNT5m9w)
 - [过去三个月，LLaMA系模型发展如何？指令微调的核心问题又是什么？ ](https://mp.weixin.qq.com/s/cXPNyOeK9vFjJcgxc_LqZQ)
+
+### 大模型评测
+
+- [“评测即科学”：首篇大语言模型评测的综述，一文带你全面了解大模型评测的现状、方法和挑战](https://zhuanlan.zhihu.com/p/642689101)
 
 ### 李沐论文精度文字版专栏
 
