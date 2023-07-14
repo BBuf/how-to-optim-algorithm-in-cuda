@@ -114,6 +114,8 @@
 - [langchain源码剖析-模块整体介绍【1】](https://zhuanlan.zhihu.com/p/640848809)
 - [如何为GPT/LLM模型添加额外知识？](https://www.zhihu.com/question/591935281/answer/2995472929)
 - [LLaMA Plus版来了，谷歌推出LongLLaMA，不仅让你的大模型更集中注意力，还能处理超长上线文](https://zhuanlan.zhihu.com/p/642551367)
+- [Transformer升级之路：10、RoPE是一种β进制编码](https://zhuanlan.zhihu.com/p/643630735)
+- [大模型的幻觉问题调研: LLM Hallucination Survey](https://zhuanlan.zhihu.com/p/642648601)
 
 ### 大模型训练和微调技术
 
@@ -166,6 +168,8 @@
 - [LLM训练指南:Token及模型参数准备](https://zhuanlan.zhihu.com/p/636812912)
 - [单样本微调给ChatGLM2注入知识~](https://zhuanlan.zhihu.com/p/642357133)
 - [想要微调清华chatglm6b模型，数据集给多少条比较合适？](https://www.zhihu.com/question/596950521/answer/3109759716)
+- [如何看待chatglm2？真实效果怎么样？](https://www.zhihu.com/question/608702606/answer/3118275498)
+- [百川13B-chat开箱及LORA进行PT/SFT微调](https://zhuanlan.zhihu.com/p/643021523)
 
 ### 大模型推理技术
 
