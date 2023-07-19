@@ -116,6 +116,7 @@
 - [LLaMA Plus版来了，谷歌推出LongLLaMA，不仅让你的大模型更集中注意力，还能处理超长上线文](https://zhuanlan.zhihu.com/p/642551367)
 - [Transformer升级之路：10、RoPE是一种β进制编码](https://zhuanlan.zhihu.com/p/643630735)
 - [大模型的幻觉问题调研: LLM Hallucination Survey](https://zhuanlan.zhihu.com/p/642648601)
+- [[Transformer 101系列] 初探LLM基座模型](https://zhuanlan.zhihu.com/p/640784855)
 
 ### 大模型训练和微调技术
 
@@ -198,6 +199,7 @@
 - [NLP（十七）：从 FlashAttention 到 PagedAttention, 如何进一步优化 Attention 性能](https://zhuanlan.zhihu.com/p/638468472)
 - [【LLM 加速技巧】Muti Query Attention 和 Attention with Linear Bias（附源码）](https://zhuanlan.zhihu.com/p/634236135)
 - [如何优化transformer的attention?](https://www.zhihu.com/question/602057035/answer/3046820082)
+- [Huggingface Accelerate文档：超大模型推理方法](https://zhuanlan.zhihu.com/p/606061177)
 
 ### 大模型仓库收集
 

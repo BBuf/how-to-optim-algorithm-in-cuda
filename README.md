@@ -112,6 +112,8 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [FlashAttention图解（如何加速Attention）](https://zhuanlan.zhihu.com/p/626079753)
 - [FlashAttention:加速计算,节省显存, IO感知的精确注意力](https://zhuanlan.zhihu.com/p/639228219)
 - [FlashAttention 反向传播运算推导](https://zhuanlan.zhihu.com/p/631106302)
+- [比标准Attention提速5-9倍，大模型都在用的FlashAttention v2来了](https://zhuanlan.zhihu.com/p/644324647)
+- [FlashAttention与Multi Query Attention](https://zhuanlan.zhihu.com/p/640312259)
 - [GPU内存(显存)的理解与基本使用](https://zhuanlan.zhihu.com/p/462191421)
 - [图文并茂，超详细解读nms cuda拓展源码](https://zhuanlan.zhihu.com/p/466169614)
 - [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
