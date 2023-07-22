@@ -147,3 +147,6 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [CUDA C++ Best Practices Guide Release 12.1笔记（一）](https://zhuanlan.zhihu.com/p/636103380)
 - [CUDA 矩阵乘法终极优化指南](https://zhuanlan.zhihu.com/p/410278370)
 - [如何用CUDA写有CuBLAS 90%性能的GEMM Kernel](https://zhuanlan.zhihu.com/p/631227862)
+- [如何理解Nvidia英伟达的Multi-GPU多卡通信框架NCCL？](https://www.zhihu.com/question/63219175/answer/2768301153)
+- [如何理解Nvidia英伟达的Multi-GPU多卡通信框架NCCL？](https://www.zhihu.com/question/63219175/answer/206697974)
+- [使用FasterTransformer实现LLM分布式推理](https://zhuanlan.zhihu.com/p/644322962)

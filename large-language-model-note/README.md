@@ -117,6 +117,10 @@
 - [Transformer升级之路：10、RoPE是一种β进制编码](https://zhuanlan.zhihu.com/p/643630735)
 - [大模型的幻觉问题调研: LLM Hallucination Survey](https://zhuanlan.zhihu.com/p/642648601)
 - [[Transformer 101系列] 初探LLM基座模型](https://zhuanlan.zhihu.com/p/640784855)
+- [LLaMA2 RLHF 技术细节](https://zhuanlan.zhihu.com/p/644680366)
+- [万字长文谈多模态预训练（UNITER、ViLBERT、CLIP、ALBEF、BLIP、METER）](https://zhuanlan.zhihu.com/p/539906825)
+- [大模型中的分词器tokenizer：BPE、WordPiece、Unigram LM、SentencePiece](https://zhuanlan.zhihu.com/p/620508648)
+- [【LLM系列】开源模型和闭源模型之争--写在LLaMA2 开源之后](https://zhuanlan.zhihu.com/p/644892671)
 
 ### 大模型训练和微调技术
 
@@ -236,10 +240,12 @@
     - Paper: https://arxiv.org/pdf/2304.08485.pdf
     - Demo: https://llava-vl.github.io/
 
-### 大模型数据标注
+### 大模型数据处理
 
 - [详谈大模型训练中的数据收集、处理与模型影响：A Survey of Large Language Models工作中的数据总结](https://mp.weixin.qq.com/s/bHsb631KA5AaulBHNT5m9w)
 - [过去三个月，LLaMA系模型发展如何？指令微调的核心问题又是什么？ ](https://mp.weixin.qq.com/s/cXPNyOeK9vFjJcgxc_LqZQ)
+- [cc_cleaner │ 一种丝滑高效且易扩展的数据清洗流程](https://mp.weixin.qq.com/s/D48Z8x_8jD4Dfd2tYdFa7g)
+- [BigCode 背后的大规模数据去重](https://zhuanlan.zhihu.com/p/644900514)
 
 ### 大模型评测
 
