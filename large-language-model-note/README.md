@@ -121,9 +121,14 @@
 - [万字长文谈多模态预训练（UNITER、ViLBERT、CLIP、ALBEF、BLIP、METER）](https://zhuanlan.zhihu.com/p/539906825)
 - [大模型中的分词器tokenizer：BPE、WordPiece、Unigram LM、SentencePiece](https://zhuanlan.zhihu.com/p/620508648)
 - [【LLM系列】开源模型和闭源模型之争--写在LLaMA2 开源之后](https://zhuanlan.zhihu.com/p/644892671)
+- [0718 - LLaMA2讨论 - Memo](https://d7mv45xi4m.feishu.cn/docx/OOhedFKGao2jlmxgsKGcCTnEnUc)
+- [0723 - LLaMA 2 第二次讨论 - Memo](https://d7mv45xi4m.feishu.cn/docx/DOHIdmpbCoXhRwx62cCc3RcEnCh)
+- [Bert/Transformer 被忽视的细节（或许可以用来做面试题）](https://zhuanlan.zhihu.com/p/559495068)
+- [大模型面试八股](https://zhuanlan.zhihu.com/p/643560888)
 
 ### 大模型训练和微调技术
 
+- [BLOOM 训练背后的技术](https://www.cnblogs.com/Matrix_Yao/p/17238627.html)
 - [【LLM】从零开始训练大模型](https://zhuanlan.zhihu.com/p/636270877)
 - [千亿参数开源大模型 BLOOM 背后的技术](https://codeuuu.com/p/68022.html) 这里主要总结了并行相关的技术以及使用的一些坑，然后对训练过程中可能出现的问题进行描述。
 - [在一张 24 GB 的消费级显卡上用 RLHF 微调 20B LLMs](https://www.cnblogs.com/huggingface/p/17245966.html)
@@ -175,6 +180,7 @@
 - [想要微调清华chatglm6b模型，数据集给多少条比较合适？](https://www.zhihu.com/question/596950521/answer/3109759716)
 - [如何看待chatglm2？真实效果怎么样？](https://www.zhihu.com/question/608702606/answer/3118275498)
 - [百川13B-chat开箱及LORA进行PT/SFT微调](https://zhuanlan.zhihu.com/p/643021523)
+- [打造 LLM 界的 Web UI：24GB 显卡训练百亿大模型](https://zhuanlan.zhihu.com/p/645010851)
 
 ### 大模型推理技术
 
@@ -204,6 +210,8 @@
 - [【LLM 加速技巧】Muti Query Attention 和 Attention with Linear Bias（附源码）](https://zhuanlan.zhihu.com/p/634236135)
 - [如何优化transformer的attention?](https://www.zhihu.com/question/602057035/answer/3046820082)
 - [Huggingface Accelerate文档：超大模型推理方法](https://zhuanlan.zhihu.com/p/606061177)
+- [vLLM框架top down概览](https://zhuanlan.zhihu.com/p/645251151)
+- [LLaMa 量化部署](https://zhuanlan.zhihu.com/p/641641929)
 
 ### 大模型仓库收集
 
