@@ -130,7 +130,6 @@
 
 - [BLOOM 训练背后的技术](https://www.cnblogs.com/Matrix_Yao/p/17238627.html)
 - [【LLM】从零开始训练大模型](https://zhuanlan.zhihu.com/p/636270877)
-- [千亿参数开源大模型 BLOOM 背后的技术](https://codeuuu.com/p/68022.html) 这里主要总结了并行相关的技术以及使用的一些坑，然后对训练过程中可能出现的问题进行描述。
 - [在一张 24 GB 的消费级显卡上用 RLHF 微调 20B LLMs](https://www.cnblogs.com/huggingface/p/17245966.html)
 - [人手一个ChatGPT！微软DeepSpeed Chat震撼发布，一键RLHF训练千亿级大模型](https://zhuanlan.zhihu.com/p/621379646)
 - [大型语言模型(LLM)训练指南🚀](https://zhuanlan.zhihu.com/p/611325149)
@@ -181,6 +180,7 @@
 - [如何看待chatglm2？真实效果怎么样？](https://www.zhihu.com/question/608702606/answer/3118275498)
 - [百川13B-chat开箱及LORA进行PT/SFT微调](https://zhuanlan.zhihu.com/p/643021523)
 - [打造 LLM 界的 Web UI：24GB 显卡训练百亿大模型](https://zhuanlan.zhihu.com/p/645010851)
+- [大模型训练 Pipeline Parallel 流水并行性能分析](https://zhuanlan.zhihu.com/p/618590870)
 
 ### 大模型推理技术
 
