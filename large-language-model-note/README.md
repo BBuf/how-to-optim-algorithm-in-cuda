@@ -128,6 +128,7 @@
 
 ### 大模型训练和微调技术
 
+- [Megatron-LM 分布式执行调研](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812)
 - [BLOOM 训练背后的技术](https://www.cnblogs.com/Matrix_Yao/p/17238627.html)
 - [【LLM】从零开始训练大模型](https://zhuanlan.zhihu.com/p/636270877)
 - [在一张 24 GB 的消费级显卡上用 RLHF 微调 20B LLMs](https://www.cnblogs.com/huggingface/p/17245966.html)
