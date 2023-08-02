@@ -125,6 +125,11 @@
 - [0723 - LLaMA 2 第二次讨论 - Memo](https://d7mv45xi4m.feishu.cn/docx/DOHIdmpbCoXhRwx62cCc3RcEnCh)
 - [Bert/Transformer 被忽视的细节（或许可以用来做面试题）](https://zhuanlan.zhihu.com/p/559495068)
 - [大模型面试八股](https://zhuanlan.zhihu.com/p/643560888)
+- [降龙十八掌：这套优化transformer内存占用的组合技值得收藏](https://mp.weixin.qq.com/s/yNi1ehpHT8v2VnmNlZTBaw)
+- [十分钟读懂旋转编码（RoPE）](https://zhuanlan.zhihu.com/p/647109286)
+- [[LLM] multi query attention加速推理解码](https://zhuanlan.zhihu.com/p/647109286)
+- [大模型(LLM) + 上下文检索增强](https://zhuanlan.zhihu.com/p/647112059)
+- [语言模型的训练时间：从估算到 FLOPs 推导](https://zhuanlan.zhihu.com/p/646905171)
 
 ### 大模型训练和微调技术
 
@@ -182,6 +187,10 @@
 - [百川13B-chat开箱及LORA进行PT/SFT微调](https://zhuanlan.zhihu.com/p/643021523)
 - [打造 LLM 界的 Web UI：24GB 显卡训练百亿大模型](https://zhuanlan.zhihu.com/p/645010851)
 - [大模型训练 Pipeline Parallel 流水并行性能分析](https://zhuanlan.zhihu.com/p/618590870)
+- [【LLM系列】中文LLaMA2的一些工作](https://zhuanlan.zhihu.com/p/647388816)
+- [LLaMA2中文微调](https://zhuanlan.zhihu.com/p/646811859)
+- [图解大模型微调系列之：大模型低秩适配器LoRA（原理篇）](https://zhuanlan.zhihu.com/p/646831196)
+- [大模型参数高效微调技术实战（二）-Prompt Tuning](https://zhuanlan.zhihu.com/p/646748939)
 
 ### 大模型推理技术
 
@@ -213,6 +222,13 @@
 - [Huggingface Accelerate文档：超大模型推理方法](https://zhuanlan.zhihu.com/p/606061177)
 - [vLLM框架top down概览](https://zhuanlan.zhihu.com/p/645251151)
 - [LLaMa 量化部署](https://zhuanlan.zhihu.com/p/641641929)
+- [为什么现在大家都在用 MQA 和 GQA？](https://zhuanlan.zhihu.com/p/647130255)
+- [小记：主流推理框架在Llama 2 的上性能比较](https://zhuanlan.zhihu.com/p/646772063)
+
+### 大模型服务
+
+- [Gradio：轻松实现AI算法可视化部署](https://zhuanlan.zhihu.com/p/374238080)
+- [vllm vs TGI 部署 llama v2 7B 踩坑笔记](https://zhuanlan.zhihu.com/p/645732302)
 
 ### 大模型仓库收集
 

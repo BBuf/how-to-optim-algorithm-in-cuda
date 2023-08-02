@@ -155,3 +155,6 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [使用FasterTransformer实现LLM分布式推理](https://zhuanlan.zhihu.com/p/644322962)
 - [细粒度GPU知识点详细总结](https://zhuanlan.zhihu.com/p/349185459)
 - [https://siboehm.com/articles/22/CUDA-MMM](https://siboehm.com/articles/22/CUDA-MMM)
+- [【CUDA编程】OneFlow Softmax算子源码解读之BlockSoftmax](https://zhuanlan.zhihu.com/p/646998408)
+- [【CUDA编程】OneFlow Softmax 算子源码解读之WarpSoftmax](https://zhuanlan.zhihu.com/p/646994689)
+- [【CUDA编程】OneFlow Element-Wise 算子源码解读](https://zhuanlan.zhihu.com/p/646990764)
