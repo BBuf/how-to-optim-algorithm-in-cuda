@@ -224,6 +224,8 @@
 - [LLaMa 量化部署](https://zhuanlan.zhihu.com/p/641641929)
 - [为什么现在大家都在用 MQA 和 GQA？](https://zhuanlan.zhihu.com/p/647130255)
 - [小记：主流推理框架在Llama 2 的上性能比较](https://zhuanlan.zhihu.com/p/646772063)
+- [vllm vs TGI 部署 llama v2 7B 踩坑笔记](https://zhuanlan.zhihu.com/p/645732302)
+- [TGI + exllama - llama 量化部署方案](https://zhuanlan.zhihu.com/p/646716367)
 
 ### 大模型服务
 
