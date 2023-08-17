@@ -130,6 +130,9 @@
 - [[LLM] multi query attention加速推理解码](https://zhuanlan.zhihu.com/p/647109286)
 - [大模型(LLM) + 上下文检索增强](https://zhuanlan.zhihu.com/p/647112059)
 - [语言模型的训练时间：从估算到 FLOPs 推导](https://zhuanlan.zhihu.com/p/646905171)
+- [大模型基础｜位置编码｜RoPE｜ALiBi](https://zhuanlan.zhihu.com/p/650469278)
+- [NTK-ALiBi：通过插值实现大模型ALiBi位置编码的长文本外推](https://zhuanlan.zhihu.com/p/647628295)
+- [miniGPT-4的同期工作: 微软LLaVa模型论文笔记](https://zhuanlan.zhihu.com/p/625723805)
 
 ### 大模型训练和微调技术
 
@@ -191,6 +194,7 @@
 - [LLaMA2中文微调](https://zhuanlan.zhihu.com/p/646811859)
 - [图解大模型微调系列之：大模型低秩适配器LoRA（原理篇）](https://zhuanlan.zhihu.com/p/646831196)
 - [大模型参数高效微调技术实战（二）-Prompt Tuning](https://zhuanlan.zhihu.com/p/646748939)
+- [[调研]Megatron-LM 的分布式执行](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812#720aad004d8241d9ae500ba39b545517)
 
 ### 大模型推理技术
 
