@@ -15,6 +15,7 @@
 - [发布几个RWKV的Chat模型（包括英文和中文）7B/14B欢迎大家玩](https://zhuanlan.zhihu.com/p/618011122)
 - [实例：手写 CUDA 算子，让 Pytorch 提速 20 倍（某特殊算子）](https://zhuanlan.zhihu.com/p/476297195)
 - [BlinkDL/RWKV-World-7B gradio demo](https://huggingface.co/spaces/BlinkDL/RWKV-World-7B/tree/main)
+- [ChatRWKV（有可用猫娘模型！）微调/部署/使用/训练资源合集](https://zhuanlan.zhihu.com/p/616351661)
 - [pengbo的专栏](https://www.zhihu.com/people/bopengbopeng/posts)
 
 ### 大模型知识介绍
@@ -133,6 +134,7 @@
 - [大模型基础｜位置编码｜RoPE｜ALiBi](https://zhuanlan.zhihu.com/p/650469278)
 - [NTK-ALiBi：通过插值实现大模型ALiBi位置编码的长文本外推](https://zhuanlan.zhihu.com/p/647628295)
 - [miniGPT-4的同期工作: 微软LLaVa模型论文笔记](https://zhuanlan.zhihu.com/p/625723805)
+- [Function Call： Chat 应用的插件基石与交互技术的变革黎明](https://zhuanlan.zhihu.com/p/649766613)
 
 ### 大模型训练和微调技术
 
@@ -195,6 +197,7 @@
 - [图解大模型微调系列之：大模型低秩适配器LoRA（原理篇）](https://zhuanlan.zhihu.com/p/646831196)
 - [大模型参数高效微调技术实战（二）-Prompt Tuning](https://zhuanlan.zhihu.com/p/646748939)
 - [[调研]Megatron-LM 的分布式执行](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812#720aad004d8241d9ae500ba39b545517)
+- [深入理解 Megatron-LM（5）模型并行](https://zhuanlan.zhihu.com/p/650237833)
 
 ### 大模型推理技术
 
@@ -230,6 +233,7 @@
 - [小记：主流推理框架在Llama 2 的上性能比较](https://zhuanlan.zhihu.com/p/646772063)
 - [vllm vs TGI 部署 llama v2 7B 踩坑笔记](https://zhuanlan.zhihu.com/p/645732302)
 - [TGI + exllama - llama 量化部署方案](https://zhuanlan.zhihu.com/p/646716367)
+- [BELLE(LLaMA-7B/Bloomz-7B1-mt)大模型使用GPTQ量化后推理性能测试](https://zhuanlan.zhihu.com/p/621128368)
 
 ### 大模型服务
 
