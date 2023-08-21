@@ -133,6 +133,7 @@
 - [大模型基础｜位置编码｜RoPE｜ALiBi](https://zhuanlan.zhihu.com/p/650469278)
 - [NTK-ALiBi：通过插值实现大模型ALiBi位置编码的长文本外推](https://zhuanlan.zhihu.com/p/647628295)
 - [miniGPT-4的同期工作: 微软LLaVa模型论文笔记](https://zhuanlan.zhihu.com/p/625723805)
+- [关于 Llama 2 的一切资源，我们都帮你整理好了](https://zhuanlan.zhihu.com/p/650614370)
 
 ### 大模型训练和微调技术
 
