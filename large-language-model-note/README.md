@@ -199,6 +199,7 @@
 - [大模型参数高效微调技术实战（二）-Prompt Tuning](https://zhuanlan.zhihu.com/p/646748939)
 - [[调研]Megatron-LM 的分布式执行](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812#720aad004d8241d9ae500ba39b545517)
 - [深入理解 Megatron-LM（5）模型并行](https://zhuanlan.zhihu.com/p/650237833)
+- [GPT-3模型为何难以复现？这也许是分布式AI框架的最优设计](https://cloud.tencent.com/developer/article/1832354)
 
 ### 大模型推理技术
 
