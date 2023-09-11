@@ -17,9 +17,17 @@
 - [BlinkDL/RWKV-World-7B gradio demo](https://huggingface.co/spaces/BlinkDL/RWKV-World-7B/tree/main)
 - [ChatRWKV（有可用猫娘模型！）微调/部署/使用/训练资源合集](https://zhuanlan.zhihu.com/p/616351661)
 - [pengbo的专栏](https://www.zhihu.com/people/bopengbopeng/posts)
+- [RWKV 模型解析](https://zhuanlan.zhihu.com/p/640050680)
+
+## MOE
+- [mixture-of-experts-with-expert-choice](https://blog.research.google/2022/11/mixture-of-experts-with-expert-choice.html)
+- [MoE训练论文解读之Megablocks：打破动态路由限制](https://zhuanlan.zhihu.com/p/653270049)
+- [MoE训练论文解读之Tutel: 动态切换并行策略实现动态路由](https://zhuanlan.zhihu.com/p/653518289)
+- [ACM SIGCOMM 2023有哪些亮点？](https://www.zhihu.com/question/600051474/answer/3202735839)
 
 ### 大模型知识介绍
 
+- [【Transformer 基础系列】手推显存占用](https://zhuanlan.zhihu.com/p/648924115)
 - [《A Survey of Large Language Models》笔记](https://zhuanlan.zhihu.com/p/631065995)
 - [分析transformer模型的参数量、计算量、中间激活、KV cache](https://zhuanlan.zhihu.com/p/624740065)
 - [Transformer模型的基础演算](https://mp.weixin.qq.com/s/0Er0UOk6Wdky-0gzeQxK0g)
@@ -136,6 +144,23 @@
 - [miniGPT-4的同期工作: 微软LLaVa模型论文笔记](https://zhuanlan.zhihu.com/p/625723805)
 - [Function Call： Chat 应用的插件基石与交互技术的变革黎明](https://zhuanlan.zhihu.com/p/649766613)
 - [关于 Llama 2 的一切资源，我们都帮你整理好了](https://zhuanlan.zhihu.com/p/650614370)
+- [大模型升级与设计之道：ChatGLM、LLAMA、Baichuan及LLM结构解析](https://zhuanlan.zhihu.com/p/651747035)
+- [如何评价超越Llama的Falcon模型？](https://www.zhihu.com/question/605021170/answer/3202176558)
+- [From LLaMA2 to GPT4](https://zhuanlan.zhihu.com/p/645387165)
+- [大杀器，多模态大模型MiniGPT-4入坑指南](https://zhuanlan.zhihu.com/p/627671257)
+- [视觉Transformer如何优雅地避开位置编码？](https://www.zhihu.com/question/453193028/answer/3196023627)
+- [动动嘴就可以创建专属的AI智能体小队，LinkSoul.AI、北大、港科大等发布AutoAgents技术](https://zhuanlan.zhihu.com/p/654238433)
+- [MiniGPT-4模型原理及复现](https://zhuanlan.zhihu.com/p/637819943)
+- [手把手教学！部署MiniGPT4模型](https://zhuanlan.zhihu.com/p/625152404)
+- [LLM投机采样（Speculative Sampling）为何能加速模型推理](https://zhuanlan.zhihu.com/p/653734659)
+- [LangChain之Memory](https://zhuanlan.zhihu.com/p/628734321)
+- [LLM/阿里：通义千问Qwen-VL与Qwen-VL-Chat多模态大模型【对标VisualGLM】](https://zhuanlan.zhihu.com/p/652545086)
+- [不用4个H100！340亿参数Code Llama在Mac可跑，每秒20个token，代码生成最拿手｜Karpathy转赞](https://zhuanlan.zhihu.com/p/653729679)
+- [超长上下文 LLM 推理简要分析](https://zhuanlan.zhihu.com/p/653375672)
+- [LongMem: 大模型的长期记忆](https://zhuanlan.zhihu.com/p/642279963)
+- [【LLM】Meta LLaMA 2中RLHF技术细节](https://zhuanlan.zhihu.com/p/644697081)
+- [LLM大模型训练Trick系列（一）之拒绝采样](https://zhuanlan.zhihu.com/p/649731916)
+
 
 ### 大模型训练和微调技术
 
@@ -201,6 +226,13 @@
 - [深入理解 Megatron-LM（5）模型并行](https://zhuanlan.zhihu.com/p/650237833)
 - [GPT-3模型为何难以复现？这也许是分布式AI框架的最优设计](https://cloud.tencent.com/developer/article/1832354)
 - [北大硕士RLHF实践，基于DeepSpeed-Chat成功训练上自己的模型](https://mp.weixin.qq.com/s/OKaWJcbBH0Fjmu-fiB_Z9w)
+- [Megatron-LM 第三篇Paper总结——Sequence Parallelism & Selective Checkpointing](https://zhuanlan.zhihu.com/p/522198082)
+- [【llm大语言模型】code llama详解与应用](https://zhuanlan.zhihu.com/p/652855450)
+- [DeepSpeed-Chat更新: Llama/Llama-2系统支持，效率提升和训练稳定性改进](https://zhuanlan.zhihu.com/p/653631374)
+- [RLHF实践](https://zhuanlan.zhihu.com/p/635569455)
+- [LLM - finetuning - 踩坑经验之谈](https://zhuanlan.zhihu.com/p/639462205)
+- [从头训练一个迷你中文版Llama2--一个小项目踏上LLM之旅](https://zhuanlan.zhihu.com/p/652664029)
+- [用 Decision Transformer/Offline RL 做 LLM Alignment](https://zhuanlan.zhihu.com/p/652335046)
 
 ### 大模型推理技术
 
@@ -237,11 +269,23 @@
 - [vllm vs TGI 部署 llama v2 7B 踩坑笔记](https://zhuanlan.zhihu.com/p/645732302)
 - [TGI + exllama - llama 量化部署方案](https://zhuanlan.zhihu.com/p/646716367)
 - [BELLE(LLaMA-7B/Bloomz-7B1-mt)大模型使用GPTQ量化后推理性能测试](https://zhuanlan.zhihu.com/p/621128368)
+- [QLoRA、GPTQ：模型量化概述](https://zhuanlan.zhihu.com/p/646210009)
+- [LLM推理性能优化探索](https://zhuanlan.zhihu.com/p/653735572)
+- [CNN量化 vs. LLM量化](https://zhuanlan.zhihu.com/p/645362500)
+- [LLM大语言模型之Generate/Inference（生成/推理）中参数与解码策略原理及其代码实现](https://zhuanlan.zhihu.com/p/653926703)
+- [NLP（十八）：LLM 的推理优化技术纵览](https://zhuanlan.zhihu.com/p/642412124)
+- [LLM推理部署（一）：LLM七种推理服务框架总结](https://zhuanlan.zhihu.com/p/653352979)
+- [LLM系列笔记：LLM Inference量化分析与加速](https://zhuanlan.zhihu.com/p/642272677)
+
 
 ### 大模型服务
 
 - [Gradio：轻松实现AI算法可视化部署](https://zhuanlan.zhihu.com/p/374238080)
 - [vllm vs TGI 部署 llama v2 7B 踩坑笔记](https://zhuanlan.zhihu.com/p/645732302)
+
+### Agent
+
+- [Agent is all you need | AI智能体前沿进展总结](https://zhuanlan.zhihu.com/p/655425020)
 
 ### 大模型仓库收集
 
@@ -284,10 +328,13 @@
 - [过去三个月，LLaMA系模型发展如何？指令微调的核心问题又是什么？ ](https://mp.weixin.qq.com/s/cXPNyOeK9vFjJcgxc_LqZQ)
 - [cc_cleaner │ 一种丝滑高效且易扩展的数据清洗流程](https://mp.weixin.qq.com/s/D48Z8x_8jD4Dfd2tYdFa7g)
 - [BigCode 背后的大规模数据去重](https://zhuanlan.zhihu.com/p/644900514)
+- [LLM数据为王: Textbooks Are All You Need](https://zhuanlan.zhihu.com/p/642684154)
 
 ### 大模型评测
 
 - [“评测即科学”：首篇大语言模型评测的综述，一文带你全面了解大模型评测的现状、方法和挑战](https://zhuanlan.zhihu.com/p/642689101)
+- [开源模型离GPT-4有多远，OpenCompass LLM评测 8月榜单新鲜出炉](https://zhuanlan.zhihu.com/p/653577364)
+- [关于openCompass与大模型评测现状的分析](https://zhuanlan.zhihu.com/p/652688939)
 
 ### 李沐论文精度文字版专栏
 
