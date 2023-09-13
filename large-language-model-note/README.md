@@ -162,7 +162,10 @@
 - [【LLM】Meta LLaMA 2中RLHF技术细节](https://zhuanlan.zhihu.com/p/644697081)
 - [LLM大模型训练Trick系列（一）之拒绝采样](https://zhuanlan.zhihu.com/p/649731916)
 - [想让大模型在prompt中学习更多示例，这种方法能让你输入更多字符](https://zhuanlan.zhihu.com/p/655965488)
-
+- [主流大语言模型从预训练到微调的技术原理](https://zhuanlan.zhihu.com/p/651564985)
+- [AI Agents大爆发：OpenAI的下一步](https://zhuanlan.zhihu.com/p/655560864)
+- [小写一下llama2，破除迷信](https://zhuanlan.zhihu.com/p/655654221)
+- [LLM评估指标困惑度的理解](https://zhuanlan.zhihu.com/p/651410752)
 
 ### 大模型训练和微调技术
 
@@ -282,6 +285,8 @@
 - [LLM推理加速-Medusa](https://zhuanlan.zhihu.com/p/655809033)
 - [PagedAttention--大模型推理服务框架vLLM要点简析 (中)](https://zhuanlan.zhihu.com/p/655561941)
 - [LLM推理优化技术综述：KVCache、PageAttention、FlashAttention、MQA、GQA](https://zhuanlan.zhihu.com/p/655325832)
+- [大规模 Transformer 模型 8 比特矩阵乘简介 - 基于 Hugging Face Transformers、Accelerate 以及 bitsandbytes](https://zhuanlan.zhihu.com/p/624929178)
+- [使用bitsandbytes、4 位量化和 QLoRA 使 LLM 更易于访问](https://zhuanlan.zhihu.com/p/632287465)
 
 ### 大模型服务
 
