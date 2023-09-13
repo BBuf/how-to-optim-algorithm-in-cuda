@@ -24,6 +24,7 @@
 - [MoE训练论文解读之Megablocks：打破动态路由限制](https://zhuanlan.zhihu.com/p/653270049)
 - [MoE训练论文解读之Tutel: 动态切换并行策略实现动态路由](https://zhuanlan.zhihu.com/p/653518289)
 - [ACM SIGCOMM 2023有哪些亮点？](https://www.zhihu.com/question/600051474/answer/3202735839)
+- [LLM终身学习的可能性——Mixture of Experts](https://zhuanlan.zhihu.com/p/656015139)
 
 ### 大模型知识介绍
 
@@ -160,6 +161,7 @@
 - [LongMem: 大模型的长期记忆](https://zhuanlan.zhihu.com/p/642279963)
 - [【LLM】Meta LLaMA 2中RLHF技术细节](https://zhuanlan.zhihu.com/p/644697081)
 - [LLM大模型训练Trick系列（一）之拒绝采样](https://zhuanlan.zhihu.com/p/649731916)
+- [想让大模型在prompt中学习更多示例，这种方法能让你输入更多字符](https://zhuanlan.zhihu.com/p/655965488)
 
 
 ### 大模型训练和微调技术
@@ -276,7 +278,9 @@
 - [NLP（十八）：LLM 的推理优化技术纵览](https://zhuanlan.zhihu.com/p/642412124)
 - [LLM推理部署（一）：LLM七种推理服务框架总结](https://zhuanlan.zhihu.com/p/653352979)
 - [LLM系列笔记：LLM Inference量化分析与加速](https://zhuanlan.zhihu.com/p/642272677)
-
+- [在大模型推理方面，有哪些研究热点？](https://www.zhihu.com/question/588122011/answer/3207992049)
+- [LLM推理加速-Medusa](https://zhuanlan.zhihu.com/p/655809033)
+- [PagedAttention--大模型推理服务框架vLLM要点简析 (中)](https://zhuanlan.zhihu.com/p/655561941)
 
 ### 大模型服务
 
