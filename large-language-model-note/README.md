@@ -281,6 +281,7 @@
 - [在大模型推理方面，有哪些研究热点？](https://www.zhihu.com/question/588122011/answer/3207992049)
 - [LLM推理加速-Medusa](https://zhuanlan.zhihu.com/p/655809033)
 - [PagedAttention--大模型推理服务框架vLLM要点简析 (中)](https://zhuanlan.zhihu.com/p/655561941)
+- [LLM推理优化技术综述：KVCache、PageAttention、FlashAttention、MQA、GQA](https://zhuanlan.zhihu.com/p/655325832)
 
 ### 大模型服务
 
