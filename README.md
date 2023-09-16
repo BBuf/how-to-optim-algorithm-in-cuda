@@ -168,3 +168,4 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [有没有大模型推理加速引擎FasterTransformer入门级教程？](https://www.zhihu.com/question/602468960/answer/3203088852)
 - [深入浅出GPU优化系列：gemv优化](https://zhuanlan.zhihu.com/p/494144694)
 - [NVIDIA Hopper架构TensorCore分析(4)](https://zhuanlan.zhihu.com/p/654067822)
+- [GPU host+device的编译流程](https://zhuanlan.zhihu.com/p/655850951)

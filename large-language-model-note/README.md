@@ -238,6 +238,8 @@
 - [LLM - finetuning - 踩坑经验之谈](https://zhuanlan.zhihu.com/p/639462205)
 - [从头训练一个迷你中文版Llama2--一个小项目踏上LLM之旅](https://zhuanlan.zhihu.com/p/652664029)
 - [用 Decision Transformer/Offline RL 做 LLM Alignment](https://zhuanlan.zhihu.com/p/652335046)
+- [代码生成模型评价指标 pass@k 的计算](https://zhuanlan.zhihu.com/p/653063532)
+- [BaiChuan2技术报告细节分享&个人想法](https://zhuanlan.zhihu.com/p/656570703)
 
 ### 大模型推理技术
 
@@ -287,6 +289,7 @@
 - [LLM推理优化技术综述：KVCache、PageAttention、FlashAttention、MQA、GQA](https://zhuanlan.zhihu.com/p/655325832)
 - [大规模 Transformer 模型 8 比特矩阵乘简介 - 基于 Hugging Face Transformers、Accelerate 以及 bitsandbytes](https://zhuanlan.zhihu.com/p/624929178)
 - [使用bitsandbytes、4 位量化和 QLoRA 使 LLM 更易于访问](https://zhuanlan.zhihu.com/p/632287465)
+- [ByteTransformer源码解析](https://zhuanlan.zhihu.com/p/656342974)
 
 ### 大模型服务
 
