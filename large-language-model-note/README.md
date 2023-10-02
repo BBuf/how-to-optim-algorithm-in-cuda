@@ -166,6 +166,12 @@
 - [AI Agents大爆发：OpenAI的下一步](https://zhuanlan.zhihu.com/p/655560864)
 - [小写一下llama2，破除迷信](https://zhuanlan.zhihu.com/p/655654221)
 - [LLM评估指标困惑度的理解](https://zhuanlan.zhihu.com/p/651410752)
+- [Anima新模型发布，100K窗口长度，突破极限，真的巨巨巨强大！长才是王道！ ](https://mp.weixin.qq.com/s/e4qX3lIOp0-1_p4_2F53zA)
+- [Mixture-of-Experts (MoE) 经典论文一览](https://zhuanlan.zhihu.com/p/542465517)
+- [[LLM] 从实践到理论，Byte Pair Encoding(BPE) 深度调研](https://zhuanlan.zhihu.com/p/657938053)
+- [理解NLP最重要的编码方式 — Byte Pair Encoding (BPE)，这一篇就够了](https://zhuanlan.zhihu.com/p/424631681)
+- [NLP三大Subword模型详解：BPE、WordPiece、ULM](https://zhuanlan.zhihu.com/p/191648421)
+- [再读VIT，还有多少细节是你不知道的](https://zhuanlan.zhihu.com/p/657666107)
 
 ### 大模型训练和微调技术
 
@@ -240,6 +246,8 @@
 - [用 Decision Transformer/Offline RL 做 LLM Alignment](https://zhuanlan.zhihu.com/p/652335046)
 - [代码生成模型评价指标 pass@k 的计算](https://zhuanlan.zhihu.com/p/653063532)
 - [BaiChuan2技术报告细节分享&个人想法](https://zhuanlan.zhihu.com/p/656570703)
+- [大模型参数高效微调技术实战（六）-IA3](https://zhuanlan.zhihu.com/p/649707359)
+- [图解大模型微调系列之：AdaLoRA，能做“财务”预算的低秩适配器](https://zhuanlan.zhihu.com/p/657130029)
 
 ### 大模型推理技术
 
@@ -286,10 +294,19 @@
 - [在大模型推理方面，有哪些研究热点？](https://www.zhihu.com/question/588122011/answer/3207992049)
 - [LLM推理加速-Medusa](https://zhuanlan.zhihu.com/p/655809033)
 - [PagedAttention--大模型推理服务框架vLLM要点简析 (中)](https://zhuanlan.zhihu.com/p/655561941)
+- [[LLM]KV cache详解 图示，显存，计算量分析，代码](https://zhuanlan.zhihu.com/p/646577898)
 - [LLM推理优化技术综述：KVCache、PageAttention、FlashAttention、MQA、GQA](https://zhuanlan.zhihu.com/p/655325832)
 - [大规模 Transformer 模型 8 比特矩阵乘简介 - 基于 Hugging Face Transformers、Accelerate 以及 bitsandbytes](https://zhuanlan.zhihu.com/p/624929178)
 - [使用bitsandbytes、4 位量化和 QLoRA 使 LLM 更易于访问](https://zhuanlan.zhihu.com/p/632287465)
 - [ByteTransformer源码解析](https://zhuanlan.zhihu.com/p/656342974)
+- [LLM推理加速的文艺复兴：Noam Shazeer和Blockwise Parallel Decoding](https://zhuanlan.zhihu.com/p/658298728)
+- [LLM大模型之不同精度下显存占用与相互转换实践](https://zhuanlan.zhihu.com/p/658343628)
+- [CUDA PagedAttention kernel源码解析--大模型推理服务框架vLLM要点简析（下）](https://zhuanlan.zhihu.com/p/658233994)
+- [[vllm]kernels分析](https://zhuanlan.zhihu.com/p/657114963)
+- [LLM大模型之精度问题（FP16，FP32，BF16）详解与实践](https://zhuanlan.zhihu.com/p/657886517)
+- [PAI BladeLLM推理引擎: 超长上下文、更高性能](https://zhuanlan.zhihu.com/p/657187638)
+- [大语言模型推理性能优化综述](https://zhuanlan.zhihu.com/p/656485997)
+- [大模型推理优化--Prefill阶段seq_q切分](https://zhuanlan.zhihu.com/p/658443665)
 
 ### 大模型服务
 

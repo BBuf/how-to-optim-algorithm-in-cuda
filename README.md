@@ -109,6 +109,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 #### 文章
 
+- [flash attention完全解析和CUDA零基础实现](https://zhuanlan.zhihu.com/p/658947627)
 - [FlashAttention图解（如何加速Attention）](https://zhuanlan.zhihu.com/p/626079753)
 - [FlashAttention:加速计算,节省显存, IO感知的精确注意力](https://zhuanlan.zhihu.com/p/639228219)
 - [FlashAttention 反向传播运算推导](https://zhuanlan.zhihu.com/p/631106302)
@@ -119,7 +120,9 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [FlashAttention与Multi Query Attention](https://zhuanlan.zhihu.com/p/640312259)
 - [动手Attention优化1：Flash Attention 2优化点解析](https://zhuanlan.zhihu.com/p/634427617)
 - [Flash Attention推理性能探究](https://zhuanlan.zhihu.com/p/652691133)
+- [记录Flash Attention2-对1在GPU并行性和计算量上的一些小优化](https://zhuanlan.zhihu.com/p/650947918)
 - [[LLM] FlashAttention 加速attention计算[理论证明｜代码解读]](https://zhuanlan.zhihu.com/p/646084771)
+- [动手Attention优化2：图解基于PTX的Tensor Core矩阵分块乘法实现](https://zhuanlan.zhihu.com/p/650374808)
 - [GPU内存(显存)的理解与基本使用](https://zhuanlan.zhihu.com/p/462191421)
 - [图文并茂，超详细解读nms cuda拓展源码](https://zhuanlan.zhihu.com/p/466169614)
 - [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
@@ -169,3 +172,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [深入浅出GPU优化系列：gemv优化](https://zhuanlan.zhihu.com/p/494144694)
 - [NVIDIA Hopper架构TensorCore分析(4)](https://zhuanlan.zhihu.com/p/654067822)
 - [GPU host+device的编译流程](https://zhuanlan.zhihu.com/p/655850951)
+- [Tensor Core 优化半精度矩阵乘揭秘](https://zhuanlan.zhihu.com/p/658306956)
+- [无痛CUDA实践：μ-CUDA 自动计算图生成](https://zhuanlan.zhihu.com/p/658080362)
+- [CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)
+- [自己写的CUDA矩阵乘法能优化到多快？](https://www.zhihu.com/question/41060378/answer/2645323107)
