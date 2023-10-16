@@ -109,6 +109,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 #### 文章
 
+- [Roofline Model与深度学习模型的性能分析](https://zhuanlan.zhihu.com/p/34204282)
 - [flash attention完全解析和CUDA零基础实现](https://zhuanlan.zhihu.com/p/658947627)
 - [FlashAttention图解（如何加速Attention）](https://zhuanlan.zhihu.com/p/626079753)
 - [FlashAttention:加速计算,节省显存, IO感知的精确注意力](https://zhuanlan.zhihu.com/p/639228219)
@@ -117,6 +118,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [FlashAttention 的速度优化原理是怎样的？](https://www.zhihu.com/question/611236756/answer/3134408839)
 - [FlashAttention 的速度优化原理是怎样的？](https://www.zhihu.com/question/611236756/answer/3132304304)
 - [FlashAttention2详解（性能比FlashAttention提升200%）](https://zhuanlan.zhihu.com/p/645376942)
+- [FlashAttenion-V3: Flash Decoding详解](https://zhuanlan.zhihu.com/p/661478232)
 - [FlashAttention与Multi Query Attention](https://zhuanlan.zhihu.com/p/640312259)
 - [动手Attention优化1：Flash Attention 2优化点解析](https://zhuanlan.zhihu.com/p/634427617)
 - [Flash Attention推理性能探究](https://zhuanlan.zhihu.com/p/652691133)
@@ -176,3 +178,10 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [无痛CUDA实践：μ-CUDA 自动计算图生成](https://zhuanlan.zhihu.com/p/658080362)
 - [CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)
 - [自己写的CUDA矩阵乘法能优化到多快？](https://www.zhihu.com/question/41060378/answer/2645323107)
+- [高效CUDA Scan算法浅析](https://zhuanlan.zhihu.com/p/499963645)
+- [一次 CUDA Graph 调试经历](https://zhuanlan.zhihu.com/p/661451140)
+- [CUDA中的radix sort算法](https://zhuanlan.zhihu.com/p/488016994)
+- [NVIDIA Tensor Core微架构解析](https://zhuanlan.zhihu.com/p/660531822)
+- [cutlass cute 101](https://zhuanlan.zhihu.com/p/660379052)
+- [在GPU避免分支的方法](https://zhuanlan.zhihu.com/p/143571980)
+- [Pytorch-CUDA从入门到放弃（二）](https://zhuanlan.zhihu.com/p/48463543)

@@ -28,6 +28,7 @@
 
 ### 大模型知识介绍
 
+- [压缩下一个 token 通向超过人类的智能](https://zhuanlan.zhihu.com/p/619511222)
 - [【Transformer 基础系列】手推显存占用](https://zhuanlan.zhihu.com/p/648924115)
 - [《A Survey of Large Language Models》笔记](https://zhuanlan.zhihu.com/p/631065995)
 - [分析transformer模型的参数量、计算量、中间激活、KV cache](https://zhuanlan.zhihu.com/p/624740065)
@@ -141,6 +142,7 @@
 - [大模型(LLM) + 上下文检索增强](https://zhuanlan.zhihu.com/p/647112059)
 - [语言模型的训练时间：从估算到 FLOPs 推导](https://zhuanlan.zhihu.com/p/646905171)
 - [大模型基础｜位置编码｜RoPE｜ALiBi](https://zhuanlan.zhihu.com/p/650469278)
+- [RoPE外推的缩放法则 —— 尝试外推RoPE至1M上下文](https://zhuanlan.zhihu.com/p/660073229)
 - [NTK-ALiBi：通过插值实现大模型ALiBi位置编码的长文本外推](https://zhuanlan.zhihu.com/p/647628295)
 - [miniGPT-4的同期工作: 微软LLaVa模型论文笔记](https://zhuanlan.zhihu.com/p/625723805)
 - [Function Call： Chat 应用的插件基石与交互技术的变革黎明](https://zhuanlan.zhihu.com/p/649766613)
@@ -172,6 +174,8 @@
 - [理解NLP最重要的编码方式 — Byte Pair Encoding (BPE)，这一篇就够了](https://zhuanlan.zhihu.com/p/424631681)
 - [NLP三大Subword模型详解：BPE、WordPiece、ULM](https://zhuanlan.zhihu.com/p/191648421)
 - [再读VIT，还有多少细节是你不知道的](https://zhuanlan.zhihu.com/p/657666107)
+- [Transformer位置编码（基础）](https://zhuanlan.zhihu.com/p/631363482)
+- [Llama 2 中使用 RLHF 的一些细节：margin r、reject sampling 和 PPO](https://zhuanlan.zhihu.com/p/660058778)
 
 ### 大模型训练和微调技术
 
@@ -255,6 +259,8 @@
 - [BaiChuan2技术报告细节分享&个人想法](https://zhuanlan.zhihu.com/p/656570703)
 - [大模型参数高效微调技术实战（六）-IA3](https://zhuanlan.zhihu.com/p/649707359)
 - [图解大模型微调系列之：AdaLoRA，能做“财务”预算的低秩适配器](https://zhuanlan.zhihu.com/p/657130029)
+- [【2023Q4】再谈Long-Context LLM](https://zhuanlan.zhihu.com/p/660660723)
+- [【大语言模型】LongLoRA:大语言模型长文本的高效微调方法](https://zhuanlan.zhihu.com/p/658067243)
 
 ### 大模型推理技术
 
@@ -314,6 +320,9 @@
 - [PAI BladeLLM推理引擎: 超长上下文、更高性能](https://zhuanlan.zhihu.com/p/657187638)
 - [大语言模型推理性能优化综述](https://zhuanlan.zhihu.com/p/656485997)
 - [大模型推理优化--Prefill阶段seq_q切分](https://zhuanlan.zhihu.com/p/658443665)
+- [LLM大语言模型之Generate/Inference（生成/推理）中参数与解码策略原理及其代码实现](https://zhuanlan.zhihu.com/p/653926703)
+- [NLP（二十）：漫谈 KV Cache 优化方法，深度理解 StreamingLLM](https://zhuanlan.zhihu.com/p/659770503)
+- [【小白学习笔记】FP8 量化基础 - 英伟达](https://zhuanlan.zhihu.com/p/619431625)
 
 ### 大模型服务
 
