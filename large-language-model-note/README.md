@@ -176,7 +176,17 @@
 - [再读VIT，还有多少细节是你不知道的](https://zhuanlan.zhihu.com/p/657666107)
 - [Transformer位置编码（基础）](https://zhuanlan.zhihu.com/p/631363482)
 - [Llama 2 中使用 RLHF 的一些细节：margin r、reject sampling 和 PPO](https://zhuanlan.zhihu.com/p/660058778)
+- [创造性vs确定性：大语言模型(LLM)中的温度(Temperature)和Top_P怎么调？](https://zhuanlan.zhihu.com/p/666315413)
+- [如何混合大模型SFT阶段的各能力项数据？](https://zhuanlan.zhihu.com/p/662657529)
+- [【llm大语言模型】一文看懂llama2(原理,模型,训练)](https://zhuanlan.zhihu.com/p/651248009)
+- [如何更好地继续预训练（Continue PreTraining）](https://zhuanlan.zhihu.com/p/654463331)
+- [[大模型推理][WINT8/4](00)🔥通俗易懂讲解-快速反量化算法](https://zhuanlan.zhihu.com/p/657072856)
+- [Llama 2详解](https://zhuanlan.zhihu.com/p/649756898)
+- [垂直领域大模型的思考](https://zhuanlan.zhihu.com/p/652645925)
 
+### Agent
+- [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
+- [NLP（廿二）：LLM 时代的 multi-agent 系统](https://zhuanlan.zhihu.com/p/665644399)
 ### 大模型训练和微调技术
 
 - [Megatron-LM 分布式执行调研](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812)
@@ -261,6 +271,8 @@
 - [图解大模型微调系列之：AdaLoRA，能做“财务”预算的低秩适配器](https://zhuanlan.zhihu.com/p/657130029)
 - [【2023Q4】再谈Long-Context LLM](https://zhuanlan.zhihu.com/p/660660723)
 - [【大语言模型】LongLoRA:大语言模型长文本的高效微调方法](https://zhuanlan.zhihu.com/p/658067243)
+- [RLHF 训练中，如何挑选最好的 checkpoint？](https://zhuanlan.zhihu.com/p/664575712)
+- [deepspeed入门教程](https://zhuanlan.zhihu.com/p/630734624)
 
 ### 大模型推理技术
 
@@ -323,6 +335,20 @@
 - [LLM大语言模型之Generate/Inference（生成/推理）中参数与解码策略原理及其代码实现](https://zhuanlan.zhihu.com/p/653926703)
 - [NLP（二十）：漫谈 KV Cache 优化方法，深度理解 StreamingLLM](https://zhuanlan.zhihu.com/p/659770503)
 - [【小白学习笔记】FP8 量化基础 - 英伟达](https://zhuanlan.zhihu.com/p/619431625)
+- [大语言模型量化相关技术](https://zhuanlan.zhihu.com/p/664054739)
+- [LLM Decoding Attention-KV Cache Int8量化](https://zhuanlan.zhihu.com/p/665474143)
+- [大模型推理-TensorRT-LLM初探（一）运行llama，以及triton tensorrt llm backend](https://zhuanlan.zhihu.com/p/665209786)
+- [llama.cpp源码解析--CUDA流程版本](https://zhuanlan.zhihu.com/p/665027154)
+- [多个大语言微调模型并行推断的潜力](https://zhuanlan.zhihu.com/p/656344166)
+- [DeepSpeed-FastGen：通过 MII 和 DeepSpeed-Inference 实现 LLM 高吞吐量文本生成](https://zhuanlan.zhihu.com/p/665494115)
+- [关于大模型推理的量化算法总结](https://zhuanlan.zhihu.com/p/645308698)
+- [Triton部署TensorRT-LLM](https://zhuanlan.zhihu.com/p/663378231)
+- [Nvidia CUDA Core-LLM Decoding Attention推理优化](https://zhuanlan.zhihu.com/p/664348092)
+- [【模型推理】谈谈为什么卷积加速更喜欢 NHWC Layout](https://zhuanlan.zhihu.com/p/395810743)
+- [ChatGLM3 的工具调用（FunctionCalling）实现原理](https://zhuanlan.zhihu.com/p/664233831)
+
+### Stable Diffusion
+- [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
 
 ### 大模型服务
 
