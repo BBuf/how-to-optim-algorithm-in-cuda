@@ -195,3 +195,4 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [腾讯机智团队分享--AllReduce算法的前世今生](https://zhuanlan.zhihu.com/p/79030485)
 - [cute 之 Layout](https://zhuanlan.zhihu.com/p/661182311)
 - [Using CUDA Warp-Level Primitives](https://zhuanlan.zhihu.com/p/664395938)
+- [CUDA Pro Tip: Increase Performance with Vectorized Memory Access](https://zhuanlan.zhihu.com/p/666480387)

@@ -183,10 +183,12 @@
 - [[大模型推理][WINT8/4](00)🔥通俗易懂讲解-快速反量化算法](https://zhuanlan.zhihu.com/p/657072856)
 - [Llama 2详解](https://zhuanlan.zhihu.com/p/649756898)
 - [垂直领域大模型的思考](https://zhuanlan.zhihu.com/p/652645925)
+- [解读 Effective Long Context Scaling of Foundation Models（强烈推荐）](https://zhuanlan.zhihu.com/p/666566126)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
 - [NLP（廿二）：LLM 时代的 multi-agent 系统](https://zhuanlan.zhihu.com/p/665644399)
+- [关于 Agent 开发的一些思考](https://zhuanlan.zhihu.com/p/666401588)
 ### 大模型训练和微调技术
 
 - [Megatron-LM 分布式执行调研](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812)
