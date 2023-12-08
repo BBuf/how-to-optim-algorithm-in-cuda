@@ -50,21 +50,21 @@ int main(){
     half *x_host = (half*)malloc(N*sizeof(half));
     half *x_device;
     cudaMalloc((void **)&x_device, N*sizeof(half));
-    for (int i = 0; i < N; i++) x_host[i] = 1.0;
+    for (int i = 0; i < N; i++) x_host[i] = 0.1;
     cudaMemcpy(x_device, x_host, N*sizeof(half), cudaMemcpyHostToDevice);
     Pack<half, 2>* x_pack = reinterpret_cast<Pack<half, 2>*>(x_device);
 
     half *y_host = (half*)malloc(N*sizeof(half));
     half *y_device;
     cudaMalloc((void **)&y_device, N*sizeof(half));
-    for (int i = 0; i < N; i++) y_host[i] = 1.0;
+    for (int i = 0; i < N; i++) y_host[i] = 0.1;
     cudaMemcpy(y_device, y_host, N*sizeof(half), cudaMemcpyHostToDevice);
     Pack<half, 2>* y_pack = reinterpret_cast<Pack<half, 2>*>(y_device);
 
     half *output_host = (half*)malloc(2 * sizeof(half));
     half *output_device;
     cudaMalloc((void **)&output_device, 2 * sizeof(half));
-    cudaMemset(&output_device, 0, sizeof(half) * 2);
+    cudaMemset(output_device, 0, sizeof(half) * 2);
     Pack<half, 2>* output_pack = reinterpret_cast<Pack<half, 2>*>(output_device);
 
     int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
