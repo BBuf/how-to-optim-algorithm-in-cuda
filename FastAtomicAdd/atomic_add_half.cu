@@ -37,7 +37,7 @@ int main(){
     half *output_host = (half*)malloc(sizeof(half));
     half *output_device;
     cudaMalloc((void **)&output_device, sizeof(half));
-    cudaMemset(&output_device, 0, sizeof(half));
+    cudaMemset(output_device, 0, sizeof(half));
 
     int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
     dim3 grid(block_num, 1);

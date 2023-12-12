@@ -63,7 +63,7 @@ __global__ void dot(half* a, half* b, half* c, int n){
         gid += nStep;
     }
     // atomicAdd(c, temp);
-    FastAdd(c, 0, N, temp);
+    FastAdd(c, 0, 2, temp);
 }
 
 int main(){
@@ -79,16 +79,16 @@ int main(){
     for (int i = 0; i < N; i++) y_host[i] = 0.1;
     cudaMemcpy(y_device, y_host, N*sizeof(half), cudaMemcpyHostToDevice);
 
-    half *output_host = (half*)malloc(sizeof(half));
+    half *output_host = (half*)malloc(sizeof(half) * 2);
     half *output_device;
-    cudaMalloc((void **)&output_device, sizeof(half));
-    cudaMemset(&output_device, 0, sizeof(half));
+    cudaMalloc((void **)&output_device, sizeof(half) * 2);
+    cudaMemset(output_device, 0, sizeof(half) * 2);
 
     int32_t block_num = (N + kBlockSize - 1) / kBlockSize;
     dim3 grid(block_num, 1);
     dim3 block(kBlockSize, 1);
     dot<<<grid, block>>>(x_device, y_device, output_device, N);
-    cudaMemcpy(output_host, output_device, sizeof(half), cudaMemcpyDeviceToHost);
+    cudaMemcpy(output_host, output_device, sizeof(half) * 2, cudaMemcpyDeviceToHost);
     printf("%.6f\n", static_cast<double>(output_host[0]));
     free(x_host);
     free(y_host);
