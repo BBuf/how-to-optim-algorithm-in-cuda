@@ -18,6 +18,7 @@
 - [ChatRWKV（有可用猫娘模型！）微调/部署/使用/训练资源合集](https://zhuanlan.zhihu.com/p/616351661)
 - [pengbo的专栏](https://www.zhihu.com/people/bopengbopeng/posts)
 - [RWKV 模型解析](https://zhuanlan.zhihu.com/p/640050680)
+- [[线性RNN系列] Mamba: S4史诗级升级](https://zhuanlan.zhihu.com/p/661237120)
 
 ## MOE
 - [mixture-of-experts-with-expert-choice](https://blog.research.google/2022/11/mixture-of-experts-with-expert-choice.html)
@@ -25,6 +26,7 @@
 - [MoE训练论文解读之Tutel: 动态切换并行策略实现动态路由](https://zhuanlan.zhihu.com/p/653518289)
 - [ACM SIGCOMM 2023有哪些亮点？](https://www.zhihu.com/question/600051474/answer/3202735839)
 - [LLM终身学习的可能性——Mixture of Experts](https://zhuanlan.zhihu.com/p/656015139)
+- [MoE 入门介绍 核心工作回顾 模型篇](https://zhuanlan.zhihu.com/p/671434414)
 
 ### 大模型知识介绍
 
@@ -184,6 +186,11 @@
 - [Llama 2详解](https://zhuanlan.zhihu.com/p/649756898)
 - [垂直领域大模型的思考](https://zhuanlan.zhihu.com/p/652645925)
 - [解读 Effective Long Context Scaling of Foundation Models（强烈推荐）](https://zhuanlan.zhihu.com/p/666566126)
+- [解析大模型中的Scaling Law](https://zhuanlan.zhihu.com/p/667489780)
+- [NLP（廿三）：LLM 中的长文本问题](https://zhuanlan.zhihu.com/p/640641794)
+- [十分钟读懂Beam Search 1：基础](https://zhuanlan.zhihu.com/p/114669778)
+- [颠覆Transformer霸权！CMU普林斯顿推Mamba新架构，解决致命bug推理速度暴增5倍](https://zhuanlan.zhihu.com/p/670490102)
+- [矩阵模拟！Transformer大模型3D可视化，GPT-3、Nano-GPT每一层清晰可见](https://zhuanlan.zhihu.com/p/670287271)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -231,6 +238,7 @@
 - [[源码解析] 模型并行分布式训练 Megatron (4) --- 如何设置各种并行 ](https://juejin.cn/post/7063030243224879140)
 - [[源码解析] 模型并行分布式训练Megatron (5) --Pipedream Flush ](https://juejin.cn/post/7064496967828635655)
 - [Pytorch Distributed Data Parallal](https://fazzie-key.cool/2022/01/23/ddp/)
+- [【分布式训练技术分享五】聊聊 Zero Bubble Pipeline Parallelism](https://zhuanlan.zhihu.com/p/670301574)
 - [大模型参数高效微调技术原理综述（七）-最佳实践、总结](https://zhuanlan.zhihu.com/p/636999010)
 - [【万字长文】LLaMA, ChatGLM, BLOOM的参数高效微调实践](https://zhuanlan.zhihu.com/p/635710004)
 - [CPT：兼顾理解和生成的中文预训练模型](https://zhuanlan.zhihu.com/p/421402341)
@@ -275,6 +283,12 @@
 - [【大语言模型】LongLoRA:大语言模型长文本的高效微调方法](https://zhuanlan.zhihu.com/p/658067243)
 - [RLHF 训练中，如何挑选最好的 checkpoint？](https://zhuanlan.zhihu.com/p/664575712)
 - [deepspeed入门教程](https://zhuanlan.zhihu.com/p/630734624)
+- [S-LORA：单卡服务两千个LLM模型，vLLM团队指出行业大模型新范式](https://zhuanlan.zhihu.com/p/667213961)
+- [大模型微调技巧 | 高质量指令数据筛选方法-MoDS](https://zhuanlan.zhihu.com/p/671183709)
+- [2023年神秘而难以理解的大模型强化学习技术：RLHF PPO，DPO，以及InstructGPT，DeepSpeed-Chat， LLama2，Baichuan2的RLHF](https://zhuanlan.zhihu.com/p/662753985)
+- [Transformer的浮点数计算](https://zhuanlan.zhihu.com/p/670583522)
+- [ChatGLM3保姆级P-Tuning v2微调教程](https://zhuanlan.zhihu.com/p/670248457)
+- [使用 PyTorch 完全分片数据并行技术加速大模型训练](https://zhuanlan.zhihu.com/p/670374745)
 
 ### 大模型推理技术
 
@@ -348,9 +362,16 @@
 - [Nvidia CUDA Core-LLM Decoding Attention推理优化](https://zhuanlan.zhihu.com/p/664348092)
 - [【模型推理】谈谈为什么卷积加速更喜欢 NHWC Layout](https://zhuanlan.zhihu.com/p/395810743)
 - [ChatGLM3 的工具调用（FunctionCalling）实现原理](https://zhuanlan.zhihu.com/p/664233831)
+- [DeepSpeed Inference中的kernel优化](https://zhuanlan.zhihu.com/p/667329815)
+- [【手撕LLM-投机解码】大模型迈向"并行"解码时代](https://zhuanlan.zhihu.com/p/671432448)
+- [一行代码加速28倍大模型推理速度](https://zhuanlan.zhihu.com/p/670891343)
+- [Continuous Batching：一种提升 LLM 部署吞吐量的利器](https://zhuanlan.zhihu.com/p/657586838)
+- [大语言模型推理加速技术：计算加速篇](https://zhuanlan.zhihu.com/p/666452391)
+- [不到1000行代码，PyTorch团队让Llama 7B提速10倍](https://zhuanlan.zhihu.com/p/670506844)
 
 ### Stable Diffusion
 - [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
+- [Kandinsky-3：最大的开源文生图模型](https://zhuanlan.zhihu.com/p/668853830)
 
 ### 大模型服务
 

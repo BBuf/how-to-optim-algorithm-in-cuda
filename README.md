@@ -106,10 +106,12 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 - [CUDA编程入门及优化 专栏by jie.hang](https://www.zhihu.com/column/c_1522503697624346624)
 - [深入浅出GPU优化 专栏by 有了琦琦的棍子](https://www.zhihu.com/column/c_1437330196193640448)
+- [CUDA 编程入门](https://www.zhihu.com/column/c_1699097150611595264)
 
 #### 文章
 
 - [Roofline Model与深度学习模型的性能分析](https://zhuanlan.zhihu.com/p/34204282)
+- [FlashAttention核心逻辑以及V1 V2差异总结](https://zhuanlan.zhihu.com/p/665170554)
 - [Flash Attention 推公式](https://zhuanlan.zhihu.com/p/646697716)
 - [flash attention完全解析和CUDA零基础实现](https://zhuanlan.zhihu.com/p/658947627)
 - [FlashAttention图解（如何加速Attention）](https://zhuanlan.zhihu.com/p/626079753)
@@ -120,6 +122,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [FlashAttention 的速度优化原理是怎样的？](https://www.zhihu.com/question/611236756/answer/3132304304)
 - [FlashAttention2详解（性能比FlashAttention提升200%）](https://zhuanlan.zhihu.com/p/645376942)
 - [FlashAttenion-V3: Flash Decoding详解](https://zhuanlan.zhihu.com/p/661478232)
+- [速通PageAttention2](https://zhuanlan.zhihu.com/p/671293276)
 - [大模型推理加速之FlashDecoding++：野生Flash抵达战场](https://zhuanlan.zhihu.com/p/665361668)
 - [学习Flash Attention和Flash Decoding的一些思考与疑惑](https://zhuanlan.zhihu.com/p/664704050)
 - [大模型推理加速之Flash Decoding：更小子任务提升并行度](https://zhuanlan.zhihu.com/p/664264445)
@@ -196,3 +199,14 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [cute 之 Layout](https://zhuanlan.zhihu.com/p/661182311)
 - [Using CUDA Warp-Level Primitives](https://zhuanlan.zhihu.com/p/664395938)
 - [CUDA Pro Tip: Increase Performance with Vectorized Memory Access](https://zhuanlan.zhihu.com/p/666480387)
+- [cute 之 简单GEMM实现](https://zhuanlan.zhihu.com/p/667521327)
+- [CUDA单精度矩阵乘法(sgemm)优化笔记](https://zhuanlan.zhihu.com/p/638820727)
+- [HPC（高性能计算第一篇） ：一文彻底搞懂并发编程与内存屏障（第一篇）](https://zhuanlan.zhihu.com/p/670350655)
+- [GPU CUDA 编程的基本原理是什么? 怎么入门?](https://www.zhihu.com/question/613405221/answer/3129776636)
+- [如何入门 OpenAI Triton 编程?](https://www.zhihu.com/question/622685131/answer/3217107882)
+- [CUDA（二）：GPU的内存体系及其优化指南](https://zhuanlan.zhihu.com/p/654027980)
+- [nvitop: 史上最强GPU性能实时监测工具](https://zhuanlan.zhihu.com/p/614024375)
+- [使用Triton在模型中构建自定义算子](https://zhuanlan.zhihu.com/p/670326958)
+- [CUDA笔记 内存合并访问](https://zhuanlan.zhihu.com/p/641639133)
+- [GPGPU架构，编译器和运行时](https://zhuanlan.zhihu.com/p/592975749)
+- [GPGPU的memory 体系理解](https://zhuanlan.zhihu.com/p/658081469)
