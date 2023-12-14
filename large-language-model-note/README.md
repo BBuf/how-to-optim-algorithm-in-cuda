@@ -27,10 +27,12 @@
 - [ACM SIGCOMM 2023有哪些亮点？](https://www.zhihu.com/question/600051474/answer/3202735839)
 - [LLM终身学习的可能性——Mixture of Experts](https://zhuanlan.zhihu.com/p/656015139)
 - [MoE 入门介绍 核心工作回顾 模型篇](https://zhuanlan.zhihu.com/p/671434414)
+- [大语言模型结构之：浅谈MOE结构](https://zhuanlan.zhihu.com/p/670007189)
 
 ### 大模型知识介绍
 
 - [压缩下一个 token 通向超过人类的智能](https://zhuanlan.zhihu.com/p/619511222)
+- [LLM 入门笔记-Tokenizer](https://zhuanlan.zhihu.com/p/669901093)
 - [【Transformer 基础系列】手推显存占用](https://zhuanlan.zhihu.com/p/648924115)
 - [《A Survey of Large Language Models》笔记](https://zhuanlan.zhihu.com/p/631065995)
 - [分析transformer模型的参数量、计算量、中间激活、KV cache](https://zhuanlan.zhihu.com/p/624740065)
@@ -191,11 +193,17 @@
 - [十分钟读懂Beam Search 1：基础](https://zhuanlan.zhihu.com/p/114669778)
 - [颠覆Transformer霸权！CMU普林斯顿推Mamba新架构，解决致命bug推理速度暴增5倍](https://zhuanlan.zhihu.com/p/670490102)
 - [矩阵模拟！Transformer大模型3D可视化，GPT-3、Nano-GPT每一层清晰可见](https://zhuanlan.zhihu.com/p/670287271)
+- [旋转式位置编码 (RoPE) 知识总结](https://zhuanlan.zhihu.com/p/662790439)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
 - [NLP（廿二）：LLM 时代的 multi-agent 系统](https://zhuanlan.zhihu.com/p/665644399)
 - [关于 Agent 开发的一些思考](https://zhuanlan.zhihu.com/p/666401588)
+
+### 多模态
+- [多模态大模型 CLIP, BLIP, BLIP2, LLaVA, miniGPT4, InstructBLIP 系列解读](https://zhuanlan.zhihu.com/p/653902791)
+- [多模态大模型超详细解读 (目录)](https://zhuanlan.zhihu.com/p/625926419)
+
 ### 大模型训练和微调技术
 
 - [Megatron-LM 分布式执行调研](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812)
@@ -289,6 +297,11 @@
 - [Transformer的浮点数计算](https://zhuanlan.zhihu.com/p/670583522)
 - [ChatGLM3保姆级P-Tuning v2微调教程](https://zhuanlan.zhihu.com/p/670248457)
 - [使用 PyTorch 完全分片数据并行技术加速大模型训练](https://zhuanlan.zhihu.com/p/670374745)
+- [显存优化之加速通信算子内存释放](https://zhuanlan.zhihu.com/p/671834539)
+- [Transformer第四章：vllm之PagedAttention代码分析(2)](https://zhuanlan.zhihu.com/p/663719053)
+- [探索大模型SFT过程中的不稳定的原因](https://zhuanlan.zhihu.com/p/669976120)
+- [【手撕RLHF-Rejection Sampling】如何优雅的从SFT过渡到PPO](https://zhuanlan.zhihu.com/p/669397860)
+- [数据并行Deep-dive: 从DP 到 Fully Sharded Data Parallel （FSDP）完全分片数据并行](https://zhuanlan.zhihu.com/p/485208899)
 
 ### 大模型推理技术
 
@@ -368,10 +381,17 @@
 - [Continuous Batching：一种提升 LLM 部署吞吐量的利器](https://zhuanlan.zhihu.com/p/657586838)
 - [大语言模型推理加速技术：计算加速篇](https://zhuanlan.zhihu.com/p/666452391)
 - [不到1000行代码，PyTorch团队让Llama 7B提速10倍](https://zhuanlan.zhihu.com/p/670506844)
+- [笔记：DeepSpeed inference 代码理解](https://zhuanlan.zhihu.com/p/668181423)
 
-### Stable Diffusion
+### 扩散模型
 - [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
 - [Kandinsky-3：最大的开源文生图模型](https://zhuanlan.zhihu.com/p/668853830)
+- [视频生成迎来SD时代：Stable Video Diffusion开源了！](https://zhuanlan.zhihu.com/p/668100036)
+- [一文带你看懂DDPM和DDIM（含原理简易推导，pytorch代码）](https://zhuanlan.zhihu.com/p/666552214)
+- [AIGC优质模型导读：数据为王DALL-E 3](https://zhuanlan.zhihu.com/p/669578590)
+- [SDXL Turbo来了：一步生成高质量图像](https://zhuanlan.zhihu.com/p/669353808)
+- [十分钟读懂Diffusion：图解Diffusion扩散模型](https://zhuanlan.zhihu.com/p/599887666)
+- [Stable Diffusion生图越来越快，TensorRT扩展实现SD秒速生图](https://zhuanlan.zhihu.com/p/668632473)
 
 ### 大模型服务
 

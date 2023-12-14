@@ -110,9 +110,13 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 #### 文章
 
+- [如果你是一个C++面试官，你会问哪些问题？](https://www.zhihu.com/question/451327108/answer/3299498791)
+- [[C++特性]对std::move和std::forward的理解](https://zhuanlan.zhihu.com/p/469607144)
+- [AI/HPC面试问题整理](https://zhuanlan.zhihu.com/p/663917237)
 - [Roofline Model与深度学习模型的性能分析](https://zhuanlan.zhihu.com/p/34204282)
 - [FlashAttention核心逻辑以及V1 V2差异总结](https://zhuanlan.zhihu.com/p/665170554)
 - [Flash Attention 推公式](https://zhuanlan.zhihu.com/p/646697716)
+- [图解大模型计算加速系列：FlashAttention V1，从硬件到计算逻辑](https://zhuanlan.zhihu.com/p/669926191)
 - [flash attention完全解析和CUDA零基础实现](https://zhuanlan.zhihu.com/p/658947627)
 - [FlashAttention图解（如何加速Attention）](https://zhuanlan.zhihu.com/p/626079753)
 - [FlashAttention:加速计算,节省显存, IO感知的精确注意力](https://zhuanlan.zhihu.com/p/639228219)
@@ -123,6 +127,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [FlashAttention2详解（性能比FlashAttention提升200%）](https://zhuanlan.zhihu.com/p/645376942)
 - [FlashAttenion-V3: Flash Decoding详解](https://zhuanlan.zhihu.com/p/661478232)
 - [速通PageAttention2](https://zhuanlan.zhihu.com/p/671293276)
+- [PageAttention代码走读](https://zhuanlan.zhihu.com/p/668736097)
 - [大模型推理加速之FlashDecoding++：野生Flash抵达战场](https://zhuanlan.zhihu.com/p/665361668)
 - [学习Flash Attention和Flash Decoding的一些思考与疑惑](https://zhuanlan.zhihu.com/p/664704050)
 - [大模型推理加速之Flash Decoding：更小子任务提升并行度](https://zhuanlan.zhihu.com/p/664264445)
@@ -197,6 +202,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [Pytorch-CUDA从入门到放弃（二）](https://zhuanlan.zhihu.com/p/48463543)
 - [腾讯机智团队分享--AllReduce算法的前世今生](https://zhuanlan.zhihu.com/p/79030485)
 - [cute 之 Layout](https://zhuanlan.zhihu.com/p/661182311)
+- [cute 之 GEMM流水线](https://zhuanlan.zhihu.com/p/665082713)
 - [Using CUDA Warp-Level Primitives](https://zhuanlan.zhihu.com/p/664395938)
 - [CUDA Pro Tip: Increase Performance with Vectorized Memory Access](https://zhuanlan.zhihu.com/p/666480387)
 - [cute 之 简单GEMM实现](https://zhuanlan.zhihu.com/p/667521327)
@@ -210,3 +216,5 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [CUDA笔记 内存合并访问](https://zhuanlan.zhihu.com/p/641639133)
 - [GPGPU架构，编译器和运行时](https://zhuanlan.zhihu.com/p/592975749)
 - [GPGPU的memory 体系理解](https://zhuanlan.zhihu.com/p/658081469)
+- [nvlink那些事……](https://zhuanlan.zhihu.com/p/639228770)
+- [对NVidia Hopper GH100 的一些理解](https://zhuanlan.zhihu.com/p/486224812)
