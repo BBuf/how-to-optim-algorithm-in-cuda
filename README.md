@@ -111,7 +111,9 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 #### 文章
 
 - [如果你是一个C++面试官，你会问哪些问题？](https://www.zhihu.com/question/451327108/answer/3299498791)
+- [推理部署工程师面试题库](https://zhuanlan.zhihu.com/p/673046520)
 - [[C++特性]对std::move和std::forward的理解](https://zhuanlan.zhihu.com/p/469607144)
+- [论文阅读：Mimalloc Free List Sharding in Action](https://zhuanlan.zhihu.com/p/665602526)
 - [AI/HPC面试问题整理](https://zhuanlan.zhihu.com/p/663917237)
 - [Roofline Model与深度学习模型的性能分析](https://zhuanlan.zhihu.com/p/34204282)
 - [FlashAttention核心逻辑以及V1 V2差异总结](https://zhuanlan.zhihu.com/p/665170554)
