@@ -31,6 +31,7 @@
 - [训不动Mixtral，要不试试LLaMA-MoE？](https://zhuanlan.zhihu.com/p/674085893)
 - [Mixtral-8x7B MoE大模型微调实践，超越Llama2-65B](https://zhuanlan.zhihu.com/p/674028456)
 - [Mixtral-8x7B 模型挖坑](https://zhuanlan.zhihu.com/p/674751021)
+- [Mixture of Experts（MoE）学习笔记](https://zhuanlan.zhihu.com/p/675216281)
 
 ### 大模型知识介绍
 
@@ -199,6 +200,10 @@
 - [旋转式位置编码 (RoPE) 知识总结](https://zhuanlan.zhihu.com/p/662790439)
 - [大模型生成去重技术总结](https://zhuanlan.zhihu.com/p/659961396)
 - [如何优雅地编码文本中的位置信息？三种positional encoding方法简述](https://zhuanlan.zhihu.com/p/121126531)
+- [adam在大模型预训练中的不稳定性分析及解决办法](https://zhuanlan.zhihu.com/p/675421518)
+- [饮鸩止渴？LLM训练要不要过采样/训多个epoch](https://zhuanlan.zhihu.com/p/671634621)
+- [多个大语言微调模型并行推断的潜力](https://zhuanlan.zhihu.com/p/656344166)
+- [剖析GPT推断中的批处理效应](https://zhuanlan.zhihu.com/p/630324993)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -309,6 +314,9 @@
 - [数据并行Deep-dive: 从DP 到 Fully Sharded Data Parallel （FSDP）完全分片数据并行](https://zhuanlan.zhihu.com/p/485208899)
 - [ChatGLM2-6B多轮对话训练方式](https://zhuanlan.zhihu.com/p/651293366)
 - [显存优化之重计算在长文场景的思考](https://zhuanlan.zhihu.com/p/675677945)
+- [一文读懂分布式训练启动方式](https://zhuanlan.zhihu.com/p/675464874)
+- [DeepSpeed ZeRO理论与VLM大模型训练实践](https://zhuanlan.zhihu.com/p/675360966)
+- [LLM中的RLHF——ppo、dpo算法实践（基于qwen、chatglm3）](https://zhuanlan.zhihu.com/p/675215827)
 
 ### 大模型推理技术
 
@@ -402,6 +410,7 @@
 - [SDXL Turbo来了：一步生成高质量图像](https://zhuanlan.zhihu.com/p/669353808)
 - [十分钟读懂Diffusion：图解Diffusion扩散模型](https://zhuanlan.zhihu.com/p/599887666)
 - [Stable Diffusion生图越来越快，TensorRT扩展实现SD秒速生图](https://zhuanlan.zhihu.com/p/668632473)
+- [stable diffusion中Lora的原理和实践](https://zhuanlan.zhihu.com/p/662253917)
 
 ### 大模型服务
 
