@@ -100,6 +100,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [【BBuf的CUDA笔记】九，使用newbing（chatgpt）解析oneflow softmax相关的fuse优化](https://zhuanlan.zhihu.com/p/615619524)
 - [CodeGeeX百亿参数大模型的调优笔记：比FasterTransformer更快的解决方案](https://zhuanlan.zhihu.com/p/617027615)
 - [【BBuf的CUDA笔记】十，Linear Attention的cuda kernel实现解析](https://mp.weixin.qq.com/s/1EPeU5hsOhB7rNAmmXrZRw)
+- [【BBuf的CUDA笔记】十一，Linear Attention的cuda kernel实现补档](https://mp.weixin.qq.com/s/qDVKclf_AvpZ5qb2Obf4aA)
 
 ### 11. 学习资料收集
 
@@ -222,3 +223,4 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [nvlink那些事……](https://zhuanlan.zhihu.com/p/639228770)
 - [对NVidia Hopper GH100 的一些理解](https://zhuanlan.zhihu.com/p/486224812)
 - [黑科技：用cutlass进行低成本、高性能卷积算子定制开发](https://zhuanlan.zhihu.com/p/258931422)
+- [乱谈Triton Ampere WMMA (施工中)](https://zhuanlan.zhihu.com/p/675925978)

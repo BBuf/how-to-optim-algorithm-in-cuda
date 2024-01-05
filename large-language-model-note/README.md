@@ -28,6 +28,9 @@
 - [LLM终身学习的可能性——Mixture of Experts](https://zhuanlan.zhihu.com/p/656015139)
 - [MoE 入门介绍 核心工作回顾 模型篇](https://zhuanlan.zhihu.com/p/671434414)
 - [大语言模型结构之：浅谈MOE结构](https://zhuanlan.zhihu.com/p/670007189)
+- [训不动Mixtral，要不试试LLaMA-MoE？](https://zhuanlan.zhihu.com/p/674085893)
+- [Mixtral-8x7B MoE大模型微调实践，超越Llama2-65B](https://zhuanlan.zhihu.com/p/674028456)
+- [Mixtral-8x7B 模型挖坑](https://zhuanlan.zhihu.com/p/674751021)
 
 ### 大模型知识介绍
 
@@ -194,6 +197,8 @@
 - [颠覆Transformer霸权！CMU普林斯顿推Mamba新架构，解决致命bug推理速度暴增5倍](https://zhuanlan.zhihu.com/p/670490102)
 - [矩阵模拟！Transformer大模型3D可视化，GPT-3、Nano-GPT每一层清晰可见](https://zhuanlan.zhihu.com/p/670287271)
 - [旋转式位置编码 (RoPE) 知识总结](https://zhuanlan.zhihu.com/p/662790439)
+- [大模型生成去重技术总结](https://zhuanlan.zhihu.com/p/659961396)
+- [如何优雅地编码文本中的位置信息？三种positional encoding方法简述](https://zhuanlan.zhihu.com/p/121126531)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -302,6 +307,8 @@
 - [探索大模型SFT过程中的不稳定的原因](https://zhuanlan.zhihu.com/p/669976120)
 - [【手撕RLHF-Rejection Sampling】如何优雅的从SFT过渡到PPO](https://zhuanlan.zhihu.com/p/669397860)
 - [数据并行Deep-dive: 从DP 到 Fully Sharded Data Parallel （FSDP）完全分片数据并行](https://zhuanlan.zhihu.com/p/485208899)
+- [ChatGLM2-6B多轮对话训练方式](https://zhuanlan.zhihu.com/p/651293366)
+- [显存优化之重计算在长文场景的思考](https://zhuanlan.zhihu.com/p/675677945)
 
 ### 大模型推理技术
 
@@ -382,6 +389,9 @@
 - [大语言模型推理加速技术：计算加速篇](https://zhuanlan.zhihu.com/p/666452391)
 - [不到1000行代码，PyTorch团队让Llama 7B提速10倍](https://zhuanlan.zhihu.com/p/670506844)
 - [笔记：DeepSpeed inference 代码理解](https://zhuanlan.zhihu.com/p/668181423)
+- [大模型推理核心技术之Continuous Batching和我的WXG往事](https://zhuanlan.zhihu.com/p/676109470)
+- [论文笔记：DejaVu、LLM in Flash、PowerInfer](https://zhuanlan.zhihu.com/p/675585887)
+- [TensorRT-LLM 如何加速推理之 -- Batching](https://zhuanlan.zhihu.com/p/675726439)
 
 ### 扩散模型
 - [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
