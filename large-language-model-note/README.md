@@ -400,6 +400,8 @@
 - [大模型推理核心技术之Continuous Batching和我的WXG往事](https://zhuanlan.zhihu.com/p/676109470)
 - [论文笔记：DejaVu、LLM in Flash、PowerInfer](https://zhuanlan.zhihu.com/p/675585887)
 - [TensorRT-LLM 如何加速推理之 -- Batching](https://zhuanlan.zhihu.com/p/675726439)
+- [[ICML'23] DejaVu：LLM中的动态剪枝](https://zhuanlan.zhihu.com/p/673848224)
+- [笔记：Llama.cpp 代码浅析（一）：并行机制与KVCache](https://zhuanlan.zhihu.com/p/670515231)
 
 ### 扩散模型
 - [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
