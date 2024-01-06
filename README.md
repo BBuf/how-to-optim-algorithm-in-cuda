@@ -81,13 +81,17 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 学习了oneflow的softmax kernel实现以及Faster Transformer softmax kernel的实现，并以个人的角度分别解析了原理和代码实现，最后对性能做一个对比方便大家直观的感受到oneflow softmax kernel相比于FasterTransformer的优越性。
 
+### 9. linear-attention
+
+学习一些 linear attention 的 cuda 优化技巧。
+
 ![图片](https://user-images.githubusercontent.com/35585791/221142822-1c2ef670-00e2-4782-98de-d35a4eebd33c.png)
 
-### 9. large-language-model-note
+### 10. large-language-model-note
 
 收集了和大语言模型原理，训练，推理，数据标注的相关文章。
 
-### 10. 原创学习笔记
+### 11. 原创学习笔记
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
@@ -102,7 +106,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [【BBuf的CUDA笔记】十，Linear Attention的cuda kernel实现解析](https://mp.weixin.qq.com/s/1EPeU5hsOhB7rNAmmXrZRw)
 - [【BBuf的CUDA笔记】十一，Linear Attention的cuda kernel实现补档](https://mp.weixin.qq.com/s/qDVKclf_AvpZ5qb2Obf4aA)
 
-### 11. 学习资料收集
+### 12. 学习资料收集
 
 #### 专栏
 
