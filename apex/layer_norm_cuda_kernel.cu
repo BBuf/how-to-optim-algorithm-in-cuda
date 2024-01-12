@@ -668,6 +668,15 @@ void cuLoadAddStridedInputs(
   }
 }
 
+// part_size是分块计算梯度时的部分大小。
+// const int part_size = 16;
+// threads2定义了每个CUDA线程块中的线程数量（32×4×1）。
+// const dim3 threads2(32,4,1);
+// blocks2定义了CUDA网格中的块数量，其中，n2维度被分成多个块，以确保每个块可以处理n2中的一部分。
+// const dim3 blocks2((n2+threads2.x-1)/threads2.x,part_size,1);
+// ->
+// blockDim.x = 32, blockDim.y = 4, gridDim.y = 16
+// 假设 n1 = 4, n2 = 256，并且当前是第一个线程块
 template<typename T, typename U, typename V, bool MemoryEfficient> __global__
 void cuComputePartGradGammaBeta(
     const V* __restrict__ dout,
@@ -684,30 +693,50 @@ void cuComputePartGradGammaBeta(
     const double eps,
     bool rms_only)
 {
+    // numsegs_n1计算n1维度（4）被分成多少段。使用blockDim.y*blockDim.y（16）作为分段大小。
+    // 带入值：numsegs_n1 = (4 + 16 - 1) / 16 = 1。
     const int numsegs_n1 = (n1+blockDim.y*blockDim.y-1) / (blockDim.y*blockDim.y);
+    // segs_per_block计算每个线程块要处理的段数。
+    // 带入值：segs_per_block = (1 + 16 - 1) / 16 = 1。
     const int segs_per_block = (numsegs_n1 + gridDim.y - 1) / gridDim.y;
+    // 这些行计算当前线程块开始和结束处理n1维度的索引
+    // i1_beg和i1_beg_plus_one相差segs_per_block * blockDim.y*blockDim.y=1*4*4=16
+    // 带入blockIdx.y = 0：i1_beg = 0 * 1 * 4 * 4 = 0， i1_beg_plus_one = 1 * 1 * 4 * 4 = 16，i1_end = min(16, 4) = 4
     const int i1_beg = blockIdx.y * segs_per_block * blockDim.y*blockDim.y;
     const int i1_beg_plus_one = (blockIdx.y+1) * segs_per_block * blockDim.y*blockDim.y;
     const int i1_end = i1_beg_plus_one < n1 ? i1_beg_plus_one : n1;
+    // row_stride用于数组访问，防止bank conflict。这里等于33
     const int row_stride = blockDim.x+1;
+    // 计算每个线程在数据块中的偏移量。
+    // 下限是0，上限是31。
     const int thr_load_col_off = (threadIdx.x*blockDim.y)&(blockDim.x-1);
+    // 这里的下限是0，上限就是(31 * 4) / 32 + 3 * 4=15
     const int thr_load_row_off = (threadIdx.x*blockDim.y)/blockDim.x + threadIdx.y*blockDim.y;
+    // i2_off是n2维度上的偏移量。
     const int i2_off = blockIdx.x * blockDim.x + thr_load_col_off;
+    // 分配共享内存并设置两个缓冲区warp_buf1和warp_buf2
     SharedMemory<U> shared;
     U* buf = shared.getPointer(); // buf has at least blockDim.x * blockDim.y * blockDim.y + (blockDim.y - 1)*(blockDim.x/blockDim.y) elements
-    U* warp_buf1 = (U*)buf;
-    U* warp_buf2 = warp_buf1 + blockDim.y * blockDim.y * row_stride;
+    U* warp_buf1 = (U*)buf; // 大小是 31 * 4 * 4 = 496
+    U* warp_buf2 = warp_buf1 + blockDim.y * blockDim.y * row_stride; // 大小是 3 * (32 / 4) = 24
+    
     // compute partial sums from strided inputs
     // do this to increase number of loads in flight
     cuLoadWriteStridedInputs<T, U, V, MemoryEfficient>(i1_beg,thr_load_row_off,thr_load_col_off,i2_off,row_stride,warp_buf1,warp_buf2,input_or_output,dout,i1_end,n2,mean,invvar,gamma,beta,eps, rms_only);
+    // for循环处理每个数据块（由i1_beg和i1_end确定）。
+    // 它在数据块之间以步幅blockDim.y*blockDim.y迭代，允许不同的线程块处理不同的数据区域。
     for (int i1_block = i1_beg+blockDim.y*blockDim.y;  i1_block < i1_end;  i1_block+=blockDim.y*blockDim.y) {
       cuLoadAddStridedInputs<T, U, V, MemoryEfficient>(i1_block,thr_load_row_off,thr_load_col_off,i2_off,row_stride,warp_buf1,warp_buf2,input_or_output,dout,i1_end,n2,mean,invvar,gamma,beta,eps, rms_only);
     }
+    // 确保在所有线程完成其加载和处理操作之前，没有线程会继续执行后续的操作。
     __syncthreads();
     // inter-warp reductions
     // sum within each warp
+    // 这部分代码执行内部归约，计算每个warp内部的部分和。
+    // acc1和acc2分别用于累积来自warp_buf1和warp_buf2的值。这些缓冲区包含之前步骤计算的中间结果。
     U acc1 = U(0);
     U acc2 = U(0);
+    // 内部循环对于blockDim.y=4内的每一行进行累加，if (!rms_only)条件检查是否需要执行特定的分支逻辑。
     for (int k = 0;  k < blockDim.y;  ++k) {
       int row1 = threadIdx.y + k*blockDim.y;
       int idx1 = row1*row_stride + threadIdx.x;
@@ -716,26 +745,36 @@ void cuComputePartGradGammaBeta(
       }
       acc2 += warp_buf2[idx1];
     }
+    // 累加的结果被写回到warp_buf1和warp_buf2中对应的位置。
     if (!rms_only) {
       warp_buf1[threadIdx.y*row_stride+threadIdx.x] = acc1;
     }
     warp_buf2[threadIdx.y*row_stride+threadIdx.x] = acc2;
+    // 再次同步
     __syncthreads();
     // sum all warps
+    // 这个循环是归约操作的一部分，用于在warp之间求和。
+    // offset初始化为blockDim.y/2，每次迭代都减半，这是一种常用的并行归约模式。
     for (int offset = blockDim.y/2;  offset > 1;  offset /= 2) {
+      // 在每次迭代中，只有threadIdx.y小于当前offset的线程会参与计算，这样可以避免重复的工作。
       if (threadIdx.y < offset) {
+        // idx1和idx2是基于row_stride计算的索引，用于访问warp_buf1和warp_buf2。
         int row1 = threadIdx.y;
         int row2 = threadIdx.y + offset;
         int idx1 = row1*row_stride + threadIdx.x;
         int idx2 = row2*row_stride + threadIdx.x;
+        // 对于rms_only模式的分支处理，只有在非rms_only模式下才更新warp_buf1。
         if (!rms_only) {
           warp_buf1[idx1] += warp_buf1[idx2];
         }
         warp_buf2[idx1] += warp_buf2[idx2];
       }
+      // __syncthreads()在每次归约后同步所有线程，确保所有线程都完成了它们的部分归约工作。
       __syncthreads();
     }
+    // i2是一个计算出的索引，表示当前线程在n2维度上的位置。
     int i2 = blockIdx.x * blockDim.x + threadIdx.x;
+    // 如果当前线程的threadIdx.y为0且i2小于n2，则线程参与最终梯度的计算。
     if (threadIdx.y == 0 && i2 < n2) {
       int row1 = threadIdx.y;
       int row2 = threadIdx.y + 1;
@@ -762,14 +801,22 @@ void cuComputeGradGammaBeta(
     // sum partial gradients for gamma and beta
     SharedMemory<U> shared;
     U* buf = shared.getPointer();
+    // 计算每个线程的全局索引i2，用于确定它在n2维度上的位置。
     int i2 = blockIdx.x * blockDim.x + threadIdx.x;
+    // 如果线程索引i2小于n2的大小，该线程会参与计算。
     if (i2 < n2) {
       // each warp does sequential reductions until reduced part_size is num_warps
+      // num_warp_reductions计算了每个warp需要进行的归约次数，
+      // 这取决于part_size（每个块的大小）和blockDim.y（线程块的y维度大小）。
       int num_warp_reductions = part_size / blockDim.y;
+      // sum_gamma和sum_beta分别用于累加gamma和beta的局部梯度。
       U sum_gamma = U(0);
       U sum_beta = U(0);
+      // 这两行为每个线程设置了指向局部梯度数组的指针。这些指针根据线程的y索引和全局索引i2来确定。
       const U* part_grad_gamma_ptr = part_grad_gamma + threadIdx.y * num_warp_reductions * n2 + i2;
       const U* part_grad_beta_ptr = part_grad_beta + threadIdx.y * num_warp_reductions * n2 + i2;
+      // 在这个循环中，每个线程累加它负责的局部梯度部分。
+      // warp_offset变量用于遍历分配给每个线程的梯度段。
       for (int warp_offset = 0;  warp_offset < num_warp_reductions;  ++warp_offset) {
         sum_gamma += part_grad_gamma_ptr[warp_offset*n2];
         if (!rms_only) {
@@ -777,9 +824,12 @@ void cuComputeGradGammaBeta(
         }
       }
       // inter-warp reductions
+      // nbsize3计算了用于存储归约中间结果的共享内存大小。
       const int nbsize3 = blockDim.x * blockDim.y / 2;
+      // 外部循环减少归约参与的线程数，每次迭代减半。
       for (int offset = blockDim.y/2;  offset >= 1;  offset /= 2) {
         // top half write to shared memory
+        // 在这个归约阶段，线程首先将其累加结果写入共享内存，然后从共享内存读取并继续累加。
         if (threadIdx.y >= offset && threadIdx.y < 2*offset) {
           const int write_idx = (threadIdx.y - offset) * blockDim.x + threadIdx.x;
           buf[write_idx] = sum_gamma;
@@ -787,6 +837,7 @@ void cuComputeGradGammaBeta(
             buf[write_idx+nbsize3] = sum_beta;
           }
         }
+        // __syncthreads()在每次迭代结束时同步所有线程，确保共享内存的一致性。
         __syncthreads();
         // bottom half sums
         if (threadIdx.y < offset) {
@@ -799,6 +850,7 @@ void cuComputeGradGammaBeta(
         __syncthreads();
       }
       // write out fully summed gradients
+      // 如果线程是其warp中的第一个（threadIdx.y == 0），它负责将完全累加的梯度写入全局内存。
       if (threadIdx.y == 0) {
         grad_gamma[i2] = sum_gamma;
         if (!rms_only) {
@@ -808,7 +860,8 @@ void cuComputeGradGammaBeta(
     }
 }
 
-
+// 这段代码是 cuComputeGradInput 的一个CUDA内核函数，用于计算 Layer Normalization 操作中输入张量的梯度。
+// MemoryEfficient 是一个布尔模板参数，指示是否采用内存高效的计算方式。
 template<typename T, typename U, typename V, bool MemoryEfficient> __global__
 void cuComputeGradInput(
     const V* __restrict__ dout,
@@ -824,6 +877,7 @@ void cuComputeGradInput(
     const double eps,
     bool rms_only)
 {
+  // 这个循环遍历n1维度。每个线程块处理n1中的不同部分，步长为网格维度gridDim.y。
   for (auto i1=blockIdx.y; i1 < n1; i1 += gridDim.y) {
     U sum_loss1 = U(0);
     U sum_loss2 = U(0);
