@@ -106,6 +106,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [【BBuf的cuda学习笔记十】Megatron-LM的gradient_accumulation_fusion优化](https://mp.weixin.qq.com/s/neP8faIXIvj-XlyFjXjWBg)
 - [【BBuf的CUDA笔记】十，Linear Attention的cuda kernel实现解析](https://mp.weixin.qq.com/s/1EPeU5hsOhB7rNAmmXrZRw)
 - [【BBuf的CUDA笔记】十一，Linear Attention的cuda kernel实现补档](https://mp.weixin.qq.com/s/qDVKclf_AvpZ5qb2Obf4aA)
+- [【BBuf的CUDA笔记】十二，LayerNorm/RMSNorm的重计算实现](https://mp.weixin.qq.com/s/G_XvnB4CeEBWTLNefi0Riw)
 
 ### 12. 学习资料收集
 
