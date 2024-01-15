@@ -9,12 +9,13 @@
 #include "type_shim.h"
 #include "static_switch.h"
 
-// 这段代码定义了一个名为 cuWelfordOnlineSum 的 CUDA 设备函数，它实现了 Welford 算法用于在线计算均值（mu）和方差（sigma2）。
-// Welford 算法是一种数值稳定的方法，用于逐步计算一系列数据的均值和方差。
-// const U curr: 当前要处理的值。
-// U& mu: 到目前为止所有值的均值。
-// U& sigma2: 到目前为止所有值的方差。
-// U& count: 到目前为止处理的元素数量。
+// 这段代码是个CUDA函数，名叫cuWelfordOnlineSum，擅长用Welford算法来边收数据边算这些数据的平均值和变化范围（就是均值和方差）。
+// 用Welford算法来算这个，特别稳，不会因为数据太多而出错，而且每加一个数据就能更新一次均值和方差。
+// const U curr: 这个是新来的数据点。
+// U& mu: 这个是我们到现在为止算出来的所有数据的平均值。
+// U& sigma2: 这个是我们到现在为止算出来的方差，可以告诉你数据变化有多大。
+// U& count: 这个记录了我们到现在处理了多少数据点。
+
 template<typename U> __device__
 void cuWelfordOnlineSum(
   const U curr,
@@ -22,18 +23,20 @@ void cuWelfordOnlineSum(
   U& sigma2,
   U& count)
 {
-  count = count + U(1); // 更新元素计数，每次调用函数时增加 1。
-  U delta = curr - mu; // 计算当前值和当前均值的差值。
-  U lmean = mu + delta / count; // 根据差值和元素数量计算新的均值。
-  mu = lmean; // 将计算出的新均值赋值给 mu。
-  U delta2 = curr - lmean; // 计算当前值和新均值的差值。
-  sigma2 = sigma2 + delta * delta2; // 根据新旧均值之间的差值更新方差。
+  count = count + U(1); // 每次调用这个函数，就把处理的数据数量加一。
+  U delta = curr - mu; // 看看新数据和现有平均值差多少。
+  U lmean = mu + delta / count; // 用这个差值和数据总量来算一个新的平均值。
+  mu = lmean; // 把这个新算的平均值记下来。
+  U delta2 = curr - lmean; // 现在再算一下新数据和新平均值的差。
+  sigma2 = sigma2 + delta * delta2; // 利用这个新旧平均值的差来更新方差。
 }
 
-// 这段代码定义了一个名为 cuChanOnlineSum 的 CUDA 设备函数，它是另一种在线算法，
-// 用于更新均值（mu）和方差（sigma2），考虑了两个独立样本的合并。
-// const U muB, sigma2B, countB: 分别代表第二组数据的均值、方差和元素数量。
-// U& mu, sigma2, count: 代表当前累积（第一组数据）的均值、方差和元素数量，这些将被更新以反映合并后的新值。
+// 这段代码是个CUDA函数，名叫cuChanOnlineSum。它用于处理一种特殊的情况：
+// 当你有两堆数据，想要快速算出它们合并后的平均值和方差时，这个函数就派上用场了。
+// const U muB, sigma2B, countB: 这三个是你新加入的那堆数据的平均值、方差和数据点数量。
+// U& mu, sigma2, count: 这三个是你之前已经有的数据的平均值、方差和数据点数量。
+// 这个函数会更新这些值，让它们反映出两堆数据合并后的情况。
+
 template<typename U> __device__
 void cuChanOnlineSum(
   const U muB,
@@ -43,42 +46,45 @@ void cuChanOnlineSum(
   U& sigma2,
   U& count)
 {
-  U delta = muB - mu; // 计算两组数据均值之间的差。
-  U nA = count; // 保存当前组（A组）的元素数量。
-  U nB = countB; // 获取第二组（B组）的元素数量。
-  count = count + countB; // 更新元素总数。
-  U nX = count; // 新的总元素数量。
+  U delta = muB - mu; // 先算算新数据堆和老数据堆的平均值差了多少。
+  U nA = count; // 记下当前数据堆（我们叫它A堆）的大小。
+  U nB = countB; // 看看新来的那堆数据（B堆）有多少个点。
+  count = count + countB; // 把两堆数据的数量加起来。
+  U nX = count; // 这就是合并后总数据量的大小。
   if (nX > U(0)) {
-    nA = nA / nX; // 计算两组数据在新总数中的相对比例。
-    nB = nB / nX; 
-    mu = nA*mu + nB*muB; // 根据比例和各自的均值计算新的总均值。
-    sigma2 = sigma2 + sigma2B + delta * delta * nA * nB * nX; // 更新方差，考虑两组数据方差和均值差的影响。
+    nA = nA / nX; // 算一下A堆数据在总数据中占的比例。
+    nB = nB / nX; // 同理，算一下B堆的比例。
+    mu = nA*mu + nB*muB; // 利用这些比例和各自的平均值，算出总的平均值。
+    sigma2 = sigma2 + sigma2B + delta * delta * nA * nB * nX; // 然后用一点复杂的公式，把方差也算出来，这个公式考虑了两堆数据的方差和它们平均值的差异。
   } else {
-    // 如果新的总数 nX 为 0，表明两组数据都是空的，因此将 mu 和 sigma2 设置为 0。
+    // 如果合并后的总数是0，那就说明两堆数据其实都是空的，所以把平均值和方差都设为0。
     mu = U(0);
     sigma2 = U(0);
   }
 }
 
-// 这段代码定义了一个名为 cuRMSOnlineSum 的 CUDA 设备函数，用于在线计算平方和，
-// 从而可以用来计算均方根（RMS, Root Mean Square）值
+// 这里定义了一个名叫cuRMSOnlineSum的CUDA函数，它的主要任务就是在线实时计算一串数据的平方和。
+// 你可能会问，为什么要算平方和呢？这是因为我们可以用它来算出均方根（RMS, Root Mean Square），
+// 均方根是一种描述数据波动大小的指标，特别常用于信号处理领域。
 template<typename U> __device__
 void cuRMSOnlineSum(
   const U curr,
   U& sigma2)
 {
-  sigma2 = sigma2 + curr * curr;
+  sigma2 = sigma2 + curr * curr; // 每次函数被调用，就把当前值的平方加到累计平方和中。
 }
 
-// 这段代码定义了一个名为 cuChanRMSOnlineSum 的 CUDA 设备函数，用于在线计算两个数据集平方和的累加。
-// 这个函数是用于合并两个独立数据集的均方根（RMS, Root Mean Square）计算的一部分。
+// 又定义了一个名叫cuChanRMSOnlineSum的CUDA函数，这个家伙的工作就是帮你算两组数据的平方和总和。
+// 当你有两组数据，想要快速合并它们的均方根（RMS）时，这个函数就能派上用场。
+// 它其实是均方根计算过程中的一个环节，用于处理两个独立数据集的情况。
 template<typename U> __device__
 void cuChanRMSOnlineSum(
   const U sigma2B,
   U& sigma2)
 {
-  sigma2 = sigma2 + sigma2B;
+  sigma2 = sigma2 + sigma2B; // 这里就简单直接了，把第二组数据的平方和加到当前的累计值上。
 }
+
 
 // cuWelfordMuSigma2 函数是一个用于 CUDA 设备的函数，专门设计来计算张量某一维度上的均值（mu）和方差（sigma2）。
 // 它采用 Welford 方法进行计算以保证数值稳定性，并可选择只计算均方根（RMS）。
@@ -359,54 +365,62 @@ void cuWelfordMuSigma2(
   }
 }
 
-// 计算倒数平方根
+// 这个函数用来计算一个数的倒数平方根。所谓倒数平方根，就是先算出这个数的平方根，然后再取其倒数。
+// 举个例子，如果输入4，平方根是2，倒数平方根就是1/2，也就是0.5。
 template<typename U> U rsqrt(U v) {
-  return U(1) / sqrt(v);
-}
-// 针对float参数的特化版本，使用了标准库函数
-template<> float rsqrt(float v) {
-  return rsqrtf(v);
-}
-template<> double rsqrt(double v) {
-  return rsqrt(v);
+  return U(1) / sqrt(v); // 这里直接用1除以v的平方根，很简单明了。
 }
 
-//  这段代码定义了一个名为 SharedMemory 的模板结构体，它用于在 CUDA 设备函数中访问共享内存。
-// 共享内存是 CUDA 编程中的一种高效的内存类型，通常用于在一个 CUDA 块中的不同线程之间共享数据。
-// 代码包含了 SharedMemory 结构体的特化版本，专门用于 float 和 double 类型。
+// 下面两个是这个函数的特化版本，针对float和double类型的数据。
+// 当输入类型是float时，我们用标准库里的rsqrtf函数来提高精度和效率。
+template<> float rsqrt(float v) {
+  return rsqrtf(v); // 直接调用C标准库函数，专门处理float类型。
+}
+
+// 同理，对于double类型的数据，我们也提供了一个特化版本。
+// 但这里有个小错误，应该调用标准库的rsqrt函数，而不是递归地调用自己。
+// 这里可以改成 1.0 / sqrt(v)
+template<> double rsqrt(double v) {
+  return rsqrt(v); // 这里应该调用专门处理double类型的函数，不过现在写的有点问题。
+}
+
+// 这段代码定义了一个叫做SharedMemory的模板结构体，专门用在CUDA设备函数里来访问所谓的“共享内存”。
+// 在CUDA编程里，共享内存是一种特别高效的内存类型，非常适合用来在CUDA的一个块（block）内的不同线程间共享数据。
+// 这里还包括了针对float和double类型数据的SharedMemory结构体的特化版本。
+
 namespace {
-// This is the un-specialized struct.  Note that we prevent instantiation of this
-// struct by putting an undefined symbol in the function body so it won't compile.
-//  template <typename T>
-//  struct SharedMemory
-//  {
-//      // Ensure that we won't compile any un-specialized types
-//      __device__ T *getPointer()
-//      {
-//          extern __device__ void error(void);
-//          error();
-//          return NULL;
-//      }
-//  };
-// https://github.com/NVIDIA/apex/issues/246
+// 这是通用的SharedMemory结构体模板。注意，我们通过在函数体内使用一个未定义的符号来阻止这个结构体被实例化，
+// 这样如果尝试用未特化的类型来编译这个结构体，编译器就会报错。
+// template <typename T>
+// struct SharedMemory
+// {
+//     // 确保我们不会编译任何未特化的类型
+//     __device__ T *getPointer()
+//     {
+//         extern __device__ void error(void);
+//         error();
+//         return NULL;
+//     }
+// };
+
 template <typename T>
 struct SharedMemory;
 
-// 这是 SharedMemory 结构体针对 float 类型的特化版本。
+// 这是SharedMemory结构体针对float类型的特化版本。
 template <>
 struct SharedMemory <float>
 {
-    // 这个函数返回一个指向共享内存的 float 类型指针。
+    // 这个函数返回一个指向共享内存的float类型指针。
     __device__ float *getPointer()
     { 
-        // 这里声明了一个外部的共享内存数组 s_float，用于存储 float 类型的数据。
-        // extern 和 __shared__ 关键字指出这个数组是在共享内存中定义的。
+        // 这里声明了一个名为s_float的外部共享内存数组，用于存储float类型的数据。
+        // extern和__shared__关键字表明这个数组是在共享内存中定义的。
         extern __shared__ float s_float[];
         return s_float;
     }
 };
 
-// 类似上面做了一个double类型的特化
+// 下面是针对double类型的特化版本，工作方式和float版本相似。
 template <>
 struct SharedMemory <double>
 {
@@ -418,12 +432,14 @@ struct SharedMemory <double>
 };
 }
 
-// 这段代码定义了一个名为 cuApplyLayerNorm_ 的 CUDA 设备函数，用于计算LayerNorm（Layer Normalization）。
-// 定义了三种类型的模板参数。T 是输入值的类型，U 是中间计算（如均值和方差）的类型，而 V 是输出值的类型。
-// output_vals, mean, invvar, vals, gamma, beta 是指向不同数据的指针。
-// 在 LayerNorm 中，通常将一个张量分为两部分：一部分进行标准化处理，另一部分则不受影响。n1 和 n2 分别代表这两部分的大小。
-// 例如，如果你有一个形状为 [batch_size, channels, height, width] 的 4D 张量，并且你只想对最后两个维度进行 LayerNorm，
-// 那么 n1 将是 batch_size * channels，而 n2 则是 height * width。
+
+// 这段代码里，我们定义了一个CUDA设备函数叫做cuApplyLayerNorm_，它的主要任务是执行LayerNorm（层归一化）。
+// 层归一化是深度学习中的一个技巧，用来让每一层的输出更加标准化，有助于模型训练。
+// 我们定义了三种模板参数：T是输入数据类型，U是中间计算（比如均值和方差）的类型，V是输出数据类型。
+// output_vals, mean, invvar, vals, gamma, beta 这些都是指向不同数据的指针。
+// 在层归一化中，我们通常把一个多维数据（张量）分为两部分：一部分用来做标准化，另一部分保持原样。
+// 比如，如果你有一个 [batch_size, channels, height, width] 形状的4D张量，
+// 而你只想对最后两个维度进行层归一化，那么n1是batch_size * channels，n2是height * width。
 template<typename T, typename U, typename V> __device__
 void cuApplyLayerNorm_(
   V* __restrict__ output_vals,
@@ -438,47 +454,51 @@ void cuApplyLayerNorm_(
   bool rms_only
   )
 {
-  // Assumptions:
-  // 1) blockDim.x == warpSize
-  // 2) Tensors are contiguous
+  // 基本假设：
+  // 1) blockDim.x 是 warp 的大小（这是一个CUDA的技术细节）。
+  // 2) 输入的张量数据在内存中是连续的。
   //
-  // 这段代码遍历 n1 维度，每次处理一个索引 i1。
-  // 它假设每个 CUDA 块的线程维度 x 等于 warp 的大小，且张量在内存中是连续的。
-  // 一个线程可能处理很多行，所以这里的step取gridDim.y
+  // 这段代码遍历n1维度，每次处理一个i1索引。
+  // 假设每个CUDA线程块的x维度等于warp大小，确保数据处理是高效的。
+  // 这里一个线程可能要处理多行，所以我们用gridDim.y来控制步长。（因为gridDim.x=1）
   for (auto i1=blockIdx.y; i1 < n1; i1 += gridDim.y) {
     SharedMemory<U> shared;
     U* buf = shared.getPointer(); // 创建一个 SharedMemory 实例用于处理类型 U 的数据。
-    U mu,sigma2; // 获取指向共享内存的指针。
+    U mu,sigma2; // 这里mu和sigma2分别代表均值和方差，我们接下来要计算它们。
     // 调用 cuWelfordMuSigma2 函数计算给定索引 i1 处的均值（mu）和方差（sigma2）。
     cuWelfordMuSigma2(vals,n1,n2,i1,mu,sigma2,buf,rms_only);
 
     // 定位到当前 i1 索引处的输入和输出的起始位置。
     const T* lvals = vals + i1*n2;
     V* ovals = output_vals + i1*n2;
-    // 计算逆方差 c_invvar。
+    // 计算逆方差 c_invvar，这是层归一化中一个关键的步骤。
     U c_invvar = rsqrt(sigma2 + epsilon);
     // 计算每个 CUDA 块的线程总数 (numx) 和当前线程的一维索引 (thrx)。
     const int numx = blockDim.x * blockDim.y;
     const int thrx = threadIdx.x + threadIdx.y * blockDim.x;
-    // 如果提供了 gamma 和 beta 或者只计算 RMS，按照一定的规则应用它们来计算输出。
+    // 如果提供了gamma和beta参数，或者我们只是在做RMS计算，我们会用一种特别的方式来计算输出值。
     if (gamma != NULL && (beta != NULL || rms_only)) {
       for (int i = thrx;  i < n2;  i+=numx) {
         U curr = static_cast<U>(lvals[i]);
         if (!rms_only) {
+          // 标准化当前值，然后用gamma和beta进行调整。
           ovals[i] = gamma[i] * static_cast<V>(c_invvar * (curr - mu)) + beta[i];
         } else {
+          // // 如果是RMS模式，我们稍微简化计算过程。
           ovals[i] = gamma[i] * static_cast<V>(c_invvar * curr);
         }
 
       }
     } 
-    // 否则，直接根据计算的均值和逆方差计算归一化值。
+    // 否则，如果没有提供gamma和beta，我们就直接用计算出的均值和逆方差来进行标准化。
     else {
       for (int i = thrx;  i < n2;  i+=numx) {
         U curr = static_cast<U>(lvals[i]);
         if (!rms_only) {
+        	 // 直接进行标准化计算。
           ovals[i] = static_cast<V>(c_invvar * (curr - mu));
         } else {
+          // // RMS模式下的简化计算。
           ovals[i] = static_cast<V>(c_invvar * curr);
         }
       }
