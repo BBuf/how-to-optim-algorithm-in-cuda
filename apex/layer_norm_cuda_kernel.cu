@@ -86,15 +86,15 @@ void cuChanRMSOnlineSum(
 }
 
 
-// cuWelfordMuSigma2 函数是一个用于 CUDA 设备的函数，专门设计来计算张量某一维度上的均值（mu）和方差（sigma2）。
-// 它采用 Welford 方法进行计算以保证数值稳定性，并可选择只计算均方根（RMS）。
-// template<typename T, typename U>: 模板参数，用于不同数据类型的张量值（T）和计算过程（U）。
-// const T* __restrict__ vals: 指向张量值的指针。
-// const int n1, n2: 张量的维度。n1 是进行计算的维度大小，n2 是被缩减的维度大小。
-// const int i1: 在 n1 维度上当前处理的特定索引。
-// U& mu, sigma2: 将被计算的均值和方差的引用。
-// U* buf: 指向共享内存缓冲区的指针，用于线程间通信。
-// bool rms_only: 标志，指示是否只计算 RMS（true）或均值和方差（false）。
+// `cuWelfordMuSigma2` 是一个CUDA设备函数，旨在高效计算张量某一特定维度上的均值（mu）和方差（sigma2）。
+// 它基于Welford算法实现，以提高数值稳定性。此外，该函数支持仅计算均方根（RMS）作为一种操作模式。
+// 模板参数 <typename T, typename U>: 定义了处理张量值（T）和执行计算（U）时使用的数据类型。
+// const T* __restrict__ vals: 指向张量数据的指针。
+// const int n1, n2: 指定张量的维度，其中n1是参与计算的维度的大小，n2是被约减的维度的大小。
+// const int i1: 当前正在处理的n1维度上的特定索引。
+// U& mu, sigma2: 用于存储计算得出的均值和方差。
+// U* buf: 指向用于线程间通讯的共享内存缓冲区的指针。
+// bool rms_only: 一个标志，用于指示是否仅计算RMS（为true时）或同时计算均值和方差（为false时）。
 template<typename T, typename U> __device__
 void cuWelfordMuSigma2(
   const T* __restrict__ vals,
@@ -107,28 +107,27 @@ void cuWelfordMuSigma2(
   bool rms_only)
 {
   // 前提条件:
-  // 1) blockDim.x == warpSize
-  // 2) Tensor is contiguous
-  // 3) 2*blockDim.y*sizeof(U)+blockDim.y*sizeof(int) shared memory available.
+  // 1) blockDim.x 等于 warp 的大小。
+  // 2) 输入的张量在内存中连续存储。
+  // 3) 有足够的共享内存可用，大小为 2*blockDim.y*sizeof(U) + blockDim.y*sizeof(int)。
   //
-  // compute variance and mean over n2
+  // 在 n2 维度上计算方差和均值。
   // 初始化 count, mu, 和 sigma2 为零。
   U count = U(0);
   mu= U(0);
   sigma2 = U(0);
-  // 这个条件判断确保当前线程处理的 i1 索引在张量的有效范围内。
+  // 确保处理的 i1 索引在张量的有效范围内。
   if (i1 < n1) {
-    // one warp normalizes one n1 index,
-    // synchronization is implicit
-    // initialize with standard Welford algorithm
+    // 一个warp处理一个n1索引，同步是隐含的。
+    // 用标准的Welford算法进行初始化。
     const int numx = blockDim.x * blockDim.y; // 计算一个 CUDA 块中的线程总数。
     const int thrx = threadIdx.x + threadIdx.y * blockDim.x; // 计算当前线程在块内的唯一线性索引
     // 将 lvals 指针设置为指向当前处理的 i1 索引处张量的开始位置。
     // vals 是整个张量数据的起始指针，i1*n2 计算出当前索引在张量中的线性位置。
     const T* lvals = vals + i1*n2;
-    // 初始化一个局部变量 l，用于在接下来的循环中遍历张量的元素。这里每个线程会处理多个元素，起始位置是基于线程的索引的。
+    // 用局部变量l遍历张量的元素，每个线程处理多个元素。
     int l = 4*thrx;
-    // 这个循环以步长 4*numx 遍历张量的元素，每个线程处理四个元素（如果有足够的元素）。
+    // 遍历张量的元素，步长为4*numx，每个线程处理四个元素。。
     for (;  l+3 < n2;  l+=4*numx) {
       // 在每次外循环的迭代中，处理四个连续的元素。
       for (int k = 0;  k < 4;  ++k) {
@@ -151,8 +150,7 @@ void cuWelfordMuSigma2(
        cuRMSOnlineSum<U>(curr, sigma2);
       }
     }
-    // intra-warp reductions
-    // 这个循环是用于在同一个 warp 内部进行 reduce 的。
+    // 在同一个warp内进行归约操作。
     for (int l = 0;  l <= 4;  ++l) {
       // 是在 CUDA 设备上进行 warp 内部数据交换的关键部分。
       // 这行代码用于确定在一个 warp（32个线程）内，每个线程应该从哪个“lane”（即其他线程）获取数据。
@@ -756,7 +754,8 @@ void cuComputePartGradGammaBeta(
     // acc1和acc2分别用于累积来自warp_buf1和warp_buf2的值。这些缓冲区包含之前步骤计算的中间结果。
     U acc1 = U(0);
     U acc2 = U(0);
-    // 内部循环对于blockDim.y=4内的每一行进行累加，if (!rms_only)条件检查是否需要执行特定的分支逻辑。
+    // 内部循环对于blockDim.y内的每一行进行累加，if (!rms_only)条件检查是否需要执行特定的分支逻辑。
+    // 需要特别注意，这个累加实际上是在列方向上也就是n2维度，在n2维度上一个线程负责计算blockDim.y列
     for (int k = 0;  k < blockDim.y;  ++k) {
       int row1 = threadIdx.y + k*blockDim.y;
       int idx1 = row1*row_stride + threadIdx.x;
@@ -775,6 +774,7 @@ void cuComputePartGradGammaBeta(
     // sum all warps
     // 这个循环是归约操作的一部分，用于在warp之间求和。
     // offset初始化为blockDim.y/2，每次迭代都减半，这是一种常用的并行归约模式。
+    // 这个也是在n2维度做
     for (int offset = blockDim.y/2;  offset > 1;  offset /= 2) {
       // 在每次迭代中，只有threadIdx.y小于当前offset的线程会参与计算，这样可以避免重复的工作。
       if (threadIdx.y < offset) {
@@ -807,6 +807,8 @@ void cuComputePartGradGammaBeta(
     }
 }
 
+// blockDim.x = n2 / 32, blockDim.y = 1
+// threadDim.x = 32, threadDim.y = 8
 template<typename U, typename V> __global__
 void cuComputeGradGammaBeta(
     const U* part_grad_gamma,
