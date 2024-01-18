@@ -32,6 +32,8 @@
 - [Mixtral-8x7B MoE大模型微调实践，超越Llama2-65B](https://zhuanlan.zhihu.com/p/674028456)
 - [Mixtral-8x7B 模型挖坑](https://zhuanlan.zhihu.com/p/674751021)
 - [Mixture of Experts（MoE）学习笔记](https://zhuanlan.zhihu.com/p/675216281)
+- [群魔乱舞：MoE大模型详解](https://zhuanlan.zhihu.com/p/677638939)
+- [Mixtral 8x7B论文终于来了：架构细节、参数量首次曝光](https://zhuanlan.zhihu.com/p/677108093)
 
 ### 大模型知识介绍
 
@@ -204,6 +206,7 @@
 - [饮鸩止渴？LLM训练要不要过采样/训多个epoch](https://zhuanlan.zhihu.com/p/671634621)
 - [多个大语言微调模型并行推断的潜力](https://zhuanlan.zhihu.com/p/656344166)
 - [剖析GPT推断中的批处理效应](https://zhuanlan.zhihu.com/p/630324993)
+- [RoPE旋转位置编码深度解析：理论推导、代码实现、长度外推](https://zhuanlan.zhihu.com/p/645263524)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -402,6 +405,7 @@
 - [TensorRT-LLM 如何加速推理之 -- Batching](https://zhuanlan.zhihu.com/p/675726439)
 - [[ICML'23] DejaVu：LLM中的动态剪枝](https://zhuanlan.zhihu.com/p/673848224)
 - [笔记：Llama.cpp 代码浅析（一）：并行机制与KVCache](https://zhuanlan.zhihu.com/p/670515231)
+- [LLM推理百倍加速之稀疏篇](https://zhuanlan.zhihu.com/p/677948929)
 
 ### 扩散模型
 - [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
@@ -413,6 +417,8 @@
 - [十分钟读懂Diffusion：图解Diffusion扩散模型](https://zhuanlan.zhihu.com/p/599887666)
 - [Stable Diffusion生图越来越快，TensorRT扩展实现SD秒速生图](https://zhuanlan.zhihu.com/p/668632473)
 - [stable diffusion中Lora的原理和实践](https://zhuanlan.zhihu.com/p/662253917)
+- [深入浅出完整解析Stable Diffusion XL（SDXL）核心基础知识](https://zhuanlan.zhihu.com/p/643420260)
+- [大模型推理加速-Decoding Attention优化](https://zhuanlan.zhihu.com/p/672290443)
 
 ### 大模型服务
 

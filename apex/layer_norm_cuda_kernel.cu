@@ -846,6 +846,7 @@ void cuComputeGradGammaBeta(
         }
       }
       // inter-warp reductions
+      // 在这个LayerNorm的启动参数下，这里的blockDim.y是恒定为1的，所以实际上这个reduce不会工作
       // nbsize3计算了用于存储归约中间结果的共享内存大小。
       const int nbsize3 = blockDim.x * blockDim.y / 2;
       // 外部循环减少归约参与的线程数，每次迭代减半。
