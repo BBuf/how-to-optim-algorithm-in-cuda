@@ -34,6 +34,7 @@
 - [Mixture of Experts（MoE）学习笔记](https://zhuanlan.zhihu.com/p/675216281)
 - [群魔乱舞：MoE大模型详解](https://zhuanlan.zhihu.com/p/677638939)
 - [Mixtral 8x7B论文终于来了：架构细节、参数量首次曝光](https://zhuanlan.zhihu.com/p/677108093)
+- [MoE(Mixture-of-Experts)大模型架构的优势是什么？为什么？](https://www.zhihu.com/question/634844209/answer/3364787819)
 
 ### 大模型知识介绍
 
@@ -207,6 +208,8 @@
 - [多个大语言微调模型并行推断的潜力](https://zhuanlan.zhihu.com/p/656344166)
 - [剖析GPT推断中的批处理效应](https://zhuanlan.zhihu.com/p/630324993)
 - [RoPE旋转位置编码深度解析：理论推导、代码实现、长度外推](https://zhuanlan.zhihu.com/p/645263524)
+- [再论大模型位置编码及其外推性（万字长文）](https://zhuanlan.zhihu.com/p/675243992)
+- [RoPE外推优化——支持192K上下文长度](https://zhuanlan.zhihu.com/p/678755776)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
