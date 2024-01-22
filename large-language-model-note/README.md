@@ -261,6 +261,7 @@
 - [[源码解析] 模型并行分布式训练 Megatron (3) ---模型并行实现 ](https://juejin.cn/post/7062256365636419592)
 - [[源码解析] 模型并行分布式训练 Megatron (4) --- 如何设置各种并行 ](https://juejin.cn/post/7063030243224879140)
 - [[源码解析] 模型并行分布式训练Megatron (5) --Pipedream Flush ](https://juejin.cn/post/7064496967828635655)
+- [模型并行训练：Megatron-LM pipeline并行源码解读](https://zhuanlan.zhihu.com/p/678724323)
 - [Pytorch Distributed Data Parallal](https://fazzie-key.cool/2022/01/23/ddp/)
 - [【分布式训练技术分享五】聊聊 Zero Bubble Pipeline Parallelism](https://zhuanlan.zhihu.com/p/670301574)
 - [大模型参数高效微调技术原理综述（七）-最佳实践、总结](https://zhuanlan.zhihu.com/p/636999010)
@@ -409,6 +410,9 @@
 - [[ICML'23] DejaVu：LLM中的动态剪枝](https://zhuanlan.zhihu.com/p/673848224)
 - [笔记：Llama.cpp 代码浅析（一）：并行机制与KVCache](https://zhuanlan.zhihu.com/p/670515231)
 - [LLM推理百倍加速之稀疏篇](https://zhuanlan.zhihu.com/p/677948929)
+- [vLLM-prefix浅析（System Prompt，大模型推理加速）](https://zhuanlan.zhihu.com/p/678256296)
+- [Text Generation Inference源码解读（一）：架构设计与业务逻辑](https://zhuanlan.zhihu.com/p/672925155)
+- [Text Generation Inference源码解读（二）：模型加载与推理](https://zhuanlan.zhihu.com/p/675292919)
 
 ### 扩散模型
 - [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
