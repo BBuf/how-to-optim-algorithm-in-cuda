@@ -91,7 +91,11 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 收集了和大语言模型原理，训练，推理，数据标注的相关文章。
 
-### 11. 原创学习笔记
+### 11. mlsys-paper
+
+前研的大模型训练相关 AI-Infra 论文收集以及阅读笔记。 
+
+### 12. 原创学习笔记
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
@@ -109,7 +113,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [【BBuf的CUDA笔记】十二，LayerNorm/RMSNorm的重计算实现](https://mp.weixin.qq.com/s/G_XvnB4CeEBWTLNefi0Riw)
 - [【BBuf的CUDA笔记】十三，OpenAI Triton 入门笔记一](https://mp.weixin.qq.com/s/RMR_n1n6nBqpdMl6tdd7pQ)
 
-### 12. 学习资料收集
+### 13. 学习资料收集
 
 #### 专栏
 
