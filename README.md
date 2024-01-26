@@ -112,6 +112,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [【BBuf的CUDA笔记】十一，Linear Attention的cuda kernel实现补档](https://mp.weixin.qq.com/s/qDVKclf_AvpZ5qb2Obf4aA)
 - [【BBuf的CUDA笔记】十二，LayerNorm/RMSNorm的重计算实现](https://mp.weixin.qq.com/s/G_XvnB4CeEBWTLNefi0Riw)
 - [【BBuf的CUDA笔记】十三，OpenAI Triton 入门笔记一](https://mp.weixin.qq.com/s/RMR_n1n6nBqpdMl6tdd7pQ)
+- [AI Infra论文阅读之通过打表得到训练大模型的最佳并行配置](https://mp.weixin.qq.com/s/D-14J482SFQf-zh-EFa-1w)
 
 ### 13. 学习资料收集
 
