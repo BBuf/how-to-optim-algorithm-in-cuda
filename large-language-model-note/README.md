@@ -35,6 +35,7 @@
 - [群魔乱舞：MoE大模型详解](https://zhuanlan.zhihu.com/p/677638939)
 - [Mixtral 8x7B论文终于来了：架构细节、参数量首次曝光](https://zhuanlan.zhihu.com/p/677108093)
 - [MoE(Mixture-of-Experts)大模型架构的优势是什么？为什么？](https://www.zhihu.com/question/634844209/answer/3364787819)
+- [图解大模型训练系列之：DeepSpeed-Megatron MoE并行训练（原理篇](https://zhuanlan.zhihu.com/p/681154742)
 
 ### 大模型知识介绍
 
@@ -210,6 +211,7 @@
 - [RoPE旋转位置编码深度解析：理论推导、代码实现、长度外推](https://zhuanlan.zhihu.com/p/645263524)
 - [再论大模型位置编码及其外推性（万字长文）](https://zhuanlan.zhihu.com/p/675243992)
 - [RoPE外推优化——支持192K上下文长度](https://zhuanlan.zhihu.com/p/678755776)
+- [想研究大模型Alignment，你只需要看懂这几篇paper](https://zhuanlan.zhihu.com/p/681642685)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
