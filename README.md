@@ -95,7 +95,11 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 前研的大模型训练相关 AI-Infra 论文收集以及阅读笔记。 
 
-### 12. 原创学习笔记
+### 12. triton
+
+Triton 学习过程中的代码记录。
+
+### 13. 原创学习笔记
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
@@ -115,7 +119,7 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [AI Infra论文阅读之通过打表得到训练大模型的最佳并行配置](https://mp.weixin.qq.com/s/D-14J482SFQf-zh-EFa-1w)
 - [AI Infra论文阅读之将流水线并行气泡几乎降到零（附基于Meagtron-LM的ZB-H1开源代码实现解读）](https://mp.weixin.qq.com/s/PXjYm9dN8C9B8svMQ7nOvw)
 
-### 13. 学习资料收集
+### 14. 学习资料收集
 
 #### 专栏
 
@@ -247,3 +251,4 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 - [[手把手带你入门CUTLASS系列] 0x00 cutlass基本认知---为什么要用cutlass](https://zhuanlan.zhihu.com/p/677616101)
 - [[手把手带你入门CUTLASS系列] 0x02 cutlass 源码分析(一) --- block swizzle 和 tile iterator (附tvm等价code)](https://zhuanlan.zhihu.com/p/679929705)
 - [GPU 内存概念浅析](https://zhuanlan.zhihu.com/p/651179378)
+- [NV_GPU tensor core 算力/带宽/编程模型分析](https://zhuanlan.zhihu.com/p/638129792)
