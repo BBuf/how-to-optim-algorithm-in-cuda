@@ -267,7 +267,18 @@ def _layer_norm_fwd_1pass_kernel(
         y1 = x_hat * w1 + b1 if HAS_B1 else x_hat * w1
         tl.store(Y1 + cols, y1, mask=mask)
 
-
+# 这段代码定义了一个函数 _layer_norm_fwd，它执行层归一化（Layer Normalization）操作，
+# 并提供了对残差连接、第二路径输入、行缩放、dropout等高级功能的支持。
+# x: 输入张量，是需要进行层归一化的数据。
+# weight, bias: 归一化后的数据要乘以的权重和加上的偏置。
+# eps: 一个很小的数，用于防止除以零，增加数值稳定性。
+# residual: 可选的残差输入，用于实现残差连接。
+# x1, weight1, bias1: 第二路径的输入张量、权重和偏置，允许函数并行处理两个不同的输入。
+# dropout_p: dropout概率，用于在训练过程中随机丢弃一部分神经元，以防止过拟合。
+# rowscale: 行缩放因子，用于对输入数据的每一行进行缩放。
+# out_dtype, residual_dtype: 指定输出和残差的数据类型。
+# is_rms_norm: 布尔标志，指示是否使用RMS归一化。
+# return_dropout_mask: 布尔标志，指示是否返回dropout掩码。
 def _layer_norm_fwd(
     x,
     weight,
@@ -284,39 +295,63 @@ def _layer_norm_fwd(
     is_rms_norm=False,
     return_dropout_mask=False,
 ):
+    # 如果提供了残差输入residual，函数会记录其数据类型到residual_dtype变量。这对于确保输出和残差的数据类型一致性很重要。
     if residual is not None:
         residual_dtype = residual.dtype
+    # 通过x.shape获取输入张量x的形状，其中M是批次大小或行数，N是特征数量或列数。
     M, N = x.shape
+    # 通过assert x.stride(-1) == 1确保输入张量x在最内层维度（即列维度）的内存布局是连续的。
     assert x.stride(-1) == 1
+    # 如果提供了残差输入，执行以下检查：
     if residual is not None:
+        # 确保残差输入在最后一个维度上的步长为1，这意味着它在内存中是连续的。
         assert residual.stride(-1) == 1
+        # 确保残差输入的形状与主输入x相匹配，这是为了确保可以直接在残差和主输入之间进行元素级操作。
         assert residual.shape == (M, N)
+    # 确保权重向量的形状正确，即长度为N，与输入x的特征数量相匹配。
     assert weight.shape == (N,)
+    # 确保权重向量在内存中是连续的。
     assert weight.stride(-1) == 1
+    # 对于偏置bias，如果它被提供了，进行类似的检查。
     if bias is not None:
         assert bias.stride(-1) == 1
         assert bias.shape == (N,)
+    # 如果提供了第二路径的输入，执行以下检查：
     if x1 is not None:
+        # 确保第二输入x1的形状与主输入x相同。
         assert x1.shape == x.shape
+        # 当存在第二输入时，不支持行缩放，因此rowscale应为None。
         assert rowscale is None
+        # 确保x1在最后一个维度上的步长为1。
         assert x1.stride(-1) == 1
+    # 对于第二组权重weight1和偏置bias1，如果它们被提供了，进行与第一组相同的形状和内存连续性检查。
     if weight1 is not None:
         assert weight1.shape == (N,)
         assert weight1.stride(-1) == 1
     if bias1 is not None:
         assert bias1.shape == (N,)
         assert bias1.stride(-1) == 1
+    # 如果提供了行缩放向量，执行以下检查：
     if rowscale is not None:
+        # 确保行缩放向量在内存中是连续的。
         assert rowscale.is_contiguous()
+        # 确保行缩放向量的长度与输入x的行数M相匹配。
         assert rowscale.shape == (M,)
     # allocate output
+    # 根据输入x的形状和类型（或指定的out_dtype）分配输出张量y。
     y = torch.empty_like(x, dtype=x.dtype if out_dtype is None else out_dtype)
     assert y.stride(-1) == 1
+    # 如果提供了第二组权重，则同样分配第二输出张量y1。
     if weight1 is not None:
         y1 = torch.empty_like(y)
         assert y1.stride(-1) == 1
     else:
         y1 = None
+    # 如果满足以下任一条件，分配残差输出张量residual_out：
+    # 提供了残差输入。
+    # 指定的残差数据类型与输入x的数据类型不同。
+    # 指定了dropout概率大于0。
+    # 提供了行缩放向量或第二输入路径。
     if (
         residual is not None
         or (residual_dtype is not None and residual_dtype != x.dtype)
@@ -324,30 +359,43 @@ def _layer_norm_fwd(
         or rowscale is not None
         or x1 is not None
     ):
+        # residual_out 的形状为(M, N)，类型为指定的residual_dtype或输入x的类型。
         residual_out = torch.empty(
             M, N, device=x.device, dtype=residual_dtype if residual_dtype is not None else x.dtype
         )
         assert residual_out.stride(-1) == 1
     else:
         residual_out = None
+    # mean和rstd张量被创建用于存储每个样本的均值和反标准差。
+    # 如果不是RMS归一化（is_rms_norm为False），则mean被分配内存；否则，mean设置为None。
     mean = torch.empty((M,), dtype=torch.float32, device=x.device) if not is_rms_norm else None
     rstd = torch.empty((M,), dtype=torch.float32, device=x.device)
+    # 如果指定了dropout概率（dropout_p > 0.0），则生成一个随机种子张量seeds。
+    # 如果存在第二输入x1，种子张量的大小会加倍（2 * M），以支持两个输入路径。
     if dropout_p > 0.0:
         seeds = torch.randint(
             2**32, (M if x1 is None else 2 * M,), device=x.device, dtype=torch.int64
         )
     else:
         seeds = None
+    # 如果需要返回dropout掩码（return_dropout_mask为True），并且dropout概率大于0，
+    # 则创建dropout_mask张量，其形状取决于是否存在第二输入路径x1。
     if return_dropout_mask and dropout_p > 0.0:
         dropout_mask = torch.empty(M if x1 is None else 2 * M, N, device=x.device, dtype=torch.bool)
     else:
         dropout_mask = None
     # Less than 64KB per feature: enqueue fused kernel
+    # MAX_FUSED_SIZE定义了每个特征可以使用的最大内存大小。BLOCK_N是选择的用于操作的列数的最小2的幂，
+    # 且不超过MAX_FUSED_SIZE定义的限制。如果N超过了BLOCK_N，则抛出运行时错误，表示特征维度超出了支持的最大值。
     MAX_FUSED_SIZE = 65536 // x.element_size()
     BLOCK_N = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
     if N > BLOCK_N:
         raise RuntimeError("This layer norm doesn't support feature dim >= 64KB.")
+    # 确保操作在正确的CUDA设备上执行。
     with torch.cuda.device(x.device.index):
+        # _layer_norm_fwd_1pass_kernel内核函数被调用，
+        # 传入了所有必要的参数，包括输入、输出、权重、偏置、残差、随机种子和dropout掩码等。
+        # kernel函数的调用采用了Triton的语法，[(M,)]表示program实例个数，即并行执行的分组数量。
         _layer_norm_fwd_1pass_kernel[(M,)](
             x,
             y,
@@ -384,10 +432,16 @@ def _layer_norm_fwd(
             rowscale is not None,
         )
     # residual_out is None if residual is None and residual_dtype == input_dtype and dropout_p == 0.0
+    # 如果dropout_mask不为None且存在第二输入路径x1，则dropout_mask会被分为两部分，分别用于两个输入路径。
     if dropout_mask is not None and x1 is not None:
         dropout_mask, dropout_mask1 = dropout_mask.tensor_split(2, dim=0)
     else:
         dropout_mask1 = None
+    # y和y1：第一和第二路径的归一化、线性变换后的输出。
+    # mean和rstd：计算得到的均值和反标准差（如果进行了这些计算）。
+    # residual_out：如果有残差输出则返回，否则返回原始输入x。
+    # seeds：用于dropout的随机种子。
+    # dropout_mask和dropout_mask1：应用于第一和第二路径的dropout掩码（如果有）。
     return (
         y,
         y1,
