@@ -90,6 +90,8 @@ def layer_norm_ref(
         ).to(dtype)
         return (out, out1) if not prenorm else (out, out1, x)
 
+# @triton.autotune：自动调整装饰器，用于自动找到最佳配置（如num_warps）以优化性能。
+# 这里配置了多个候选的配置，每个配置指定了不同数量的num_warps。
 @triton.autotune(
     configs=[
         triton.Config({}, num_warps=1),
@@ -101,12 +103,26 @@ def layer_norm_ref(
     ],
     key=["N", "HAS_RESIDUAL", "STORE_RESIDUAL_OUT", "IS_RMS_NORM", "HAS_BIAS"],
 )
+# @triton.heuristics：启发式装饰器，用于根据输入参数动态调整 kernel 的行为。例如，如果B（偏置）不为None，则HAS_BIAS为真。
 # @triton.heuristics({"HAS_BIAS": lambda args: args["B"] is not None})
 # @triton.heuristics({"HAS_RESIDUAL": lambda args: args["RESIDUAL"] is not None})
 @triton.heuristics({"HAS_X1": lambda args: args["X1"] is not None})
 @triton.heuristics({"HAS_W1": lambda args: args["W1"] is not None})
 @triton.heuristics({"HAS_B1": lambda args: args["B1"] is not None})
 @triton.jit
+# 输入参数解释
+# X, Y：输入和输出的指针。
+# W, B：权重和偏置的指针。
+# RESIDUAL, X1, W1, B1, Y1：分别指向残差、第二输入、第二权重、第二偏置和第二输出的指针。
+# RESIDUAL_OUT：指向用于存储输出残差的指针。
+# ROWSCALE：行缩放因子的指针。
+# SEEDS, DROPOUT_MASK：用于dropout的种子和掩码指针。
+# Mean, Rstd：指向均值和标准差倒数的指针。
+# stride_x_row等：指示如何在内存中移动以访问不同数据行的步长。其它几个变量类似。
+# M, N：X的行数和列数。
+# eps：用于数值稳定性的小常数。
+# dropout_p：dropout概率。
+# IS_RMS_NORM等：编译时常量，指示是否执行特定操作或使用特定数据。
 def _layer_norm_fwd_1pass_kernel(
     X,  # pointer to the input
     Y,  # pointer to the output
@@ -146,9 +162,13 @@ def _layer_norm_fwd_1pass_kernel(
     HAS_B1: tl.constexpr,
 ):
     # Map the program id to the row of X and Y it should compute.
+    # 获取当前程序实例（program ID）负责处理的行号。
     row = tl.program_id(0)
+    # 调整输入X的指针，使其指向当前行
     X += row * stride_x_row
+    # 调整输出Y的指针，使其指向当前行。
     Y += row * stride_y_row
+    # 条件性地调整其它指针（如RESIDUAL, X1, Y1等），以处理残差、第二输入路径等。
     if HAS_RESIDUAL:
         RESIDUAL += row * stride_res_row
     if STORE_RESIDUAL_OUT:
@@ -158,23 +178,35 @@ def _layer_norm_fwd_1pass_kernel(
     if HAS_W1:
         Y1 += row * stride_y1_row
     # Compute mean and variance
+    # 生成一个从0到BLOCK_N的列索引数组。
     cols = tl.arange(0, BLOCK_N)
+    # 从X加载当前行的元素，超出列数N的部分用0填充。
     x = tl.load(X + cols, mask=cols < N, other=0.0).to(tl.float32)
+    # 如果启用了行缩放（HAS_ROWSCALE），则对加载的x进行行缩放。
     if HAS_ROWSCALE:
         rowscale = tl.load(ROWSCALE + row).to(tl.float32)
         x *= rowscale
+    # 如果启用了dropout（HAS_DROPOUT），则计算dropout掩码并应用于x，并根据条件存储dropout掩码。
     if HAS_DROPOUT:
         # Compute dropout mask
         # 7 rounds is good enough, and reduces register pressure
+        # 使用7轮随机生成操作（减少寄存器压力）生成dropout掩码。tl.rand根据给定的种子为每个元素生成随机值，
+        # 如果这个值大于dropout概率dropout_p，则该元素保持，否则为0。
         keep_mask = tl.rand(tl.load(SEEDS + row).to(tl.uint32), cols, n_rounds=7) > dropout_p
+        # 应用dropout掩码到输入x，未被dropout的元素按(1.0 - dropout_p)进行缩放，以保持其总体期望值。
         x = tl.where(keep_mask, x / (1.0 - dropout_p), 0.0)
+        # 如果需要，将计算出的dropout掩码存储起来。
         if STORE_DROPOUT_MASK:
             tl.store(DROPOUT_MASK + row * N + cols, keep_mask, mask=cols < N)
+    #  检查是否存在第二输入路径。
     if HAS_X1:
+        # 加载第二输入路径X1的元素。
         x1 = tl.load(X1 + cols, mask=cols < N, other=0.0).to(tl.float32)
+        # 如果启用行缩放，应用行缩放因子rowscale到x1。
         if HAS_ROWSCALE:
             rowscale = tl.load(ROWSCALE + M + row).to(tl.float32)
             x1 *= rowscale
+        # 对x1应用dropout处理，逻辑与x相同。
         if HAS_DROPOUT:
             # Compute dropout mask
             # 7 rounds is good enough, and reduces register pressure
@@ -184,31 +216,50 @@ def _layer_norm_fwd_1pass_kernel(
             x1 = tl.where(keep_mask, x1 / (1.0 - dropout_p), 0.0)
             if STORE_DROPOUT_MASK:
                 tl.store(DROPOUT_MASK + (M + row) * N + cols, keep_mask, mask=cols < N)
+        # 将处理后的x1加到x上。
         x += x1
+    # 如果存在残差输入，将其加到x上。
     if HAS_RESIDUAL:
         residual = tl.load(RESIDUAL + cols, mask=cols < N, other=0.0).to(tl.float32)
         x += residual
+    # 如果需要，将x（可能包括加上了x1和残差后的值）存储为残差输出。
     if STORE_RESIDUAL_OUT:
         tl.store(RESIDUAL_OUT + cols, x, mask=cols < N)
+    # 如果不使用RMS归一化，则按照常规方法计算均值mean和方差var。
     if not IS_RMS_NORM:
+        # 计算x的均值。
         mean = tl.sum(x, axis=0) / N
+        # 将计算出的均值mean存储起来。
         tl.store(Mean + row, mean)
+        # 计算中心化后的x（即xbar）。
         xbar = tl.where(cols < N, x - mean, 0.0)
+        # 计算x的方差。
         var = tl.sum(xbar * xbar, axis=0) / N
     else:
+        # 如果使用RMS归一化，方差的计算略有不同，不从x中减去均值。
         xbar = tl.where(cols < N, x, 0.0)
         var = tl.sum(xbar * xbar, axis=0) / N
+    # 计算反标准差rstd，eps用于数值稳定性。
     rstd = 1 / tl.sqrt(var + eps)
+    # 将计算出的反标准差rstd存储起来。
     tl.store(Rstd + row, rstd)
     # Normalize and apply linear transformation
+    # 创建一个布尔掩码，用于标识哪些列索引在输入X的有效范围内。这确保只有有效的数据被处理，避免越界访问。
     mask = cols < N
+    # 以浮点32位格式加载权重W。通过应用掩码mask，仅加载每行有效列的权重。
     w = tl.load(W + cols, mask=mask).to(tl.float32)
+    # 如果HAS_BIAS为真，表明存在偏置项，同样以浮点32位格式加载偏置B。
     if HAS_BIAS:
         b = tl.load(B + cols, mask=mask).to(tl.float32)
+    # 计算归一化后的数据x_hat。如果不是进行RMS归一化（即正常层归一化），
+    # 则从x中减去均值mean后乘以反标准差rstd。如果是RMS归一化，直接将x乘以rstd。
     x_hat = (x - mean) * rstd if not IS_RMS_NORM else x * rstd
+    # 将归一化后的数据x_hat乘以权重w，如果存在偏置b，则加上偏置。这完成了对每个元素的线性变换。
     y = x_hat * w + b if HAS_BIAS else x_hat * w
     # Write output
+    # 将线性变换后的结果y存储到输出张量Y的相应位置。通过使用掩码mask，确保只有有效数据被写入。
     tl.store(Y + cols, y, mask=mask)
+    # 处理第二路径（如果存在）:
     if HAS_W1:
         w1 = tl.load(W1 + cols, mask=mask).to(tl.float32)
         if HAS_B1:
