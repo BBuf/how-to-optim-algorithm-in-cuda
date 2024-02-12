@@ -251,7 +251,7 @@ def _layer_norm_fwd_1pass_kernel(
     # 如果HAS_BIAS为真，表明存在偏置项，同样以浮点32位格式加载偏置B。
     if HAS_BIAS:
         b = tl.load(B + cols, mask=mask).to(tl.float32)
-    # 计算归一化后的数据x_hat。如果不是进行RMS归一化（即正常层归一化），
+    # 计算归一化后的数据x_hat。如果不是进行RMS归一化（即正常LayerNorm），
     # 则从x中减去均值mean后乘以反标准差rstd。如果是RMS归一化，直接将x乘以rstd。
     x_hat = (x - mean) * rstd if not IS_RMS_NORM else x * rstd
     # 将归一化后的数据x_hat乘以权重w，如果存在偏置b，则加上偏置。这完成了对每个元素的线性变换。
@@ -267,9 +267,9 @@ def _layer_norm_fwd_1pass_kernel(
         y1 = x_hat * w1 + b1 if HAS_B1 else x_hat * w1
         tl.store(Y1 + cols, y1, mask=mask)
 
-# 这段代码定义了一个函数 _layer_norm_fwd，它执行层归一化（Layer Normalization）操作，
+# 这段代码定义了一个函数 _layer_norm_fwd，它执行LayerNorm（Layer Normalization）操作，
 # 并提供了对残差连接、第二路径输入、行缩放、dropout等高级功能的支持。
-# x: 输入张量，是需要进行层归一化的数据。
+# x: 输入张量，是需要进行LayerNorm的数据。
 # weight, bias: 归一化后的数据要乘以的权重和加上的偏置。
 # eps: 一个很小的数，用于防止除以零，增加数值稳定性。
 # residual: 可选的残差输入，用于实现残差连接。
@@ -393,7 +393,7 @@ def _layer_norm_fwd(
         raise RuntimeError("This layer norm doesn't support feature dim >= 64KB.")
     # 确保操作在正确的CUDA设备上执行。
     with torch.cuda.device(x.device.index):
-        # _layer_norm_fwd_1pass_kernel内核函数被调用，
+        # _layer_norm_fwd_1pass_kernelkernel函数被调用，
         # 传入了所有必要的参数，包括输入、输出、权重、偏置、残差、随机种子和dropout掩码等。
         # kernel函数的调用采用了Triton的语法，[(M,)]表示program实例个数，即并行执行的分组数量。
         _layer_norm_fwd_1pass_kernel[(M,)](
@@ -454,6 +454,8 @@ def _layer_norm_fwd(
     )
 
 
+# 这段代码定义了一个用于执行 LayerNorm 的反向传播（backward pass）操作的 Triton kernel函数 _layer_norm_bwd_kernel。
+# @triton.autotune: 该装饰器用于自动寻找最佳的执行配置，如num_warps（每个program 实例中的并行线程束数量）。
 @triton.autotune(
     configs=[
         triton.Config({}, num_warps=1),
@@ -468,12 +470,26 @@ def _layer_norm_fwd(
 # @triton.heuristics({"HAS_BIAS": lambda args: args["B"] is not None})
 # @triton.heuristics({"HAS_DRESIDUAL": lambda args: args["DRESIDUAL"] is not None})
 # @triton.heuristics({"STORE_DRESIDUAL": lambda args: args["DRESIDUAL_IN"] is not None})
+# 启发式装饰器根据输入参数的特定条件动态调整kernel的行为。例如，HAS_BIAS通过检查B是否为None来决定是否存在偏置项。
 @triton.heuristics({"HAS_ROWSCALE": lambda args: args["ROWSCALE"] is not None})
 @triton.heuristics({"HAS_DY1": lambda args: args["DY1"] is not None})
 @triton.heuristics({"HAS_DX1": lambda args: args["DX1"] is not None})
 @triton.heuristics({"HAS_B1": lambda args: args["DB1"] is not None})
 @triton.heuristics({"RECOMPUTE_OUTPUT": lambda args: args["Y"] is not None})
 @triton.jit
+# 输入X、权重W、偏置B，以及需要重计算的输出Y。
+# DY: 输出梯度的指针。
+# DX, DW, DB: 分别指向输入梯度、权重梯度和偏置梯度的指针。
+# DRESIDUAL, W1, DY1, DX1, DW1, DB1, DRESIDUAL_IN: 支持第二路径和残差梯度的额外参数。
+# ROWSCALE: 行缩放因子的指针
+# SEEDS: Dropout种子。
+# Mean, Rstd: 分别指向均值和反标准差的指针。
+# stride_x_row等: 指定当从一行移动到下一行时，指针应该增加的距离。
+# M, N: 输入张量的行数和列数。
+# eps: 用于数值稳定性的小常数。
+# dropout_p: Dropout概率。
+# rows_per_program: 每个program应处理的行数。
+# IS_RMS_NORM等: 编译时常量，控制kernel行为的标志。
 def _layer_norm_bwd_kernel(
     X,  # pointer to the input
     W,  # pointer to the weights
@@ -520,11 +536,16 @@ def _layer_norm_bwd_kernel(
     RECOMPUTE_OUTPUT: tl.constexpr,
 ):
     # Map the program id to the elements of X, DX, and DY it should compute.
+    # 获取当前kernel 实例的program ID，用于确定处理的数据。
     row_block_id = tl.program_id(0)
+    # 计算当前 kernel 开始处理的行号。
+    # rows_per_program是每个线程块负责处理的行数，这允许将数据划分成多个小块并行处理。
     row_start = row_block_id * rows_per_program
     # Do not early exit if row_start >= M, because we need to write DW and DB
     cols = tl.arange(0, BLOCK_N)
     mask = cols < N
+    # 这些行通过增加指针位置来实现，stride_x_row等变量表示在内存中
+    # 跳过一个数据行需要跳过的元素数量，确保每个线程块正确地访问到它应该处理的数据行。
     X += row_start * stride_x_row
     if HAS_DRESIDUAL:
         DRESIDUAL += row_start * stride_dres_row
@@ -538,57 +559,78 @@ def _layer_norm_bwd_kernel(
         DX1 += row_start * stride_dx1_row
     if RECOMPUTE_OUTPUT:
         Y += row_start * stride_y_row
+    # 加载权重W，mask确保只加载有效的列数据，超出N范围的列将不被加载。
     w = tl.load(W + cols, mask=mask).to(tl.float32)
+    # 如果需要重计算输出并且有偏置（HAS_BIAS），则同样加载偏置B。
     if RECOMPUTE_OUTPUT and HAS_BIAS:
         b = tl.load(B + cols, mask=mask, other=0.0).to(tl.float32)
+    # 检查是否存在第二组输出梯度DY1。如果存在，意味着需要处理第二路径的权重W1。
     if HAS_DY1:
+        # 在这种情况下，加载第二组权重W1，使用与加载第一组权重W相同的列索引和掩码。
         w1 = tl.load(W1 + cols, mask=mask).to(tl.float32)
+    # 初始化权重梯度 dw 为零。这将用于累积当前 线程块 负责的所有行对权重的梯度。
     dw = tl.zeros((BLOCK_N,), dtype=tl.float32)
+    # 如果存在偏置项，也初始化对应的偏置梯度 db 为零。
     if HAS_BIAS:
         db = tl.zeros((BLOCK_N,), dtype=tl.float32)
     if HAS_DY1:
         dw1 = tl.zeros((BLOCK_N,), dtype=tl.float32)
         if HAS_B1:
             db1 = tl.zeros((BLOCK_N,), dtype=tl.float32)
+    # 计算当前线程块的结束行。这是为了确保在处理数据的最后一个块时，不会超出总行数M。
     row_end = min((row_block_id + 1) * rows_per_program, M)
     for row in range(row_start, row_end):
         # Load data to SRAM
+        # x和dy分别加载当前行的输入X和输出梯度DY，如果存在第二输出梯度DY1，也加载dy1。
         x = tl.load(X + cols, mask=mask, other=0).to(tl.float32)
         dy = tl.load(DY + cols, mask=mask, other=0).to(tl.float32)
         if HAS_DY1:
             dy1 = tl.load(DY1 + cols, mask=mask, other=0).to(tl.float32)
+        # mean和rstd根据是否使用RMS归一化加载均值和反标准差。
         if not IS_RMS_NORM:
             mean = tl.load(Mean + row)
         rstd = tl.load(Rstd + row)
         # Compute dx
+        # xhat计算归一化后的输入，根据是否使用RMS归一化进行调整。
         xhat = (x - mean) * rstd if not IS_RMS_NORM else x * rstd
         xhat = tl.where(mask, xhat, 0.0)
+        # 如果需要重计算输出Y，则根据归一化后的输入xhat和权重w（以及偏置b，如果有）计算y，并将其存储。
         if RECOMPUTE_OUTPUT:
             y = xhat * w + b if HAS_BIAS else xhat * w
             tl.store(Y + cols, y, mask=mask)
+        # wdy计算权重和输出梯度的乘积，用于后续计算输入梯度DX。
         wdy = w * dy
+        # dw和db分别累加权重梯度和偏置梯度。
         dw += dy * xhat
         if HAS_BIAS:
             db += dy
+        # 如果存在第二路径，则对dy1、dw1和db1执行类似操作。
         if HAS_DY1:
             wdy += w1 * dy1
             dw1 += dy1 * xhat
             if HAS_B1:
                 db1 += dy1
         if not IS_RMS_NORM:
+            # 首先计算xhat与权重梯度乘积wdy的均值（c1），以及wdy的均值（c2）。
+            # 然后，根据这些均值调整wdy并乘以反标准差rstd以得到DX。
             c1 = tl.sum(xhat * wdy, axis=0) / N
             c2 = tl.sum(wdy, axis=0) / N
             dx = (wdy - (xhat * c1 + c2)) * rstd
         else:
+            # 仅需计算xhat与wdy的均值（c1），然后使用这个均值调整wdy并乘以反标准差rstd。
             c1 = tl.sum(xhat * wdy, axis=0) / N
             dx = (wdy - xhat * c1) * rstd
+        # 如果存在残差梯度（HAS_DRESIDUAL），则将其加载并加到DX上，以合并残差的影响。
         if HAS_DRESIDUAL:
             dres = tl.load(DRESIDUAL + cols, mask=mask, other=0).to(tl.float32)
             dx += dres
         # Write dx
+        # 如果需要存储残差梯度（STORE_DRESIDUAL），则将计算得到的DX存储到DRESIDUAL_IN。
         if STORE_DRESIDUAL:
             tl.store(DRESIDUAL_IN + cols, dx, mask=mask)
+        # 如果存在第二输入梯度（HAS_DX1）：
         if HAS_DX1:
+            # 如果应用了Dropout（HAS_DROPOUT），使用相应的种子生成掩码，然后调整DX以仅包含未被Dropout的单元，否则直接使用DX。
             if HAS_DROPOUT:
                 keep_mask = (
                     tl.rand(tl.load(SEEDS + M + row).to(tl.uint32), cols, n_rounds=7) > dropout_p
@@ -596,15 +638,20 @@ def _layer_norm_bwd_kernel(
                 dx1 = tl.where(keep_mask, dx / (1.0 - dropout_p), 0.0)
             else:
                 dx1 = dx
+            # 将结果存储到DX1。
             tl.store(DX1 + cols, dx1, mask=mask)
+        # 如果应用了Dropout，对DX再次应用Dropout掩码和调整。
         if HAS_DROPOUT:
             keep_mask = tl.rand(tl.load(SEEDS + row).to(tl.uint32), cols, n_rounds=7) > dropout_p
             dx = tl.where(keep_mask, dx / (1.0 - dropout_p), 0.0)
+        # 如果使用了行缩放（HAS_ROWSCALE），则加载行缩放因子并应用到DX上。
         if HAS_ROWSCALE:
             rowscale = tl.load(ROWSCALE + row).to(tl.float32)
             dx *= rowscale
         tl.store(DX + cols, dx, mask=mask)
 
+        # 更新X、DY、DX等指针位置，以及DRESIDUAL、DRESIDUAL_IN（如果存在残差梯度处理）、
+        # Y（如果重计算输出）、DY1和DX1（如果处理第二路径）的指针，为处理下一行数据做准备。
         X += stride_x_row
         if HAS_DRESIDUAL:
             DRESIDUAL += stride_dres_row
@@ -618,6 +665,7 @@ def _layer_norm_bwd_kernel(
             DY1 += stride_dy1_row
         if HAS_DX1:
             DX1 += stride_dx1_row
+    # 储计算得到的权重梯度dw、偏置梯度db、以及可能存在的第二路径权重梯度dw1和偏置梯度db1。
     tl.store(DW + row_block_id * N + cols, dw, mask=mask)
     if HAS_BIAS:
         tl.store(DB + row_block_id * N + cols, db, mask=mask)
@@ -627,6 +675,19 @@ def _layer_norm_bwd_kernel(
             tl.store(DB1 + row_block_id * N + cols, db1, mask=mask)
 
 
+# dy: 损失函数相对于层输出的梯度。
+# x: 层的原始输入。
+# weight: LayerNorm中用到的权重。
+# bias: 层归一化中用到的偏置。
+# eps: 用于数值稳定性的值。
+# mean: 前向传播中计算的均值。
+# rstd: 前向传播中计算的反标准差。
+# dresidual: 如果有残差连接，这是残差相对于损失的梯度。
+# dy1, weight1, bias1: 第二路径的相关参数。
+# seeds: 用于Dropout操作的随机种子。
+# dropout_p: Dropout概率。
+# rowscale: 行缩放因子。
+# has_residual, has_x1, is_rms_norm, x_dtype, recompute_output: 控制标志和选项。
 def _layer_norm_bwd(
     dy,
     x,
@@ -648,6 +709,7 @@ def _layer_norm_bwd(
     x_dtype=None,
     recompute_output=False,
 ):
+    # 首先校验输入参数的一致性和合理性，包括形状、步长（连续性），以及是否所有需要的条件都满足。
     M, N = x.shape
     assert x.stride(-1) == 1
     assert dy.stride(-1) == 1
@@ -677,28 +739,38 @@ def _layer_norm_bwd(
         assert rowscale.is_contiguous()
         assert rowscale.shape == (M,)
     # allocate output
+    # 根据x的形状和类型（或指定的x_dtype）分配一个同样形状和类型的空张量，用于存储计算得到的输入梯度。
     dx = (
         torch.empty_like(x)
         if x_dtype is None
         else torch.empty(M, N, dtype=x_dtype, device=x.device)
     )
+    # 如果存在残差连接且有额外条件（如不同的数据类型、使用了Dropout或行缩放、有第二路径输入），则分配空间存储残差梯度的计算结果。
     dresidual_in = (
         torch.empty_like(x)
         if has_residual
         and (dx.dtype != x.dtype or dropout_p > 0.0 or rowscale is not None or has_x1)
         else None
     )
+    # 如果存在第二路径且应用了Dropout，为第二路径的输入梯度分配空间。
     dx1 = torch.empty_like(dx) if (has_x1 and dropout_p > 0.0) else None
+    # 如果需要重计算输出（recompute_output=True），为重新计算的输出分配空间。
     y = torch.empty(M, N, dtype=dy.dtype, device=dy.device) if recompute_output else None
     if recompute_output:
         assert weight1 is None, "recompute_output is not supported with parallel LayerNorm"
 
     # Less than 64KB per feature: enqueue fused kernel
+    # 代码通过 MAX_FUSED_SIZE 确保每个特征的大小小于 64KB，以满足 GPU 计算的内存限制。
+    # 如果特征维度 N 超过这个限制，将抛出运行时错误。
     MAX_FUSED_SIZE = 65536 // x.element_size()
+    # BLOCK_N 是通过取 N 的下一个2的幂次方数和 MAX_FUSED_SIZE 之间的最小值来确定的，确保了kernel执行的效率。
     BLOCK_N = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
     if N > BLOCK_N:
         raise RuntimeError("This layer norm doesn't support feature dim >= 64KB.")
+    # 通过 sm_count 获取当前 CUDA 设备的流处理器数量，用于后续计算每个流处理器上运行的程序数。
     sm_count = torch.cuda.get_device_properties(x.device).multi_processor_count
+    # 为权重梯度 _dw、偏置梯度 _db、第二路径权重梯度 _dw1 和第二路径偏置梯度 _db1 分配临时存储空间。
+    # 这些张量按流处理器数量和 N 的维度分配，以便在多个流处理器上并行累加梯度。
     _dw = torch.empty((sm_count, N), dtype=torch.float32, device=weight.device)
     _db = (
         torch.empty((sm_count, N), dtype=torch.float32, device=bias.device)
@@ -709,7 +781,12 @@ def _layer_norm_bwd(
     _db1 = torch.empty_like(_db) if bias1 is not None else None
     rows_per_program = math.ceil(M / sm_count)
     grid = (sm_count,)
+    # 使用 with torch.cuda.device(x.device.index): 确保kernel在正确的 CUDA 设备上执行。
     with torch.cuda.device(x.device.index):
+        # _layer_norm_bwd_kernel[grid]: 调用预定义的 Triton kernel进行并行梯度计算。
+        # grid 参数定义了kernel执行的并行度，这里设置为流处理器的数量 sm_count。
+        # 传递给kernel的参数包括输入 x、权重 weight、偏置 bias、中间结果如均值 mean、
+        # 反标准差 rstd、输出梯度 dy、输入梯度 dx 以及其他控制和配置参数。
         _layer_norm_bwd_kernel[grid](
             x,
             weight,
@@ -750,15 +827,22 @@ def _layer_norm_bwd(
             bias is not None,
             dropout_p > 0.0,
         )
+    # 在内核执行完成后，对每个流处理器计算的临时梯度 _dw、_db、_dw1 和 _db1 进行沿第0维的累加，
+    # 以获得最终的梯度 dw、db、dw1 和 db1。这个累加操作将多个流处理器上的梯度贡献合并起来。
     dw = _dw.sum(0).to(weight.dtype)
     db = _db.sum(0).to(bias.dtype) if bias is not None else None
     dw1 = _dw1.sum(0).to(weight1.dtype) if weight1 is not None else None
     db1 = _db1.sum(0).to(bias1.dtype) if bias1 is not None else None
     # Don't need to compute dresidual_in separately in this case
+    # 如果存在残差连接且满足特定条件（dx.dtype == x.dtype 且 dropout_p == 0.0 且 rowscale 为 None），
+    # 直接使用 dx 作为残差梯度 dresidual_in。
     if has_residual and dx.dtype == x.dtype and dropout_p == 0.0 and rowscale is None:
         dresidual_in = dx
+    # 如果有第二路径且 dropout_p == 0.0，则将 dx 直接用作第二路径的输入梯度 dx1。
     if has_x1 and dropout_p == 0.0:
         dx1 = dx
+    # 根据是否需要重计算输出 y，函数返回计算得到的梯度 dx、dw、db、dresidual_in，以及（如果有的话）
+    # 第二路径的梯度 dx1、dw1、db1，以及（如果 recompute_output 为 True）重计算的输出 y。
     return (
         (dx, dw, db, dresidual_in, dx1, dw1, db1)
         if not recompute_output
