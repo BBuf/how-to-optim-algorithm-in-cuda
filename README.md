@@ -250,5 +250,7 @@ Triton 学习过程中的代码记录。
 - [超越AITemplate，打平TensorRT，SD全系列模型加速框架stable-fast隆重登场](https://zhuanlan.zhihu.com/p/669610362)
 - [[手把手带你入门CUTLASS系列] 0x00 cutlass基本认知---为什么要用cutlass](https://zhuanlan.zhihu.com/p/677616101)
 - [[手把手带你入门CUTLASS系列] 0x02 cutlass 源码分析(一) --- block swizzle 和 tile iterator (附tvm等价code)](https://zhuanlan.zhihu.com/p/679929705)
+- [[手把手带你入门CUTLASS系列] 0x03 cutlass 源码分析(二) --- bank conflict free 的shared memory layout (附tvm等价pass)](https://zhuanlan.zhihu.com/p/681966685)
 - [GPU 内存概念浅析](https://zhuanlan.zhihu.com/p/651179378)
 - [NV_GPU tensor core 算力/带宽/编程模型分析](https://zhuanlan.zhihu.com/p/638129792)
+- [Nsight Compute - Scheduler Statistics](https://zhuanlan.zhihu.com/p/673770855)

@@ -428,6 +428,7 @@
 - [stable diffusion中Lora的原理和实践](https://zhuanlan.zhihu.com/p/662253917)
 - [深入浅出完整解析Stable Diffusion XL（SDXL）核心基础知识](https://zhuanlan.zhihu.com/p/643420260)
 - [大模型推理加速-Decoding Attention优化](https://zhuanlan.zhihu.com/p/672290443)
+- [新一代文生图模型Stable Cascade来了](https://zhuanlan.zhihu.com/p/682257045)
 
 ### 大模型服务
 
