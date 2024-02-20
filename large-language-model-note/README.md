@@ -212,6 +212,7 @@
 - [再论大模型位置编码及其外推性（万字长文）](https://zhuanlan.zhihu.com/p/675243992)
 - [RoPE外推优化——支持192K上下文长度](https://zhuanlan.zhihu.com/p/678755776)
 - [想研究大模型Alignment，你只需要看懂这几篇paper](https://zhuanlan.zhihu.com/p/681642685)
+- [MiniCPM：揭示端侧大语言模型的无限潜力](https://shengdinghu.notion.site/MiniCPM-c805a17c5c8046398914e47f0542095a)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -417,6 +418,7 @@
 - [Text Generation Inference源码解读（二）：模型加载与推理](https://zhuanlan.zhihu.com/p/675292919)
 
 ### 扩散模型
+
 - [都2023年了，我不允许你还不懂DDPM！](https://zhuanlan.zhihu.com/p/663880249)
 - [Kandinsky-3：最大的开源文生图模型](https://zhuanlan.zhihu.com/p/668853830)
 - [视频生成迎来SD时代：Stable Video Diffusion开源了！](https://zhuanlan.zhihu.com/p/668100036)
@@ -429,6 +431,13 @@
 - [深入浅出完整解析Stable Diffusion XL（SDXL）核心基础知识](https://zhuanlan.zhihu.com/p/643420260)
 - [大模型推理加速-Decoding Attention优化](https://zhuanlan.zhihu.com/p/672290443)
 - [新一代文生图模型Stable Cascade来了](https://zhuanlan.zhihu.com/p/682257045)
+
+### 文生视频
+
+- [Datawhale AI视频生成学习](https://datawhaler.feishu.cn/docx/G4LkdaffWopVbwxT1oHceiv9n0c)
+- [OpenAI Sora背后的技术架构](https://zhuanlan.zhihu.com/p/683002680)
+- [从零实现CLIP模型](https://zhuanlan.zhihu.com/p/676480190)
+- [CLIP 模型解读](https://zhuanlan.zhihu.com/p/646790176)
 
 ### 大模型服务
 
