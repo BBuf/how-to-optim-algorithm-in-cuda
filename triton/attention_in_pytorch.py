@@ -1,6 +1,6 @@
 import torch
 
-N, d = 512, 32  # 更新N和d的值
+N, d = 1024, 64  # 更新N和d的值
 
 Q_mat = torch.rand((N, d))
 K_mat = torch.rand((N, d))
