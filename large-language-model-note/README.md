@@ -213,6 +213,7 @@
 - [RoPE外推优化——支持192K上下文长度](https://zhuanlan.zhihu.com/p/678755776)
 - [想研究大模型Alignment，你只需要看懂这几篇paper](https://zhuanlan.zhihu.com/p/681642685)
 - [MiniCPM：揭示端侧大语言模型的无限潜力](https://shengdinghu.notion.site/MiniCPM-c805a17c5c8046398914e47f0542095a)
+- [GPT-4内幕大泄露！1.8万亿巨量参数，13万亿token训练，斥资6300万美元](https://zhuanlan.zhihu.com/p/642902819)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -431,6 +432,10 @@
 - [深入浅出完整解析Stable Diffusion XL（SDXL）核心基础知识](https://zhuanlan.zhihu.com/p/643420260)
 - [大模型推理加速-Decoding Attention优化](https://zhuanlan.zhihu.com/p/672290443)
 - [新一代文生图模型Stable Cascade来了](https://zhuanlan.zhihu.com/p/682257045)
+- [基于扩散的生成模型架构理论综述](https://zhuanlan.zhihu.com/p/683813264)
+- [深入浅出完整解析Stable Diffusion（SD）核心基础知识](https://zhuanlan.zhihu.com/p/632809634)
+- [DALL-E 3技术报告阅读笔记](https://zhuanlan.zhihu.com/p/662745543)
+- [Scalable Diffusion Models with Transformers（DiTs）论文阅读 -- 文生视频Sora模型基础结构DiT](https://zhuanlan.zhihu.com/p/597695487)
 
 ### 文生视频
 
@@ -438,6 +443,9 @@
 - [OpenAI Sora背后的技术架构](https://zhuanlan.zhihu.com/p/683002680)
 - [从零实现CLIP模型](https://zhuanlan.zhihu.com/p/676480190)
 - [CLIP 模型解读](https://zhuanlan.zhihu.com/p/646790176)
+- [Sora 技术解读（附带 DiT 模型详解）](https://zhuanlan.zhihu.com/p/683184325)
+- [OpenAI 的视频生成大模型Sora的核心技术详解（一）：Diffusion模型原理和代码详解](https://zhuanlan.zhihu.com/p/683418039)
+- [DiT详解](https://zhuanlan.zhihu.com/p/683612528)
 
 ### 大模型服务
 
@@ -447,41 +455,8 @@
 ### Agent
 
 - [Agent is all you need | AI智能体前沿进展总结](https://zhuanlan.zhihu.com/p/655425020)
-
-### 大模型仓库收集
-
-- [Awesome-Chinese-LLM：收集和梳理中文LLM相关的开源模型、应用、数据集及教程等资料](https://mp.weixin.qq.com/s/Oy6XZNyN3kpsC6TfQYQb7A)
-- LLaMA:
-    - Paper: https://research.facebook.com/publications/llama-open-and-efficient-foundation-language-models/
-    - Github: https://github.com/facebookresearch/llama
-- Baize (白泽)
-    - Paper: https://arxiv.org/pdf/2304.01196.pdf
-    - Demo: https://huggingface.co/spaces/project-baize/Baize-7B
-    - Repo: https://github.com/project-baize/baize-chatbot
-- Luotuo (骆驼，Chinese)
-    - Blog: https://zhuanlan.zhihu.com/p/617221484 后半部分
-    - Repo: https://github.com/LC1332/Luotuo-Chinese-LLM
-- Koala (考拉)
-    - Blog: https://bair.berkeley.edu/blog/2023/04/03/koala/
-    - Demo: https://chat.lmsys.org/?model=koala-13b
-    - Repo: https://github.com/young-geng/EasyLM
-- Wombat（袋熊）
-    - Paper: https://arxiv.org/pdf/2304.05302.pdf
-    - Repo: https://github.com/GanjinZero/RRHF
-- GPT4All
-    - Report: https://s3.amazonaws.com/static.nomic.ai/gpt4all/2023_GPT4All_Technical_Report.pdf
-    - Repo: https://github.com/nomic-ai/gpt4all
-- LMFlow
-    - Demo: https://lmflow.com/
-    - Repo: https://github.com/OptimalScale/LMFlow
-- Firefly(流萤)
-    - Repo: https://github.com/yangjianxin1/Firefly
-- Vicuna(小羊驼)
-    - Blog: https://zhuanlan.zhihu.com/p/618699807
-    - Repo: https://github.com/lm-sys/FastChat
-- LLaVA
-    - Paper: https://arxiv.org/pdf/2304.08485.pdf
-    - Demo: https://llava-vl.github.io/
+- [Qwen 7B大模型ReAct Prompt详解以及LLM 智能体Agent实战](https://zhuanlan.zhihu.com/p/664477178)
+- [开源大语言模型作为 LangChain 智能体](https://zhuanlan.zhihu.com/p/683464443)
 
 ### 大模型数据处理
 

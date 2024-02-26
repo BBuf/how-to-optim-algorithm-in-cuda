@@ -41,7 +41,7 @@ def flash_attention(Q, K, V, B_r=64, B_c=768):
             Oi = O[i:i_end, :]
             Qi = Q[i:i_end, :]
 
-            # 对应伪代码的第9行：on chip, compute Sij
+            # 对应伪代码的第9行：on chip, compute Sij，Sij的形状是[B_r, B_c]
             Sij = Qi @ Kj.T
             # 对应伪代码的第10行
             mij_hat = torch.max(Sij, dim=1).values[:, None]
@@ -52,9 +52,12 @@ def flash_attention(Q, K, V, B_r=64, B_c=768):
             mi_new = torch.max(torch.column_stack([mi, mij_hat]), dim=1).values[:, None]
             # 对应伪代码的第11行求li_new的操作
             li_new = torch.exp(mi - mi_new) * li + torch.exp(mij_hat - mi_new) * lij_hat
-            # 对应伪代码的第12行，更新O_i。
+            # 对应伪代码的第12行，更新O_i。这里容易有一个疑问，伪代码上有一个diag操作，为什么下面的实现忽略了
+            # 这是因为这个diag是作用在vector上的，实际上是为了在伪代码上能对应上维度，而PyTorch的实现是自动
+            # 支持张量广播机制的，所以这里可以直接计算。
             O_i = (li * torch.exp(mi - mi_new) * Oi / li_new) + (torch.exp(mij_hat - mi_new) * pij_hat / li_new) @ Vj
 
+            # 对应伪代码的第13行，更新m_i，l_i，O_i。
             m[i:i_end, :] = mi_new
             l[i:i_end, :] = li_new
             O[i:i_end, :] = O_i
