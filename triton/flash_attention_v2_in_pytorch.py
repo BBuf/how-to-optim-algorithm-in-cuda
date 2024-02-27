@@ -34,16 +34,20 @@ def flash_attention_v2(Q, K, V, B_r=64, B_c=768):
 
             # 对应伪代码的第8行：on chip, compute Sij，Sij的形状是[B_r, B_c]
             Sij = Qi @ Kj.T
+            # 对应伪代码的第9行求m_i^(j)的操作，mi_new的形状是B_r
             mi_new = torch.max(torch.column_stack([m[i:i+B_r], torch.max(Sij, dim=1).values[:, None]]), dim=1).values[:, None]
-            Pij_hat = torch.exp(Sij - mi_new)  # 校正后的概率
+            # 对应伪代码的第9行求Pij_hat的操作，Pij_hat的形状是(B_r x B_c)，和Sij一致
+            Pij_hat = torch.exp(Sij - mi_new)
+            # 对应伪代码的第9行求lij的操作
             l[i:i+B_r] = torch.exp(m[i:i+B_r] - mi_new) * l[i:i+B_r] + torch.sum(Pij_hat, dim=1)[:, None]
+            # 对应伪代码的第10行求O_ij的操作
             O[i:i+B_r] = O[i:i+B_r] * torch.exp(m[i:i+B_r] - mi_new) + Pij_hat @ Vj
             m[i:i+B_r] = mi_new
 
-    O = O / l  # 根据softmax分母校正输出
+    O = O / l  # 对应伪代码第12行，根据softmax的分母校正输出
     return O
 
-# 执行flash attention计算
+# 执行flash attention v2计算
 flash_attention_v2_output = flash_attention_v2(Q_mat, K_mat, V_mat)
 
 # 执行标准的PyTorch softmax和attention计算
