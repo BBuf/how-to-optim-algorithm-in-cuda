@@ -18,17 +18,22 @@ def flash_attention_v2(Q, K, V, B_r=64, B_c=768):
     """
     使用分块计算和在线softmax校正执行flash attention v2算法。
     """
-    O = torch.zeros((N, d))  # 初始化输出矩阵
-    l = torch.zeros((N, 1))  # 存储softmax分母
-    m = torch.full((N, 1), -torch.inf)  # 存储每个block的最大值
+    O = torch.zeros((N, d))  # 初始化O为(N, d)的形状，实际上对应伪代码第5行的O初始化
+    l = torch.zeros((N, 1))  # 初始化l为(N)的形状，实际上对应伪代码第5行的l初始化
+    m = torch.full((N, 1), -torch.inf)  # 存储每个block的最大值，初始化为负无穷大，对应伪代码的第5行
 
-    for j in range(0, N, B_c):  # 外循环遍历K和V的块
-        Kj = K[j:j+B_c, :]
-        Vj = V[j:j+B_c, :]
+    # 对应伪代码的第3行，for 1<=i<T_r，注意这里是把Q分成了Tr=[N/B_r]块，每一块的大小是[B_r, d]这么大
+    # 所以在python实现的时候就直接通过一个步长为B_r的循环来处理
+    for i in range(0, N, B_r):
+        Qi = Q[i:i+B_r, :]
+        # 对应伪代码的第 6 行，for 1<=j<=T_c，注意这里是把K, V分成了T_c=[N/B_c]块，每一块的大小是[B_c, d]这么大
+        # 所以在python实现的时候就直接通过一个步长为B_c的循环来处理 
+        for j in range(0, N, B_c):  # 内循环遍历Q的块
+            Kj = K[j:j+B_c, :]
+            Vj = V[j:j+B_c, :]
 
-        for i in range(0, N, B_r):  # 内循环遍历Q的块
-            Qi = Q[i:i+B_r, :]
-            Sij = Qi @ Kj.T  # 计算得分矩阵
+            # 对应伪代码的第8行：on chip, compute Sij，Sij的形状是[B_r, B_c]
+            Sij = Qi @ Kj.T
             mi_new = torch.max(torch.column_stack([m[i:i+B_r], torch.max(Sij, dim=1).values[:, None]]), dim=1).values[:, None]
             Pij_hat = torch.exp(Sij - mi_new)  # 校正后的概率
             l[i:i+B_r] = torch.exp(m[i:i+B_r] - mi_new) * l[i:i+B_r] + torch.sum(Pij_hat, dim=1)[:, None]
