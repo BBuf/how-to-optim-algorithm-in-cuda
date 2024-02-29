@@ -588,7 +588,7 @@ try:
 except BaseException:
     HAS_FLASH = False
 
-TORCH_HAS_FP8 = hasattr(torch, 'float8_e5m2')
+# TORCH_HAS_FP8 = hasattr(torch, 'float8_e5m2')
 BATCH, N_HEADS, N_CTX, D_HEAD = 4, 48, 4096, 64
 # vary seq length for fixed head and batch=4
 configs = []
@@ -625,9 +625,9 @@ def bench_flash_attention(BATCH, H, N_CTX, D_HEAD, causal, mode, provider, dtype
     if provider == "triton":
         q = torch.randn((BATCH, H, N_CTX, D_HEAD), dtype=dtype, device="cuda", requires_grad=True)
         k = torch.randn((BATCH, H, N_CTX, D_HEAD), dtype=dtype, device="cuda", requires_grad=True)
-        if mode == "fwd" and TORCH_HAS_FP8:
-            q = q.to(torch.float8_e5m2)
-            k = k.to(torch.float8_e5m2)
+        # if mode == "fwd" and TORCH_HAS_FP8:
+        #     q = q.to(torch.float8_e5m2)
+        #     k = k.to(torch.float8_e5m2)
         v = torch.randn((BATCH, H, N_CTX, D_HEAD), dtype=dtype, device="cuda", requires_grad=True)
         sm_scale = 1.3
         fn = lambda: attention(q, k, v, causal, sm_scale)
@@ -654,4 +654,4 @@ def bench_flash_attention(BATCH, H, N_CTX, D_HEAD, causal, mode, provider, dtype
 
 
 # only works on post-Ampere GPUs right now
-bench_flash_attention.run(save_path=".", print_data=True)
+bench_flash_attention.run(save_path="/mnt/data/bbuf/triton-flash-attn2", print_data=True)
