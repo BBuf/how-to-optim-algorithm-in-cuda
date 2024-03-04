@@ -36,6 +36,7 @@
 - [Mixtral 8x7B论文终于来了：架构细节、参数量首次曝光](https://zhuanlan.zhihu.com/p/677108093)
 - [MoE(Mixture-of-Experts)大模型架构的优势是什么？为什么？](https://www.zhihu.com/question/634844209/answer/3364787819)
 - [图解大模型训练系列之：DeepSpeed-Megatron MoE并行训练（原理篇](https://zhuanlan.zhihu.com/p/681154742)
+- [LLM 学习笔记-Deepspeed-MoE 论文](https://zhuanlan.zhihu.com/p/670968683)
 
 ### 大模型知识介绍
 
@@ -219,6 +220,7 @@
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
 - [NLP（廿二）：LLM 时代的 multi-agent 系统](https://zhuanlan.zhihu.com/p/665644399)
 - [关于 Agent 开发的一些思考](https://zhuanlan.zhihu.com/p/666401588)
+- [AI Agent万字长文总结](https://zhuanlan.zhihu.com/p/662460753)
 
 ### 多模态
 - [多模态大模型 CLIP, BLIP, BLIP2, LLaVA, miniGPT4, InstructBLIP 系列解读](https://zhuanlan.zhihu.com/p/653902791)
@@ -436,6 +438,7 @@
 - [深入浅出完整解析Stable Diffusion（SD）核心基础知识](https://zhuanlan.zhihu.com/p/632809634)
 - [DALL-E 3技术报告阅读笔记](https://zhuanlan.zhihu.com/p/662745543)
 - [Scalable Diffusion Models with Transformers（DiTs）论文阅读 -- 文生视频Sora模型基础结构DiT](https://zhuanlan.zhihu.com/p/597695487)
+- [一文读懂DDIM凭什么可以加速DDPM的采样效率](https://zhuanlan.zhihu.com/p/627616358)
 
 ### 文生视频
 
@@ -446,6 +449,7 @@
 - [Sora 技术解读（附带 DiT 模型详解）](https://zhuanlan.zhihu.com/p/683184325)
 - [OpenAI 的视频生成大模型Sora的核心技术详解（一）：Diffusion模型原理和代码详解](https://zhuanlan.zhihu.com/p/683418039)
 - [DiT详解](https://zhuanlan.zhihu.com/p/683612528)
+- [Diffusion Transformer Family：关于Sora和Stable Diffusion 3你需要知道的一切](https://zhuanlan.zhihu.com/p/684448966)
 
 ### 大模型服务
 

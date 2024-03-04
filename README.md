@@ -99,6 +99,10 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 Triton 学习过程中的代码记录。
 
+### 13. meagtron-lm
+
+Meagtron-LM 学习笔记。
+
 ### 13. 原创学习笔记
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
@@ -235,6 +239,7 @@ Triton 学习过程中的代码记录。
 - [cute 之 简单GEMM实现](https://zhuanlan.zhihu.com/p/667521327)
 - [cute 之 MMA抽象](https://zhuanlan.zhihu.com/p/663092747)
 - [cute 之 Tensor](https://zhuanlan.zhihu.com/p/663093816)
+- [cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)
 - [CUDA单精度矩阵乘法(sgemm)优化笔记](https://zhuanlan.zhihu.com/p/638820727)
 - [HPC（高性能计算第一篇） ：一文彻底搞懂并发编程与内存屏障（第一篇）](https://zhuanlan.zhihu.com/p/670350655)
 - [GPU CUDA 编程的基本原理是什么? 怎么入门?](https://www.zhihu.com/question/613405221/answer/3129776636)
