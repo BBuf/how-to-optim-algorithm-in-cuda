@@ -3,6 +3,8 @@ tensor_model_parallel_size = 2
 context_parallel_size = 2
 pipeline_model_parallel_size = 4
 expert_model_parallel_size = 1
+moe_expert_tensor_parallelism = False
+moe_expert_data_parallelism = False
 
 data_parallel_size: int = world_size // (
     tensor_model_parallel_size * pipeline_model_parallel_size * context_parallel_size
@@ -59,6 +61,33 @@ for i in range(pipeline_model_parallel_size):
 
 print('data_parallel groups: ')
 print(all_data_parallel_group_ranks)
+print('='*50)
+
+expert_parallel_group_ranks = []
+
+assert not (moe_expert_tensor_parallelism and moe_expert_data_parallelism), \
+    'cannot use both expert tensor parallelism and expert data parallelism'
+if moe_expert_tensor_parallelism:
+    for i in range(pipeline_model_parallel_size):
+        start_rank = i * num_pipeline_model_parallel_groups
+        end_rank = (i + 1) * num_pipeline_model_parallel_groups
+        for j in range(tensor_or_replicate_parallel_size):
+            ranks = range(start_rank + j, end_rank,
+                            tensor_or_replicate_parallel_size)
+            expert_parallel_group_ranks.append(list(ranks))
+elif moe_expert_data_parallelism:
+    for i in range(num_tensor_or_replicate_parallel_groups):
+        ranks = range(i * tensor_or_replicate_parallel_size, (i + 1) * tensor_or_replicate_parallel_size)
+        expert_parallel_group_ranks.append(list(ranks))
+else:
+    for i in range(pipeline_model_parallel_size):
+        start_rank = i * num_pipeline_model_parallel_groups
+        end_rank = (i + 1) * num_pipeline_model_parallel_groups
+        ranks = range(start_rank, end_rank)
+        expert_parallel_group_ranks.append(list(ranks))
+
+print('expert_parallel_group_ranks: ')
+print(expert_parallel_group_ranks)
 print('='*50)
 
 context_parallel_group_ranks = []
