@@ -2,3 +2,4 @@
 bin/
 *.ncu-rep
 flagged/
+__pycache__/

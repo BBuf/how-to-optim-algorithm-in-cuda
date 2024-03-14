@@ -36,7 +36,9 @@
 - [Mixtral 8x7B论文终于来了：架构细节、参数量首次曝光](https://zhuanlan.zhihu.com/p/677108093)
 - [MoE(Mixture-of-Experts)大模型架构的优势是什么？为什么？](https://www.zhihu.com/question/634844209/answer/3364787819)
 - [图解大模型训练系列之：DeepSpeed-Megatron MoE并行训练（原理篇](https://zhuanlan.zhihu.com/p/681154742)
+- [图解大模型训练系列之：DeepSpeed-Megatron MoE并行训练（源码解读篇）](https://mp.weixin.qq.com/s/AiqmTG8j6lyoHrUV056p5Q)
 - [LLM 学习笔记-Deepspeed-MoE 论文](https://zhuanlan.zhihu.com/p/670968683)
+- [图解Mixtral 8 * 7b推理优化原理与源码实现](https://mp.weixin.qq.com/s/WUx73P_LN6TA-6DW6nNvKQ)
 
 ### 大模型知识介绍
 
@@ -215,6 +217,7 @@
 - [想研究大模型Alignment，你只需要看懂这几篇paper](https://zhuanlan.zhihu.com/p/681642685)
 - [MiniCPM：揭示端侧大语言模型的无限潜力](https://shengdinghu.notion.site/MiniCPM-c805a17c5c8046398914e47f0542095a)
 - [GPT-4内幕大泄露！1.8万亿巨量参数，13万亿token训练，斥资6300万美元](https://zhuanlan.zhihu.com/p/642902819)
+- [一览大模型长文本能力](https://mp.weixin.qq.com/s/H0VwXlDz4SwA3D7hTgBPhw)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -225,11 +228,14 @@
 ### 多模态
 - [多模态大模型 CLIP, BLIP, BLIP2, LLaVA, miniGPT4, InstructBLIP 系列解读](https://zhuanlan.zhihu.com/p/653902791)
 - [多模态大模型超详细解读 (目录)](https://zhuanlan.zhihu.com/p/625926419)
+- [我们与 GPT-4V 的距离](https://zhuanlan.zhihu.com/p/686257072)
 
 ### 大模型训练和微调技术
 
 - [Megatron-LM 分布式执行调研](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812)
 - [BLOOM 训练背后的技术](https://www.cnblogs.com/Matrix_Yao/p/17238627.html)
+- [聊聊 PyTorch2.0 中新的Distributed API](https://mp.weixin.qq.com/s/hOOFE_eFD6a8GKTdnRcJXg)
+- [聊聊 PyTorch 中新的Distributed API （二）](https://mp.weixin.qq.com/s/zDSuToVMo4iK3sxF662kvg)
 - [【LLM】从零开始训练大模型](https://zhuanlan.zhihu.com/p/636270877)
 - [在一张 24 GB 的消费级显卡上用 RLHF 微调 20B LLMs](https://www.cnblogs.com/huggingface/p/17245966.html)
 - [人手一个ChatGPT！微软DeepSpeed Chat震撼发布，一键RLHF训练千亿级大模型](https://zhuanlan.zhihu.com/p/621379646)
@@ -242,12 +248,14 @@
 - [Megatron-LM 中的 pipeline 并行](https://zhuanlan.zhihu.com/p/432969288)
 - [图解大模型系列之：Megatron源码解读1，分布式环境初始化](https://zhuanlan.zhihu.com/p/629121480)
 - [图解大模型训练之：Megatron源码解读2，模型并行](https://zhuanlan.zhihu.com/p/634377071)
+- [聊聊序列并行Sequence parallelism](https://mp.weixin.qq.com/s/ylScQOpJ1-ufyPK7X6VUjw)
 - [Megatron-LM 近期的改动](https://zhuanlan.zhihu.com/p/651192295)
 - [深入理解 Megatron-LM（1）基础知识](https://zhuanlan.zhihu.com/p/650234985)
 - [深入理解 Megatron-LM（2）原理介绍](https://zhuanlan.zhihu.com/p/650383289)
 - [深入理解 Megatron-LM（3）代码结构](https://zhuanlan.zhihu.com/p/650237820)
 - [深入理解 Megatron-LM（4）并行设置](https://zhuanlan.zhihu.com/p/650500590)
 - [深入理解 Megatron-LM（5）张量并行](https://zhuanlan.zhihu.com/p/650237833)
+- [聊聊字节 AML 万卡工作 MegaScale: Scaling Large Language Model Training](https://mp.weixin.qq.com/s/aXsURbHZKzoBw-ChaBnjEQ)
 - [深度学习里，模型并行中怎么将模型拆分？](https://www.zhihu.com/question/319355346/answer/2985459442)
 - [Transformers DeepSpeed官方文档](https://zhuanlan.zhihu.com/p/621572871)
 - [当红炸子鸡 LoRA，是当代微调 LLMs 的正确姿势？](https://zhuanlan.zhihu.com/p/618894919)
@@ -439,6 +447,7 @@
 - [DALL-E 3技术报告阅读笔记](https://zhuanlan.zhihu.com/p/662745543)
 - [Scalable Diffusion Models with Transformers（DiTs）论文阅读 -- 文生视频Sora模型基础结构DiT](https://zhuanlan.zhihu.com/p/597695487)
 - [一文读懂DDIM凭什么可以加速DDPM的采样效率](https://zhuanlan.zhihu.com/p/627616358)
+- [Stable Diffusion 中的自注意力替换技术与 Diffusers 实现](https://mp.weixin.qq.com/s/dF0ykeSYSM7kzUHe1kMxAg)
 
 ### 文生视频
 
@@ -450,6 +459,8 @@
 - [OpenAI 的视频生成大模型Sora的核心技术详解（一）：Diffusion模型原理和代码详解](https://zhuanlan.zhihu.com/p/683418039)
 - [DiT详解](https://zhuanlan.zhihu.com/p/683612528)
 - [Diffusion Transformer Family：关于Sora和Stable Diffusion 3你需要知道的一切](https://zhuanlan.zhihu.com/p/684448966)
+- [聊聊 DiT 和 GenTron](https://mp.weixin.qq.com/s/GcUqBlt47ntc-ttsfbgh4A)
+- [OpenAI 视频模型 Sora 科研贡献速览](https://mp.weixin.qq.com/s/t9ZqzwMGePrmkpmw4XBJQA)
 
 ### 大模型服务
 
