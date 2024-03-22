@@ -140,6 +140,7 @@ Meagtron-LM 学习笔记。
 - [推理部署工程师面试题库](https://zhuanlan.zhihu.com/p/673046520)
 - [[C++特性]对std::move和std::forward的理解](https://zhuanlan.zhihu.com/p/469607144)
 - [论文阅读：Mimalloc Free List Sharding in Action](https://zhuanlan.zhihu.com/p/665602526)
+- [在 C++ 中，RAII 有哪些妙用？](https://zhuanlan.zhihu.com/p/687230917)
 - [AI/HPC面试问题整理](https://zhuanlan.zhihu.com/p/663917237)
 - [Roofline Model与深度学习模型的性能分析](https://zhuanlan.zhihu.com/p/34204282)
 - [FlashAttention核心逻辑以及V1 V2差异总结](https://zhuanlan.zhihu.com/p/665170554)
@@ -264,3 +265,4 @@ Meagtron-LM 学习笔记。
 - [GPU 内存概念浅析](https://zhuanlan.zhihu.com/p/651179378)
 - [NV_GPU tensor core 算力/带宽/编程模型分析](https://zhuanlan.zhihu.com/p/638129792)
 - [Nsight Compute - Scheduler Statistics](https://zhuanlan.zhihu.com/p/673770855)
+- [NVidia GPU指令集架构-前言](https://zhuanlan.zhihu.com/p/686198447)

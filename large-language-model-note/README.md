@@ -218,6 +218,7 @@
 - [MiniCPM：揭示端侧大语言模型的无限潜力](https://shengdinghu.notion.site/MiniCPM-c805a17c5c8046398914e47f0542095a)
 - [GPT-4内幕大泄露！1.8万亿巨量参数，13万亿token训练，斥资6300万美元](https://zhuanlan.zhihu.com/p/642902819)
 - [一览大模型长文本能力](https://mp.weixin.qq.com/s/H0VwXlDz4SwA3D7hTgBPhw)
+- [LLM（廿六）：从信息论的角度解释 scaling law](https://zhuanlan.zhihu.com/p/687278237)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -325,6 +326,7 @@
 - [S-LORA：单卡服务两千个LLM模型，vLLM团队指出行业大模型新范式](https://zhuanlan.zhihu.com/p/667213961)
 - [大模型微调技巧 | 高质量指令数据筛选方法-MoDS](https://zhuanlan.zhihu.com/p/671183709)
 - [2023年神秘而难以理解的大模型强化学习技术：RLHF PPO，DPO，以及InstructGPT，DeepSpeed-Chat， LLama2，Baichuan2的RLHF](https://zhuanlan.zhihu.com/p/662753985)
+- [影响PPO算法性能的10个关键技巧（附PPO算法简洁Pytorch实现）](https://zhuanlan.zhihu.com/p/512327050)
 - [Transformer的浮点数计算](https://zhuanlan.zhihu.com/p/670583522)
 - [ChatGLM3保姆级P-Tuning v2微调教程](https://zhuanlan.zhihu.com/p/670248457)
 - [使用 PyTorch 完全分片数据并行技术加速大模型训练](https://zhuanlan.zhihu.com/p/670374745)
@@ -427,6 +429,10 @@
 - [vLLM-prefix浅析（System Prompt，大模型推理加速）](https://zhuanlan.zhihu.com/p/678256296)
 - [Text Generation Inference源码解读（一）：架构设计与业务逻辑](https://zhuanlan.zhihu.com/p/672925155)
 - [Text Generation Inference源码解读（二）：模型加载与推理](https://zhuanlan.zhihu.com/p/675292919)
+- [Weight Only Quantization 的性能优化](https://zhuanlan.zhihu.com/p/687844000)
+- [LLM推理加速（三）：AWQ量化](https://zhuanlan.zhihu.com/p/685867596)
+- [OmniQuant-目前最优的LLM PTQ量化算法](https://zhuanlan.zhihu.com/p/687653912)
+- [W4A16模型量化大法 AWQ](https://zhuanlan.zhihu.com/p/682041025)
 
 ### 扩散模型
 
@@ -461,6 +467,8 @@
 - [Diffusion Transformer Family：关于Sora和Stable Diffusion 3你需要知道的一切](https://zhuanlan.zhihu.com/p/684448966)
 - [聊聊 DiT 和 GenTron](https://mp.weixin.qq.com/s/GcUqBlt47ntc-ttsfbgh4A)
 - [OpenAI 视频模型 Sora 科研贡献速览](https://mp.weixin.qq.com/s/t9ZqzwMGePrmkpmw4XBJQA)
+- [技术神秘化的去魅：Sora关键技术逆向工程图解](https://zhuanlan.zhihu.com/p/687928845)
+- [Stable Video 3D震撼登场：单图生成无死角3D视频、模型权重开放](https://zhuanlan.zhihu.com/p/688112512)
 
 ### 大模型服务
 
