@@ -214,6 +214,8 @@ Meagtron-LM 学习笔记。
 - [【CUDA编程】OneFlow Element-Wise 算子源码解读](https://zhuanlan.zhihu.com/p/646990764)
 - [【CUDA编程】Faster Transformer v1.0 源码详解](https://zhuanlan.zhihu.com/p/647012855)
 - [【CUDA编程】Faster Transformer v2.0 源码详解](https://zhuanlan.zhihu.com/p/650462095)
+- [FasterTransformer Decoding 源码分析(七)-FFNLayer MoE(上篇)](https://zhuanlan.zhihu.com/p/670916589)
+- [FasterTransformer Decoding 源码分析(八)-FFNLayer MoE(下篇)](https://zhuanlan.zhihu.com/p/672189305)
 - [从roofline模型看CPU矩阵乘法优化](https://zhuanlan.zhihu.com/p/655421318)
 - [性能优化的终极手段之 Profile-Guided Optimization (PGO)](https://zhuanlan.zhihu.com/p/652814504)
 - [有没有大模型推理加速引擎FasterTransformer入门级教程？](https://www.zhihu.com/question/602468960/answer/3203088852)
@@ -266,3 +268,14 @@ Meagtron-LM 学习笔记。
 - [NV_GPU tensor core 算力/带宽/编程模型分析](https://zhuanlan.zhihu.com/p/638129792)
 - [Nsight Compute - Scheduler Statistics](https://zhuanlan.zhihu.com/p/673770855)
 - [NVidia GPU指令集架构-前言](https://zhuanlan.zhihu.com/p/686198447)
+
+## Star History
+
+
+<a href="https://star-history.com/#BBuf/how-to-optim-algorithm-in-cuda&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=BBuf/how-to-optim-algorithm-in-cuda&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=BBuf/how-to-optim-algorithm-in-cuda&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=BBuf/how-to-optim-algorithm-in-cuda&type=Date" />
+  </picture>
+</a>
