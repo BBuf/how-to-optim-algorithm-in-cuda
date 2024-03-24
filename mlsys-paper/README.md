@@ -6,3 +6,5 @@
 - [Lightning Attention-2: A Free Lunch for Handling Unlimited Sequence Lengths in Large Language Models](https://arxiv.org/pdf/2401.04658.pdf)
 - [LIGHTSEQ: SEQUENCE LEVEL PARALLELISM FOR DISTRIBUTED TRAINING OF LONG CONTEXT TRANS-FORMERS](https://arxiv.org/pdf/2310.03294.pdf)
 - [BPipe: Memory-Balanced Pipeline Parallelism for Training Large Language Models](https://openreview.net/forum?id=HVKmLi1iR4)
+- [Reducing Activation Recomputation in Large Transformer Models](https://arxiv.org/pdf/2205.05198.pdf)
+- [LLM Inference Unveiled: Survey and Roofline Model Insights](https://arxiv.org/pdf/2402.16363.pdf)
