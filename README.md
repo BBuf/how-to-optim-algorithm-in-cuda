@@ -125,6 +125,7 @@ Meagtron-LM 学习笔记。
 - [AI Infra论文阅读之通过打表得到训练大模型的最佳并行配置](https://mp.weixin.qq.com/s/D-14J482SFQf-zh-EFa-1w)
 - [AI Infra论文阅读之将流水线并行气泡几乎降到零（附基于Meagtron-LM的ZB-H1开源代码实现解读）](https://mp.weixin.qq.com/s/PXjYm9dN8C9B8svMQ7nOvw)
 - [AI Infra论文阅读之LIGHTSEQ（LLM长文本训练的Infra工作）](https://mp.weixin.qq.com/s/u4gG1WZ73mgH9mEKQQCRww)
+- [AI Infra论文阅读之《在LLM训练中减少激活值内存》](https://mp.weixin.qq.com/s/WRUmZT5NIbiHSnNrK1vLOw)
 
 ### 14. 学习资料收集
 
@@ -264,6 +265,7 @@ Meagtron-LM 学习笔记。
 - [[手把手带你入门CUTLASS系列] 0x00 cutlass基本认知---为什么要用cutlass](https://zhuanlan.zhihu.com/p/677616101)
 - [[手把手带你入门CUTLASS系列] 0x02 cutlass 源码分析(一) --- block swizzle 和 tile iterator (附tvm等价code)](https://zhuanlan.zhihu.com/p/679929705)
 - [[手把手带你入门CUTLASS系列] 0x03 cutlass 源码分析(二) --- bank conflict free 的shared memory layout (附tvm等价pass)](https://zhuanlan.zhihu.com/p/681966685)
+- [[深入分析CUTLASS系列] 0x04 cutlass 源码分析(三) --- 多级流水线(software pipeline)](https://zhuanlan.zhihu.com/p/687397095)
 - [GPU 内存概念浅析](https://zhuanlan.zhihu.com/p/651179378)
 - [NV_GPU tensor core 算力/带宽/编程模型分析](https://zhuanlan.zhihu.com/p/638129792)
 - [Nsight Compute - Scheduler Statistics](https://zhuanlan.zhihu.com/p/673770855)

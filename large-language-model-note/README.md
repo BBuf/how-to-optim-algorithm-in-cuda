@@ -433,6 +433,7 @@
 - [LLM推理加速（三）：AWQ量化](https://zhuanlan.zhihu.com/p/685867596)
 - [OmniQuant-目前最优的LLM PTQ量化算法](https://zhuanlan.zhihu.com/p/687653912)
 - [W4A16模型量化大法 AWQ](https://zhuanlan.zhihu.com/p/682041025)
+- [大模型推理框架 vLLM 源码解析（二）：Block 模块分配和管理](https://zhuanlan.zhihu.com/p/688660090)
 
 ### 扩散模型
 
