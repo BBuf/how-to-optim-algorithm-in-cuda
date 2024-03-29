@@ -8,3 +8,4 @@
 - [BPipe: Memory-Balanced Pipeline Parallelism for Training Large Language Models](https://openreview.net/forum?id=HVKmLi1iR4)
 - [Reducing Activation Recomputation in Large Transformer Models](https://arxiv.org/pdf/2205.05198.pdf)
 - [LLM Inference Unveiled: Survey and Roofline Model Insights](https://arxiv.org/pdf/2402.16363.pdf)
+- [AMSP: Reducing Communication Overhead of ZeRO for Efficient LLM Training](https://arxiv.org/pdf/2311.00257.pdf)

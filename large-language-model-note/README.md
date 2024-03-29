@@ -455,6 +455,7 @@
 - [Scalable Diffusion Models with Transformers（DiTs）论文阅读 -- 文生视频Sora模型基础结构DiT](https://zhuanlan.zhihu.com/p/597695487)
 - [一文读懂DDIM凭什么可以加速DDPM的采样效率](https://zhuanlan.zhihu.com/p/627616358)
 - [Stable Diffusion 中的自注意力替换技术与 Diffusers 实现](https://mp.weixin.qq.com/s/dF0ykeSYSM7kzUHe1kMxAg)
+- [从continuous batching到vLLM中的batching](https://zhuanlan.zhihu.com/p/688551989)
 
 ### 文生视频
 
