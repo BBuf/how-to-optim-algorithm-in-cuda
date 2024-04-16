@@ -9,3 +9,4 @@
 - [Reducing Activation Recomputation in Large Transformer Models](https://arxiv.org/pdf/2205.05198.pdf)
 - [LLM Inference Unveiled: Survey and Roofline Model Insights](https://arxiv.org/pdf/2402.16363.pdf)
 - [AMSP: Reducing Communication Overhead of ZeRO for Efficient LLM Training](https://arxiv.org/pdf/2311.00257.pdf)
+- [Transformer-Lite: High-efficiency Deployment of Large Language Models on Mobile Phone GPUs](https://arxiv.org/pdf/2403.20041.pdf)

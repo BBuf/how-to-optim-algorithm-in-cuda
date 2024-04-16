@@ -126,6 +126,7 @@ Meagtron-LM 学习笔记。
 - [AI Infra论文阅读之将流水线并行气泡几乎降到零（附基于Meagtron-LM的ZB-H1开源代码实现解读）](https://mp.weixin.qq.com/s/PXjYm9dN8C9B8svMQ7nOvw)
 - [AI Infra论文阅读之LIGHTSEQ（LLM长文本训练的Infra工作）](https://mp.weixin.qq.com/s/u4gG1WZ73mgH9mEKQQCRww)
 - [AI Infra论文阅读之《在LLM训练中减少激活值内存》](https://mp.weixin.qq.com/s/WRUmZT5NIbiHSnNrK1vLOw)
+- [系统调优助手，PyTorch Profiler TensorBoard 插件教程](https://mp.weixin.qq.com/s/dG-wlwi8oLg8YMQe_A87qQ)
 
 ### 14. 学习资料收集
 
@@ -270,6 +271,7 @@ Meagtron-LM 学习笔记。
 - [NV_GPU tensor core 算力/带宽/编程模型分析](https://zhuanlan.zhihu.com/p/638129792)
 - [Nsight Compute - Scheduler Statistics](https://zhuanlan.zhihu.com/p/673770855)
 - [NVidia GPU指令集架构-前言](https://zhuanlan.zhihu.com/p/686198447)
+- [搞懂 CUDA Shared Memory 上的 bank conflicts 和向量化指令（LDS.128 / float4）的访存特点](https://zhuanlan.zhihu.com/p/690052715)
 
 ## Star History
 
