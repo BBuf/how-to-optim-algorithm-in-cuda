@@ -208,6 +208,7 @@ Meagtron-LM 学习笔记。
 - [如何用CUDA写有CuBLAS 90%性能的GEMM Kernel](https://zhuanlan.zhihu.com/p/631227862)
 - [如何理解Nvidia英伟达的Multi-GPU多卡通信框架NCCL？](https://www.zhihu.com/question/63219175/answer/2768301153)
 - [如何理解Nvidia英伟达的Multi-GPU多卡通信框架NCCL？](https://www.zhihu.com/question/63219175/answer/206697974)
+- [如何理解Nvidia英伟达的Multi-GPU多卡通信框架NCCL？](https://www.zhihu.com/question/63219175/answer/3487108775)
 - [使用FasterTransformer实现LLM分布式推理](https://zhuanlan.zhihu.com/p/644322962)
 - [细粒度GPU知识点详细总结](https://zhuanlan.zhihu.com/p/349185459)
 - [https://siboehm.com/articles/22/CUDA-MMM](https://siboehm.com/articles/22/CUDA-MMM)
@@ -245,6 +246,7 @@ Meagtron-LM 学习笔记。
 - [cute 之 MMA抽象](https://zhuanlan.zhihu.com/p/663092747)
 - [cute 之 Tensor](https://zhuanlan.zhihu.com/p/663093816)
 - [cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)
+- [基于 CUTE 的 GEMM 优化【2】—— 高效 GEMM 实现，超越 Cublas 20%](https://zhuanlan.zhihu.com/p/696028389)
 - [CUDA单精度矩阵乘法(sgemm)优化笔记](https://zhuanlan.zhihu.com/p/638820727)
 - [HPC（高性能计算第一篇） ：一文彻底搞懂并发编程与内存屏障（第一篇）](https://zhuanlan.zhihu.com/p/670350655)
 - [GPU CUDA 编程的基本原理是什么? 怎么入门?](https://www.zhihu.com/question/613405221/answer/3129776636)
@@ -272,6 +274,10 @@ Meagtron-LM 学习笔记。
 - [Nsight Compute - Scheduler Statistics](https://zhuanlan.zhihu.com/p/673770855)
 - [NVidia GPU指令集架构-前言](https://zhuanlan.zhihu.com/p/686198447)
 - [搞懂 CUDA Shared Memory 上的 bank conflicts 和向量化指令（LDS.128 / float4）的访存特点](https://zhuanlan.zhihu.com/p/690052715)
+- [窥探Trition的lower(二)](https://zhuanlan.zhihu.com/p/695255185)
+- [窥探Trition的lower(三)](https://zhuanlan.zhihu.com/p/696133729)
+- [ops(2)：SoftMax 算子的 CUDA 实现与优化](https://zhuanlan.zhihu.com/p/695307283)
+- [cuda学习日记(6) nsight system / nsight compute](https://zhuanlan.zhihu.com/p/640344249)
 
 ## Star History
 

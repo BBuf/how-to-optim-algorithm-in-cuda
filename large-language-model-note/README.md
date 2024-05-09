@@ -219,6 +219,7 @@
 - [GPT-4内幕大泄露！1.8万亿巨量参数，13万亿token训练，斥资6300万美元](https://zhuanlan.zhihu.com/p/642902819)
 - [一览大模型长文本能力](https://mp.weixin.qq.com/s/H0VwXlDz4SwA3D7hTgBPhw)
 - [LLM（廿六）：从信息论的角度解释 scaling law](https://zhuanlan.zhihu.com/p/687278237)
+- [Mamba技术背景详解：从RNN到Mamba一文搞定！](https://zhuanlan.zhihu.com/p/689215356)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -230,6 +231,7 @@
 - [多模态大模型 CLIP, BLIP, BLIP2, LLaVA, miniGPT4, InstructBLIP 系列解读](https://zhuanlan.zhihu.com/p/653902791)
 - [多模态大模型超详细解读 (目录)](https://zhuanlan.zhihu.com/p/625926419)
 - [我们与 GPT-4V 的距离](https://zhuanlan.zhihu.com/p/686257072)
+- [LLaVA（二）LLaVA-1.5 论文解读](https://zhuanlan.zhihu.com/p/696402890)
 
 ### 大模型训练和微调技术
 
@@ -340,6 +342,7 @@
 - [一文读懂分布式训练启动方式](https://zhuanlan.zhihu.com/p/675464874)
 - [DeepSpeed ZeRO理论与VLM大模型训练实践](https://zhuanlan.zhihu.com/p/675360966)
 - [LLM中的RLHF——ppo、dpo算法实践（基于qwen、chatglm3）](https://zhuanlan.zhihu.com/p/675215827)
+- [使用Firefly在单卡V100上对Qwen1.5进行SFT和DPO，大幅超越Qwen1.5和Gemma](https://zhuanlan.zhihu.com/p/692871243)
 
 ### 大模型推理技术
 
@@ -434,6 +437,7 @@
 - [OmniQuant-目前最优的LLM PTQ量化算法](https://zhuanlan.zhihu.com/p/687653912)
 - [W4A16模型量化大法 AWQ](https://zhuanlan.zhihu.com/p/682041025)
 - [大模型推理框架 vLLM 源码解析（二）：Block 模块分配和管理](https://zhuanlan.zhihu.com/p/688660090)
+- [FP8量化解读--8bit下最优方案？（一）](https://zhuanlan.zhihu.com/p/565021881)
 
 ### 扩散模型
 
