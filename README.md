@@ -278,6 +278,8 @@ Meagtron-LM 学习笔记。
 - [窥探Trition的lower(三)](https://zhuanlan.zhihu.com/p/696133729)
 - [ops(2)：SoftMax 算子的 CUDA 实现与优化](https://zhuanlan.zhihu.com/p/695307283)
 - [cuda学习日记(6) nsight system / nsight compute](https://zhuanlan.zhihu.com/p/640344249)
+- [ops(3)：Cross Entropy 的 CUDA 实现](https://zhuanlan.zhihu.com/p/695594396)
+- [cuda的ldmatrix指令的详细解释](https://zhuanlan.zhihu.com/p/697228676)
 
 ## Star History
 

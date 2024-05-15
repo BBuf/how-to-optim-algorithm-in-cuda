@@ -220,6 +220,7 @@
 - [一览大模型长文本能力](https://mp.weixin.qq.com/s/H0VwXlDz4SwA3D7hTgBPhw)
 - [LLM（廿六）：从信息论的角度解释 scaling law](https://zhuanlan.zhihu.com/p/687278237)
 - [Mamba技术背景详解：从RNN到Mamba一文搞定！](https://zhuanlan.zhihu.com/p/689215356)
+- [[大模型 08] 水多加面面多加水——参数量和数据的缩放定律](https://zhuanlan.zhihu.com/p/697473051)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -343,9 +344,11 @@
 - [DeepSpeed ZeRO理论与VLM大模型训练实践](https://zhuanlan.zhihu.com/p/675360966)
 - [LLM中的RLHF——ppo、dpo算法实践（基于qwen、chatglm3）](https://zhuanlan.zhihu.com/p/675215827)
 - [使用Firefly在单卡V100上对Qwen1.5进行SFT和DPO，大幅超越Qwen1.5和Gemma](https://zhuanlan.zhihu.com/p/692871243)
+- [DeepSpeed-Ulysses (SequenceParallel)](https://zhuanlan.zhihu.com/p/659198439)
 
 ### 大模型推理技术
 
+- [聊聊大模型推理服务中的优化问题](https://zhuanlan.zhihu.com/p/677650022)
 - [大幅优化推理过程，字节高性能Transformer推理库获IPDPS 2023最佳论文奖 ](https://mp.weixin.qq.com/s/5TM4PXTUBZuOfZlltFfrsQ)
 - [CodeGeeX百亿参数大模型的调优笔记：比FasterTransformer更快的解决方案](https://zhuanlan.zhihu.com/p/617027615)
 - [优化故事: BLOOM 模型推理](https://mp.weixin.qq.com/s/yzVqh4d6ynNROJxHycDUXg)
