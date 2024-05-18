@@ -127,6 +127,8 @@ Meagtron-LM 学习笔记。
 - [AI Infra论文阅读之LIGHTSEQ（LLM长文本训练的Infra工作）](https://mp.weixin.qq.com/s/u4gG1WZ73mgH9mEKQQCRww)
 - [AI Infra论文阅读之《在LLM训练中减少激活值内存》](https://mp.weixin.qq.com/s/WRUmZT5NIbiHSnNrK1vLOw)
 - [系统调优助手，PyTorch Profiler TensorBoard 插件教程](https://mp.weixin.qq.com/s/dG-wlwi8oLg8YMQe_A87qQ)
+- [在GPU上加速RWKV6模型的Linear Attention计算](https://mp.weixin.qq.com/s/YXtvafdxB1rVeoy0qJmjyA)
+- [flash-linear-attention的fused_recurrent_rwkv6 Triton实现精读](https://mp.weixin.qq.com/s/H6wWBxwIJNCzkIlH_uIuiw)
 
 ### 14. 学习资料收集
 
@@ -280,6 +282,7 @@ Meagtron-LM 学习笔记。
 - [cuda学习日记(6) nsight system / nsight compute](https://zhuanlan.zhihu.com/p/640344249)
 - [ops(3)：Cross Entropy 的 CUDA 实现](https://zhuanlan.zhihu.com/p/695594396)
 - [cuda的ldmatrix指令的详细解释](https://zhuanlan.zhihu.com/p/697228676)
+- [揭秘 Tensor Core 底层：如何让AI计算速度飞跃](https://mp.weixin.qq.com/s/UL7CLWp3cmdUgGILr4iVzA)
 
 ## Star History
 
