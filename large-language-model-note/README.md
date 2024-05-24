@@ -345,6 +345,7 @@
 - [LLM中的RLHF——ppo、dpo算法实践（基于qwen、chatglm3）](https://zhuanlan.zhihu.com/p/675215827)
 - [使用Firefly在单卡V100上对Qwen1.5进行SFT和DPO，大幅超越Qwen1.5和Gemma](https://zhuanlan.zhihu.com/p/692871243)
 - [DeepSpeed-Ulysses (SequenceParallel)](https://zhuanlan.zhihu.com/p/659198439)
+- [NLP（九十六）使用LLaMA-Factory实现function calling](https://zhuanlan.zhihu.com/p/694577892)
 
 ### 大模型推理技术
 

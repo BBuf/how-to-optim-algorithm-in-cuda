@@ -283,6 +283,7 @@ Meagtron-LM 学习笔记。
 - [ops(3)：Cross Entropy 的 CUDA 实现](https://zhuanlan.zhihu.com/p/695594396)
 - [cuda的ldmatrix指令的详细解释](https://zhuanlan.zhihu.com/p/697228676)
 - [揭秘 Tensor Core 底层：如何让AI计算速度飞跃](https://mp.weixin.qq.com/s/UL7CLWp3cmdUgGILr4iVzA)
+- [NCCL（NVIDIA Collective Communication Library）的来龙去脉](https://zhuanlan.zhihu.com/p/667221519)
 
 ## Star History
 
