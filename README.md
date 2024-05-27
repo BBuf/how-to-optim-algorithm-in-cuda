@@ -129,6 +129,7 @@ Meagtron-LM 学习笔记。
 - [系统调优助手，PyTorch Profiler TensorBoard 插件教程](https://mp.weixin.qq.com/s/dG-wlwi8oLg8YMQe_A87qQ)
 - [在GPU上加速RWKV6模型的Linear Attention计算](https://mp.weixin.qq.com/s/YXtvafdxB1rVeoy0qJmjyA)
 - [flash-linear-attention的fused_recurrent_rwkv6 Triton实现精读](https://mp.weixin.qq.com/s/H6wWBxwIJNCzkIlH_uIuiw)
+- [flash-linear-attention中的Chunkwise并行算法的理解](https://mp.weixin.qq.com/s/7utRk157_TFxF8gNRCyIyA)
 
 ### 14. 学习资料收集
 
@@ -284,6 +285,8 @@ Meagtron-LM 学习笔记。
 - [cuda的ldmatrix指令的详细解释](https://zhuanlan.zhihu.com/p/697228676)
 - [揭秘 Tensor Core 底层：如何让AI计算速度飞跃](https://mp.weixin.qq.com/s/UL7CLWp3cmdUgGILr4iVzA)
 - [NCCL（NVIDIA Collective Communication Library）的来龙去脉](https://zhuanlan.zhihu.com/p/667221519)
+- [ldmatrix与swizzle（笔记）](https://zhuanlan.zhihu.com/p/696231622)
+- [GPU上GEMM的边界问题以及优化](https://zhuanlan.zhihu.com/p/699776368)
 
 ## Star History
 

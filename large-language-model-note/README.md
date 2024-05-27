@@ -221,6 +221,7 @@
 - [LLM（廿六）：从信息论的角度解释 scaling law](https://zhuanlan.zhihu.com/p/687278237)
 - [Mamba技术背景详解：从RNN到Mamba一文搞定！](https://zhuanlan.zhihu.com/p/689215356)
 - [[大模型 08] 水多加面面多加水——参数量和数据的缩放定律](https://zhuanlan.zhihu.com/p/697473051)
+- [GPT-4o解耦之旅](https://zhuanlan.zhihu.com/p/699969189)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
