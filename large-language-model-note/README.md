@@ -19,6 +19,7 @@
 - [pengbo的专栏](https://www.zhihu.com/people/bopengbopeng/posts)
 - [RWKV 模型解析](https://zhuanlan.zhihu.com/p/640050680)
 - [[线性RNN系列] Mamba: S4史诗级升级](https://zhuanlan.zhihu.com/p/661237120)
+- [状态空间模型: RWKV & Mamba](https://zhuanlan.zhihu.com/p/701121020)
 
 ## MOE
 - [mixture-of-experts-with-expert-choice](https://blog.research.google/2022/11/mixture-of-experts-with-expert-choice.html)
@@ -221,7 +222,9 @@
 - [LLM（廿六）：从信息论的角度解释 scaling law](https://zhuanlan.zhihu.com/p/687278237)
 - [Mamba技术背景详解：从RNN到Mamba一文搞定！](https://zhuanlan.zhihu.com/p/689215356)
 - [[大模型 08] 水多加面面多加水——参数量和数据的缩放定律](https://zhuanlan.zhihu.com/p/697473051)
-- [GPT-4o解耦之旅](https://zhuanlan.zhihu.com/p/699969189)
+- [GPT-4o解耦之旅](https://zhuanlan.zhihu.com/p/700092179)
+- [CLA：降低Transformer模型内存需求的新方法](https://zhuanlan.zhihu.com/p/699863802)
+- [为什么需要RLHF？SFT不够吗？](https://www.zhihu.com/question/651021172/answer/3513159005)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -347,6 +350,7 @@
 - [使用Firefly在单卡V100上对Qwen1.5进行SFT和DPO，大幅超越Qwen1.5和Gemma](https://zhuanlan.zhihu.com/p/692871243)
 - [DeepSpeed-Ulysses (SequenceParallel)](https://zhuanlan.zhihu.com/p/659198439)
 - [NLP（九十六）使用LLaMA-Factory实现function calling](https://zhuanlan.zhihu.com/p/694577892)
+- [不那么显然的 RLHF](https://zhuanlan.zhihu.com/p/642385494)
 
 ### 大模型推理技术
 
@@ -443,6 +447,8 @@
 - [W4A16模型量化大法 AWQ](https://zhuanlan.zhihu.com/p/682041025)
 - [大模型推理框架 vLLM 源码解析（二）：Block 模块分配和管理](https://zhuanlan.zhihu.com/p/688660090)
 - [FP8量化解读--8bit下最优方案？（一）](https://zhuanlan.zhihu.com/p/565021881)
+- [LLM PTQ量化经典研究解析](https://zhuanlan.zhihu.com/p/695267503)
+- [GPTQ & SmoothQuant & AWQ 代码解析](https://zhuanlan.zhihu.com/p/697860995)
 
 ### 扩散模型
 
@@ -480,6 +486,7 @@
 - [OpenAI 视频模型 Sora 科研贡献速览](https://mp.weixin.qq.com/s/t9ZqzwMGePrmkpmw4XBJQA)
 - [技术神秘化的去魅：Sora关键技术逆向工程图解](https://zhuanlan.zhihu.com/p/687928845)
 - [Stable Video 3D震撼登场：单图生成无死角3D视频、模型权重开放](https://zhuanlan.zhihu.com/p/688112512)
+- [PipeFusion：如何用PCIe互联GPU 低成本并行推理扩散模型](https://zhuanlan.zhihu.com/p/699612077)
 
 ### 大模型服务
 

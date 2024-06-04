@@ -130,6 +130,7 @@ Meagtron-LM 学习笔记。
 - [在GPU上加速RWKV6模型的Linear Attention计算](https://mp.weixin.qq.com/s/YXtvafdxB1rVeoy0qJmjyA)
 - [flash-linear-attention的fused_recurrent_rwkv6 Triton实现精读](https://mp.weixin.qq.com/s/H6wWBxwIJNCzkIlH_uIuiw)
 - [flash-linear-attention中的Chunkwise并行算法的理解](https://mp.weixin.qq.com/s/7utRk157_TFxF8gNRCyIyA)
+- [硬件高效的线性注意力机制Gated Linear Attention论文阅读](https://mp.weixin.qq.com/s/IVFeHK1ItPVzttmRRa7ycw)
 
 ### 14. 学习资料收集
 
@@ -287,6 +288,7 @@ Meagtron-LM 学习笔记。
 - [NCCL（NVIDIA Collective Communication Library）的来龙去脉](https://zhuanlan.zhihu.com/p/667221519)
 - [ldmatrix与swizzle（笔记）](https://zhuanlan.zhihu.com/p/696231622)
 - [GPU上GEMM的边界问题以及优化](https://zhuanlan.zhihu.com/p/699776368)
+- [NV Tensor Core and Memory Accelerator 理论分析](https://zhuanlan.zhihu.com/p/601204275)
 
 ## Star History
 
