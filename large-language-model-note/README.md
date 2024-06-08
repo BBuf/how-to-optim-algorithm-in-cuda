@@ -351,6 +351,7 @@
 - [DeepSpeed-Ulysses (SequenceParallel)](https://zhuanlan.zhihu.com/p/659198439)
 - [NLP（九十六）使用LLaMA-Factory实现function calling](https://zhuanlan.zhihu.com/p/694577892)
 - [不那么显然的 RLHF](https://zhuanlan.zhihu.com/p/642385494)
+- [分布式训练与DeepSpeed浅谈](https://zhuanlan.zhihu.com/p/699572987)
 
 ### 大模型推理技术
 
@@ -449,6 +450,7 @@
 - [FP8量化解读--8bit下最优方案？（一）](https://zhuanlan.zhihu.com/p/565021881)
 - [LLM PTQ量化经典研究解析](https://zhuanlan.zhihu.com/p/695267503)
 - [GPTQ & SmoothQuant & AWQ 代码解析](https://zhuanlan.zhihu.com/p/697860995)
+- [深入理解AWQ量化技术](https://zhuanlan.zhihu.com/p/697761176)
 
 ### 扩散模型
 

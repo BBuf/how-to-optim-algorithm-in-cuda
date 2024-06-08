@@ -142,6 +142,7 @@ Meagtron-LM 学习笔记。
 
 #### 文章
 
+- [一文读懂nvidia-smi topo的输出](https://zhuanlan.zhihu.com/p/692947173)
 - [如果你是一个C++面试官，你会问哪些问题？](https://www.zhihu.com/question/451327108/answer/3299498791)
 - [推理部署工程师面试题库](https://zhuanlan.zhihu.com/p/673046520)
 - [[C++特性]对std::move和std::forward的理解](https://zhuanlan.zhihu.com/p/469607144)
