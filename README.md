@@ -131,6 +131,7 @@ Meagtron-LM 学习笔记。
 - [flash-linear-attention的fused_recurrent_rwkv6 Triton实现精读](https://mp.weixin.qq.com/s/H6wWBxwIJNCzkIlH_uIuiw)
 - [flash-linear-attention中的Chunkwise并行算法的理解](https://mp.weixin.qq.com/s/7utRk157_TFxF8gNRCyIyA)
 - [硬件高效的线性注意力机制Gated Linear Attention论文阅读](https://mp.weixin.qq.com/s/IVFeHK1ItPVzttmRRa7ycw)
+- [vAttention：用于在没有Paged Attention的情况下Serving LLM](https://mp.weixin.qq.com/s/F87-Qoo3xYGbwTTYr68guw)
 
 ### 14. 学习资料收集
 

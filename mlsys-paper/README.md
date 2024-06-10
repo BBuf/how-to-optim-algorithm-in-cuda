@@ -10,3 +10,5 @@
 - [LLM Inference Unveiled: Survey and Roofline Model Insights](https://arxiv.org/pdf/2402.16363.pdf)
 - [AMSP: Reducing Communication Overhead of ZeRO for Efficient LLM Training](https://arxiv.org/pdf/2311.00257.pdf)
 - [Transformer-Lite: High-efficiency Deployment of Large Language Models on Mobile Phone GPUs](https://arxiv.org/pdf/2403.20041.pdf)
+- [vAttention: Dynamic Memory Management for Serving LLMs without PagedAttention](https://arxiv.org/pdf/2405.04437v1)
+- [An LLM Compiler for Parallel Function Calling](https://openreview.net/pdf?id=uQ2FUoFjnF)
