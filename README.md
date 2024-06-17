@@ -131,7 +131,9 @@ Meagtron-LM 学习笔记。
 - [flash-linear-attention的fused_recurrent_rwkv6 Triton实现精读](https://mp.weixin.qq.com/s/H6wWBxwIJNCzkIlH_uIuiw)
 - [flash-linear-attention中的Chunkwise并行算法的理解](https://mp.weixin.qq.com/s/7utRk157_TFxF8gNRCyIyA)
 - [硬件高效的线性注意力机制Gated Linear Attention论文阅读](https://mp.weixin.qq.com/s/IVFeHK1ItPVzttmRRa7ycw)
+- [GQA，MLA之外的另一种KV Cache压缩方式：动态内存压缩（DMC）](https://mp.weixin.qq.com/s/5pd4fF14ZUgYeM4UXA7ujQ)
 - [vAttention：用于在没有Paged Attention的情况下Serving LLM](https://mp.weixin.qq.com/s/F87-Qoo3xYGbwTTYr68guw)
+- [大模型KV Cache节省神器MLA学习笔记（包含推理时的矩阵吸收分析）](https://mp.weixin.qq.com/s/cBMrRUdM1IM0T1ji_ODxng)
 
 ### 14. 学习资料收集
 
@@ -291,6 +293,7 @@ Meagtron-LM 学习笔记。
 - [ldmatrix与swizzle（笔记）](https://zhuanlan.zhihu.com/p/696231622)
 - [GPU上GEMM的边界问题以及优化](https://zhuanlan.zhihu.com/p/699776368)
 - [NV Tensor Core and Memory Accelerator 理论分析](https://zhuanlan.zhihu.com/p/601204275)
+- [CUTLASS CuTe GEMM细节分析（一）——ldmatrix的选择](https://zhuanlan.zhihu.com/p/702818267)
 
 ## Star History
 
