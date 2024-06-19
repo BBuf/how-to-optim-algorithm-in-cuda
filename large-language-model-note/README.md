@@ -225,6 +225,7 @@
 - [GPT-4o解耦之旅](https://zhuanlan.zhihu.com/p/700092179)
 - [CLA：降低Transformer模型内存需求的新方法](https://zhuanlan.zhihu.com/p/699863802)
 - [为什么需要RLHF？SFT不够吗？](https://www.zhihu.com/question/651021172/answer/3513159005)
+- [从Nemotron-4 看 Reward Model 发展趋势](https://zhuanlan.zhihu.com/p/703657164)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -451,6 +452,7 @@
 - [LLM PTQ量化经典研究解析](https://zhuanlan.zhihu.com/p/695267503)
 - [GPTQ & SmoothQuant & AWQ 代码解析](https://zhuanlan.zhihu.com/p/697860995)
 - [深入理解AWQ量化技术](https://zhuanlan.zhihu.com/p/697761176)
+- [FP8 量化-原理、实现与误差分析](https://zhuanlan.zhihu.com/p/574825662)
 
 ### 扩散模型
 

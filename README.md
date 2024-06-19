@@ -294,6 +294,8 @@ Meagtron-LM 学习笔记。
 - [GPU上GEMM的边界问题以及优化](https://zhuanlan.zhihu.com/p/699776368)
 - [NV Tensor Core and Memory Accelerator 理论分析](https://zhuanlan.zhihu.com/p/601204275)
 - [CUTLASS CuTe GEMM细节分析（一）——ldmatrix的选择](https://zhuanlan.zhihu.com/p/702818267)
+- [Triton到PTX（1）：Elementwise](https://zhuanlan.zhihu.com/p/699979345)
+- [由矩阵乘法边界处理引起的CUDA wmma fragment与原始矩阵元素对应关系探究](https://zhuanlan.zhihu.com/p/703476975)
 
 ## Star History
 
