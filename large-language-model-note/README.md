@@ -353,6 +353,8 @@
 - [NLP（九十六）使用LLaMA-Factory实现function calling](https://zhuanlan.zhihu.com/p/694577892)
 - [不那么显然的 RLHF](https://zhuanlan.zhihu.com/p/642385494)
 - [分布式训练与DeepSpeed浅谈](https://zhuanlan.zhihu.com/p/699572987)
+- [序列并行做大模型训练，你需要知道的六件事](https://zhuanlan.zhihu.com/p/698031151)
+- [我爱DeepSpeed-Ulysses：重新审视大模型序列并行技术](https://zhuanlan.zhihu.com/p/703669087)
 
 ### 大模型推理技术
 
