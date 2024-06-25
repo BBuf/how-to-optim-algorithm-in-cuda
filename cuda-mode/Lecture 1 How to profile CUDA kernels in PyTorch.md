@@ -91,3 +91,13 @@ print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 
 这里通过在 PyTorch 中实现平方和立方函数并使用 autograd profiler 工具进行 profile 。`time_pytorch_function` 这个函数的计时功能和 `torch.autograd.profiler.profile` 类似，第三页 Slides 里面我们可以通过 PyTorch Profiler 的结果看到当前被 `torch.autograd.profiler.profile` context manager 包起来的 PyTorch 程序 cuda kernel 在 cpu, cuda 上的执行时间以及占比以及 kernel 的调用次数，当前 kernel 的执行时间占总时间的比例。
 
+第四页Slides：
+
+![](https://files.mdnice.com/user/59/f76833c1-a1e4-425d-829b-19296a071523.png)
+
+这一页Slides是对 https://github.com/cuda-mode/lectures/blob/main/lecture_001/pt_profiler.py 这个文件进行讲解，之前我也翻译过PyTorch Profiler TensorBoard 插件教程，地址在 https://zhuanlan.zhihu.com/p/692749819
+
+第5页Slides:
+
+![](https://files.mdnice.com/user/59/cc142f21-fb8a-4d87-8a6a-74af273c2699.png)
+
