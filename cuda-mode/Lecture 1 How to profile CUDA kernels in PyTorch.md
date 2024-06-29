@@ -291,7 +291,11 @@ up主介绍了一下nsight compute profile工具，例子为：https://github.co
 
 
 
-下面一页Slides是Nsight Compute的source pages，
+下面一页Slides是Nsight Compute的source pages，它会展示源代码，CUDA PTX代码，代码对应的的寄存器占用情况比如全局内存读取操作。
 
 ![](https://files.mdnice.com/user/59/6f8059d6-ac50-42af-9626-be345255bd62.png)
+
+
+
+最后总结一下这节课就是，让PyTorch集成 CUDA kernel 很容易，接着我们应该利用 `torch.autograd.profiler` 和 Nsight Compute 来做 profile 和性能优化。
 
