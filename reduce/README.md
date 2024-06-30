@@ -131,7 +131,7 @@ __global__ void reduce_v1(float *g_idata,float *g_odata){
         // }
         int index = 2 * s * tid;
         if (index < blockDim.x) {
-            sdata[tid] += sdata[tid + s];
+            sdata[index] += sdata[index + s];
         }
         __syncthreads();
     }
