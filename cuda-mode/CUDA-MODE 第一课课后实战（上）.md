@@ -1,3 +1,6 @@
+> 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
+
+
 # CUDA-MODE 第一课课后实战（上）
 
 ## Nsight Compute简介

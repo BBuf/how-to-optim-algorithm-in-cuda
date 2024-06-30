@@ -4,11 +4,21 @@
 
 本工程记录如何基于 cuda 优化一些常见的算法。请注意，下面的介绍都分别对应了子目录的代码实现，所以想复现性能的话请查看对应子目录下面的 README 。
 
-### 0. how-to-compile-pytorch-from-source
+
+### 0. cuda-model
+
+- 课程的 Slides 和 脚本：https://github.com/cuda-mode/lectures
+- 课程地址：https://www.youtube.com/@CUDAMODE
+- 我的课程笔记：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode
+
+一直想系统看一下某个课程系统和科学的学习下 CUDA ，感觉 CUDA-MODE 这个课程能满足我的需求。这个课程是几个 PyTorch 的 Core Dev 搞的，比较系统和专业。不过由于这个课程是 Youtube 上的英语课程，所以要学习和理解这个课程还是需要花不少时间的，我这里记录一下学习这个课程的每一课的笔记，希望可以通过这个笔记帮助对这个课程以及 CUDA 感兴趣的读者更快吸收这个课程的知识。这个课程相比于以前的纯教程更加关注的是我们可以利用 CUDA 做什么事情，而不是让读者陷入到 CUDA 专业术语的细节中，那会非常痛苦。伟大无需多言，感兴趣请阅读本文件夹下的各个课程的学习笔记。
+
+
+### 1. how-to-compile-pytorch-from-source
 
 记录如何手动编译 PyTorch 源码，学习 PyTorch 的一些 cuda 实现。
 
-### 1. reduce
+### 2. reduce
 
 这里记录学习 NIVDIA 的[reduce优化官方博客](https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf) 做的笔记。完整实验代码见[这里](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/reduce) , 原理讲解请看：[【BBuf的CUDA笔记】三，reduce优化入门学习笔记](https://zhuanlan.zhihu.com/p/596012674) 。后续又添加了 PyTorch BlockReduce 模板以及在这个模板的基础上额外加了一个数据 Pack ,又获得了一些带宽的提升。详细数据如下：
 
@@ -16,7 +26,7 @@
 
 ![图片](https://user-images.githubusercontent.com/35585791/213908763-480d0c07-5709-4829-9903-db17a0ecca89.png)
 
-### 2. elementwise
+### 3. elementwise
 
 将 oneflow 的 elementwise 模板抽出来方便大家使用，这个 elementwise 模板实现了高效的性能和带宽利用率，并且用法非常灵活。完整实验代码见[这里](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/elementwise/elementwise.cu) ，原理讲解请看：[【BBuf 的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808) 。这里以逐点乘为例，性能和带宽的测试情况如下 (A100 PCIE 40G)：
 
@@ -29,7 +39,7 @@
 
 可以看到无论是性能还是带宽，使用 oneflow 的 elementwise 模板相比于原始实现都有较大提升。
 
-### 3. FastAtomicAdd
+### 4. FastAtomicAdd
 
 实现的脚本是针对half数据类型做向量的内积，用到了atomicAdd，保证数据的长度以及gridsize和blocksize都是完全一致的。一共实现了3个脚本：
 
@@ -47,7 +57,7 @@
 
 可以看到使用pack half的方式和直接使用half的fastAtomicAdd方式得到的性能结果一致，均比原始的half的原子加快3-4倍。
 
-### 4. UpsampleNearest2D
+### 5. UpsampleNearest2D
 
 upsample_nearest_2d.cu 展示了 oneflow 对 upsample_nearest2d 的前后向的优化 kernel 的用法，性能和带宽的测试情况如下 (A100 PCIE 40G)：
 
@@ -65,45 +75,45 @@ upsample_nearest_2d.cu 展示了 oneflow 对 upsample_nearest2d 的前后向的�
 可以看到基于 oneflow upsample_nearest2d 的前后向的优化 kernel 可以获得更好的带宽利用率和性能。注意这里的 profile 使用的是 oneflow 脚本，而不是 upsample_nearest_2d.cu ，详情请看 [UpsampleNearest2D/README.md](UpsampleNearest2D/README.md) 。
 
 
-### 5. indexing
+### 6. indexing
 
 在 PyTorch 中对 index_add 做了极致的优化，我这里将 [PyTorch 的 index_add 实现](indexing/index_add_cuda_pytorch_impl.cu) 进行了剥离，方便大家应用于其它框架。具体请看 indexing 文件夹的 README 。其中还有和 oneflow 的 index_add 实现的各个 case 的性能比较结果。整体来说 PyTorch 在 index Tensor元素很小，但Tensor很大的情况下有较大的性能提升，其它情况和 OneFlow 基本持平。详情请看 [indexing/README.md](indexing/README.md) 。
 
-### 6. oneflow-cuda-optimize-skills
+### 7. oneflow-cuda-optimize-skills
 
 OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
-### 7. FastTransformer
+### 8. FastTransformer
 
 总结 FastTransformer 相关的 cuda 优化技巧。[README_BERT.md](FastTransformer/README_BERT.md) 总结了 BERT 相关的优化技巧。
 
-### 8. softmax
+### 9. softmax
 
 学习了oneflow的softmax kernel实现以及Faster Transformer softmax kernel的实现，并以个人的角度分别解析了原理和代码实现，最后对性能做一个对比方便大家直观的感受到oneflow softmax kernel相比于FasterTransformer的优越性。
 
-### 9. linear-attention
+### 10. linear-attention
 
 学习一些 linear attention 的 cuda 优化技巧。
 
 ![图片](https://user-images.githubusercontent.com/35585791/221142822-1c2ef670-00e2-4782-98de-d35a4eebd33c.png)
 
-### 10. large-language-model-note
+### 11. large-language-model-note
 
 收集了和大语言模型原理，训练，推理，数据标注的相关文章。
 
-### 11. mlsys-paper
+### 12. mlsys-paper
 
 前研的大模型训练相关 AI-Infra 论文收集以及阅读笔记。 
 
-### 12. triton
+### 13. triton
 
 Triton 学习过程中的代码记录。
 
-### 13. meagtron-lm
+### 14. meagtron-lm
 
 Meagtron-LM 学习笔记。
 
-### 13. 原创学习笔记
+### 15. 原创学习笔记
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
@@ -135,7 +145,7 @@ Meagtron-LM 学习笔记。
 - [vAttention：用于在没有Paged Attention的情况下Serving LLM](https://mp.weixin.qq.com/s/F87-Qoo3xYGbwTTYr68guw)
 - [大模型KV Cache节省神器MLA学习笔记（包含推理时的矩阵吸收分析）](https://mp.weixin.qq.com/s/cBMrRUdM1IM0T1ji_ODxng)
 
-### 14. 学习资料收集
+### 16. 学习资料收集
 
 #### 专栏
 

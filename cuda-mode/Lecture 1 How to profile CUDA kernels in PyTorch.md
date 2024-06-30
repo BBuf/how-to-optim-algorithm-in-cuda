@@ -1,11 +1,10 @@
+> 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
+
 ## 第一课: 如何在 PyTorch 中 profile CUDA kernels
-
-
 
 ![](https://files.mdnice.com/user/59/b920b268-3090-4d04-b067-615909948d40.png)
 
 这里是课程规划，有三位讲师 Andreas, Thomas, Mark，然后大概2周出一个 CUDA 主题的讲解以及工程或者结对编程的视频。课程讨论的主题是根据 《Programming Massively Parallel Processors》这本书来的，Mark 也是在8分钟的时候强推了这本书。另外在6分钟左右 Mark 指出，学习 CUDA 的困难之处在于对于新手来说，可能会陷入不断循环查找文档的状态，非常痛苦。
-
 
 
 ![](https://files.mdnice.com/user/59/10a32c56-c912-4323-b63b-96d3262521c6.png)
