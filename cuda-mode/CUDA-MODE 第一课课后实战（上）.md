@@ -220,7 +220,7 @@ Detailed analysis of the memory resources of the GPU. Memory can become a limiti
 
 可以通过鼠标悬停的方式看到每个指标的详细信息。
 
-- **Memory Throughput**
+- Memory Throughput
 
 ![](https://files.mdnice.com/user/59/58846b98-8642-4a11-8255-4e8c3d6bc32a.png)
 
@@ -230,7 +230,7 @@ dram__bytes.sum.per_second
 
 dram：设备（主要）内存，GPU的全局和本地内存所在的位置。
 
-- **Mem Busy**
+- Mem Busy
 
 
 ![](https://files.mdnice.com/user/59/2a4d8c91-41ab-4c6c-8457-c3708afb0560.png)
@@ -243,7 +243,7 @@ gpu：整个图形处理单元。
 
 DRAM：设备（主）内存，GPU的全局和本地内存所在位置。
 
-- **L1/TEX Hit Rate**
+- L1/TEX Hit Rate
 
 ![](https://files.mdnice.com/user/59/d68b4fea-f94e-44f5-be9a-5f78c8f8a992.png)
 
@@ -263,7 +263,7 @@ sector：缓存线或设备内存中对齐的32字节内存块。
 如果标签存在且sector数据在缓存线内，则sector访问被归类为命中。
 标签未命中和标签命中但数据未命中都被归类为未命中。
 
-- **Max Bandwidth**
+- Max Bandwidth
 
 ![](https://files.mdnice.com/user/59/d32ed3a5-de96-43be-8815-b19c78c56dd4.png)
 
@@ -277,7 +277,7 @@ gpu：整个图形处理单元。
 request：向硬件单元发出的执行某些操作的命令，例如从某个内存位置加载数据。
 每个请求访问一个或多个sector。
 
-- **L2 Hit Rate**
+- L2 Hit Rate
 
 ![](https://files.mdnice.com/user/59/9213b09f-94b0-4e98-b89e-0344195ad9a5.png)
 
