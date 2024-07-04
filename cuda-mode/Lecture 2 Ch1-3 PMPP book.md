@@ -82,4 +82,112 @@
 
 ![](https://files.mdnice.com/user/59/0da939ef-4d56-4217-a5f5-66615a686802.png)
 
-这张Slides
+这张Slides给出了一个向量加法的CUDA C编程示例:
+
+- 向量加法的并行化: 主要概念循环会被映射到多个线程进行独立计算,从而实现易于并行化。
+- Naive 的GPU 向量加法步骤:
+    - 为向量分配设备内存
+    - 将输入从主机传输到设备
+    - 启动内核(kernel)进行向量加法运算
+    - 将计算结果从设备拷贝回主机
+    - 释放设备内存
+- 保持数据在GPU上尽可能长的时间,以支持并发的内核启动。这可以最大限度地提高性能。
+
+![](https://files.mdnice.com/user/59/6abe12fa-9a40-406f-9aa0-9011f2064f79.png)
+
+这张Slides展示了每个线程处理一个输出元素的计算，并且是相互独立的。
+
+![](https://files.mdnice.com/user/59/80292cf8-90fc-4950-baf0-9df586b533e5.png)
+
+这张Slides介绍了CUDA编程中内存分配的重要概念:
+
+- NVIDIA设备拥有自己的DRAM(设备全局内存)。
+- CUDA提供了两个重要的内存分配函数
+    - cudaMalloc(): 在设备全局内存上分配内存空间。
+    - cudaFree(): 释放设备全局内存上的内存空间。
+- 代码示例中展示了如何使用这两个函数来动态分配和释放浮点型数组的内存空间。
+    - size_t size = n * sizeof(float);//计算数组所需的字节数
+    - cudaMalloc((void**)&A_d, size);//在设备上分配内存
+    - cudaFree(A_d);//释放设备内存
+
+![](https://files.mdnice.com/user/59/ae818eb4-9c6c-48a5-9d25-deb9069257d0.png)
+
+这张Slides介绍了CUDA中内存搬运的API，包括D2H和H2D。一般来说，CUDA程序会先执行H2D的Memcpy把数据搬运到GPU上，然后kernel执行完之后再把结果通过D2H的Memcpy搬运回主机端。
+
+
+![](https://files.mdnice.com/user/59/88dceae7-b037-49a5-bf7c-85e40e685ba8.png)
+
+这张Slides介绍了CUDA编程中的错误处理机制:
+
+- CUDA函数如果出现错误,会返回一个特殊的错误代码 cudaError_t。如果不是 cudaSuccess，则表示发生了问题。也可以通过这个错误代码获得它的字符串表示形式。
+- 编程时,我们需要始终检查 CUDA 函数的返回值,并处理可能出现的错误。
+
+我们在 https://github.com/cuda-mode/lectures/blob/main/lecture_002/vector_addition/vector_addition.cu 这里可以到如何处理错误码：
+
+```c++
+// https://stackoverflow.com/questions/14038589/what-is-the-canonical-way-to-check-for-errors-using-the-cuda-runtime-api
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
+  if (code != cudaSuccess) {
+    fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+    if (abort) {
+      exit(code);
+    }
+  }
+}
+
+inline unsigned int cdiv(unsigned int a, unsigned int b) {
+  return (a + b - 1) / b;
+}
+
+void vecAdd(float *A, float *B, float *C, int n) {
+  float *A_d, *B_d, *C_d;
+  size_t size = n * sizeof(float);
+
+  cudaMalloc((void **)&A_d, size);
+  cudaMalloc((void **)&B_d, size);
+  cudaMalloc((void **)&C_d, size);
+
+  cudaMemcpy(A_d, A, size, cudaMemcpyHostToDevice);
+  cudaMemcpy(B_d, B, size, cudaMemcpyHostToDevice);
+
+  const unsigned int numThreads = 256;
+  unsigned int numBlocks = cdiv(n, numThreads);
+
+  vecAddKernel<<<numBlocks, numThreads>>>(A_d, B_d, C_d, n);
+  gpuErrchk(cudaPeekAtLastError());
+  gpuErrchk(cudaDeviceSynchronize());
+
+  cudaMemcpy(C, C_d, size, cudaMemcpyDeviceToHost);
+
+  cudaFree(A_d);
+  cudaFree(B_d);
+  cudaFree(C_d);
+}
+```
+
+![](https://files.mdnice.com/user/59/5b14e221-ef96-42a0-8857-b0952043ab2d.png)
+
+这张Slides介绍了CUDA编程中内核函数(kernel)的基本特点:
+
+- 启动内核函数相当于启动一个由多个线程组成的网格(grid of threads)。
+- 所有的线程执行同样的代码,实现了单程序多数据(SPMD)的并行模式。
+- 线程以分层的方式组织,分为网格块(grid blocks)和线程块(thread blocks)。
+- 每个线程块最多可以包含1024个线程。
+
+![](https://files.mdnice.com/user/59/1c2b0000-aa4a-4da2-8fc1-7a16d750d951.png)
+
+这张Slides讲解了Kernel坐标的几个点：
+- 内核中可用的内置变量：blockIdx, threadIdx：这些是CUDA编程中用来标识线程位置的内置变量。blockIdx表示当前线程块的索引，而threadIdx表示当前线程在其所在块中的索引。
+- 这些“坐标”允许所有执行相同代码的线程识别要处理的数据部分：通过使用blockIdx和threadIdx，每个线程可以确定它应该处理数据的哪一部分。这对于并行处理非常重要，因为不同的线程可以同时处理不同的数据片段。
+- 每个线程可以通过threadIdx和blockIdx唯一标识：threadIdx和blockIdx的组合可以唯一确定一个线程的位置，从而避免不同线程处理相同的数据片段。
+- 电话系统类比：将blockIdx视为区号，将threadIdx视为本地电话号码：这种类比帮助理解：blockIdx相当于更大的区域（类似于区号），而threadIdx是在这个区域内的具体线程（类似于本地电话号码）。
+- 内置的blockDim告诉我们块中的线程数：blockDim表示每个线程块中包含的线程数。这个变量对于计算每个线程的全局索引是必要的。
+- 对于向量加法，我们可以计算线程的数组索引：示例代码：int i = blockIdx.x * blockDim.x + threadIdx.x; 这行代码展示了如何计算每个线程在整个数据数组中的位置。blockIdx.x * blockDim.x计算的是当前块之前所有线程的总数，加上threadIdx.x得到当前线程的全局索引。
+
+![](https://files.mdnice.com/user/59/d52dfd78-ebc6-417e-a835-c67ebc50cb84.png)
+
+这张Slides是对Kernel坐标定位的可视化。我们可以看到每个线程执行相同的代码，仅仅是数据的位置不同。
+
+
+

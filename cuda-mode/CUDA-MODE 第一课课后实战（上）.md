@@ -184,7 +184,7 @@ gpc：通用处理集群（General Processing Cluster）包含以 TPC（纹理�
 
 ##### SOL部分
 
-首先是 GPU Speed Of Light Throughput部分，它通常位于Details部分的顶部。它清晰的描述了GPU资源的利用情况。在下面的截图中，我们同样可以通过鼠标悬停的方式去看每个指标的细节，本文就不再赘述了。
+首先是 GPU Speed Of Light Throughput部分，它通常位于Details部分的顶部。它清晰的描述了GPU资源的利用情况。在下面的截图中，我们同样可以通过鼠标悬停的方式去看每个指标的细节，这里就不再赘述了。
 
 ![](https://files.mdnice.com/user/59/4e4386fd-c7f5-4c67-ac04-d27e8c6dc7b5.png)
 
@@ -362,6 +362,7 @@ sector：缓存线或设备内存中对齐的32字节内存块。
 
 由此可见，如果想继续提升 kernel 的带宽，我们是一定可以从这部分建议里面获得有用的信息。比如，当前代码在存储数据时使用了掩码 mask=col_offsets < n_cols，这可能导致未合并的内存访问，如果可能，将数据填充到 BLOCK_SIZE，这样就不需要使用掩码。或者尝试不同的BLOCK_SIZE获取更好的性能等等。
 
+> 在下一篇文章里面我们可以看到这部分和Source部分的关联。
 
 ##### Warp State Statistics 部分
 
