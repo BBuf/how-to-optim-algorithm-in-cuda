@@ -287,6 +287,7 @@ Meagtron-LM 学习笔记。
 - [[手把手带你入门CUTLASS系列] 0x02 cutlass 源码分析(一) --- block swizzle 和 tile iterator (附tvm等价code)](https://zhuanlan.zhihu.com/p/679929705)
 - [[手把手带你入门CUTLASS系列] 0x03 cutlass 源码分析(二) --- bank conflict free 的shared memory layout (附tvm等价pass)](https://zhuanlan.zhihu.com/p/681966685)
 - [[深入分析CUTLASS系列] 0x04 cutlass 源码分析(三) --- 多级流水线(software pipeline)](https://zhuanlan.zhihu.com/p/687397095)
+- [[深入分析CUTLASS系列] 0x03 cutlass 源码分析(二) --- bank conflict free 的shared memory layout (附tvm等价pass)](https://zhuanlan.zhihu.com/p/681966685)
 - [GPU 内存概念浅析](https://zhuanlan.zhihu.com/p/651179378)
 - [NV_GPU tensor core 算力/带宽/编程模型分析](https://zhuanlan.zhihu.com/p/638129792)
 - [Nsight Compute - Scheduler Statistics](https://zhuanlan.zhihu.com/p/673770855)
@@ -306,6 +307,12 @@ Meagtron-LM 学习笔记。
 - [CUTLASS CuTe GEMM细节分析（一）——ldmatrix的选择](https://zhuanlan.zhihu.com/p/702818267)
 - [Triton到PTX（1）：Elementwise](https://zhuanlan.zhihu.com/p/699979345)
 - [由矩阵乘法边界处理引起的CUDA wmma fragment与原始矩阵元素对应关系探究](https://zhuanlan.zhihu.com/p/703476975)
+- [NVIDIA Hopper架构TensorCore分析(4)](https://zhuanlan.zhihu.com/p/654067822)
+- [NVidia GPU指令集架构-Load和Cache](https://zhuanlan.zhihu.com/p/692445145)
+- [NVidia GPU指令集架构-寄存器](https://zhuanlan.zhihu.com/p/688616037)
+- [Async Copy 及 Memory Barrier 指令的功能与实现](https://zhuanlan.zhihu.com/p/685168850)
+- [tensorcore中ldmatrix指令的优势是什么？](https://www.zhihu.com/question/600927104/answer/3029266372)
+- [使用cutlass cute复现flash attention](https://zhuanlan.zhihu.com/p/696323042)
 
 ## Star History
 

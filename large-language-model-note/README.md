@@ -4,7 +4,7 @@
 
 ## 博客和文章收集
 
-### RWKV
+### Linear Attention
 - [github仓库](https://github.com/BlinkDL/RWKV-LM)
 - [rwkv论文原理解读](https://www.zhihu.com/question/602564718)
 - [RWKV的微调教学，以及RWKV World：支持世界所有语言的生成+对话+任务+代码](https://zhuanlan.zhihu.com/p/638326262)
@@ -20,6 +20,7 @@
 - [RWKV 模型解析](https://zhuanlan.zhihu.com/p/640050680)
 - [[线性RNN系列] Mamba: S4史诗级升级](https://zhuanlan.zhihu.com/p/661237120)
 - [状态空间模型: RWKV & Mamba](https://zhuanlan.zhihu.com/p/701121020)
+- [Transformer，SSM，Linear Attention的联系与理解](https://zhuanlan.zhihu.com/p/705837508)
 
 ## MOE
 - [mixture-of-experts-with-expert-choice](https://blog.research.google/2022/11/mixture-of-experts-with-expert-choice.html)
@@ -226,6 +227,7 @@
 - [CLA：降低Transformer模型内存需求的新方法](https://zhuanlan.zhihu.com/p/699863802)
 - [为什么需要RLHF？SFT不够吗？](https://www.zhihu.com/question/651021172/answer/3513159005)
 - [从Nemotron-4 看 Reward Model 发展趋势](https://zhuanlan.zhihu.com/p/703657164)
+- [Cosmopedia: 如何为预训练构建大规模合成数据集](https://zhuanlan.zhihu.com/p/706832032)
 
 ### Agent
 - [一个不是很长的综述：AI-Agent，Language Agent（语言代理，智能体）下一代语言大模型的发展](https://zhuanlan.zhihu.com/p/665355126)
@@ -355,10 +357,13 @@
 - [分布式训练与DeepSpeed浅谈](https://zhuanlan.zhihu.com/p/699572987)
 - [序列并行做大模型训练，你需要知道的六件事](https://zhuanlan.zhihu.com/p/698031151)
 - [我爱DeepSpeed-Ulysses：重新审视大模型序列并行技术](https://zhuanlan.zhihu.com/p/703669087)
+- [由Ring-Attention性能问题引发的计算通信overlap分析](https://zhuanlan.zhihu.com/p/706805407)
+- [为Token-level流水并行找PMF：从TeraPipe，Seq1F1B，HPipe到PipeFusion](https://zhuanlan.zhihu.com/p/706475158)
 
 ### 大模型推理技术
 
 - [聊聊大模型推理服务中的优化问题](https://zhuanlan.zhihu.com/p/677650022)
+- [聊聊大模型推理中的分离式推理](https://zhuanlan.zhihu.com/p/706469785)
 - [大幅优化推理过程，字节高性能Transformer推理库获IPDPS 2023最佳论文奖 ](https://mp.weixin.qq.com/s/5TM4PXTUBZuOfZlltFfrsQ)
 - [CodeGeeX百亿参数大模型的调优笔记：比FasterTransformer更快的解决方案](https://zhuanlan.zhihu.com/p/617027615)
 - [优化故事: BLOOM 模型推理](https://mp.weixin.qq.com/s/yzVqh4d6ynNROJxHycDUXg)
@@ -477,6 +482,7 @@
 - [一文读懂DDIM凭什么可以加速DDPM的采样效率](https://zhuanlan.zhihu.com/p/627616358)
 - [Stable Diffusion 中的自注意力替换技术与 Diffusers 实现](https://mp.weixin.qq.com/s/dF0ykeSYSM7kzUHe1kMxAg)
 - [从continuous batching到vLLM中的batching](https://zhuanlan.zhihu.com/p/688551989)
+- [图解大模型计算加速系列：分离式推理架构1，从DistServe谈起](https://zhuanlan.zhihu.com/p/706761664)
 
 ### 文生视频
 
