@@ -460,6 +460,7 @@
 - [GPTQ & SmoothQuant & AWQ 代码解析](https://zhuanlan.zhihu.com/p/697860995)
 - [深入理解AWQ量化技术](https://zhuanlan.zhihu.com/p/697761176)
 - [FP8 量化-原理、实现与误差分析](https://zhuanlan.zhihu.com/p/574825662)
+- [从continuous batching到vLLM中的batching](https://zhuanlan.zhihu.com/p/688551989)
 
 ### 扩散模型
 

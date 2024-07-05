@@ -313,6 +313,10 @@ Meagtron-LM 学习笔记。
 - [Async Copy 及 Memory Barrier 指令的功能与实现](https://zhuanlan.zhihu.com/p/685168850)
 - [tensorcore中ldmatrix指令的优势是什么？](https://www.zhihu.com/question/600927104/answer/3029266372)
 - [使用cutlass cute复现flash attention](https://zhuanlan.zhihu.com/p/696323042)
+- [1. Cuda矩阵乘法GeMM性能优化](https://zhuanlan.zhihu.com/p/593462636)
+- [一步步优化 GEMM by Tensorcore](https://zhuanlan.zhihu.com/p/638522893)
+- [CUTLASS 3.x 异构编程随感](https://zhuanlan.zhihu.com/p/689829403)
+- [Triton到PTX（1）：Elementwise](https://zhuanlan.zhihu.com/p/699979345)
 
 ## Star History
 
