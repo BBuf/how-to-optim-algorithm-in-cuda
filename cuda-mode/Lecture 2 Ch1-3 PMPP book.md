@@ -2,6 +2,8 @@
 
 ## 第二课: PMPP 书的第1-3章
 
+> 这节课非常基础，讲的都是基本概念和初级的注意事项，有CUDA基础的朋友可以不用花时间看。
+
 ### PMPP 第一章
 
 ![](https://files.mdnice.com/user/59/6d74a444-8832-46a2-93db-02d09dac937a.png)
@@ -190,4 +192,125 @@ void vecAdd(float *A, float *B, float *C, int n) {
 这张Slides是对Kernel坐标定位的可视化。我们可以看到每个线程执行相同的代码，仅仅是数据的位置不同。
 
 
+![](https://files.mdnice.com/user/59/42d6e8c0-09da-463f-a0bf-5b7c56099a70.png)
 
+这张Slides解释了CUDA C中的几个关键函数声明修饰符：`__global__`，`__device__`和`__host__`，以及它们的用法和特性。
+
+- `__global__`修饰符：
+    - 用`__global__`声明的函数是一个kernel函数。
+    - 调用`__global__`函数会启动一个新的CUDA线程网格（grid of cuda threads）。
+    - 从Host（CPU）端调用，在Device（GPU）上执行。
+
+- `__host__`修饰符：
+    - 用`__host__`声明的函数在CPU上执行。
+    - 从Host（CPU）端调用。
+
+- `__device__`修饰符：
+    - 用`__device__`声明的函数可以在CUDA线程内部被调用。
+    - 在Device（GPU）上执行。
+
+- 组合使用：
+    - 如果在函数声明中同时使用`__host__`和`__device__`修饰符，编译器会为该函数生成CPU和GPU两个版本。
+
+![](https://files.mdnice.com/user/59/549eaeae-45c3-4df9-a2b6-cff4549cd7c6.png)
+
+这张Slides讲解了在CUDA编程中进行向量加法的一个示例，并提供了一些重要的策略和注意事项：
+
+- 总体策略：用线程网格（grid of threads）替代循环。这是CUDA并行编程的核心思想。
+- 数据大小考虑：数据大小可能不能被块大小完美整除，因此总是需要检查边界条件。
+- 内存访问安全：防止边界块的线程读写分配内存之外的区域，这是为了避免内存访问错误。
+- 代码示例：展示了一个向量加法的CUDA kernel函数：
+    - 函数计算向量和：C = A + B
+    - 每个线程执行一次对应元素的加法操作
+    - 使用`__global__`修饰符声明kernel函数
+    - 函数参数包括输入向量A和B，输出向量C，以及向量长度n
+    - 使用线程和块的索引计算每个线程负责的元素位置
+    - 进行边界检查，确保不会访问超出向量范围的元素
+    - 执行实际的加法操作
+
+![](https://files.mdnice.com/user/59/5055ae4e-c8f0-4219-ba1d-37d8b1197e1c.png)
+
+这张Slides讲解了CUDA调用kernel的一些注意的点。
+
+- kernel配置是在 `<<<` 和 `>>>` 之间指定的。这个配置主要包括两个参数：块的数量和每个块中的线程数量。
+- 代码块中，设置每个块的线程数为256：dim3 numThreads(256); 计算所需的块数：dim3 numBlocks((n + numThreads - 1) / numThreads); 这个计算方式确保了即使n不能被numThreads整除，也能覆盖所有的数据。
+- 后续将会学习其他启动参数，如共享内存大小（shared-mem size）和CUDA流（cudaStream）。
+
+![](https://files.mdnice.com/user/59/1833a93b-a21c-4127-b48d-5000a669ce6e.png)
+
+这张Slides介绍了CUDA编程中的编译器和相关概念：
+- NVCC是NVIDIA的C编译器，它用于将CUDA内核代码编译成PTX (Parallel Thread Execution)
+- PTX是一种低级虚拟机(VM)和指令集，它是CUDA代码编译过程中的一个中间表示
+- 图形驱动程序负责将PTX转译成可执行的二进制代码（SASS），SASS (Streaming Assembly) 是GPU上实际执行的机器代码
+
+### PMPP 第三章
+
+![](https://files.mdnice.com/user/59/99ab44cb-a44d-4a5a-a611-03df08752c1c.png)
+
+这张Slides和Lecture 2是几乎重复的。
+
+![](https://files.mdnice.com/user/59/9316a593-771a-4099-81b1-3ba427249560.png)
+
+这张Slides为我们展示了启动kernel的2D线程网格（Grid）和3D线程块（Block）的结构，我们可以在同一个设备上启动多个kernel。
+
+![](https://files.mdnice.com/user/59/47478350-4416-47fb-9be9-b885509ddab5.png)
+
+这张Slides继续讨论了CUDA中的网格(Grid)概念：
+
+- 每次内核启动可以使用不同的网格配置，例如根据数据形状来决定。
+- 典型的网格包含数千到数百万个线程。
+- 常用的策略是每个输出元素对应一个线程（如每个像素一个线程，每个张量元素一个线程）。
+- 线程可以以任意顺序被调度执行。
+- 可以使用少于3维的网格配置（未使用的维度设为1）。
+- 例如：1D用于序列处理，2D用于图像处理等。
+- 代码例子展示了如何定义一个1D的网格和块配置，总共启动4096个线程。
+
+![](https://files.mdnice.com/user/59/00ebef68-f6e7-47c3-8a55-a04b3ce93fcd.png)
+
+CUDA已经有了这些内置变量在里面了，第二章反复提到过。
+
+
+![](https://files.mdnice.com/user/59/5b8dce0b-486d-4afe-99dc-730033727eff.png)
+
+这张Slides讲解了多维数组在内存中的存储方式，主要内容如下：
+
+- 多维数组在内存中实际上是以扁平的一维方式存储的。图中展示了一个4x4的二维数组如何在内存中线性存储。
+- 左侧显示了实际的内存布局（一维）；右侧显示了数据的逻辑视图（二维）
+- 二维数组可以通过不同方式线性化：
+    - a) 行主序（Row-major）：按行存储，如 ABC DEF GHI
+    - b) 列主序（Column-major）：按列存储，如 ADG BEH CFI
+- Torch tensors 和 NumPy ndarrays 这些库使用步长（strides）来指定元素在内存中的布局方式。
+- 理解内存布局对于优化数据访问和提高计算效率非常重要，特别是在并行计算和GPU编程中。
+
+![](https://files.mdnice.com/user/59/3d48ac1c-1ca0-4dbe-a557-a52ca7a949b8.png)
+
+这张Slides讲解了一个图像模糊（Image blur）的例子，主要内容如下：
+
+- 实现了名为blurKernel的均值滤波器。
+- 每个线程负责写入一个输出元素，但需要读取多个输入值。
+- 示例中处理的是单个平面（指灰度图像），但可以轻松扩展到多通道（如RGB图像）。
+- 展示了行主序（row-major）的像素内存访问方式（输入和输出指针）。
+- 跟踪了多少个像素值被累加。
+- 在kernel的第5行和第25行处理了边界条件。具体看下面截图里面的两个红色框部分，代码在 https://github.com/cuda-mode/lectures/blob/main/lecture_002/mean_filter/mean_filter_kernel.cu 。
+- 实际效果：Slides展示了原始图像（左）和模糊处理后的图像（右）。原图是一束秋季花卉，模糊后的图像显示了典型的模糊效果。
+
+![](https://files.mdnice.com/user/59/6e6709f2-d0d4-4701-8893-47fec07f9c1a.png)
+
+![](https://files.mdnice.com/user/59/ab90cb25-c15f-4830-a5da-e40c6c7365e2.png)
+
+这张Slides展示了边界处理的示意图，对于图中不同位置的像素，实际有效的需要平滑的像素点数也有可能不一样。
+
+
+![](https://files.mdnice.com/user/59/e9c41091-9adb-4afb-94b4-cd2b27a9ee6d.png)
+
+这里展示了一个仍然一个线程计算一个输出元素的矩阵乘cuda kernel实现例子。
+
+![](https://files.mdnice.com/user/59/0c973acf-29de-4e9d-b8f2-31466b389792.png)
+
+这张图展示了启动kernel的Tiling策略，相比于naive的启动方式可以有更好的数据cache。关于矩阵乘法，这节课就不再深入了。
+
+
+关于矩阵乘法有很多非常猛的优化，大家可以参考 https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/README.md 学习资料收集一节关于矩阵乘法的博客或者参考Triton的矩阵乘法优化教程，我之前也解读过一篇：[【BBuf的CUDA笔记】十三，OpenAI Triton 入门笔记一](https://mp.weixin.qq.com/s/RMR_n1n6nBqpdMl6tdd7pQ)。靠自学了。
+
+
+总结就是，这节课非常基础，讲的都是基本概念和初级的注意事项，有CUDA基础的朋友可以不用看。
