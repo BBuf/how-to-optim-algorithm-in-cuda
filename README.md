@@ -317,6 +317,7 @@ Meagtron-LM 学习笔记。
 - [一步步优化 GEMM by Tensorcore](https://zhuanlan.zhihu.com/p/638522893)
 - [CUTLASS 3.x 异构编程随感](https://zhuanlan.zhihu.com/p/689829403)
 - [Triton到PTX（1）：Elementwise](https://zhuanlan.zhihu.com/p/699979345)
+- [Triton到SASS（2）：Reduction](https://zhuanlan.zhihu.com/p/703748336)
 
 ## Star History
 

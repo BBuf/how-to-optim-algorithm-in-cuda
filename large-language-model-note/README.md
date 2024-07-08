@@ -484,6 +484,7 @@
 - [Stable Diffusion 中的自注意力替换技术与 Diffusers 实现](https://mp.weixin.qq.com/s/dF0ykeSYSM7kzUHe1kMxAg)
 - [从continuous batching到vLLM中的batching](https://zhuanlan.zhihu.com/p/688551989)
 - [图解大模型计算加速系列：分离式推理架构1，从DistServe谈起](https://zhuanlan.zhihu.com/p/706761664)
+- [[LLM性能优化]聊聊长文本推理性能优化方向](https://zhuanlan.zhihu.com/p/698308542)
 
 ### 文生视频
 
