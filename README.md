@@ -193,7 +193,6 @@ Meagtron-LM 学习笔记。
 - [GPU内存(显存)的理解与基本使用](https://zhuanlan.zhihu.com/p/462191421)
 - [图文并茂，超详细解读nms cuda拓展源码](https://zhuanlan.zhihu.com/p/466169614)
 - [大模型的好伙伴，浅析推理加速引擎FasterTransformer](https://zhuanlan.zhihu.com/p/626008090)
-- [简单读读WeightOnly](https://zhuanlan.zhihu.com/p/622334595)
 - [LLM Inference CookBook（持续更新）](https://zhuanlan.zhihu.com/p/619596323)
 - [NVIDIA的custom allreduce](https://zhuanlan.zhihu.com/p/611229620)
 - [[论文速读] FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://zhuanlan.zhihu.com/p/548811565)

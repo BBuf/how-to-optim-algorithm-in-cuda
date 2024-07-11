@@ -171,3 +171,69 @@ int sharedValue = __shfl_sync(0xffffffff, value, 9, 32);
 
 
 ### 第5章：内存架构和数据局部性（也是获得fast kernel的基础）
+
+![](https://files.mdnice.com/user/59/cc6a5fc0-32a8-46e5-8e0d-281710f48f7a.png)
+
+这张Slides讨论了PyTorch程序如何分配其运行时间，以及一些优化建议。
+
+PyTorch程序的时间分配（高层次概述）：
+
+- Python处理
+- 数据"管理开销"（如分配Tensor结构等）
+- 数据获取（I/O）- 建议在深入GPU优化前检查这部分
+- GPU计算，包括：
+    - 固定成本（如内核启动等）
+    - 内存访问（读取输入/写入结果）- 当前章节（第5章）的重点
+    - "实际"计算（FLOPs）- 占用率是关键，在第4章已经讨论
+
+Thomas的经验法则：
+
+- 如果GPU利用率（在nvidia-smi中）未接近100%，应优先改进数据获取等方面
+- 当处理的Tensor只有几百个元素时，"Python很慢"，数据管理开销占比为个位数百分比
+- 算法选择也很重要（后续章节会讨论并行算法）
+
+![](https://files.mdnice.com/user/59/15c38f04-e8dc-42d9-8dd2-1bcf3aa84a1f.png)
+
+
+这张Slides讨论了内存访问作为性能瓶颈的问题：
+- Eager PyTorch对每个操作都执行"加载输入、计算、存储输出"的过程。
+- 如果能够合并内核，执行"加载输入、多次计算、存储输出"，效率会更高。
+- PyTorch的优化焦点：
+    - 长期以来，PyTorch一直关注这个问题。
+    - PyTorch JIT的原始目的是将elementwise操作融合到一个内核中，例如提高LSTM接近CuDNN的性能。
+    - 第二代PyTorch JIT fusers增加了收缩操作等（NVFuser在https://github.com/NVIDIA/Fuser 上持续改进）。
+    - 当前的inductor/Triton基础优化也部分针对这点，但支持更复杂的操作。
+- 内存访问优化也是flash attention的核心组成部分。图片右侧展示了内存层次结构，包括带宽和内存大小。图来自FLash Attention的Paper。
+
+![](https://files.mdnice.com/user/59/36579dc8-a90f-4d62-ae11-9587f8ccc357.png)
+
+接着举了这个GeLU fuse前后执行时间对比的例子，说明我们把所有的elementwise操作fuse之后的有效性。
+
+![](https://files.mdnice.com/user/59/2208e6cf-5317-456a-b9ab-8f38d32fb266.png)
+
+这里还展示了一下如何使用CUDA手动编写这个fuse cuda kernel。
+
+![](https://files.mdnice.com/user/59/7744f25a-052d-4450-a71a-464683a2ee81.png)
+
+这张Slides讨论了内存访问和计算在图像处理中的性能影响：
+
+- RGB转灰度图示例：
+    - 每个像素需要加载3字节
+    - 计算I（在32位整数中进行1次乘法和1次加法）
+    - 计算5次操作（3次乘法，2次加法，理想情况下在32位中进行）+ 数据转换
+    - 存储1字节
+- 性能预期（基于2048 x 2048图像和RTX3090显卡）：
+    - NVIDIA列出的内存带宽约为900GB/s，传输4*4M字节需要约18μs（"光速"）
+    - 计算能力：35.6FP32 TFLOP/s或16.8 Int32 TFLOP/s，约需2μs（慷慨估计）
+    - 内核启动时间：约3μs（使用空内核测量）
+    - 注意：使用32位或16位时要考虑元素大小
+
+- 实际测量结果：
+    - 内核执行时间（使用"f"作为常量）：27μs，约为理论可能性的74%
+
+注意：作者创建了一个"out"函数来分离内存分配，只要使用缓存分配器，这个过程相对较快。对齐有助于提高性能（建议尝试带stride的copy内核）
+
+这里说的27us就是 https://github.com/cuda-mode/lectures/blob/main/lecture_004/cuda-mode-session-4.ipynb 这里的第一个cuda kernel的输出。
+
+![](https://files.mdnice.com/user/59/9cd24fb1-f4f0-41a0-bb42-50ba6d609834.png)
+
