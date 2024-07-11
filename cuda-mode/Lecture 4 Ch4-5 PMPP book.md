@@ -233,7 +233,55 @@ Thomas的经验法则：
 
 注意：作者创建了一个"out"函数来分离内存分配，只要使用缓存分配器，这个过程相对较快。对齐有助于提高性能（建议尝试带stride的copy内核）
 
-这里说的27us就是 https://github.com/cuda-mode/lectures/blob/main/lecture_004/cuda-mode-session-4.ipynb 这里的第一个cuda kernel的输出。
+这里说的27us就是 https://github.com/cuda-mode/lectures/blob/main/lecture_004/cuda-mode-session-4.ipynb 这里的第一个cuda kernel的输出，如下图红色框所示。
 
 ![](https://files.mdnice.com/user/59/9cd24fb1-f4f0-41a0-bb42-50ba6d609834.png)
+
+
+![](https://files.mdnice.com/user/59/62bf05d4-28de-45ca-9ab8-39b25091b2ab.png)
+
+这张Slides介绍了带有延迟隐藏的屋顶线模型（Roofline Model with latency hiding）。
+这是一个性能分析模型，用于评估计算密集型应用在特定硬件上的性能上限。横轴表示计算密度（Computational intensity），单位是FLOP/B（每字节内存传输的浮点运算数）。纵轴表示计算吞吐量（Computational throughput），单位是GFLOP/s（每秒十亿次浮点运算）。
+
+一些概念：
+- 计算密度：FLOP/Byte of memory transfer。
+- 延迟隐藏：在SM（Streaming Multiprocessor）上使用多个warps，允许一些warps在计算时其他warps等待
+- 峰值吞吐量（Peak throughput）：硬件能达到的最大计算速度
+- 内存带宽（Peak bandwidth）：内存传输的最大速度
+
+A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的点，表示性能越接近硬件极限。对于内存受限区域：优化内存访问模式，减少数据传输。对于计算受限区域：提高计算效率，如使用更高效的算法。此外，通过并行执行多个warps，可以有效隐藏内存访问延迟，使得实际性能曲线更接近理论上限。
+
+![](https://files.mdnice.com/user/59/4c46f94b-3cdd-46d0-88d0-14496b12853e.png)
+
+这张Slides描述了CUDA设备内存模型的概览：
+
+- 设备代码（Device code）可以访问的内存类型：
+    - 每线程寄存器（R/W per-thread registers）
+    - 每线程本地内存（R/W per-thread local memory）
+    - 每块共享内存（R/W per-block shared memory）
+    - 每网格全局内存（R/W per-grid global memory）
+    - 只读每网格常量内存（Read only per-grid constant memory）
+- 主机代码（Host code）可以：
+    - 向/从每网格全局内存和常量内存传输数据
+- 设备（Device）网格结构：
+    - 由多个块（Block）组成
+    - 每个块内有共享内存（Shared Memory）
+    - 每个块内有多个线程（Thread）
+    - 每个线程有自己的寄存器（Registers）
+- 内存层次：
+    - 全局内存（Global Memory）：所有块和线程都可访问
+    - 常量内存（Constant Memory）：所有块和线程都可读取
+    - 共享内存（Shared Memory）：块内的线程可共享
+    - 寄存器（Registers）：每个线程私有
+
+纹理内存（Texture memory）：图中未显示，因为这个教材未涵盖其用途。
+
+![](https://files.mdnice.com/user/59/72559adb-e67e-4eea-b3c3-466762bf18d2.png)
+
+- 数组以外的自动变量：Register（寄存器），Thread（线程作用域），Grid（网格生命周期）
+- 自动数组变量：Local（本地内存），Thread（线程作用域），Grid（网格生命周期）
+- SharedVar：Shared（共享内存），Block（块作用域），Grid（网格生命周期）
+- GlobalVar：Global（全局内存），Grid（网格作用域），Application（应用程序生命周期）
+- ConstVar：Constant（常量内存），Grid（网格作用域），Application（应用程序生命周期）
+
 
