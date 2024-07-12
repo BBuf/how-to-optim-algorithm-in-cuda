@@ -15,11 +15,11 @@ RTX 3090有82个流式多处理器（SM, Streaming Multiprocessor），每个SM�
 
 消费级/非数据中心GPU中几乎没有FP64（双精度浮点）单元。每个SM有2个FP64单元，相比128个FP32（单精度浮点）单元。
 
-GA102 GPU实际上有168个FP64单元（每个SM两个），但图中未显示。FP64的TFLOP（每秒浮点运算次数）速率是FP32的1/64。包含少量FP64硬件单元是为了确保任何包含FP64代码的程序都能正确运行，包括FP64 Tensor Core代码。
+GA102 GPU实际上有168个FP64单元（每个SM两个），但Slides中未显示。FP64的TFLOP（每秒浮点运算次数）速率是FP32的1/64。包含少量FP64硬件单元是为了确保任何包含FP64代码的程序都能正确运行，包括FP64 Tensor Core代码。
 
 > GA：代表 "Graphics Ampere"，指的是 NVIDIA 的 Ampere 架构。102：是这个特定 GPU 型号的数字标识符。通常，较高的数字表示更高端或更大规模的 GPU 设计。GA102 被用于多款显卡，包括 GeForce RTX 3090, RTX 3080 和一些 Quadro 系列专业卡。
 
-从图中可以数一下，RTX 3090的完整SM个数应该是12x7=84个，但是其中2个没有启用，所以可以工作的SM个数是82。
+从Slides中可以数一下，RTX 3090的完整SM个数应该是12x7=84个，但是其中2个没有启用，所以可以工作的SM个数是82。
 
 ![](https://files.mdnice.com/user/59/587238e3-22c8-4867-817c-229b02627003.png)
 
@@ -274,7 +274,7 @@ A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的�
     - 共享内存（Shared Memory）：块内的线程可共享
     - 寄存器（Registers）：每个线程私有
 
-纹理内存（Texture memory）：图中未显示，因为这个教材未涵盖其用途。
+纹理内存（Texture memory）：Slides中未显示，因为这个教材未涵盖其用途。
 
 ![](https://files.mdnice.com/user/59/72559adb-e67e-4eea-b3c3-466762bf18d2.png)
 
@@ -284,4 +284,121 @@ A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的�
 - GlobalVar：Global（全局内存），Grid（网格作用域），Application（应用程序生命周期）
 - ConstVar：Constant（常量内存），Grid（网格作用域），Application（应用程序生命周期）
 
+
+![](https://files.mdnice.com/user/59/7d78b5f9-628c-4ead-8b62-7b0a6c85febd.png)
+
+这张SLides讨论了为什么在某些计算操作中使用分块（Tiling）技术，并展示了内存层次结构。
+- Tiling（分块）的原因：
+    - 在矩阵乘法（Matmul）中，每个输出使用2n个输入（一共n^2个输出）。
+    - 每个输入被使用n次，如果每次都从主内存中naive地读取n次，会非常低效。
+    - 解决方案：尝试重用参数（try to reuse param）。
+- 应用场景：
+    - 类似的情况也出现在卷积（Convolution）和FlashAttention等操作中。
+- 内存层次结构（Memory Hierarchy）和特点：
+    - GPU SRAM（静态随机存取内存）：带宽19 TB/s，容量20 MB
+    - GPU HBM（高带宽内存）：带宽1.5 TB/s，容量40 GB
+    - Main Memory（主内存，CPU DRAM）：带宽12.8 GB/s，容量>1 TB
+    - 从上到下，内存容量逐渐增大，但访问速度（带宽）逐渐降低。
+    - Slides中提到这个内存层次结构来自Dao等人的Flash Attention论文。
+
+总的来说，这里解释了为什么在某些计算密集型操作中使用分块技术很重要。通过重用数据和利用更快的内存层（如GPU SRAM），可以显著提高计算效率。
+同时，Slides中展示的内存层次结构清楚地说明了不同级别内存之间在速度和容量上的权衡，这进一步强调了优化内存访问模式的重要性。
+
+![](https://files.mdnice.com/user/59/4737b84e-265a-45d8-89b6-01be99556b7f.png)
+
+
+这张Slides解释了矩阵乘法中的分块(Tiling)技术，要点是：
+- 将输出和输入矩阵分割成"tiles"，例如16x16的小块。
+- 每个输出tile依赖于2n/TILE_SIZE个大小为TILE_SIZE*TILE_SIZE的输入tile。
+- 总共有(n/TILE_SIZE)²个tile。
+- 每个输入只需从主内存读取n/TILE_SIZE次。
+- 需要将输入tile存储在共享内存(shmem)中。这样block中的各个线程可以在TILE_SIZE次计算中使用这些数据。
+- 最简单的设置是使用TILE_SIZE²个线程。
+
+这张图中在A矩阵的行上画了2个连续的双向箭头可能会给人误解为n=BLOCK_SIZE*2，我感觉这里是画错了，以下面的代码实现为准。
+
+下面这张图展示了普通的矩阵乘CUDA实现：
+
+![](https://files.mdnice.com/user/59/67a478fb-eccd-44ac-8c69-74ecb1a70cd0.png)
+
+耗时情况是：934 µs ± 1.42 µs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+
+下面的代码则是对上面Slides中矩阵分块的实现：
+
+```python
+cuda_src = cuda_begin + r"""
+constexpr int TILE_SIZE = 16;
+
+__global__ void tiled_matmul_kernel(float* out, float* M, float* N, int h, int w, int k) {
+  __shared__ float M_tile[TILE_SIZE][TILE_SIZE];
+  __shared__ float N_tile[TILE_SIZE][TILE_SIZE];
+  
+  // idxes into tile
+  int ir = threadIdx.y;
+  int ic = threadIdx.x;
+  
+  int r = blockIdx.y * blockDim.y + threadIdx.y;
+  int c = blockIdx.x * blockDim.x + threadIdx.x;
+
+  // note: cannot just exit if we want to do padding!
+  
+  float res = 0.0f;
+  for (int K_tileidx = 0; K_tileidx < (k + TILE_SIZE -1) / TILE_SIZE; K_tileidx++) {
+    // note how threadIdx.x is the fastes moving bit --> coalesced memory access
+    M_tile[ir][ic] = (((r < h) && (K_tileidx * TILE_SIZE + ic < k)) ? M[r * k + K_tileidx * TILE_SIZE + ic] : 0.f);
+    N_tile[ir][ic] = ((((K_tileidx * TILE_SIZE + ir) < k) && (c < w)) ? N[(K_tileidx * TILE_SIZE + ir) * w + c] : 0.f);
+    //M_tile[ir][ic] = M[r * k + K_tileidx * TILE_SIZE + ic];
+    //N_tile[ir][ic] = N[(K_tileidx * TILE_SIZE + ir) * w + c];
+    __syncthreads();
+    for (int idx = 0; idx < TILE_SIZE; idx++) {
+       res += M_tile[ir][idx] * N_tile[idx][ic];
+    }
+    __syncthreads(); // important! (why?)
+  }
+  if ((r < h) && (c < w)) {
+    out[r * w + c] = res;
+  }
+}
+
+torch::Tensor tiled_matmul(const torch::Tensor& m, const torch::Tensor& n) {
+    CHECK_INPUT(m); CHECK_INPUT(n);
+    int h = m.size(0);
+    int w = n.size(1);
+    int k = m.size(1);
+    TORCH_CHECK(k==n.size(0), "Size mismatch");
+    //TORCH_CHECK((k % TILE_SIZE == 0) && (h % TILE_SIZE == 0) && (w % TILE_SIZE == 0), "Padding not done");
+    auto output = torch::empty({h, w}, m.options());
+
+    dim3 tpb(TILE_SIZE, TILE_SIZE);
+    dim3 blocks(cdiv(w, tpb.x), cdiv(h, tpb.y));
+    tiled_matmul_kernel<<<blocks, tpb>>>(
+        output.data_ptr<float>(), m.data_ptr<float>(), n.data_ptr<float>(), h, w, k);
+    C10_CUDA_KERNEL_LAUNCH_CHECK();
+    return output;
+}
+
+"""
+cpp_src = """
+torch::Tensor tiled_matmul(const torch::Tensor& m, const torch::Tensor& n);
+"""
+
+tiled_matmul_module = torch.utils.cpp_extension.load_inline(
+    "test_ext_tiled_matmul", cpp_src, cuda_src, 
+    functions=['tiled_matmul'], extra_cuda_cflags=['--ptxas-options=-v'], verbose=True)
+```
+
+耗时情况为：707 µs ± 6.36 µs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+
+这个Cuda Kernel实现比较简单，这里不再赘述。
+
+![](https://files.mdnice.com/user/59/d22185d6-5579-459d-b60c-dfa832128e0b.png)
+
+
+这是第4章和第5章的总结，列出了关于GPU编程的关键要点。
+- GPU通过线程(threads)、束(warps)和块(blocks)来组织计算。
+- 尽可能充分利用硬件（提高占用率），平衡各种瓶颈。
+- 避免线程分化，以提高性能。
+- 使用roofline模型和"理论最大速度"来分析性能。
+- 尽量减少对全局内存的读写操作。
+- 下一章将讨论连续和对齐的全局内存位置的读写（合并内存访问）。
 
