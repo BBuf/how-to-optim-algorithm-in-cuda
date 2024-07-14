@@ -11,7 +11,7 @@
 
 ![](https://files.mdnice.com/user/59/b155a86e-6d0a-4f0a-b967-6c2377074a25.png)
 
-演讲者认为CUTLASS的库写得很漂亮和通用，另外CUTLASS也实现了高性能的FlashAttentio。演讲者这节课不会提到太多CUTLASS的API和具体函数，方法，而是把重心放在概念介绍上。
+演讲者认为CUTLASS的库写得很漂亮和通用，另外CUTLASS也实现了高性能的FlashAttention。演讲者这节课不会提到太多CUTLASS的API和具体函数，方法，而是把重心放在概念介绍上。
 
 ![](https://files.mdnice.com/user/59/9fc0c0cf-2c73-476a-b649-c50bb071e975.png)
 
@@ -90,7 +90,64 @@
 - 形状（shape）和步幅（stride）必须始终具有相同的嵌套结构（在CuTe术语中，它们必须是"一致的"或"congruent"）。
 
 
+接下来的大量时间其实都在讲PyTorch里面Tensor的shape和stride的关系，由于这部分讲解都是up主手画，所以我简单文字记录下要点：
+
+- 对于一个大张量比如二维张量中的一个小切片张量，相比于大张量来说只有形状（从物理内存角度来说是基础指针初始位置）有变化，Stride不变。
+- 实际上这个小切片张量就是Tile，对于矩阵中所有的Tile，他们的Strides和原始张量都相同，但是基础指针位置和Shape不同。
+- PyTorch中的`is_contiguous`直观的解释是Tensor底层一维数组元素的存储顺序与Tensor按行优先一维展开的元素顺序是否一致。这个地方推荐大家看 https://zhuanlan.zhihu.com/p/64551412 详细了解。
+
+实际上这部分讨论的就是Tensor的Shape和Stride的概念，以及Tiling后的Sub Tensor的Shape和Stride和原Tensor的关系。
+
+![](https://files.mdnice.com/user/59/bdf56661-c494-4f4f-ad96-4c92519e8455.png)
+
+这张Slides讨论了CUTLASS中的切片（slicing）和平铺（tiling）概念。
+- 这个库设计到大量切片（slicing）和平铺（tiling）概念。
+- Tiling操作的直观解释：
+    - 如果有一个大小为 A × B × C 的张量，用大小为 a × b × c 的张量进行Tiling
+    - 结果会得到一个包含两部分的张量：
+        - a. "外部部分"，大小为 A/a × B/b × C/c，回答"哪个tile？"的问题
+        - b. "内部部分"，大小为 a × b × c，回答"tile中的哪个元素？"的问题
+    - 假设所有维度都能被整除
+- 将Tiling视为张量上的除法操作：T₁ ⊘ T₂ ↝ T₃
+- Tiling的泛化：可以只在特定模式（维度）上进行Tiling，"除数"可能比被除数短，例如，将 A × B × C 用 a × c 在模式1和3上 Tiling：
+    - 外部部分：A/a × B × C/c
+    - 内部部分：a × c（也可以表示为 a × 1 × c）
+
+![](https://files.mdnice.com/user/59/0bae76a3-ebcc-46a5-aa7a-f8027e83737a.png)
 
 
+这张Slides讨论了平铺（tiling）操作的扩展概念，不仅限于张量：
 
+- Tiling的应用范围：不仅可以Tiling数据（data）, 还可以Tiling计算资源（compute resources），例如在线程块上Tiling TensorCore 操作。
+- Tiling概念的泛化：不再仅仅考虑 tensor ⊘ tensor ↝ tensor，而是更一般化地考虑 shape ⊘ shape ↝ shape。
+- Tiling结果的约定：Tiling两个形状的结果有两个模式：内部（inner）和外部（outer），约定内部模式在前，外部模式在后
+- Tiling操作的示例：(A, B, C) ⊘ (a, b, c) = ((a, b, c), (A/a, B/b, C/c))，这里，(a, b, c) 是内部模式（表示单个tile的大小），(A/a, B/b, C/c) 是外部模式（表示tile的数量或排列）。
+- "Leftover" modes（未被Tiling的维度）按约定放在第二个（外部）模式中。示例：(A, B, C) 在模式1,3上与 (a, c) tiling，结果：((a, c), (A/a, B, C/c))。这里，B 维度作为 "leftover" 模式保留在外部模式中。
+
+![](https://files.mdnice.com/user/59/54318ce7-2021-4b85-b17c-ee5f1077b660.png)
+
+> 这里有个拼写错误，第二行公式的开头的A，B，C应该小写。
+
+- Slides提出问题 "How do strides enter into tiling?"（步幅如何进入Tiling操作？）
+- layout ⊘ shape ↝ layout? 这表示将一个布局（layout）与一个形状（shape）进行平铺操作，结果的layout是什么？
+- 具体例子：(A, B, C) : (1, A, AB) ⊘ (a, b, c)，左侧 (A, B, C) : (1, A, AB) 是一个布局（layout），右侧 (a, b, c) 是一个形状（shape）
+- 结果为：= ((a, b, c) : (?, ?, ?), (A/a, B/b, C/c) : (?, ?, ?))，结果分为内部（inner）和外部（outer）两部分
+    - 结果的第一个模式（内部）应该保持与原来相同的布局（前面的文字记录要点里提到了）
+    - 外部模式与之前相同，除了步幅未知（用问号表示）
+
+为了说明这个问题，作者画了一张图，这里以（M, N）: (1, M)为例子，也就是一个col major的2D矩阵。
+
+![](https://files.mdnice.com/user/59/cc9712fb-c211-4f78-8ddd-f783a4910e54.png)
+
+当对它进行Tiling的时候我们可以得到图中的三个小块，这些小块的Layout最终表示为：(M/m, N/n) : (m, nM)，其中m, n分别表示tiling的大小。
+
+因此，(A, B, C) : (1, A, AB) ⊘ (a, b, c) =
+    ((a, b, c) : (1, A, AB), (A/a, B/b, C/c) : (a, A * b, A * B * c))
+
+
+上面的公式更新为：
+
+![](https://files.mdnice.com/user/59/8cdc6ef0-847b-4d09-bb49-a4b976ebf7d1.png)
+
+这节课的Slides就讲完了，这节课主要是对CUTLASS里面的2022年底引入的CUTE的一些基础概念进行了讲解。后面up主还挑了一部分cutlass源代码以及简单聊了下CUTLASS的代码目录结构，这部分没有放在Notes里的必要就跳过了。
 
