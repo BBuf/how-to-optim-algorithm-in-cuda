@@ -1,6 +1,8 @@
 > 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
 
-## 第15课: 优化PyTorch中的优化器
+## 第6课: 如何优化PyTorch中的优化器
+
+### 课程内容
 
 ![](https://files.mdnice.com/user/59/ca409085-c88d-48ea-a881-c66cc2c29895.png)
 
@@ -151,4 +153,69 @@ Slides里面还画了一些示意图用于解释这个问题。
 第三张Slides继续解释了 _foreach_add 和 _fused_adamw 的实现差异并展示了 _fused_adamw 的具体实现代码。可以粗略浏览到以下内容，使用AT_DISPATCH_FLOATING_TYPES_AND2 宏来处理不同的浮点类型。调用 multi_tensor_apply_for_fused_optimizer 函数，传入 FusedAdamMathFunctor 作为参数。
 
 
+![](https://files.mdnice.com/user/59/a832f2f2-9224-4ca1-98cb-f464cf31a78f.png)
 
+![](https://files.mdnice.com/user/59/4be81e8a-fcf6-4971-9905-b80cd91fc6b9.png)
+
+![](https://files.mdnice.com/user/59/8dd37d7c-073d-40ce-8b7c-dcabb47d105a.png)
+
+
+这里UP主展示了FusedAdamMathFunctor的代码实现，包括两个主要部分：
+
+- 左侧是FusedAdamMathFunctor结构体的定义，包含operator()函数的实现。
+- 右侧是adam_math函数的实现，这是Adam优化器的核心计算逻辑。实现了Adam优化器的各个步骤，包括梯度计算、一阶和二阶动量更新等
+
+这里的第三张Slides显示了"...that was very manual."的文字，暗示这种实现方式是非常手动和复杂的。
+
+![](https://files.mdnice.com/user/59/a363c4d7-2e1a-42cf-866f-b3f44b01df3b.png)
+
+![](https://files.mdnice.com/user/59/d05ef4e7-641c-4d50-bf34-e9ef23318677.png)
+
+![](https://files.mdnice.com/user/59/6ef40a8c-08e1-448b-9e8c-7629668fa905.png)
+
+![](https://files.mdnice.com/user/59/48a767f0-5838-4741-a721-b523bc59b38e.png)
+
+
+这几张Slides讲了PyTorch中的torch.compile()功能及其在优化器中的应用，主要内容如下：
+- 第一张Slides介绍了torch.compile()函数。
+- 第二张Slides解释了torch.compile()的主要优势是垂直融合（vertical fusion）。图示展示了如何将多个水平融合（horizontal fusion）的操作进一步垂直融合成一个更大的操作。
+- 第三张Slides展示了如何在优化器中使用torch.compile()：
+    - 首先创建一个AdamW优化器
+    - 然后使用@torch.compile装饰器定义一个compiled_step函数
+    - 在训练循环中，使用compiled_step替代原来的optimizer.step()
+- 最后一张Slides展示了torch.compile()生成的Triton kernel的一部分代码。这是一个大型的、高度优化的kernel，包含了许多临时变量（tmp0, tmp1等）和复杂的数学运算。这说明torch.compile()确实可以生成非常复杂和高效的fuse kernel。 
+
+![](https://files.mdnice.com/user/59/d5185ac7-f89a-4995-a6c2-505834a69e0f.png)
+
+最后这张Slides展示了了 PyTorch 中编译优化器（compiled optimizers）的工作条件和使用情况。
+
+- 需要 CUDA 功能版本 7.0 或更高以支持 Triton
+- PyTorch 中所有具有 foreach 实现的优化器现在都可以编译。
+- 除了 L-BFGS 和 SparseAdam 外，其他所有优化器都支持编译。
+- 任何支持的 foreach* 操作序列都应该能够进行垂直融合。
+- 鼓励用户尝试自己的实验性优化器。如果发现不能工作的情况，建议提交issue。
+
+### 个人总结
+这节课实际上就是宏观介绍了一下PyTorch的Optimizer是怎么通过CUDA kernel fuse优化的。我这里使用Claude-3-Opus-200k来总结一下这节课涉及到的要点。
+
+> 下面的内容由Claude-3-Opus-200k总结而成
+
+
+这堂课程的主要内容是介绍如何在PyTorch中优化优化器的性能。重点包括以下几个方面:
+
+- 1.运行时间和内存使用之间的权衡。一般来说,提高速度往往需要更多的内存。但有时也会受到硬件或系统的限制。
+- 2.优化器实现的不同方式:
+    - Naive实现:简单地遍历所有参数,执行所有操作,总共需要M*N次操作。
+    - 水平融合(Horizontally fused):将循环融合,减少总操作数。
+    - 垂直融合(Vertically fused):将整个优化器操作融合成一个CUDA kernel。
+- 3.在CUDA编程中,减少kernel启动次数可以提高效率。这可以通过水平融合(合并相似的并行操作)和垂直融合(合并不同的计算步骤)来实现。
+- 4.PyTorch中的multi_tensor_apply函数允许同时对张量列表进行操作,类似于vectorized的"_foreach"操作。但需要注意CUDA kernel参数空间的4KB限制。
+- 5.针对超出4KB限制的情况,可以采取的解决方案:
+    - 分多次启动kernel(make more trips)
+    - 使用memcpy将数据从CPU复制到GPU内存
+    - 结合使用struct和memcpy:小数据量直接用struct传递,大数据量先memcpy再传递指针
+- 6.手动实现水平和垂直融合的优化器(如FusedAdamW)的过程比较复杂。
+- 7.PyTorch的torch.compile()功能可以自动生成高度优化的vertical fusion kernel,大大简化了编译优化器的实现。
+- 8.目前PyTorch中大部分优化器都支持编译优化(compiled optimizers),但对CUDA版本有要求(>=7.0)。用户也可以尝试自己的实验性优化器。
+
+总的来说,这门课深入讲解了如何从多个方面优化PyTorch中的优化器实现,包括算法层面的水平/垂直融合,工程实现层面的参数传递和内存管理,以及新功能torch.compile()带来的便利。
