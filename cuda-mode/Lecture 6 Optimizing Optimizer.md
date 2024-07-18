@@ -1,6 +1,6 @@
 > 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
 
-## 第6课: 如何优化PyTorch中的优化器
+## CUDA-MODE课程笔记 第6课: 如何优化PyTorch中的优化器
 
 ### 课程内容
 
