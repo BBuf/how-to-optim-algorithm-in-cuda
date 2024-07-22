@@ -104,3 +104,211 @@ CUTLASS 3.x 特性:
 
 ![](https://files.mdnice.com/user/59/8a68759b-a6b7-4b96-90a5-955f8e72514a.png)
 
+这张Slides展示了如何通过选择合适的GEMM变体和配置参数来满足不同的需求。同时，它也指出了CUTLASS提供了丰富的GEMM实现，可以处理各种特殊情况和优化场景。通过这种方式，开发者可以根据具体需求选择最合适的GEMM实现，并进行细粒度的性能优化。
+
+![](https://files.mdnice.com/user/59/e184b42f-ba45-4746-b8c0-53c38fb93fae.png)
+
+这张Slides讲解了在CUTLASS 2.x中构建GEMM（通用矩阵乘法）时的关键优化选项。主要内容包括：
+- 核心思想：调优（Tunning）是关键。
+- Option 1: ThreadBlockShape（线程块形状）
+    - 需要Tunning。
+    - 对于大型GEMM，128x256或256x128通常是最佳的tile大小。
+    - 对于小型或中型GEMM，需要仔细调整这个形状。
+    - K维度的tile大小选项：32B, 64B, 128B。
+- Option 2: WarpShape（warp形状）
+    - 也需要Tunning。
+    - 对于计算密集型kernel，4-warp配置通常是最常用/首选的。
+    - 8-warp配置可能会在prologue或epilogue阶段引入一些延迟。
+    - 对于非常小的GEMM问题，可以尝试2-warp或1-warp配置。
+    - 2x2 warp配置比4x1或1x4配置有更低的共享内存读取压力。
+    - 过大的WarpShape会导致寄存器压力过大，可以通过-Xptxas -v命令查看。
+- Option 3: Instruction Shape（指令形状）
+    - 总是选择可能的最大形状。
+    - 例如：在Ampere架构上有两种FP16 MMA指令变体：`mma.fp16.16.8.8`和`mma.fp16.16.16.16`。
+    - 选择最大的一个，这样可以让编译器更容易重叠MMA指令和非MMA指令。
+
+![](https://files.mdnice.com/user/59/f2abfd5f-a62d-40e0-ad7e-6b4afa97f201.png)
+
+这张Slides继续讲解了在CUTLASS 2.x中构建GEMM时的更多优化选项。主要内容包括：
+- Option 4: Stage number（阶段数）
+    -  需要Tunning，但有一些原则。
+    - 原则：最大化SM上高速资源的利用率。高速资源包括寄存器文件（RFs）和共享内存（Smem）。
+    - 共享内存使用量计算公式：(Mtile x Ktile + Ntile x Ktile) x sizeof(datatp) x Stage
+    - 寄存器使用量可以通过ncu报告或-XptxAs -v命令查看。
+    - 一个SM上可以同时运行的线程块数量 = 65536(总RF数) / 每个线程块使用的RF数量
+    - 一个SM上可以同时运行的线程块数量 = 163KB(A100 GPU的SMEM容量) / 每个线程块使用的SMEM量
+    - 这两个计算得出的数值应该相同。如果不相同，意味着其中一种资源（RF或SMEM）没有被充分利用，造成了浪费。这个原则的核心思想是要同时最大化RF和SMEM的利用率。如果从RF角度计算出的并发块数与从SMEM角度计算出的不同，那么就意味着其中一种资源成为了瓶颈，而另一种资源未被充分利用。
+- Option 5: BlockSwizzling（块交织）
+    - 当问题规模很大时需要Tunning。
+    - 可以提高L2缓存命中率，减少DRAM事务，特别是在M维度和N维度很大时。
+    - 这是在大型GEMM形状下实现SOL（Speed Of Light）的重要方法。
+- Option 6: Alignment（对齐）
+    - 取决于每个张量的ldm（leading dimension）。
+    - 总是尝试使用最大的对齐粒度进行访问。硬件支持的最大粒度是16B/线程。
+    - 例如：对于FP16，最大对齐是8个元素；对于INT8，最大对齐是16个元素。
+
+
+
+![](https://files.mdnice.com/user/59/bbc79863-54ec-46a1-b890-2e1b0bcf3698.png)
+
+这张Slides展示了CUTLASS2.x到CUTLASS3.x的架构变化。在CUTLASS 2.0（类Ampere架构风格）中提到，除了Tiling和复用内存层级，我们还希望使用软流水的方法把global memory读写latency和计算隐藏起来。也就是做当前计算的时候去读后续计算轮次需要的数据，这个过程可以流水起来。在进入稳定流水之前，也就是图中的Main loop body会有一个建立流水的过程。做了计算预取，当前计算的数据肯定在上几轮计算就取出来了，数据预取叫Prologue，GEMM的整个计算过程分为Prologue, Main Loop和Epilogue部分，Tensor Core的计算发生在Main Loop部分。
+
+
+![](https://files.mdnice.com/user/59/8e61fdfe-64ae-409d-a106-0a6977d0523c.png)
+
+
+这张Slides对比了CUTLASS 2.x和CUTLASS 3.x在配置GEMM操作时的主要区别。
+
+- CUTLASS 2.x:
+    - 需要明确指定更多的配置参数，包括：
+        - 输入、输出和计算的数据类型
+        - 矩阵布局
+        - 使用张量核心还是SIMT核心
+        - CUDA SM架构版本
+        - 线程块的tile大小
+        - Warp的tile大小
+        - MMA（矩阵乘累加）指令的大小
+        - 线程块调度方式
+    - 强调了需要指定WarpShape和InstShape，因为这与MMA指令相关。
+
+- CUTLASS 3.x:
+    - 配置更加简化，主要需要指定：
+        - 矩阵A、B和C/D的元素类型、布局和对齐方式
+        - 核心kernel配置，包括累加器类型、架构标签、操作类等
+        - TileShape（BlockShape）和ClusterShape
+    - 不需要明确指定WarpShape和InstShape，因为WGMMA（Warp级分组矩阵乘累加）指令是由warp group构成的。
+
+![](https://files.mdnice.com/user/59/18b31bcb-194a-4858-bf4a-ab7b062d3a7d.png)
+
+在CUTLASS 3.x中，重点关注配置主循环（Mainloop）和后处理（Epilogue）部分。具体来说，使用CollectiveEpilogue类型定义后处理操作。包含架构、tile形状、累加器类型等参数。使用CollectiveMainloop类型定义主循环。包含架构标签、操作类、矩阵配置、tile形状等参数。定义GemmKernel，组合Mainloop和Epilogue。最后定义Gemm，使用GemmUniversalAdapter。
+
+CUTLASS 3.x相比2.x版本提供了更高层次的抽象，简化了用户需要手动指定的参数。
+
+
+![](https://files.mdnice.com/user/59/125d4077-348c-4cb6-8982-41ddafa9bdeb.png)
+
+这张Slides展示了从CUTLASS 2.x到CUTLASS 3.x的演进原因，主要通过比较不同GPU架构（Ampere和Hopper）上GEMM操作的执行效率来说明。
+
+- Ampere架构（1 CTA/SM，6 CTAs）：
+    - 显示了prolog（前导）、mainloop（主循环）和epilog（后续处理）的执行时间线。
+    - 暴露了prolog/epilog的开销，影响整体效率。
+- Ampere架构（2 CTA/SM，6 CTAs）：
+    - 仍然存在exposed prolog/epilog开销。但相比于上面的情况已经加速了。
+    - 当只有1 CTA/SM运行时，效率降低，只利用了1/2的SMEM（共享内存），减少了延迟隐藏能力。
+- Hopper架构（1 CTA/SM，持久化GEMM与warp专业化）：
+    - 引入了新的执行模型。
+    - 使用持久化GEMM技术，允许一个CTA持续占用SM。
+    - 实现了warp专业化，不同的warp组执行不同的任务。
+    - 可以在第一个tile还在loop/epilog阶段时，就开始为第二个tile获取数据（prolog）
+    - 充分利用SMEM进行延迟隐藏。
+    - 在一个warp组中的epilog可以与其他warp组的数学计算重叠。
+
+![](https://files.mdnice.com/user/59/7661e302-22dc-44d7-bc66-7aa1e4226913.png)
+
+这张Slides提供了CUTLASS库中使用的一些关键术语和缩写的解释：
+
+- WGMMA: Hopper Warp Group MMA (矩阵乘累加操作)
+解释：这是Hopper架构上的Warp组矩阵乘累加操作
+- WS: Warp Specialized
+解释：表示warp专业化，即不同的warp执行不同的专门任务
+- SS: Src operator of GMMA are both from SMEM
+解释：GMMA操作的两个源操作数都来自共享内存(SMEM)
+- RS: Src operator A of GMMA is from RF, Src operator B is from SMEM
+解释：GMMA操作的源操作数A来自寄存器文件(RF)，源操作数B来自共享内存(SMEM)
+- FAST_ACCUM: No additional operation to promote the accum precision
+解释：不进行额外的操作来提高累加器的精度
+
+> 下面是Construct CUTLASS 3.x GEMM & Guidelines
+
+![](https://files.mdnice.com/user/59/7f951a64-0f17-44f8-9b2b-3b60eebba81f.png)
+
+这张Slides主要讲解了在CUTLASS 3.x中构建Hopper架构的GEMM操作时，关于CollectiveMainloop中的Stage配置选项。CUTLASS 3.x中Stage可以是固定的常数，如_2, _3, _4等。也可以通过Epilogue Smem使用情况自动计算。警告：小的Stage数量可能会导致全局内存（gmem）延迟暴露。
+
+Slides下方的代码片展示了compute_stage_count_or_override函数的实现，该函数用于计算最大可用的Stage数。
+- 考虑了barrier所需的额外字节（32字节）。
+- 计算每个stage所需的字节数，包括A和B矩阵的数据。
+- 最后根据总容量和每个stage的大小计算可用的stage数量。
+
+![](https://files.mdnice.com/user/59/d03ccb41-ff1a-4ad5-872f-495699116532.png)
+
+这张Slides展示了CollectiveMainloop的配置代码，特别强调了KernelScheduleAuto参数。指出Mainloop kernel Scheduler选项定义在cutlass/gemm/dispatch_policy.hpp文件中。Kernel Scheduler类型包含LDGSTS和UTMALDG两种类型的异步指令，分别针对的是Ampere和Hopper架构。在UTMALDG类型指令可用的情况下，选用它会更快。
+
+![](https://files.mdnice.com/user/59/f33c9705-9c0f-41d8-89be-0944cd50c942.png)
+
+这张Slides介绍了在CUTLASS 3.x中构建Hopper架构GEMM操作时，CollectiveMainloop中Kernel Scheduler的配置选项和自动选择机制。要点如下：
+- KernelSchedulerAuto:
+    - 这是一个基于配置的自动选择器。
+    - 推荐作为首次尝试的好选择。
+- TMA (Tensor Memory Access) 限制:
+    - TMA 只支持 16 字节对齐的buffer。
+    - 对于 8 字节或 4 字节对齐的情况，需要使用 LDGSTS (CpAsync)。
+- 具体实现细节:
+    - 使用 constexpr bool 进行编译时条件检查。
+    - 根据 CUDA 工具包版本选择不同的调度策略。
+    - 对于 CUDA Toolkit 版本 >= 12.1，持久化调度表现最佳。
+    - KernelTmaWarpSpecializedCooperative 要求 TileShape_M 至少为 128。
+    ...
+
+![](https://files.mdnice.com/user/59/d1b2889d-b450-41ea-9072-8f9a33466a91.png)
+
+这张Slides主要讲解了在CUTLASS 3.x中构建Hopper架构GEMM操作时，CollectiveEpilogue的配置选项。强调了EpilogueScheduleAuto参数，这是Epilogue的Kernel调度器。指出Epilogue kernel Scheduler选项定义在cutlass/epilogue/dispatch_policy.hpp文件中。另外，还强调Epilogue Scheduler需要与Mainloop Scheduler配对使用。在CUTLASS 3.x中，使用EpilogueScheduleAuto一定能得到一个合法的Kernel。Epilogue Scheduler选项列出了几种可用的Epilogue Scheduler类型：
+
+- NoSmemWarpSpecialized
+- PtrArrayNoSmemWarpSpecialized
+- TmaWarpSpecialized
+- TmaWarpSpecializedCooperative
+
+![](https://files.mdnice.com/user/59/91c1117a-0d23-46f7-97bd-8cd60d9966b3.png)
+
+这张Slidesz指出，EpilogueScheduleAuto的选择会推断出NoSmemWarpSpecialized的Epilogue Scheduler类型，效率会偏低。
+
+![](https://files.mdnice.com/user/59/376b777d-e1c6-4c24-8f87-091cfeb29f8b.png)
+
+这张Slides讲解了CUTLASS 3.x中Hopper架构GEMM操作的CollectiveEpilogue配置，特别是关于EpilogueTile的设置。特别指出我们可以始终使用EpilogueTileAuto，这代表整个CTile。它会根据Mainloop Scheduler类型计算合理的epilogue tile。
+
+右侧展示了sm90_compute_tile_shape_or_override这个函数的实现，它根据不同条件自动计算epilogue tile的大小：
+- a. 对于cooperative调度：
+    - 如果TileShape_M >= 128，返回Shape<128, N_tile>
+    - 否则返回Shape<64, N_tile>
+- b. 对于warp specialized调度：
+    - 如果ElementD是8字节，返回Shape<64, N_tile>
+    - 否则返回Shape<64, N_tile>（但N_tile的计算方式不同）
+
+![](https://files.mdnice.com/user/59/05610102-b09c-4b77-856c-83e1423e68ce.png)
+
+这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Kernel Scheduler，特别是KernelMultistage调度器。
+
+- Kernel Scheduler类型列表：分为两类：LDGSTS (Load Global Store Shared) 和 UTMALDG (Unified Tensor Memory Access Load Global)。
+- 相关代码文件：cutlass/gemm/kernel/sm70_gemm.hpp & cutlass/gemm/collective/sm80_mma_multistage.hpp
+- KernelMultistage执行模型图示：
+    - 展示了4个warp (Warp0到Warp3) 的执行模式。
+    - 每个warp的执行过程分为三个阶段：LDGSTS（绿色）、TC（蓝色，可能代表Tensor Core计算）和Epilogue（灰色）。
+    - prologue和epilogue的延迟是暴露的（exposed）。
+- 执行特征：
+    - 标注为"Ampere Style But Hopper GMMA"，表明这种执行方式类似于Ampere架构，但使用了Hopper的GMMA（General Matrix Multiply-Accumulate）指令。
+    - 非持久化（Non persistent）执行模式。
+- 性能特点：
+    - prologue和epilogue的延迟暴露，这可能会影响整体性能。
+    - 每个warp独立执行完整的GEMM操作流程，包括数据加载、计算和结果存储。
+
+> 每个WARP做一样的事情，并且图中蓝色块之前的绿色小块表示的数据预取的num_stages数。
+
+![](https://files.mdnice.com/user/59/6648ccb9-a251-4ab5-b5aa-7ab5d6724c57.png)
+
+这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Kernel TMA (Tensor Memory Access) 调度器。
+- 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss.hpp
+- KernelTMA执行模型图示：
+    - 展示了4个warp (Warp0到Warp3) 的执行模式。
+    - 每个warp的执行过程分为三个阶段：TMA（绿色，仅Warp0执行）、TC（蓝色，代表Tensor Core计算）和Epilogue（灰色）。
+    - Warp1到Warp3的TMA部分是灰色的，表示它们不执行TMA操作。
+- 执行特征：
+    - 标注为"Ampere Style But Hopper GMMA + TMA"，表明这种执行方式类似于Ampere架构，但使用了Hopper的GMMA指令和TMA技术。
+    - 非持久化（Non persistent）执行模式。
+- 性能特点：
+    - prologue和epilogue的延迟仍然是暴露的。
+    - 只有Warp0执行TMA操作，这可能意味着更高效的内存访问。
+- 与KernelMultistage的区别：
+    - 主要区别在于使用TMA替代了LDGSTS操作。
+    - TMA操作集中在Warp0中执行，而不是每个warp都执行。
+
+
