@@ -1,4 +1,4 @@
-> CUTLASS GEMM模板中有大量可以调节和设置的模板参数，这些参数的设置会高度影响Kernel性能。本次分享将为大家介绍从2.x到3.x，CUTLASS kernel实现的变化，这些参数的原理和选择的最佳实践。
+> CUTLASS GEMM模板中有大量可以调节和设置的模板参数，这些参数的设置会高度影响Kernel性能。这个分享将为大家介绍从2.x到3.x，CUTLASS kernel实现的变化，这些参数的原理和选择的最佳实践。Slides来自BiliBili NVIDIA英伟达频道 上传的《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》视频讲解。这里参考视频并更详细记录了每一页Slides的要点，通过这个视频初步宏观了解了CUTLAS。我将其作为CUDA-MODE的CUTLASS课程的前置学习内容。
 
 ![](https://files.mdnice.com/user/59/0f5fa6fa-d376-4e53-b314-581a99e43758.png)
 
@@ -311,4 +311,151 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
     - 主要区别在于使用TMA替代了LDGSTS操作。
     - TMA操作集中在Warp0中执行，而不是每个warp都执行。
 
+![](https://files.mdnice.com/user/59/d43824eb-192d-47c6-84a4-6bb2551a48a4.png)
 
+
+这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Warp Specialized调度器。
+- 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma_warpspecialized.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized.hpp
+- Warp Specialized执行模型图示：
+    - 展示了8个warp (Warp0到Warp7) 的执行模式。
+    - Warp0和Warp1专门执行TMA（绿色）操作。
+    - Warp2和Warp3不执行任何操作（灰色）。
+    - Warp4到Warp7专门执行TC（蓝色，Tensor Core计算）和Epilogue（灰色）操作。
+- 执行特征：
+    - 标注为"Hopper Warp Specialized Style"，表明这是Hopper架构特有的warp专业化执行方式。
+    - 非持久化（Non persistent）执行模式。
+- 性能特点：
+    - Prologue和Epilogue的延迟仍然是暴露的。
+    - 寄存器文件（RF）利用率较低。
+- 与之前调度器的区别：
+    - 明显的warp分工：部分warp专门负责内存操作，部分负责计算。
+    - 更高效地利用了TMA技术。
+
+> Warp Specialized调度器的Tensor Core计算和Epilogue还是没有Overlap在一起，无法充分发挥Tensor Core的能力。
+
+![](https://files.mdnice.com/user/59/002eda2a-46da-4264-bb9e-0bb9f223f9f2.png)
+
+这张Slides补充了寄存器分析，TMA warps (Warp0和Warp1)：每个线程使用32个寄存器，总共128 x 32 = 4K个寄存器。TC warps (Warp4到Warp7)：每个线程最多可以使用255个寄存器，总共128 x 255 = 32K个寄存器。
+
+Slides还指出"This is not optimal for the SOL impl."（这对于SOL实现来说不是最优的）。Epilogue延迟仍然暴露，即使使用持久化编程且寄存器文件（RF）利用率较低。
+
+
+![](https://files.mdnice.com/user/59/7306b2ee-7d8a-4381-af29-f71e9c90fe00.png)
+
+这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Warp Specialized + Cooperative (Persistent) 调度器。
+- 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma_warpspecialized_cooperative.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized.hpp
+- 核心优化策略为"Use CTA reconfiguration to dealloc and alloc RF to fully utilize the RFs"
+使用CTA（Cooperative Thread Array）重配置来释放和分配寄存器文件（RF），以充分利用寄存器资源。
+- 与普通WarpSpecialized实现的区别：
+    - 更多的Warps，更好的TC利用率。
+    - TMA warps释放RF，数学计算Warps分配更多RF。
+    - 持久化风格（Persistent style）。
+- 性能上Epilogue延迟仍然暴露，但有更好的RF利用率。
+
+![](https://files.mdnice.com/user/59/f0a9abff-4ad1-45f0-91ef-8686fb2474bf.png)
+
+这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Warp Specialized + Pingpong (Persistent) 调度器。
+- 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma_warpspecialized_pingpong.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized.hpp
+- 与Warp Specialized Cooperative实现的主要区别：
+    - Mainloop和epilogue过程重叠，以实现最佳的TC（Tensor Core）利用率。
+    - TC Warp组之间的同步。
+- 执行模型图示:
+    - 展示了12个warp（Warp0到Warp11）的执行模式。
+    - Warp0和Warp1执行TMA操作（绿色），但以pingpong方式交替进行。
+    - Warp4到Warp11执行TC（浅蓝色和深蓝色）和Epilogue（灰色）操作，同样以交替方式进行。
+
+![](https://files.mdnice.com/user/59/ee00936a-5a53-43ad-aa69-f10a39863f03.png)
+
+这张Slides介绍了一下Hopper架构上的Warp Specialized GEMM实现，采用了生产者-消费者模型。内容如下：
+- 源代码位置：cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized_mixed_input.hpp
+- 总体架构分为Producer Warps (TMA Warps) 和 Consumer Warps (TC Warps)，通过共享内存进行数据交换。
+- Producer Warps (TMA Warps):
+    - 使用CollectiveMma::load(...) & Persistent方法
+    - 等待smem_empty barrier
+    - 发出TMA指令加载A和B矩阵，更新smem_full barrier
+    - 更新传输字节数并到达smem_full barrier
+    - 循环K次迭代
+- Consumer Warps (TC Warps):
+    - 使用CollectiveMma::mma(...) & Persistent方法
+    - 等待smem_full barrier
+    - 发出WGMMA_SS指令并等待前一个TC工作完成
+    - 到达smem_empty barrier
+    - 循环K次迭代
+    - 使用SWIZZLE将寄存器文件(RF)写入共享内存(SMEM)
+    - 发出TMA指令将结果写回全局内存
+- 共享内存结构：
+    - 包含Mbarrier和Data Buffer两部分
+    - 每个stage有两个buffer：Mat A MtilexKtile 和 Mat B NtilexKtile
+    - 使用smem_empty和smem_full标志来同步Producer和Consumer
+- 执行流程：
+    - Producer和Consumer交替工作，通过共享内存和 barrier机制同步
+    - 多个stage (0 到 N-1) 用于流水线操作
+    - 循环执行直到完成所有tile的计算
+
+![](https://files.mdnice.com/user/59/0d8b9a3f-84a0-4fdc-8d1d-041f1e58a923.png)
+
+这张Slides展示了Hopper架构上不同GEMM kernel调度器的性能基准测试结果。
+
+- 测试矩阵大小和kernel类型：
+    - 测试了6种不同大小的矩阵乘法运算
+    - 比较了5种不同的kernel调度器：KernelTMA, WS_TMA (无/有共享内存), Pingpong_TMA, Coop_TMA
+- 性能数据和分析：
+    - 表格中显示了各种组合的执行时间（单位：微秒）
+    - 黄色高亮标记了每行中性能最佳的结果
+    - Warp Specialized kernels 通常表现更好
+    - 使用共享内存(SMEM)的Epilogue性能更佳
+    - 在大多数情况下，Pingpong策略是首选
+    - 对于较大的矩阵（如8192x8192x8192），Pingpong_TMA策略显著优于其他方法
+    - 对于某些特定大小（如1024x1024x1024），WS_TMA with smem表现最佳
+    - KernelTMA + No Smem在所有情况下性能都较差
+- 配置信息：
+    - FP16输入，FP32累加，D = alpha x A x B 运算，CTA tile大小 = 128x128x64，Cluster shape = 2x1x1，使用H800 NVL*硬件，预热10次，迭代20次，NVCC版本12.3。
+
+![](https://files.mdnice.com/user/59/4edbf258-2598-4088-837c-f15385f01845.png)
+
+这张Slides比较了Hopper架构上CPAsync和TMA两种不同内存访问方式在GEMM操作中的性能表现。主要结论为：TMA方法在几乎所有情况下都优于CPAsync方法，在TMA方法中，Pingpong_TMA通常表现最好，尤其是对于大型矩阵。"CPAsync is the reluctant choice. Always use TMA if the alignment requirement is satisfied."（CPAsync是不得已的选择。如果满足对齐要求，总是使用TMA。）
+
+![](https://files.mdnice.com/user/59/8d280271-4589-4a31-964f-07ff06489d1c.png)
+
+这张Slides总结了在Hopper架构上构建GEMM（通用矩阵乘法）时的几个关键决策点和建议。
+- Option 1: CpAsync vs TMA
+    - 选择取决于内存对齐情况，TMA只能处理16字节对齐的情况。如果对齐较差，只能使用CpAsync。如果满足16字节对齐要求，应使用TMA以获得更好的性能。
+- Option 2: Non-Warp-Specialized vs Warp-Specialized
+    - 建议总是使用Warp-Specialized，Hopper硬件提供快速同步机制，同步开销不大。使用Non-Warp-Specialized时需要调整stage以获得更好的性能，对于小型GEMM问题，可以考虑使用Ampere风格的kernel。
+- Option 3: Warp Specialized vs Pingpong vs Cooperative
+    - 选择取决于问题的形状，如果C Tile数量小于SM数量（1个wave），epilogue延迟暴露不可避免，三种方法都可以。如果C Tile数量超过1个wave，推荐使用Pingpong方法。
+
+![](https://files.mdnice.com/user/59/e9e7ea0e-efc5-4fd6-9699-c97bb08bf167.png)
+
+![](https://files.mdnice.com/user/59/7208b3ee-ebc0-4142-983a-b53310abd9b7.png)
+
+最后这张Slides继续讨论了构建Hopper GEMM (通用矩阵乘法) 的2个关键点:
+
+- 选项3的更新：比较了Warp Specialized、Pingpong和Cooperative三种方法。选择取决于问题形状和tile大小：
+    - 对于128x256的tile大小：
+        - 使用FP32累加时，Cooperative是唯一选择，因为Pingpong会遇到寄存器溢出问题。
+        - 使用FP16累加时，Pingpong始终是最佳选择。
+- 选项4：
+    - 为了获得更好的性能，需要调整多个参数，例如：
+        - Tile大小
+        - CGA (Cooperative Grid Array) 大小
+        - CTA swizzle
+
+代码示例展示了CUTLASS 3.x和2.x版本在处理swizzle size参数上的区别：
+- CUTLASS 3.x：swizzle size可以是运行时参数
+- CUTLASS 2.x：swizzle size是模板参数
+
+总结一下：
+
+CUTLASS库在2.x到3.x版本的迭代中有了显著的变化,这主要是为了适应NVIDIA GPU架构从Ampere到Hopper的演进。3.x版本着重强调了持久化编程风格和warp专业化的特性,旨在充分利用计算资源并优化性能。
+
+在配置GEMM运算时,2.x版本需要手动指定大量的low level参数,如数据类型、tile大小等。而3.x版本则提供了更高层次的抽象,简化了配置过程。
+
+如果在Hopper架构上使用CUTLASS,建议采用3.x版本,并参考以下最佳实践:
+
+- 在访问内存时,优先使用TMA(Tensor Memory Access)而非CpAsync。
+- 优先选择Warp Specialized类型的kernel。
+- 根据问题的规模,在Warp Specialized、Pingpong、Cooperative三种kernel中选择最合适的一种。
+- 通过调整BlockShape、ClusterShape、CTA swizzle等参数,进一步优化性能。
+
+End!
