@@ -2,6 +2,8 @@
 
 ## CUDA-MODE课程笔记 第7课: Quantization Cuda vs Triton
 
+> 作者课件可以在这里找到：https://github.com/cuda-mode/lectures 。我也下载里一份放在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode/ppt 这里。
+
 ![](https://files.mdnice.com/user/59/901a2917-42c1-41d5-8d37-5e4aa5593451.png)
 
 PyTorch最近一年发布了一些生成式AI模型的案例研究，这些模型运行速度极快，且代码及其精简。这些模型比如GPT-FAST，SAM-FAST都应用了量化技术，Charles很大程度上是这些量化Kernel的主要开发者。因此，这节课由Charles来分享量化技术。
@@ -137,4 +139,224 @@ def tuned_fused_int_mm_mul(mat1, mat2, mat3, out_dtype, *, layout=None):
 ![](https://files.mdnice.com/user/59/8a91dc5d-68be-4ff4-9172-c6b0e3aa2c3e.png)
 
 ![](https://files.mdnice.com/user/59/a79dda1f-11f5-4f0b-9738-32fabdbc214e.png)
+
+这张Slides介绍了Int8权重量化（Int8 Weight Only Quantization）的概念和流程。主要内容：
+- 数学表达：
+    - 原始公式：Y = X.W
+    - 量化公式：Y = X.(Wint * Sw)
+    - 重排公式：Y = (X.Wint) * Sw
+- 权重量化流程图：
+    - 从浮点权重（Float Weight）开始
+    - 量化（Quantize）步骤：在预处理阶段进行
+    - 反量化（Dequantize）步骤：将量化后的权重转回浮点
+    - 浮点激活（Float Activation）保持不变
+    - 乘法运算使用浮点（Multiplication (Float)）
+    - 累加使用fp32（Accumulation (fp32)）
+    - 重新缩放（Rescale (Float)）
+    - 最后输出浮点激活（Float Activation）
+- 特点：
+    - 只对权重进行量化，而不是对激活值进行量化
+    - 在实际计算前，量化的权重被反量化回浮点格式
+    - 所有的计算（乘法和累加）都在浮点精度下进行
+- 其它：
+    - 减少模型存储空间，因为权重以Int8格式存储
+    - 保持了计算精度，因为实际运算仍在浮点下进行
+    - 可能比全量化方法（如动态量化）具有更高的精度
+    - 适用于对精度要求较高，但仍希望减少模型大小的场景
+    - 可能在某些硬件上比全量化方法更容易实现和优化
+
+![](https://files.mdnice.com/user/59/9d56a1f3-535f-46ee-be69-3c1c7e9d8356.png)
+
+
+这张Slides展示了Int8权重量化（Int8 Weight Only Quantization）的性能表现，无量化: 93.08 tokens/s，int8权重量化: 40.59 tokens/s，可以看到int8权重量化反而降低了处理速度，约为无量化版本的43.6%。
+
+在图表中，对比了Batch size 1: cublas 和 int8 weight only quantized matmul。蓝线: cublas A16W16 matmul (使用16位精度的cublas矩阵乘法)。红线: A16W8 matmul (使用16位激活和8位权重的矩阵乘法)
+
+![](https://files.mdnice.com/user/59/81b20631-8ea4-492c-983e-bb35d1468ce9.png)
+
+这张Slides讲到如果按照普通的gemm triton kernel模板，上面的Int8权重量化的性能低于预期的原因是：
+- 执行了比基础matmul更多的工作，展示了一段代码，显示了额外的加载和类型转换操作，这些额外操作可能导致性能下降
+- 块大小被限制为大于等于16，当前配置只执行64个块，少于A 100GPU的108个多处理器，这可能导致一些多处理器未被充分利用
+
+然后Torch Compile通过链接里的代码解决了这个问题，贴一下：
+
+```python
+@register_decomposition([aten.mm])
+@pw_cast_for_opmath
+def mm(self, input2):
+    # Our matrix vector multiplies only achieve peak bandwidth with coordinate descent tuning.
+    # todo: Look into why and fix it (hopefully)
+    if config.coordinate_descent_tuning:
+        if guard_size_oblivious(self.shape[0] == 1) or guard_size_oblivious(
+            input2.shape[1] == 1
+        ):
+            return (self.unsqueeze(2) * input2.unsqueeze(0)).sum(dim=1)
+    ...
+    return NotImplemented
+```
+
+实际上这个操作就是让GEMV用Cuda Core而不是Tensor Core来完成计算，具体做法就是把GEMV操作等价为一个element-wise乘法加一个reduce操作。这个操作通过Torch Compile生成的Triton Kernel代码如下：
+
+![](https://files.mdnice.com/user/59/9e42f002-e508-4b54-8faa-740687ae572e.png)
+
+
+这张Slides展示了一个名为 triton_() 的函数（由Torch编译器生成），该函数实现了 Int8 权重量化的GEMV操作。完整流程为：
+- xnumel 和 rnumel 都设置为 4096
+- X 对应 N 维度，R 对应 K 维度
+- 使用 program_id(0) 和 XBLOCK 计算偏移量
+- XBLOCK 始终为 1，每个 program_id 处理输出的单个值
+- 加载完整的激活张量（fp32 格式）
+- 对权重的一列进行循环
+- 加载权重的一列的一个chunk（可能是 int8 格式）
+- 将权重列转换为 fp32 格式
+- 执行矩阵乘法的核心计算
+- 使用广播和累加操作
+- 对结果进行掩码处理和ReduceSum求和
+- 加载额外的数据（可能是偏置或缩放因子）
+- 执行最后的乘法和加法操作
+- 将结果存储回内存
+
+```python
+def triton_(in_ptr0, in_ptr1, in_ptr2, in_ptr3, out_ptr1, xnumel, rnumel, XBLOCK: tl.constexpr, RBLOCK: tl.constexpr):
+    xnumel = 4096
+    rnumel = 4096
+    xoffset = tl.program_id(0) * XBLOCK
+    xindex = xoffset + tl.arange(0, XBLOCK)[:, None]
+    xmask = xindex < xnumel
+    rbase = tl.arange(0, RBLOCK)[None, :]
+    x0 = xindex
+    _tmp6 = tl.full([XBLOCK, RBLOCK], 0, tl.float32)
+    for roffset in range(0, rnumel, RBLOCK):
+        rindex = roffset + rbase
+        rmask = rindex < rnumel
+        r1 = rindex
+        tmp0 = tl.load(in_ptr0 + (r1), None, eviction_policy='evict_last').to(tl.float32)
+        tmp2 = tl.load(in_ptr1 + (r1 + (4096*x0)), xmask, eviction_policy='evict_first', other=0.0)
+        tmp1 = tmp0.to(tl.float32)
+        tmp3 = tmp2.to(tl.float32)
+        tmp4 = tmp1 * tmp3
+        tmp5 = tl.broadcast_to(tmp4, [XBLOCK, RBLOCK])
+        tmp7 = _tmp6 + tmp5
+        _tmp6 = tl.where(xmask, tmp7, _tmp6)
+    tmp6 = tl.sum(_tmp6, 1)[:, None]
+    tmp9 = tl.load(in_ptr2 + (x0), xmask, eviction_policy='evict_last').to(tl.float32)
+    tmp11 = tl.load(in_ptr3 + (x0), xmask, eviction_policy='evict_last').to(tl.float32)
+    tmp8 = tmp6.to(tl.float32)
+    tmp10 = tmp8 * tmp9
+    tmp12 = tmp10 + tmp11
+    tl.store(out_ptr1 + (x0), tmp12, xmask)
+```
+
+![](https://files.mdnice.com/user/59/681bdd35-4e3d-400b-89b5-32d5be000f42.png)
+
+这张Slides主要讲述了Int8权重量化（Int8 Weight Only Quantization）的优化过程和结果。
+- 性能问题解决：通过使用torch.compile可以解决之前遇到的性能问题。
+- 性能对比（LLaMA-7B模型，批次大小为1）：
+    - 无量化：93.08 tokens/s
+    - int8权重量化：40.59 tokens/s
+    - int8权重量化优化后：135.01 tokens/s
+    - 这显示优化后的int8权重量化性能显著提升，超过了无量化版本。
+- 微基准测试结果：
+    - 图表显示了不同权重大小下的性能比较
+    - cublas A16W16 matmul（蓝线）性能最佳
+    - A16W8 matmul（红线）性能较差
+    - A16W8 fixed matmul（黄线）性能介于两者之间
+- 优化过程中的发现：
+    - 尽管性能提升明显，但仍未完全匹配默认bf16的性能
+    - 这主要是由于torch.compile的开销，在端到端测试中这个差距会减小
+    - 在优化过程中遇到了triton的一些限制，通过避免使用tensor cores来绕过这些限制
+    - 目前仍然缺乏对批次大小大于1（bsz>1）的高性能内核
+- 未来工作：
+    - 需要进一步优化以完全匹配或超越bf16的性能
+    - 开发支持更大批次大小的高性能内核
+
+这里bsz=1的时候是memory bound的GEMV，如果bsz>1，这个时候就是GEMM Kernel了，很可能就是compute bound了，普通的kernel优化预计很难超越cuBLAS的性能。
+
+![](https://files.mdnice.com/user/59/d34a15d4-c6dc-487b-bd70-b7f7a1de6a70.png)
+
+![](https://files.mdnice.com/user/59/6106531d-7d20-4a79-b92c-5e6b81184a0e.png)
+
+从Int4 Weight Only开始，Triton开始力不从心了。要点为：
+- 目前PyTorch没有原生的int4/uint4数据类型（dtype）。
+- 这意味着我们需要将更大尺寸的张量拆解成多个int4类型。
+- 由于Triton在类型转换和乘法操作上的限制，我们在实际操作中会失去更多性能。
+- 图示展示了int4数据（4位整数）如何被打包进更大的数据类型中。
+
+![](https://files.mdnice.com/user/59/2d7321c9-7471-460d-bd3b-cead8d9a9137.png)
+
+"But we can see how far we can get with just triton"（但我们可以看看仅使用triton能走多远）说明了作者打算在现有Triton框架限制下探索Int4量化的潜力。右上角显示了一个int4x2的基本结构，每个元素包含两个4位整数。下方展示了四种不同的打包/解包布局，展示了如何在更大的数据结构中组织int4数据。
+
+> Slides里面的右下角的4张图有拼写错误，注意鉴别。比如最后一张图的第一列应该是ABEF才对。
+
+![](https://files.mdnice.com/user/59/67a25258-535e-4c6f-bb31-4e29bd73de73.png)
+
+这张Slides详解了Int4权重量化（Int4 Weight Only Quantization）在矩阵乘法（matmul）中的实现策略，特别是关于数据打包和解包的选择。
+- 在进行矩阵乘法时，由于这是权重，我们希望在int4x2格式中连续的信息在解包后仍然保持连续。
+- 因此，我们应该使用右边两种选项之一。
+- 由于矩阵乘法的实现通常让单个线程处理所有的K维度，所以选择了右下角的选项。这种选择可以避免因打包方式导致线程加载不必要的数据。
+
+> Slides里面的右下角的4张图有拼写错误，注意鉴别。比如最后一张图的第一列应该是ABEF才对。
+
+![](https://files.mdnice.com/user/59/bc4a11ed-8f22-4531-8fec-aa5d2f8bb5d4.png)
+
+这里提供了具体的代码来展示如何打包/解包uint8和int4：
+```python
+int4[2*k,n]=(uint4x2[k,n] & 0xF) - 8
+int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
+```
+解释说选择uint8是因为triton框架对int8的位移操作存在问题。这里的uint4x2量化Kernel代码在：https://github.com/pytorch/pytorch/blob/main/torch/_inductor/kernel/unpack_mixed_mm.py
+
+![](https://files.mdnice.com/user/59/197de651-540c-4541-bf2c-47c082ac7266.png)
+
+这张Slides主要讨论了Int4权重量化（Int4 Weight Only Quantization）的性能表现和一些相关观察。
+- 性能数据表格（LLaMA-7B, bsz=1）：
+    - 无量化：93.08 tokens/s
+    - int8权重量化：40.59 tokens/s
+    - int8权重量化优化版：135.01 tokens/s
+    - uint4x2权重量化：43.59 tokens/s
+    - Int4分组量化：187.8 tokens/s 
+
+> uint4x2量化的性能(Triton实现)只有无量化情况下的1/2，而不是预期的4倍快。作者提到如果现在重新实现，会参考fast int8 kernel的方法，而不是slow int8 kernel。此外，提到Jeff Johnson（PyTorch GPU后端的开发者）使用CUDA开发了一个int4 kernel并集成到了PyTorch中，速度非常快，也就是上面表格的Int4分组量化。代码：https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/native_functions.yaml
+
+
+![](https://files.mdnice.com/user/59/4d50f08b-c745-4b73-b045-76ac1a974104.png)
+
+
+这个是kernel的签名，感兴趣的读者可以自行查看代码。
+
+从这个Int4 Weight Only的cuda量化kernel实现可以看到Triton的局限性。
+
+![](https://files.mdnice.com/user/59/ae3c5f91-fa2c-483b-aae2-c188cdd4e43a.png)
+
+这张Slides讨论了Triton的一些局限性：
+- 复杂操作和非标准数据类型的问题：
+    - Triton在处理复杂操作和非标准数据类型时会遇到困难。
+    - 具体提到了Int4（4位整数）类型。
+    - 当批处理大小大于1时，int8/int4权重量化也会遇到问题。
+    - L2缓存优化在这些情况下可能会受到影响。
+- 配置一致性问题：
+    - 在一些测试中，启发式算法存在问题。
+    - 最佳配置可能无法使用或被启发式算法错误地丢弃。
+
+![](https://files.mdnice.com/user/59/4558ac9f-8c20-4e37-a09a-3e8414b34a7d.png)
+
+这张Slides介绍了Trito的优势：
+- 擅长组合"简单"操作：
+    - Triton在将简单操作组合在一起方面表现出色。
+    - 提到了两个具体例子：
+    a) Fused_int_mm_mul（融合整数矩阵乘法和乘法操作）
+    b) SAM flash attention（Segment Anything Model中使用的快速注意力机制）
+- 性能接近CUDA，但使用更简单：
+    - Triton能够达到CUDA速度的约75%。
+    - 最重要的是，使用Triton可以达到这种性能水平，而无需直接处理.cu文件（CUDA源代码文件）。
+
+- 代码：
+    - https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L325
+    - https://github.com/pytorch-labs/segment-anything-fast/blob/main/segment_anything_fast/flash_4.py#L13
+
+这里讲的就是SAM里面的Attention操作相比于标准的SelfAttention需要融合两个MASK，这个时候使用Triton实现的FlashAttention就可以非常快的实现这个需求，并且性能很好。
+
+![](https://files.mdnice.com/user/59/1432b80b-f3ed-4e64-8722-90296709bb09.png)
+
+要复现作者实验可以点击这张Slides里的链接。
 
