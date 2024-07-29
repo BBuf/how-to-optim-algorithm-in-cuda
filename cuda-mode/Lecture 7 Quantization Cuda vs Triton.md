@@ -2,6 +2,8 @@
 
 ## CUDA-MODE课程笔记 第7课: Quantization Cuda vs Triton
 
+### 适配课件详细解读
+
 > 作者课件可以在这里找到：https://github.com/cuda-mode/lectures 。我也下载里一份放在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode/ppt 这里。
 
 ![](https://files.mdnice.com/user/59/901a2917-42c1-41d5-8d37-5e4aa5593451.png)
@@ -358,5 +360,179 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 
 ![](https://files.mdnice.com/user/59/1432b80b-f3ed-4e64-8722-90296709bb09.png)
 
-要复现作者实验可以点击这张Slides里的链接。
+要复现作者的实验或者学习GPU上量化Kernel的实现可以点击这张Slides里的链接。
 
+作者分享的Slides里面还有一些有趣的内容作为附录，这里挑选其中的一些来解读，主要是实验结果和概念部分，对torchao的使用部分的Slides有需要的读者可以自行查看。
+
+![](https://files.mdnice.com/user/59/bd7ac1b5-1fe1-448a-8305-c994ca236103.png)
+
+这张Slides展示了对SAM（Segment Anything Model）模型进行不同量化和优化技术的实验结果。主要内容如下：
+
+- 动态量化（Dynamic Quant）相比基准模型获得了约13%的速度提升。
+- 仅权重量化（Weight Only Quant）对性能提升不明显，原因是模型主要受计算限制，且其内核设计并不针对大Batch进行优化。
+- 所有的量化技术都只导致了很小的精度损失。
+图表详细展示了不同方法的性能对比：
+- fp16（半精度浮点）
+- compiled（编译优化）
+- SDPA
+- int8 weight only quant（8位整数仅权重量化）
+- int8 dynamic quant（8位整数动态量化，包括权重和激活）
+- 2:4 pruned cusparselt（一种稀疏化技术）
+表格中比较了这些方法在以下几个方面的表现：
+- 批处理大小为32的处理时间（bs 32(s)）
+- 每秒处理的图像数（img/sec）
+- 相对于SDPA的加速比（speedup over SDPA）
+- 峰值内存使用（peak memory (GB)）
+- COCO 2017验证集上的准确率（coco 2017 val accuracy）
+
+![](https://files.mdnice.com/user/59/74f0809a-5c97-4ada-bd52-406917628d4b.png)
+
+这张Slides展示了对Llama2 7B模型进行不同量化方法的实验结果。主要内容如下：
+
+- 使用仅权重int8和int4量化分别实现了45%和86%的加速。
+- 对于int8仅权重量化，没有观察到精度下降。
+- int4仅权重量化导致了小幅度的精度下降，但使用GPTQ（一种量化技术）可以恢复其中一半的精度损失。
+- 动态量化（Dynamic Quantization）虽然测试过，但因为模型受内存限制，其精度和性能都不如仅权重量化，所以未列入表格。
+- 表格详细展示了不同方法的性能和精度对比：
+    - bf16
+    - compiled（Torch 编译优化版本）
+    - int8 weight only quant（8位整数仅权重量化）
+    - int4g128 weight only groupwise quant（4位整数分组仅权重量化）
+    - GPTQ（使用每个任务100个样本）
+- 性能指标包括：
+    - 每秒处理的token数（bs 1 (tok/s)）
+    - 相对于compiled版本的加速比
+    - hellaswag_acc_norm
+    - wikitext bits_per_byte（困惑度相关指标）
+    - winogrande acc
+- 结果显示，int4量化提供了最大的速度提升（1.86倍），但有轻微的精度损失。int8量化在保持精度的同时也提供了显著的速度提升（1.45倍）。
+
+![](https://files.mdnice.com/user/59/6d6ad738-3531-4b32-8c91-4e5c8be379a1.png)
+
+这张Slides展示了对Llama2 7B模型进行模拟低精度量化的实验结果。主要内容如下：
+- 实验目的：了解分组大小（groupsize）、位数（bit number）和GPTQ（量化技术）如何影响模型准确性。实验使用wikitext bits_per_byte困惑度作为评估指标。
+- GPTQ效果：在大多数情况下，GPTQ能够恢复约一半的性能损失（PPL，困惑度）。特例：在G=64、2位量化的情况下，未使用GPTQ时的PPL异常地高。
+- 分组大小影响：测试了不同的分组大小（G=128, 64, 32）。G=32时，4位量化的性能损失不到3%，并且GPTQ将损失进一步减少了近50%。
+- 量化位数影响：比较了4位、3位和2位量化的效果。位数越低，通常性能损失越大，但GPTQ能在一定程度上缓解这种损失。
+- 性能数据：表格展示了不同配置下的推理速度（tok/s）和wikitext bits_per_byte值。较低的bits_per_byte值表示更好的性能（注1）。
+- 模拟低精度：3位和2位的数据是通过在4位内核上模拟得到的，方法是在量化过程中限制Qmax（注2）。
+- 基准比较：结果应与bf16（bfloat16）和int8量化的基准值0.674进行比较（注1）。
+
+
+![](https://files.mdnice.com/user/59/0c3aa0ec-fb45-4de3-81fa-5c58725f6ee2.png)
+
+这张Slides介绍了一些与量化相关的代码资源和工具：
+- 量化API：
+    - 量化API可在torchao仓库中找到
+    - 链接：https://github.com/pytorch-labs/ao
+- segment-anything-fast仓库：
+    - 这个仓库展示了如何将这些API与其他技术结合使用
+    - 链接：https://github.com/pytorch-labs/segment-anything-fast
+- gpt-fast仓库：
+    - 使用相关API来执行量化
+    - 包含了int4量化和GPTQ的实现，这些实现目前在其他地方还没有
+    - 链接：https://github.com/pytorch-labs/gpt-fast
+
+后面还有几页Slides介绍了不同的量化方法。
+
+![](https://files.mdnice.com/user/59/443658ce-2d31-45ba-a13c-11cf6eeb0f23.png)
+
+这张Slides介绍了动态量化（Dynamic Quantization）的过程和特点：
+- 动态量化流程 (Dynamic Quantization Flow):
+    - 权重和激活都从浮点开始
+    - 权重在**预处理**阶段量化
+    - 激活在**运行时**量化
+    - 使用Int8进行乘法运算
+    - 使用Int32进行累加
+    - 最后rescale回浮点数
+- 动态量化的特点：
+    - 为每个样本重新计算量化参数
+        - 对非平稳分布不敏感
+        - 对频繁出现的异常值敏感
+- 浮点激活：
+    - 用于替代非量化操作
+    - 可能比允许一系列量化操作而不需要反量化的技术要慢
+
+![](https://files.mdnice.com/user/59/5c40c9e0-02a0-430f-a24e-88784fd0fe41.png)
+
+这张Slides介绍了Smoothquant（平滑量化）技术，并将其与动态量化进行了对比：
+
+- 对比两种量化流程：
+    - 左侧是动态量化流程（与前一张Slides相同）
+    - 右侧是Smoothquant流程，主要区别在于：
+        - a. 权重先进行放大（Scale Up）
+        - b. 激活先进行缩小（Scale Down）
+        - c. 然后再进行量化
+- Smoothquant的特点：使用输入权重均衡化（Input-weight equalization）技术
+- Smoothquant与LLM.int8()的结合：
+    - 对激活使用逐token量化（per-token quant activations）
+    - 对权重使用逐通道量化（per-channel quant weights）
+- Smoothquant的优势：
+    - 通过预先的缩放操作，可以更好地平衡权重和激活的数值范围
+    - 有助于减少量化过程中的信息损失
+    - 结合LLM.int8()技术，可以在保持精度的同时提高效率
+
+![](https://files.mdnice.com/user/59/6b9d1fcd-0821-45d7-b789-df959c9b2a6c.png)
+
+这张Slides展示了不同量化方法在OPT-175B、BLOOM-176B和GLM-130B*模型上的性能，Smoothquant（O1、O2、O3）在大多数情况下表现接近或优于FP16和LLM.int8()。
+
+![](https://files.mdnice.com/user/59/e6c27c40-c8bb-4fae-843a-96d9af2639a7.png)
+
+这张Slides介绍了仅权重量化（Weight Only Quantization）为Int8的技术。
+- 量化流程：
+    - 浮点权重先进行量化（Quantize）
+    - 然后进行反量化（DeQuantize）
+    - 使用16位权重和16位激活进行乘法运算（Multiplication W16A16）
+    - 最后得到浮点激活输出
+- 优点：比包含激活量化的方法更精确；原因：在实践中，激活通常是更难量化的部分
+计算特性：
+- 混合数据类型的矩阵乘法（Mixed dtype matmul）在计算上比fp16-fp16矩阵乘法更昂贵
+但在内存使用上更高效
+- 实际应用：在实践中，对int8使用逐通道量化（per-channel quantization）
+
+![](https://files.mdnice.com/user/59/428b200d-a062-4f3b-b523-4dd911beee4a.png)
+
+这张Slides介绍了仅权重量化为Int4的技术。
+- 量化流程与Int8量化类似，包括权重量化、反量化和16位乘法运算。
+- 实际应用中的量化策略：对int4使用分组量化（group-wise quantization）。原因是int4的精度较低，分组量化可以提高精度。
+- 分组量化的具体操作：除了对每个通道进行量化外，还将通道Ci分成n个组（G0到Gn-1）。每个组有自己的量化参数。
+- 右边还展示了per-token量化的激活矩阵和per-channel分组量化的权重矩阵。
+- 可以考虑使用smoothquant风格的输入-权重均衡化技术。这对int4的情况可能特别有用，因为int4精度较低，更需要优化。
+
+![](https://files.mdnice.com/user/59/b8f3bacb-a9b3-4ce0-9855-6845a2d45e22.png)
+
+这张Slides介绍了GPTQ (Generative Pre-trained Transformer Quantization) 技术。
+- GPTQ的核心思想：使用期望Hessian（Expected Hessian）来量化权重W，目标是最小化 argmin ||WX - ŴX||²₂，其中Ŵ是量化后的权重。
+- 量化方案：可以是分组量化（group-wise）或逐通道量化（per-channel）
+- GPTQ的重要性：对于获得较好的int4仅权重量化精度是必要的
+- GPTQ宏观算法流程：
+    - 对某一层估计多个batch的Hessian矩阵
+    - 量化W的一列
+    - 使用Hessian矩阵H更新未量化的W列（以保持上述方程最小化）
+    - 重复步骤2和3，直到所有列都被量化
+
+
+![](https://files.mdnice.com/user/59/84b92f52-6be9-4da3-b21c-f00fb3168ae1.png)
+
+这张Slides比较了三种不同的量化技术：动态量化、静态量化和仅权重量化。特别的，对于静态量化流程（其它两种已经讲过了）：
+- 权重预处理量化
+- 激活量化前需要校准
+- 使用Int8进行乘法运算
+- Int32累加
+- 重新缩放到Int8
+
+![](https://files.mdnice.com/user/59/ed98cc71-d7c6-4e4c-8c5e-b7e6c4163cc3.png)
+
+这张Slides继续介绍了静态量化（Static Quantization）技术，并将其与动态量化进行了对比。
+- 量化流程对比：左侧是动态量化流程；右侧是静态量化流程
+- 静态量化的特点：通过校准集计算最佳量化参数；包含校准步骤，用于确定激活的量化参数
+- 静态量化的优势：对非平稳分布更敏感（能更好地适应数据分布的变化）；对频繁出现的异常值不太敏感
+- 整数激活：静态量化使用整数激活（Int8 Activation）；最适合有一系列可量化操作的情况
+- 计算过程：两种方法都使用Int8乘法和Int32累加；静态量化在最后阶段重新缩放到Int8，而动态量化重新缩放到浮点数
+
+另外，静态量化的输出也可以Rescale回Float。
+
+
+### 总结
+
+Lecture 7主要介绍了基于CUDA和Triton的量化技术在生成式AI模型中的应用。内容包括动态量化、仅权重量化(int8/int4)等不同量化方法的原理、实现和性能比较,以及Smoothquant、GPTQ等量化优化技术的简介。在动态量化和int8/int4 weight only量化实现讲解中，作者分析了Triton相对于CUDA在这些场景的优劣，比如对于int4 weight only 因此Triton本身的限制就不太适合来实现这个cuda kernel。up主还讨论了很多Torch Compiler针对这些量化的优化，比如decode阶段的gemv就让编译器走elementwise mul+reduce的特殊分支以提升性能。学Lecture 7能对量化，CUDA/Triton/Torch Compiler的应用有一个更好的了解，有余力的读者可以看看原视频。视频最后的QA环节也有一些有意思的问题和见解。
