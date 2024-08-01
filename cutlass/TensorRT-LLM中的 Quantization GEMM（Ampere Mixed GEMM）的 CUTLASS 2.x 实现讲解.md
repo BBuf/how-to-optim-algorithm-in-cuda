@@ -95,5 +95,139 @@ MainLoop的计算里面，首先将prefetch的数据load到寄存器里面，然
 
 这是刚才CUTLASS 2.x kernel计算的整体流程PPT的总结。
 
-## 基于CUTLASS 2.x实现Mixed GEMM
+## 如何基于CUTLASS 2.x实现Mixed GEMM
+
+![](https://files.mdnice.com/user/59/e9c09ad5-38d9-4a44-9d80-aa92c29dc11d.png)
+
+要实现Mixed GEMM相比于刚才的普通的GEMM需要做的修改有哪些呢？首先，AWQ需要额外的对Activation乘以一个scale，这是只有AWQ才需要的。在Load A/B矩阵的数据时，需要注意到现在A,B矩阵的数据类型是不同的，所以现在不能都用ldg128去load，否则load的数据个数不对等，就无法进行下一步计算。还需要进行修改的是在实际的MMA计算之前需要把B的数据从一个低比特的精度反量化回和A相同的数据类型。这些完成之后就可以类似于普通的GEMM一样完全剩下的计算。
+
+![](https://files.mdnice.com/user/59/ed787367-2bd6-4c23-826c-e9464a6e6943.png)
+
+如果是SmoothQuant的话，可以注意到在前面MainLoop部分的Prologue部分完全不需要修改，只需要在Epilogue部分把这两个Scale load进来应用到实际的数据上就可以了。
+
+## 性能优化的关键：权重Layout设计
+
+![](https://files.mdnice.com/user/59/6f8e979e-b14d-432c-9164-302c2beeb3fe.png)
+
+这里来介绍一下在 TRT-LLM 中为了性能考虑做了哪些tricky的事情，主要就是对B矩阵的Layout的一些调整。
+
+![](https://files.mdnice.com/user/59/4fcac1ff-9d0d-4222-b7a8-1317a62749c4.png)
+
+首先需要介绍一下为什么需要这些特殊的Layout的调整，比如我们刚才提到的如果A，B矩阵的位宽不一样，同样用128bit的load指令去load那必然load进来的A，B矩阵的元素个数不同，就无法完成计算。其次的话就是，在实现从global memory到shared memory搬数据的时候，需要用cp.async来bypass掉寄存器，这是一个普通GEMM也会做的优化。然后，普通GEMM还会通过ld.matrix去高效的把数据从shared memory load到寄存器中。然后还会分配足够的shared memory通过multi-stage把这几个部分相互overlap起来。这是一个普通的GEMM会做的事情。
+
+![](https://files.mdnice.com/user/59/c077dda4-a89a-43d3-9029-7770f3345530.png)
+
+在Mixed GEMM里面，因为A，B数据类型不一样，不能使用128bit的load指令无脑load数据。就需要想办法调整它们的Layout才能保证两边都可以用ld.128指令。然后，多出来的scale和zero同样需要放到shared memory中，以及同样需要MultiStage去把它Overlap起来。接着，在实现ld.matrix的时候也有一些不同，ld.matrix就是load一个8x8的矩阵进来，默认这个8x8矩阵元素是16bit，对于FP16/BF16的GEMM来说，它load进来之后元素的排布就天然的进行TensorCore的计算，但是如果我们的weight的位宽是4bit/8bit的话就不一样了。最后需要考虑的就是需要一个高效的从int4/int8到FP16或者BF16的转换。
+
+![](https://files.mdnice.com/user/59/621e313d-b7c5-4f2d-a024-5fcf862d3389.png)
+
+接着就是介绍Weight Layouts的细节了。首先这里展示了一个普通的ColumnMajor的weight Layout，一个N*K的B矩阵，沿着K方向是连续的。假设这个B矩阵的数据类型是Int4的话，那就是把连续的2个4bit元素给Pack成一个Byte。看0，1这两个元素，第0个元素存在低的4个bit，第1个元素存在高的4个bit。
+
+![](https://files.mdnice.com/user/59/396e67bd-0732-422d-bcc6-99a7b87914c0.png)
+
+但是在TRT-LLM中，不是使用ColumnMajor而是使用一种叫做ColumnMajorTileInterleave的Layout。首先这里的代码大概描述了TileInterleave Layout的关键要素，注意到这里有一个ThreadblockK=64，这就是在TRT-LLM中实现所有的Mixed GEMM都是用64作为ThreadblockK的。这是因为这个ThreadblockK等价于拿Shared Memory或者L2 Cache Line 128 byte然后除以A的dtype位宽等于64。所以假设Activatio实际上不是FP16，而是FP8的话那这个数算出来ThreadblockK就等于128。之所以这么设置就是希望能够在K方向以一个iteration flow的数据对应到128 byte的cache line。假设A，B的数据类型不一样，那就意味着我们用一个线程一次用128bit去load A矩阵出来的元素数量必然比B矩阵的元素数量高2倍或者4倍。我们就会做一个特殊的处理，把N方向上连续的2行或者4行给Interleave到连续的一行上面去。这样的话，假设A矩阵一次load 32个元素，同样的load指令可以load B矩阵的128个元素，那这128个元素对应的就是4行32个元素interleave到一起的结果。在实际过程中，不是按照32个元素去interleave的，而是按照64个元素去interleave的。
+
+![](https://files.mdnice.com/user/59/bd65284f-3d67-41d5-aab7-a5fa2af9ffda.png)
+
+这里有2个可视化的图对上面的TileInterleave Layout进行讲解，如果以int4为例子，一个原始的ColumnMajor Layout对应左上角的图，这里一个tile是64个元素。经过Interleave之后，它会把前4行的64个元素interleave到一起。这样再load B矩阵的时候，一次load 256个元素进来，刚好就对应着所需要的4行的每行64个元素。把它写回到shared memory的时候，因为ThreadblockK=64，所以刚好把它连续interleave之后的这个数据重新放回到了shared memory里面不同的行上去，因为shared memory里一行可能只有64个元素。所以刚好通过这个形式把interleave的Layout给消掉了。
+
+除了这种针对ldg做了interleave layout优化之外，还会有一些针对别的指令或者别的CUTLASS用的优化技术来进行的优化。
+
+
+![](https://files.mdnice.com/user/59/599f19b0-9e02-44ab-8da6-21c5ace839f4.png)
+
+首先介绍一下CUTLASS的Tensor Core指令，注意到Tensor Core指令对数据排布是有要求的。假设拿16x8x8的TensorCore指令来举例，那B矩阵可能每个线程会对应到4个byte，然后相邻的4个线程去load相邻的8行，每一行是一个16bit的数据。然后从下一行开始，下4个相邻的线程去load。这就意味着同一个线程比如第0个线程就来自于整个B矩阵中N方向第0行，K方向的第0列，第1列，第8列，第9列，第16列，第17列，大家也可以看下面这个图，和上面的图原理一样但是好理解一些：
+
+![](https://files.mdnice.com/user/59/b2e1ffac-c274-415c-a5a6-c28ae05f4a9a.png)
+
+我们在实际的CUTLASS里面再去把数据从shared memory load寄存器去做Tensor Core指令计算的时候，也会用一种叫ld.matrix的指令进行数据load。ld.matrix的作用就是他会按照以16比特的元素位宽为基础的8x8矩阵去load，其中也是warp中的一个线程会去load连续方向上的两个16bit的元素到一个线程里面去。这就刚好和前面对Tensor Core对数据排布的要求是一致的。上面可以知道，Tensor Core里面连续的4个线程会需要连续的8个16bit的元素，接下来在下面8列会重复下面32个线程的排布。
+
+![](https://files.mdnice.com/user/59/ad6850f9-84b8-4dd7-b690-17d34f80edeb.png)
+
+ld.matrix指令本质上有3种不同的类型，是.x1，.x2，.x4。当.num设置为.x4的时候，它就可以在任意的方向上就32个线程每个线程传入一个地址，其中最开始的4个线程去load连续的16个byte，再4个线程从第二个地址load连续的16个byte，以此类推。这样的话就可以通过ld.matrix x4的形式去直接把前面Tensor Core指令计算所需要的那些元素给load到对应的线程的寄存器里面去。
+
+
+![](https://files.mdnice.com/user/59/31926d23-5396-49b1-a13b-e7e08ce9419c.png)
+
+这里还有一个问题就是ld.matrix假设了元素的数据位宽是16bit，它一个线程会去load的连续的4个字节，如果刚好数据类型是bf16或者fp16，这样刚好就满足TensorCore计算的Layout的要求了。但实际上我们的B矩阵可能是个8bit或者4bit，这就意味着如果它load连续的4个字节到一个线程里面去，它实际上是把真正数据的01234567全部load进来了，但实际上23应该在下一个线程，45应该在下下个线程。所以，如果直接用ld.matrix就会把不同线程的数据load到同一个线程里面去，这样就不能再满足Tensor Core计算的需求。为了利用ld.matrix，以int4为例子，我们对每32个元素内部进行了一次重新排布，排布完之后就是把ld.matrix一个线程所需要的那些4个字节的数据全部提前放到一起去。这样的话，再利用ld.matrix指令进行load的时候，它的一个线程就能直接load到最下方图中的018916172425这样的符合Tensor Core计算规律的数据排布。
+
+![](https://files.mdnice.com/user/59/d2add3bc-a9af-424e-97b7-26c4adf9ac6a.png)
+
+然后对于INT8的话也是同样的形式，只不过int8是把连续的2个元素放在一起，然后把0189放到连续的4个byte里面去。然后用ld.matrix去load。
+
+![](https://files.mdnice.com/user/59/77a4b5f3-4ed1-4bfd-a20f-c93f3c610e41.png)
+
+## Int8/Int4快速转换FP16
+
+最后一步就是我们怎么去实现一个快速的从int4或者int8到FP16的类型转换，以及为了实现这个类型转换需要对Layout进行哪些调整。这里展示了一个最普通的从INT8到half类型的数据转换，就直接用static_cast，可以看到它对应的PTX指令调用了一个convert.round，但实际上用convert指令它的latency是比较高的，并且可能会引起MIO Throttle。
+
+![](https://files.mdnice.com/user/59/ab073488-6c85-4a85-b03a-de5db52f825d.png)
+
+这张slides展示了FP16的IEEE 754标准，一个16bit的数里面包含1个符号位，5个基码位，10个尾数。
+
+![](https://files.mdnice.com/user/59/882dac4f-c95b-437b-b097-c1fdef7efd02.png)
+
+假设我们有一个uint8的数143，如果我们把它放到实际的FP16的尾数位里面去，那么我们是否有办法通过合理的设置基码位把143表达出来呢？那我们按照已知的FP16的数值计算方法，拿基码位的二进制前面加上一个1.x，然后去乘以2的（基码位的值-15）次方，我们已知143对应的实际上对应的是下面的值。假设我们想用这个FP16的值来表达Int8，我们可以发现如果x=25的话，我们把上面的FP16的值减去1024就是下面的143了。因此，我们只需要把int8的值放到尾数位，然后把它的基码位设置成25，然后再把FP16的数值结果减去1024就可以得到UINT8转换到FP16的值。
+
+![](https://files.mdnice.com/user/59/25bd4276-52ae-41bd-910f-4902fa906628.png)
+
+总结一下就是直接把UINT8的数值放在FP16的尾数位，
+
+
+![](https://files.mdnice.com/user/59/07eb89f6-80a8-411f-8855-ba4c5a53924e.png)
+
+然后再把FP16的基码位设置成25，这个25对应的十六进制表示就是0x64，
+
+![](https://files.mdnice.com/user/59/b825516e-3f43-4622-8ee1-018e8e9460e6.png)
+
+随后再把最终的这个值减去FP16形式的1024，就完成了从UINT8到FP16的转换。
+
+![](https://files.mdnice.com/user/59/595714af-95e1-4244-8bb3-28801e3bed0e.png)
+
+如果是Int8的话，应该怎么做呢？可以注意到UINT8和INT8只是数值范围的区别，那么我们需要把INT8的数据加上128，就能把它转换成UINT8的形式。这样转换出来的FP16的结果，只需要在减去1024的时候多减去128，就恢复到了对应的原始INT8的数值。
+
+![](https://files.mdnice.com/user/59/226f9ba6-4d93-48cd-9bf4-c15fe79f8047.png)
+
+那么我们怎么实际的去用指令完成上面描述的这个操作呢？可以注意到有一种叫作prmt的PTX指令，这个指令做的事情就是从2个32bit的寄存器A,B中抽出4个8bit组成最终的d。而这4个8bit怎么抽取，就是每个8bit对应到c寄存器里面的低4bit，就是说c寄存器的低4bit每个bit都是一个索引，假设A，B两个32位寄存器里面存放的是下方左图这样的数据形式，即ABCDEFGH。那么在c寄存器中，索引的4个数字分别是1，3，5，7，那么最终这个D寄存器里面的4个8bit数据就是GECA。通过这种指令就可以实现从32bit寄存器里面抽取对应想要的一个字节出来的效果。
+
+![](https://files.mdnice.com/user/59/0601aec4-ce89-4bc8-9632-fae3e603b4a6.png)
+
+对应到TRT-LLM的转换代码就是这样的形式，我们可以注意到它用permute指令从输入的UINT8数据和magic number组成的这两个32位寄存器中去抽取4个8bit，抽取的索引放在这个mask_for_elt_01/23中。具体去看存放索引的4个bit分别是0525。这里的0和2就分别对应到了实际的INT8输入数据中的第0个8bit和第2个8bit。通过这样的permute指令之后，就可以把实际输入的4个UINT8中的4个UINT8中的第0个UINT8和第2个UINT8抽取出来放到两个连续的FP16寄存器中。下面这条PTX指令则是把第1个UINT8和第3个UINT8抽取出来放到另外两个连续的FP16寄存器中。
+
+> 这个magic number的5属实没看懂是什么意思。
+
+之后再像我们刚才描述的那样，在它的基础上减掉（1024+128）就得到了真实的这4个INT8对应的FP16的值。我们可能会注意到，这里为什么要分别抽取01和23，而不是抽取0123呢？这主要是为了和之后的INT4的实现保持一致，在INT4的实现里不得不按照02，13的方式去抽取。
+
+![](https://files.mdnice.com/user/59/2e8ce807-9e25-42fb-b5ec-5459cf41105e.png)
+
+前面介绍了INT8到FP16的转换，如果是INT4应该怎么转呢？permute指令只能以8Bit为单位进行数据的操作，但是在4Bit的转换中，我们知道4Bit就是一个8Bit里面高4Bit存一个数据，低4Bit存另外一个数据。那么，我们就需要一种形式能把实际的8Bit里面的高低4个Bit给抽取出来。
+
+![](https://files.mdnice.com/user/59/c59483ff-39fc-40c1-8aff-bea51931895b.png)
+
+抽取出来之后我们应该怎么做呢？先看低4个bit，假设我们以位运算的方式把8Bit中的低4个Bit给抽取出来放到一个FP16的尾数里面去，然后前面也在基码位上赋值和Int8相同的25，也就是16进制的64。我们再把这个得到的值减去（1024+8），就得到了最终这个低4Bit对应的FP16的值。
+
+![](https://files.mdnice.com/user/59/8003a256-ab85-45d1-bc45-9437629adb18.png)
+
+那如果是高4个Bit应该怎么做呢？我们注意到低4个Bit是直接放到最低的4个Bit位，高4个Bit同样用位运算抽取出来之后这高4个Bit是存在于一个Int8的高4Bit里面，那放到尾数位的话那么它就需要去进行一个额外的除以16的操作，相当于右移了4位，最后就移到了黄色的位置。移动到这里之后，就可以进行和刚才一样的那些操作了，减去对应的值就得到了实际对应的FP16的值。这里减去的值是1024/16=64，还要加上8。
+
+![](https://files.mdnice.com/user/59/c8bfa3c9-000e-4ad4-a59a-1d3adf68755c.png)
+
+注意到在提取Int4数据的时候是用这张Slides的形式去提取的，而刚好有一种叫lop3的PTX指令可以完成这件事情。lop3这个PTX指令的大概描述就是他会在输入a, b, c三个寄存器作为输入，然后有一个Lut值，这个Lut值是怎么确定的呢？假设a，b，c分别对应了0xF0，0xCC，0xAA，我们把这三个值进行我们想要的操作得到的值作为Lut值，把这个Lut值放进去之后指令就会自动对a, b, c进行相应的操作，把结果写到d。所以，我们就可以利用这个指令把Lut值给它，它就可以帮我们高效完成Int4数据的提取了。最后，我们就把Int4转成FP16的过程转换成了一条lop3指令加上一条fma（或者sub）指令。
+
+![](https://files.mdnice.com/user/59/649239c9-0dcd-4d2c-a27e-043a0c2a136c.png)
+
+这张Slides展示了Int4到FP16的具体代码实现，我们注意到它提取的时候会用到0x0f或者0xf0来提取Int4，这样的话假如我们有连续的Int4的话，那被提取出来的分别是第0个Int4和第4个Int4以及第1个Int4和第3个Int4。所以它的奇偶被分别提取了出来。实际上我们是用8个连续的Int4来进行类型转换，因此它每次先把第0个Int4和第4个Int4提取出来，放到两个连续的FP16里面去，然后再去把第1和第5个Int4提取出来，放到两个连续的FP16里面去，以此类推。我们之前在做Int8的时候也分奇偶提取就和这里不得不做的这个数据提取动作保持一致。
+
+![](https://files.mdnice.com/user/59/982501f1-3377-4d7f-be30-9043a3cda1de.png)
+
+为了实际计算的时候去逆转这个元素排布的变化，我们需要在计算之前把Layout进行相应的调整。就是说以Int4位例的话就分别把它的奇偶位元素分别提取出来，这样在我们真正做计算把它从INT4转成FP16的时候，就会通过上一页Slides介绍的操作完成对这个Layout的逆运算，还原回了真实的连续排布的layout。
+
+这就是描述的最后一种快速的Int4/Int8转FP16的优化的layout变化。通过这种优化就把前面提到的一个convert指令转换成了一系列lop或者prmt指令。虽然指令数没有变化，但是指令的latency会更低。
+
+## 总结
+
+![](https://files.mdnice.com/user/59/07ab4b73-b16a-49b4-81ea-84936ed395ef.png)
+
+这三种Layout变换分别是确保A, B矩阵都可以用128比特去load，从而最大化内存带宽。另外一种Layout就是为了利用上ld.mxtrix高效的去把B矩阵从shared memory取出来，以及最后一种Layout变换就是通过这些算术运算和逻辑运算的去替换掉convert指令。
+
 
