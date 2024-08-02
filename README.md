@@ -151,6 +151,8 @@ Meagtron-LM 学习笔记。
 - [CUDA-MODE 课程笔记 第四课: PMPP 书的第4-5章笔记](https://mp.weixin.qq.com/s/P87c8LRJ1CEOOyaQw8L-cA)
 - [CUDA-MODE课程笔记 第6课: 如何优化PyTorch中的优化器](https://mp.weixin.qq.com/s/qxPYdGZ71DKVLnnYxmvUVA)
 - [CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记](https://mp.weixin.qq.com/s/r9b1dGyOr82ooMl4LD1n_Q)
+- [CUDA-MODE课程笔记 第7课: Quantization Cuda vs Triton](https://mp.weixin.qq.com/s/1gCgpp49NF7sDw__EpO-nw)
+- [TRT-LLM中的Quantization GEMM（Ampere Mixed GEMM）CUTLASS 2.x 课程学习笔记](https://mp.weixin.qq.com/s/NPytrkchX25YRBc_6Zy6nA)
 
 ### 16. 学习资料收集
 
