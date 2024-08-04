@@ -1,0 +1,22 @@
+include defines.mk
+
+CUFILES=icache3.cu
+CCFILES=
+CUFILES_sm_10=
+CUFILES_sm_11=
+CUFILES_sm_12=icache3_1.cu icache3_2.cu
+CUFILES_sm_13=
+CU_DEPS=icache3_kernel.h
+
+EXECUTABLE=icache3
+
+all: program otherstuff
+
+# List of .ptx files to build from .cu files.
+PTX_OUTPUTS=
+
+
+
+include common.mk
+include morerules.mk
+

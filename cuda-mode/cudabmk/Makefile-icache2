@@ -1,0 +1,21 @@
+include defines.mk
+
+CUFILES=
+CCFILES=
+CUFILES_sm_10=
+CUFILES_sm_11=
+CUFILES_sm_12=icache2.cu icache2_1.cu icache2_2.cu icache2_ibuffer.cu 
+CUFILES_sm_13=
+
+EXECUTABLE=icache2
+
+all: program otherstuff
+
+# List of .ptx files to build from .cu files.
+PTX_OUTPUTS=
+
+
+
+include common.mk
+include morerules.mk
+

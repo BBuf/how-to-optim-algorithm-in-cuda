@@ -1,0 +1,20 @@
+include defines.mk
+
+CUFILES=
+CCFILES=
+CUFILES_sm_10=
+CUFILES_sm_11=
+CUFILES_sm_12=icache4.cu icache4_L1.cu
+CUFILES_sm_13=
+
+EXECUTABLE=icache4
+
+all: program otherstuff
+
+# List of .ptx files to build from .cu files.
+PTX_OUTPUTS=
+
+
+
+include common.mk
+include morerules.mk

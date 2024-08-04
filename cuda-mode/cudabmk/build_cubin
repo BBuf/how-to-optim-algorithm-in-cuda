@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# This script attempts to replace $FNROOT.cubin file with $FNROOT.real_cubin
+# and then redo the later stages of the compile flow so that a .cu file is
+# compiled to a fat binary, but with custom cubin code inserted instead.
+# Use nvcc -keep to do a compile while leaving all the intermediate
+# files intact.
+
+# These steps are observed by watching the operation of make verbose=1, then
+# nvcc -v, and replicating in this script the steps nvcc takes after creating
+# the cubin. These can easily change between systems (e.g., file paths) and 
+# compiler versions.
+
+FNROOT=`echo $1 | cut -d. -f1`
+
+FATBIN=$CUDA_INSTALL_PATH/bin/fatbin
+CUDAFEPP=$CUDA_INSTALL_PATH/bin/cudafe++
+GCC=gcc
+PATH=$CUDA_INSTALL_PATH/bin:$PATH
+
+if [ -f $FNROOT.real_cubin ]; then
+#	cp -f $FNROOT.real_cubin $FNROOT.cubin
+#	fatbin --key="53c686c555561c39" --source-name="$<" --usage-mode=" " --embedded-fatbin="$FNROOT.fatbin.c" "--image=profile=sm_13,file=$FNROOT.cubin" 
+#	cudafe++ --m32 --gnu_version=40102 --diag_error=host_device_limited_call --dep_name  --gen_c_file_name "$FNROOT.cudafe1.cpp" --stub_file_name "$FNROOT.cudafe1.stub.c" --stub_header_file_name "$FNROOT.cudafe1.stub.h" "$FNROOT.cpp1.ii" 
+#	gcc -D__CUDA_ARCH__=130 -E -x c++ -DCUDA_DOUBLE_MATH_FUNCTIONS  "-I/usr/local/cuda/bin/../include" "-I/usr/local/cuda/bin/../include/cudart"   -I. -fno-strict-aliasing -O3 -I"." -I"/usr/local/cuda/include" -D"UNIX" -m32 -malign-double -o "$FNROOT.cu.cpp" "$FNROOT.cudafe1.cpp" 
+#	gcc -D__CUDA_ARCH__=130 -c -x c++ -DCUDA_DOUBLE_MATH_FUNCTIONS  "-I/usr/local/cuda/bin/../include" "-I/usr/local/cuda/bin/../include/cudart"   -I. -fno-strict-aliasing -O3 -I"." -I"/usr/local/cuda/include" -D"UNIX" -m32 -malign-double -o "obj/release/$FNROOT.cu_sm_13_o" "$FNROOT.cu.cpp"	
+
+# Updated for gcc 4.3.2 + Cuda tools 2.3, and may work for 3.1.
+	cp -f $FNROOT.real_cubin $FNROOT.sm_13.cubin
+	$FATBIN --key="40f808cd23ef730a" --source-name="$<" --usage-mode=" " --embedded-fatbin="$FNROOT.fatbin.c" "--image=profile=sm_13,file=$FNROOT.sm_13.cubin" 
+	$CUDAFEPP --gnu_version=40302 --parse_templates  --gen_c_file_name "$FNROOT.cudafe1.cpp" --stub_file_name "$FNROOT.cudafe1.stub.c" "$FNROOT.cpp1.ii" 
+	$GCC -D__CUDA_ARCH__=130 -E -x c++ -DCUDA_DOUBLE_MATH_FUNCTIONS  "-I$CUDA_INSTALL_PATH/include" "-I$CUDA_INSTALL_PATH/include/cudart"   -I. -fno-strict-aliasing -O3 -I"." -malign-double -o "$FNROOT.cu.cpp" "$FNROOT.cudafe1.cpp" 
+	$GCC -c -x c++ "-I$CUDA_INSTALL_PATH/include" "-I$CUDA_INSTALL_PATH/include/cudart"   -I. -fno-strict-aliasing -O3 -I"." -malign-double -o "obj/release/$FNROOT.cu_sm_13_o" "$FNROOT.cu.cpp" 
+
+fi

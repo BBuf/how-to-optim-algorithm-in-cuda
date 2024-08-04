@@ -1,0 +1,18 @@
+include defines.mk
+
+CUFILES=shared.cu
+CCFILES=
+CUFILES_sm_10=
+CUFILES_sm_11=
+CUFILES_sm_12=
+CUFILES_sm_13=
+
+EXECUTABLE=shared
+
+all: program otherstuff
+
+# List of .ptx files to build from .cu files.
+PTX_OUTPUTS=
+
+include common.mk
+include morerules.mk
