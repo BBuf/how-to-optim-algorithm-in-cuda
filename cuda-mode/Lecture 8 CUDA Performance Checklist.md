@@ -29,10 +29,6 @@
 
 这里的youtube链接作者Bill是NVIDIA的首席科学家，他解释了很多为什么GPU设计成现在这个样子，并且由浅入深，基础细节讲的非常清楚。
 
-![](https://files.mdnice.com/user/59/f676c3c5-544b-41b3-9203-c464b0b497e0.png)
-
-从软件的角度，我们有以下可以优化GPU性能的技巧，除了2个斜体部分都在PMPP书中有提到。
-
 ![](https://files.mdnice.com/user/59/51bdc9fd-4cc6-41a3-b558-40790a80fc5c.png)
 
 这里的"性能检查清单"（Performance checklist），列出了一系列优化GPU程序性能的策略和技巧：
@@ -45,7 +41,7 @@
 - Thread Coarsening
 - 使用更好的数学方法重写算法（Rewrite your algorithm using better math）
 
-这里的Privatization指的应该就是Shared Memory优化内存读取，而Coarsening大概指的就是一个线程应该完成多少任务，一般情况下我们让一个线程完成的任务尽量少，但是在Compute Bound情况下，让一个线程执行更多的工作可以让程序运行得更快。最后一点的经典例子就是Flash Attention。
+这里的Privatization指的应该就是Shared Memory/寄存器优化全局内存读取，而Coarsening大概指的就是一个线程应该完成多少任务，一般情况下我们让一个线程完成的任务尽量少，但是在Compute Bound情况下，让一个线程执行更多的工作可以让程序运行得更快。最后一点更好的数学方法重写算法的经典例子就是Flash Attention。
 
 ![](https://files.mdnice.com/user/59/ea47a608-f087-4625-bc0f-25afb0ffe301.png)
 
