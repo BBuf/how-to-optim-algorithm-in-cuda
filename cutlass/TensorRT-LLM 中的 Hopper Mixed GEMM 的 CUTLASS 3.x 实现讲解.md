@@ -107,5 +107,56 @@ CuTe提供了很多的API，包含一些基本的变换的一些API，这里列�
 
 这张Slides举了一个用Copy做矩阵转置的简单例子，虽然不是最佳性能的实现，但可以让大家看到CuTe的魅力。右边的上两个图分别是从逻辑和物理的角度来看矩阵转置在做什么，物理角度来看就是要把abcd...->aeim...的顺序。我们在构造Tensor的时候就可以让iTensor和oTensor的shape都是一样的mxn，只不过在读进iTensor的时候让它以一个Column Major的方式读进来，所以我们构造Stride的时候传入(1, m)，右边的图里把iTensor.layout也画出来了，我们再以Row Major的方式写出去就达到了一个转置的效果，因此oTensor的stride就是(n, 1)。
 
-到了这一步如果不看Tile/Partition相关的代码，我们直接调用一个COPY就完成了转置。然后现在我们希望把它并行起来，要并行起来就需要不同的Block和Thread去负责不同区域的矩阵转置。所以，我们需要继续调用local_tile去给不同的Block分配该负责哪个区域。
+到了这一步如果不看Tile/Partition相关的代码，我们直接调用一个COPY就完成了转置。然后现在我们希望把它并行起来，要并行起来就需要不同的Block和Thread去负责不同区域的矩阵转置。所以，我们需要继续调用local_tile去给不同的Block分配该负责哪个区域，local_partion就是给Block里面每个Thread去分配区域。
+
+代码里的local_tile有三个参数，第一个参数就是待划分的Tensor，这里就是iTensor。第二个参数就是希望一个Block的大小是多少，例如这个例子中BLOCK_TILE设成2，这里只是举例子，实际上不可能这么小，只是为了方面画图帮助读者理解，所以一个Block的大小就是2x2的区域。第三个参数会传入当前Block的坐标，这样通过local_tile这个API我们就可以得到一个gI Tensor，它就可以拿到当前Block（Block 0）负责的区域。在右边的图中就是绿色标注出来的元素，也就是左上角的2x2小矩阵。那么我们一共需要4个Block去把这个转置的任务完成。
+
+现在我们得到Block需要的Tile之后，我们就可以把它传入给local_paritition，第一个参数就是local_tile得到的Tensor，第二个参数就是Block内的线程排布的情况，这里以blockDim.x=2，blockDim.y=1举例子，再次强调这里只是为了举例子。这样，我们的一个Tile是2x2，而线程的排布是2x1，那么一个线程就要负责一个1x2的Tile。Slides中图的红色部分就表示第0个Block的第0号线程要负责的数据。然后调用copy就可以做到并行的拷贝了。在这个例子中，0号线程会把offset是0的idata就是a拷贝到odata的offset 0号位置，1号线程会把offset是4的idata就是e拷贝到odata的offset 1号位置。
+
+Slides最下方的表格展示了通过Layout我们还可以做到COPY，BROADCAST，GATHER等等操作。另外，你做这些操作你几乎不用改左边的任何的实现代码，只需要把Layout改成你需要的形式就可以了。
+
+
+![](https://files.mdnice.com/user/59/81ad28b5-931c-4b90-ad00-0732a478ef55.png)
+
+
+TiledCopy就是我们用来以Tile为单位的Copy时去构造source/dest tensor需要用到的东西。包括MMA的话，也是不同的MMA实现需要不同的Tile的形式，也需要TiledCopy去做。想构造一个Tiled Copy需要用到make_tiled_copy这个API。第一个参数传的还是Copy_Atom，第二个参数就是Dest Tensor的Stride的Layout，第三个参数是Dest Tensor的Value Layout。
+
+Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Copy打印出来，就是Slides下面的图。最左边的图就是每一个线程在它的Source Tensor里面去负责读取哪些数据，比如在这个例子里面T0需要读取列方向最开始的4个数据，T1是列方向接下来的4个。右边的图就是在Dest Tensor里面每个Thread需要去写哪些数据，在这个例子里和读Tensor的位置是一样的。
+
+通过这个图来理解代码，首先32x8就是说线程在M这个方向是32个线程，然后在K这个方向是8个线程。Value Layout的4x1就是在M方向上要读连续的4个数据，在K方向只需要读一个数据。所以这里构造出来的Tiled Copy它的基本的Copy单位就是一个(32x4, 8x1)=(128, 8)这样的Tile。
+
+拿到Tiled Copy之后首先需要get_slice把当前的线程号传进去，这样会得到一个Thread Copy表示当前线程需要Copy的Tile，然后用它去做partition_S并且把Source Tensor传进去，就可以直接拿到当前线程需要负责拷贝的Source Tensor的数据有哪些。它的Shape就是CPY_M和CPY_K，然后CPY就是我们刚才说的128x8的这个Tile大小，然后CPY_M和CPY_K分别表示它需要在M方向以及K方向做这么多次Copy，才能把gA这个Tensor完整的拷贝过去。同理对于Dest Tensor来说，我们需要调用一个partition_D同样可以得到（CPY, CPY_M, CPY_N）这个shape的Tensor，然后再调用copy这个API就可以了。
+
+最右边的图画了一下Tiled Copy的封装层级，最底层它有Copy_Op和Copy_Traits这两个概念，Copy_Op就是底层的数据传输指令，是PTX的代码，然后Copy_Traits是关于代码的元信息，比如线程的Layou是什么样的。这两个就可以封装层我们最常用的Copy_Atom，CopyAtom再去封装得到TiledCopy，然后我们去划分Source Tensor和Dest Tensor需要通过get_slice拿到ThreadCopy，去做一个划分。
+
+![](https://files.mdnice.com/user/59/60eb07c1-59a3-4998-aa9a-77e8e008fa3e.png)
+
+我们想构造一个Tiled Copy应该怎么设置Thread Layout和Value Layout呢？这个和Copy_Atom的指令是相关的。这里讲一个LDSM的例子展示一下应该怎么设置这个参数。LDSM就是ld.maxtrix这个指令，这个指令就是以一个warp为单位去load 1个/2个/4个 8x8矩阵的指令。这个指令有2种形式，一种是Trans的，一种是非Trans的。在CuTe里面把它封装成LDSM_后缀，LDSM_N代表非Trans的类型。对于非Trans类型可以在这里打印一下Copy_Atom，非Trans表示Source Thread会读取一列连续的数据，然后Dest里的Thread会拿连续的一列里面的2个元素。
+对于Trans类型，不同在于Source一个线程仍然是拿8个连续元素，但是Dest这边会把Source这边的一个线程连续的8个元素分给8个不同的线程，而一个线程的元素会来自两个不同的Source的线程。如果使用非Trans类型的话，Layout一定要传一个col-major进来，同理对于Trans类型一定需要一个raw-major的Source Tensor。
+ 
+接下来看Stride/Value Layout的设置，这是一个Warp级别的指令，线程数一定要是32的倍数。我们先看非Trans的情况，Dest Tensor这里是在m方向上4个线程去负责连续的8个数据， 意味着这里的线程Layout一定要是4的倍数，并且M方向一定是取2个连续的数据。另外，对于Thread Layout的另外一个没有标注为红色的数字，我们是可以扩大的然后得到一个更大的Tile。
+
+同理，对于Trans类型，它是8个连续的数据分给8个不同的线程，每个线程拿1个数据，所以在K维度上线程必须是8的倍数，并且K方向的Value Layout必须是1了。然后，M方向的Value Layout值是2，这里Dest Tensor的某个线程在M方向上拿到的2个数据是不连续的2个数据。
+
+> Tiled Copy我听得比较迷糊，建议大家学习下reed佬的CuTe文章。
+
+![](https://files.mdnice.com/user/59/e8aa7932-7945-4a98-ba35-34fac57c1d41.png)
+
+接下来开始看GEMM中的数据传输是怎么做的，我们以矩阵A为例想一下怎么把数据从Global Memory传输到Shared Memory。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
