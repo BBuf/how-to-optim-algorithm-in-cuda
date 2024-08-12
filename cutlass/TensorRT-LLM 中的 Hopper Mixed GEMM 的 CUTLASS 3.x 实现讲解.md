@@ -144,6 +144,47 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
 
 接下来开始看GEMM中的数据传输是怎么做的，我们以矩阵A为例想一下怎么把数据从Global Memory传输到Shared Memory。
 
+首先，我们需要用make_tiled_copy来构造一个Tiled Copy，然后get_slice拿到对应的Thread Copy。接着，我们来构造Copy的Source Tensor，这个时候Soruce Tensor是来自Global Memory的，然后我们需要以Block的形式把它拷贝到Shared Memory，这里就需要用到local_tile这个指令，第一个参数传的就是Global Memory里面的Tensor mA，然后把Block Shape/Thread传进去，Step是<_1, X, _1>{} , 这是因为CUTLASS里面会把Block写成M, N, K三维结构，对于A来说没有N这个维度，所以这里就设置为X，表示这个维度不参与计算。通过这个local_tile我们就得到了gA，它就是当前Block需要负责的一个Source Tensor的表示。它的Shape就是（BLK_M, BLK_K, k），BLK_M和BLK_K就是这个Tile的Shape，k就表示一共有k个这个Shape的Tile要做拷贝。然后构造Dest Tensor的时候，由于Dest Tensor是在Shared Memory上，我们直接用make_tensor就可以了。这里的gA和sA拿到的是当前Block负责的数据区域，我们还需要进一步使用我们刚才获得的Thread Copy，分别用partition_S和partition_D得到当前线程负责的区域，来看Shape的话，对于partition_S得到的就是(ACPY, ACPY_M, ACPY_K, k)，这里的k还是保持不变，即一共有k个Tile，只不过在拷贝当前这个Tile的时候需要以ACPY为单位，然后分别在M和K方向上拷贝这么多次。对于Dest Tensor的话，Shape的最后一个维度就不是k了，是PIPE，因为我们需要用到Pipline，PIPE的意思就是一共有多少个Stage。
+
+![](https://files.mdnice.com/user/59/3a28a727-6902-427e-8eb4-2c4441a9365f.png)
+
+接着是Shared Memory到Register File的拷贝，因为Register File是直接要用来做MMA的，所以数据的排布是不能随便设置的。我们可以直接使用CuTe提供的make_tiled_copy_A这个API来构造Tiled Copy，这样就不需要设置它的Thread Layout和Value Layout了，只需要把我们构造的一个用于做MMA的tile_mma传过去就可以自动为我们计算我们需要用什么样的Layout去做Copy。然后同样还是用get_slice拿到Thread Copy。然后Source Tensor因为它不涉及Register File，所以还是partition_S就可以完成。然后在Dest Tensor涉及到MMA所以有一些不一样，所以我们需要用MMA的get_thread_slice去拿到thread_mma，然后使用partition_fragment_A去拿到MMA视角的当前Thread需要负责的Tensor是什么。最后还需要使用retile_D才可以得到我们的Copy视角下我们需要负责的一个Tensor是什么。最后还是一样的copy完成数据拷贝。
+
+
+## Mixed GEMM 代码走读
+
+![](https://files.mdnice.com/user/59/3acdc1f3-e425-4380-ae41-3c12c43f66a5.png)
+
+这部分更多的是在Concept级别的事情去怎么做，它是会组合上面提到的CuTe相关的代码以及《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》里面讲到的Fast Convert的相关代码，主要是展示怎么做。
+
+![](https://files.mdnice.com/user/59/a7fdc769-cc83-419f-beca-83c61026c621.png)
+
+这张Slides展示了Hopper上的WGMMA的PTX，定义了Hopper上的WGMMA在做什么。《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》里面介绍到的CUTLASS 2.x的Ampere的这些Tensor Core是同步的。同步意味着输入输出A，B，C都是在寄存器层面发射一条同步指令。Hopper上这个指令变成异步之后它可以接收来自Shared Memory的矩阵A，B了。然后，在Hopper架构中我们仍然没有一种（除了FP8这种指令）FP8和FP16直接计算的指令，所以我们要做的事情和《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》中介绍的差不多。我们的数据是Mixed的，但是我们读上来的数据要做Conversion。然后我们可以把weight权重放到矩阵A那边，然后读出来之后我们做一些Conversion，这个数据留存在寄存器上，然后我们把原来的矩阵A放在矩阵B的位置，这样直接去读就可以了。
+
+然后这张Slides的内容也比较多，看图片比较模糊，这里简要说明下。这张Slides是关于如何实现 Mixed 数据类型的通用矩阵乘加（GEMM）操作，特别是在使用Hopper架构下的异步Warp Group矩阵乘加累积（MMA）操作时。内容涵盖了异步Warp Group级的矩阵乘法和累积操作的执行方法，支持的数据类型和矩阵形状，以及相关的编程指令。具体内容包括：
+
+- 异步Warp Group级的矩阵乘法和累积操作
+    - **操作类型**：介绍了两种基本操作，一种是矩阵D作为输入和累积器被禁用的情况，另一种是常规的矩阵乘法和累积。
+    - **执行步骤**：描述了执行这些操作的六个步骤，包括：
+        - 将矩阵A、B和D加载到寄存器或共享内存中。
+        - 执行fence操作，确保寄存器/共享内存中的操作对warp组可见。
+            - 执行`wmma.fence`操作，确保所有在warp组内对寄存器或共享内存的写入都已经完成，这是确保数据一致性的关键步骤。
+            - 执行`fence.proxy.async`操作，这是一个代理操作，用于在异步代理中使通用代理操作可见。
+        - 发起异步矩阵乘法和累积操作。
+            - 通过`wmma.mma_async`指令进行异步矩阵乘加操作。这个指令允许在不阻塞其他GPU操作的情况下，进行矩阵乘法和累加运算。
+        - 创建wmma组并提交所有之前的操作
+            - 使用`wmma.commit_group`指令来创建一个wmma操作组，并提交所有挂起的`wmma.mma_async`操作到这个组中。
+        - 等待wmma组操作完成
+            - 确保在继续之前，所需的wmma组已经完成所有操作。
+        - 完成wmma组操作
+            - 一旦wmma组完成，所有的`wmma.mma_async`操作也就全部执行完毕。
+- 异步Multiply-and-Accumulate指令
+    - `wmma.mma_async`指令：具体介绍了如何使用此指令执行矩阵乘加操作。
+    - 语法：提供了不同数据类型（如半精度浮点型）的语法示例。
+- 支持的矩阵形状和数据类型
+    - 数据类型：列出了支持的多种数据类型，如半精度浮点、整数等。
+    - 矩阵形状：详细列出了操作支持的矩阵形状，如16x16x16、32x8x16等，这有助于开发者选择适合其特定应用需求的矩阵形状。
+
 
 
 
