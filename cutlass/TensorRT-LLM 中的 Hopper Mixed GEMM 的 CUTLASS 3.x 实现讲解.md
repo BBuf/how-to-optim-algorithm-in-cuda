@@ -186,17 +186,59 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
     - 矩阵形状：详细列出了操作支持的矩阵形状，如16x16x16、32x8x16等，这有助于开发者选择适合其特定应用需求的矩阵形状。
 
 
+![](https://files.mdnice.com/user/59/18d81d6c-9b73-4301-b225-b99e6698fafa.png)
+
+这张Slides讲解了如何实现混合数据类型的GEMM(通用矩阵乘法)。主要内容包括:
+- 我们想要的是:
+    - A和B矩阵的数据类型不同，例如A(激活)用FP16/FP8，B(权重)用INT8/INT4/FP8
+    - 低精度权重可能有缩放因子或零点
+- 我们有：
+    - 新引入的异步WGMMA
+    - 可以从Smem或RF接收输入矩阵A
+    - 只能从Smem接收输入矩阵B
+    - 矩阵A和B的数据类型应该相同
+- 实现方法:
+    - **交换**A和B，让低精度数据始终作为矩阵A
+    - 将高精度数据加载到smem (不需要做任何Conversion)
+    - 将低精度数据加载到smem (这个是必然要求，我们要做MultiStage，数据一定要从Gloabl中Stream到各个Stage的Shared Memory中)
+    - [可选]将缩放因子和零点加载到smem
+    - 将低精度数据转换为高精度并保存在**RF**中
+    - 触发WGMMA_RS来计算数据
 
 
+下面这张Slides的大部分内容是在《CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记》里面有讲过的，学习之前贴到下面再复习一下再贴这节课的Slides方便大家比较；
 
+![](https://files.mdnice.com/user/59/ee00936a-5a53-43ad-aa69-f10a39863f03.png)
 
+这张Slides介绍了一下Hopper架构上的Warp Specialized GEMM实现，采用了生产者-消费者模型。内容如下：
+- 源代码位置：cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized_mixed_input.hpp
+- 总体架构分为Producer Warps (TMA Warps) 和 Consumer Warps (TC Warps)，通过共享内存进行数据交换。
+- Producer Warps (TMA Warps):
+    - 使用CollectiveMma::load(...) & Persistent方法
+    - 等待smem_empty barrier
+    - 发出TMA指令加载A和B矩阵，更新smem_full barrier
+    - 更新传输字节数并到达smem_full barrier
+    - 循环K次迭代
+- Consumer Warps (TC Warps):
+    - 使用CollectiveMma::mma(...) & Persistent方法
+    - 等待smem_full barrier
+    - 发出WGMMA_SS指令并等待前一个TC工作完成
+    - 到达smem_empty barrier
+    - 循环K次迭代
+    - 使用SWIZZLE将寄存器文件(RF)写入共享内存(SMEM)
+    - 发出TMA指令将结果写回全局内存
+- 共享内存结构：
+    - 包含Mbarrier和Data Buffer两部分
+    - 每个stage有两个buffer：Mat A MtilexKtile 和 Mat B NtilexKtile
+    - 使用smem_empty和smem_full标志来同步Producer和Consumer
+- 执行流程：
+    - Producer和Consumer交替工作，通过共享内存和 barrier机制同步
+    - 多个stage (0 到 N-1) 用于流水线操作
+    - 循环执行直到完成所有tile的计算
 
+![](https://files.mdnice.com/user/59/1c20828d-cc95-46f3-8fe8-62a7a614c025.png)
 
-
-
-
-
-
+对比上面的Hopper架构上的Warp Specialized GEMM实现，这里的Consumer Warps少了一个Persistent方法，只关注CollectiveMma::mma(...)。中间的Shared Memory之前是两个Data Type一模一样的，但在这里我们交换了A,B矩阵，并且它们的Data Type是不一样的。所以，这里故意画的矩阵A，
 
 
 
