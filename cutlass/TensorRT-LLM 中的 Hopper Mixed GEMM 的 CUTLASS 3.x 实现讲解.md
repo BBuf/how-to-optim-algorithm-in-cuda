@@ -1,4 +1,4 @@
-> 本次演讲将介绍如何使用CUTLASS 3.x风格的代码在Hopper架构上实现输入为FPA+INTB混合精度矩阵乘法，内容包括：1.使用CuTe进行数据传输。2. FPA+INTB矩阵乘法案例讲解。Slides来自BiliBili NVIDIA英伟达频道 上传的《TensorRT-LLM 中的 Hopper Mixed GEMM 的 CUTLASS 3.x 实现讲解》视频讲解。这里参考视频并更详细记录了每一页Slides的要点，通过这个视频了解下在TRT-LLM中如何使用CUTLASS 3.x来自定义Mixed GEMM算子。我将其作为CUDA-MODE的CUTLASS课程的前置学习内容。
+> 这个演讲介绍了如何使用CUTLASS 3.x风格的代码在Hopper架构上实现输入为FPA+INTB混合精度矩阵乘法，内容包括：1.使用CuTe进行数据传输。2. FPA+INTB矩阵乘法案例讲解。Slides来自BiliBili NVIDIA英伟达频道 上传的《TensorRT-LLM 中的 Hopper Mixed GEMM 的 CUTLASS 3.x 实现讲解》视频讲解。这里参考视频并更详细记录了每一页Slides的要点，通过这个视频了解下CuTe的基本概念和CuTe实现GEMM的数据流动，以及从概念的角度看TRT-LLM中是如何使用CUTLASS 3.x来实现Mixed GEMM的。
 
 ## 总览&目录
 
@@ -151,7 +151,7 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
 接着是Shared Memory到Register File的拷贝，因为Register File是直接要用来做MMA的，所以数据的排布是不能随便设置的。我们可以直接使用CuTe提供的make_tiled_copy_A这个API来构造Tiled Copy，这样就不需要设置它的Thread Layout和Value Layout了，只需要把我们构造的一个用于做MMA的tile_mma传过去就可以自动为我们计算我们需要用什么样的Layout去做Copy。然后同样还是用get_slice拿到Thread Copy。然后Source Tensor因为它不涉及Register File，所以还是partition_S就可以完成。然后在Dest Tensor涉及到MMA所以有一些不一样，所以我们需要用MMA的get_thread_slice去拿到thread_mma，然后使用partition_fragment_A去拿到MMA视角的当前Thread需要负责的Tensor是什么。最后还需要使用retile_D才可以得到我们的Copy视角下我们需要负责的一个Tensor是什么。最后还是一样的copy完成数据拷贝。
 
 
-## Mixed GEMM 代码走读
+## Mixed GEMM Walk Through
 
 ![](https://files.mdnice.com/user/59/3acdc1f3-e425-4380-ae41-3c12c43f66a5.png)
 
@@ -206,6 +206,15 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
     - 触发WGMMA_RS来计算数据
 
 
+> 补充：
+> - WGMMA: Hopper Warp Group MMA (矩阵乘累加操作)
+> 解释：这是Hopper架构上的Warp组矩阵乘累加操作
+> - WS: Warp Specialized
+> 解释：表示warp专业化，即不同的warp执行不同的专门任务
+> - SS: Src operator of GMMA are both from SMEM
+> 解释：GMMA操作的两个源操作数都来自共享内存(SMEM)
+> - RS: Src operator A of GMMA is from RF, Src operator B is from SMEM
+
 下面这张Slides的大部分内容是在《CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记》里面有讲过的，学习之前贴到下面再复习一下再贴这节课的Slides方便大家比较；
 
 ![](https://files.mdnice.com/user/59/ee00936a-5a53-43ad-aa69-f10a39863f03.png)
@@ -238,8 +247,46 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
 
 ![](https://files.mdnice.com/user/59/1c20828d-cc95-46f3-8fe8-62a7a614c025.png)
 
-对比上面的Hopper架构上的Warp Specialized GEMM实现，这里的Consumer Warps少了一个Persistent方法，只关注CollectiveMma::mma(...)。中间的Shared Memory之前是两个Data Type一模一样的，但在这里我们交换了A,B矩阵，并且它们的Data Type是不一样的。所以，这里故意画的矩阵A，
+对比上面的Hopper架构上的Warp Specialized GEMM实现，这里的Consumer Warps少了一个Persistent方法，只关注CollectiveMma::mma(...)。中间的Shared Memory之前是两个Data Type一模一样的，但在这里我们交换了A,B矩阵，并且它们的Data Type是不一样的。所以，这里故意画的矩阵A的这个Buffer的长度要短一点，表示低精度。
 
+- Slides的流程图展示了数据处理的pipeline，包括：
+    - 生产者线程束（Producer Warps / TMA Warps）
+    - 共享内存（Shared Memory）
+    - 消费者线程束（Consumer Warps / TC Warps）
+- 生产者线程束的工作流程：
+    - 等待smem_empty barrier
+    - 发出TMA指令加载A和B矩阵，并更新smem_full barrier
+    - 可选：发出TMA指令加载缩放因子和零点
+    - 更新传输字节并到达smem_full barrier
+- 消费者线程束的工作流程：
+    - 等待smem_full barrier
+    - 将低精度数据转换为高精度，并保存在RF中
+    - 发出WGMMA_RS指令
+    - 等待前一个TC工作完成
+    - 到达smem_empty barrier
 
+还需要注意下这张Slides里面去掉了K方向的循环，但实际实现中仍然是有的。
 
+![](https://files.mdnice.com/user/59/ae569fb6-ea1e-41e1-a967-6a72c50adf65.png)
+
+![](https://files.mdnice.com/user/59/4358d836-640d-4cda-a561-edde69b5efd7.png)
+
+这两张Slides分别对生产者线程束 (Producer Warps) 和消费者线程束（TC Warps）对应流程的一部分底层代码进行了解释，这些代码比较抽象和复杂，视频里面也没怎么讲，感兴趣的可以去深入CutLass的源代码研究。
+
+![](https://files.mdnice.com/user/59/85d1a1b6-0350-4a9e-8e2a-614877ceaae9.png)
+
+![](https://files.mdnice.com/user/59/4b4cd1cf-e802-4872-9b01-85b17327a820.png)
+
+最后这张Slides是介绍消费者线程束（TC Warps）中将低精度数据转换为高精度并保存在寄存器文件（RF）中的实现细节，以及具体是怎么做的Copy的细节。
+
+## 总结
+
+总的来说，这个演讲是一个针对CUTLASS 3.x版本在Hopper架构上实现混合精度矩阵乘法的技术演讲的总结。主要内容包括:
+
+- CuTe工具库的介绍,其核心概念是Layout和Tensor,可以灵活处理复杂的索引问题。
+- 以矩阵转置和GEMM数据传输为例,展示了CuTe在数据操作和并行计算中的强大功能。
+- 详细讲解了Hopper架构上异步Warp Group级矩阵乘加操作的执行方法和支持的数据类型。
+- 介绍了如何利用异步WGMMA指令以及CuTe实现Mixed GEMM的一些细节。
+
+从这个笔记可以简要了解一些概念，起一个科普和熟悉CuTe相关API的作用，如果要进一步学习则需要继续深入学习CuTe和CutLass，当然这里的内容对学习CutLass也是有帮助的。
 
