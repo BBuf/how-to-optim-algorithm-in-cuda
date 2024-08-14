@@ -1,4 +1,4 @@
-> 这个演讲介绍了如何使用CUTLASS 3.x风格的代码在Hopper架构上实现输入为FPA+INTB混合精度矩阵乘法，内容包括：1.使用CuTe进行数据传输。2. FPA+INTB矩阵乘法案例讲解。Slides来自BiliBili NVIDIA英伟达频道 上传的《TensorRT-LLM 中的 Hopper Mixed GEMM 的 CUTLASS 3.x 实现讲解》视频讲解。这里参考视频并更详细记录了每一页Slides的要点，通过这个视频了解下CuTe的基本概念和CuTe实现GEMM的数据流动，以及从概念的角度看TRT-LLM中是如何使用CUTLASS 3.x来实现Mixed GEMM的。
+> 这个演讲介绍了如何使用CUTLASS 3.x风格的代码在Hopper架构上实现输入为FPA+INTB混合精度矩阵乘法，内容包括：1.使用CuTe进行数据传输。2. FPA+INTB矩阵乘法案例讲解。Slides来自BiliBili NVIDIA英伟达频道 上传的《TensorRT-LLM 中的 Hopper Mixed GEMM 的 CUTLASS 3.x 实现讲解》视频讲解。这里参考视频并更详细记录了每一页Slides的要点，通过这个视频了解下CuTe的基本概念和CuTe实现GEMM的数据流动，以及从更High Level的角度看CUTLASS 3.x是如何实现Mixed GEMM的。
 
 ## 总览&目录
 
