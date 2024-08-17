@@ -1,5 +1,7 @@
 ## 通过微基准测试(Microbenchmarking)和指令级分析(Instruction-level Analysis)揭秘英伟达Ampere架构
 
+> 这是[CUDA-MODE课程笔记 第8课: CUDA性能检查清单](https://mp.weixin.qq.com/s/zJLDVF-yjuZ_lMjaCHoS5g)里面提到的2篇Paper的其中一篇，讲的是通过微基准测试(Microbenchmarking)和指令级分析(Instruction-level Analysis)揭秘英伟达Ampere架构，这里做一个解读做为CUDA-MODE第8课的知识补充。
+
 ### 题目&作者
 
 - 论文链接：https://arxiv.org/pdf/2208.11174
@@ -137,4 +139,6 @@ Ampere架构的指令集架构（ISA）提供了各种在Tensor Core上运行的
 我们对表中显示的Tensor Core吞吐量和延迟的观察与白皮书[11]中提到的行为一致。最后，我们注意到对于所有半精度浮点（fp16和bf16）输入，SASS指令`MOVM.16.MT88`用于将矩阵加载到Tensor Core。通常，MOVM SASS指令用于移动带有转置的矩阵。发出的MOVM指令数量取决于矩阵形状和布局（行主序或列主序）。例如，如果我们在PTX代码中使用A和B矩阵作为行主序，那么MOVM指令用于转置B矩阵，以便将A的每一行与B的每一列相乘。然而，当我们都使用列主序时，MOVM指令用于A和C矩阵。它在执行前转置A和C，并在执行后转置C。最后，如果A是行主序而B是列主序，则跟踪中不存在MOVM指令。我们使用上述相同方法计算延迟来计算内存吞吐量。观察结果与白皮书中提到的吞吐量值非常相似。
 
 ### 结论
+
+内容本身很短，就不总结了。
 
