@@ -1,6 +1,6 @@
 > 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
 
-## CUDA-MODE课程笔记 第9课: 规约
+## CUDA-MODE课程笔记 第9课: 规约（PMPP的第10章）
 
 ### 课程笔记
 
@@ -85,6 +85,88 @@ print(reduce(data, float('inf'), min))  # Output: 1
     - 第2步归约：[8, 9, 7]
     - 第3步归约：[9, 9]
     - 最终步骤：[9]
+这个算法是后续cuda kernel实现的基础。
+
+![](https://files.mdnice.com/user/59/8e409640-6310-4141-bb5b-82da61621b9e.png)
+
+这张Slides以树的方式可视化了上面的并行Reduction算法，只不过这里是求和而不是求最大值了。这里需要注意的是，浮点数加法不满足交换律，即A=B不等于B+A，使用PyTorch时这一点经常引起混淆。在这个例子中，我们无法控制GPU线程执行的先后顺序，所以无法控制合并两个元素的顺序，这也是不确定性的源头之一。
+
+![](https://files.mdnice.com/user/59/73b82c5d-c169-492d-8a60-673c910c4a0b.png)
+
+PyTorch中使用`torch.use_deterministic_algorithms(True)`来控制使用确定性的算法，但是这种算法一般会降低运行速度。https://github.com/cuda-mode/lectures/blob/main/lecture_009/nondeterminism.py 这个文件举了一个例子说明由于浮点数精度问题导致求和结果的不确定性的问题。
+
+```c++
+# We'll use several small numbers that, when added together first, could show a difference
+numbers = [1e-20] * 10 + [1e20, -1e20]  # 10 small numbers followed by a large positive and negative number
+
+# Sum the list from left to right
+sum_left_to_right_adjusted = sum(numbers)
+
+# Sum the list from right to left
+sum_right_to_left_adjusted = sum(reversed(numbers))
+
+# 0.0 9.999999999999997e-20
+print(sum_left_to_right_adjusted, sum_right_to_left_adjusted)
+```
+
+另外想说明的问题是在《CUDA-MODE课程笔记 第7课: Quantization Cuda vs Triton》讲到过即使是进行INT4/INT8量化时，累加运算往往在更高的精度下运行，其原因在于如果你在float16中累加许多小的数值，最后可能会出现大数吃小数的情况。解决方法有两种：要么使用bf16这种具有更高动态范围的数据类型，要么在float32高精度上进行累加。例如当我们查看Triton矩阵乘法的教程时，我们会发现他的累加器一般都是float32。这个例子的代码为：https://github.com/cuda-mode/lectures/blob/main/lecture_009/accuracy.py
+
+```python
+import torch
+large_value = torch.tensor([1000.0], dtype=torch.float32)  # Using float32 for initial value
+
+# Define a smaller value that is significant for float32 but not for float16
+small_value = torch.tensor([1e-3], dtype=torch.float32)  # Small value in float32
+
+# Add small value to large value in float32
+result_float32 = large_value + small_value
+
+# Convert large value to float16 and add the small value (also converted to float16)
+result_float16 = large_value.to(torch.float16) + small_value.to(torch.float16)
+
+# Convert results back to float32 for accurate comparison
+result_float32 = result_float32.item()
+result_float16_converted = result_float16.to(torch.float32).item()
+
+# Print results
+# 1000.0009765625 1000.0
+print(result_float32, result_float16_converted)
+```
+
+![](https://files.mdnice.com/user/59/5e3ef1cb-86f5-4e8f-86ae-d32e5c3c5168.png)
+
+这张Slides建议结合 https://github.com/cuda-mode/lectures/blob/main/lecture_009/simple_reduce.cu 实现代码来看：
+
+```c++
+__global__ void SimpleSumReductionKernel(float* input, float* output) {
+    unsigned int i = 2 * threadIdx.x;
+    for (unsigned int stride = 1; stride <= blockDim.x; stride *= 2) {
+        if (threadIdx.x % stride == 0) {
+            input[i] += input[i + stride];
+        }
+        __syncthreads();
+
+    }
+    if (threadIdx.x == 0) {
+    *output = input[0];
+    }
+}
+```
+
+对于SimpleSumReductionKernel来说，每个线程负责处理两个相邻的元素，这就是为什么Slides中显示8个线程处理16个元素。然后for 循环实现了归约过程，对应图中的每一层。stride 从1开始，每次迭代翻倍，这解释了为什么每次迭代活跃线程数减半。
+- 我们可以模拟一下规约的过程：
+    - 第一次迭代 (stride = 1): 每个线程将相邻的两个元素相加。
+    - 第二次迭代 (stride = 2): 每隔一个线程进行计算，将间隔为2的元素相加。
+    - 以此类推，直到最后只有一个线程（线程0）进行最后的加法。
+- 此外，cuda代码中 `__syncthreads()` 确保每次迭代后所有线程同步。
+- 代码中的 if (threadIdx.x % stride == 0) 条件导致了Slides中提到的线程不活跃问题。
+- CUDA中，线程以32个为一组（称为warp）执行。由于这种归约方式，很快就会有整个warp变得不活跃，这就是Slides提到的 "A lot of warps will be inactive" 的原因。
+- kernel启动设置：SimpleSumReductionKernel<<<1, size / 2>>>(d_input, d_output); 启动了 size/2 个线程，对应图中的8个线程（假设 size 为16）。
+- Slides建议使用 "ncu -set full" 进行性能分析，这可能会揭示更多关于线程和warp效率的详细信息。
+
+
+
+
 
 
 
