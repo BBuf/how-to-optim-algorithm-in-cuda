@@ -1,6 +1,6 @@
 > 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
 
-## CUDA-MODE课程笔记 第9课: 规约（也对应PMPP的第10章）
+## CUDA-MODE课程笔记 第9课: 归约（也对应PMPP的第10章）
 
 ### 课程笔记
 
@@ -40,7 +40,7 @@ print(reduce(data, float('-inf'), max))  # Output: 5
 print(reduce(data, float('inf'), min))  # Output: 1
 ```
 
-在PyTorch中有一个通用的Recuce算子来做所有的规约操作，所以你不能看到reduce_max这种单独的算子。
+在PyTorch中有一个通用的Recuce算子来做所有的归约操作，所以你不能看到reduce_max这种单独的算子。
 
 ![](https://files.mdnice.com/user/59/9d605154-a0a6-42a1-a869-413322881ce1.png)
 
@@ -154,7 +154,7 @@ __global__ void SimpleSumReductionKernel(float* input, float* output) {
 ```
 
 对于SimpleSumReductionKernel来说，每个线程负责处理两个相邻的元素，这就是为什么Slides中显示8个线程处理16个元素。然后for 循环实现了归约过程，对应图中的每一层。stride 从1开始，每次迭代翻倍，这解释了为什么每次迭代活跃线程数减半。
-- 我们可以模拟一下规约的过程：
+- 我们可以模拟一下归约的过程：
     - 第一次迭代 (stride = 1): 每个线程将相邻的两个元素相加。
     - 第二次迭代 (stride = 2): 每隔一个线程进行计算，将间隔为2的元素相加。
     - 以此类推，直到最后只有一个线程（线程0）进行最后的加法。
@@ -259,7 +259,7 @@ __global__ void SharedMemoryReduction(float* input, float* output) {
 ![](https://files.mdnice.com/user/59/3731b1d0-5718-482f-aa77-3e2cedc6a130.png)
 
 
-这张Slides展示的做法就是启动多个Block，然后只要每个单独的Block可以容纳1024分元素，我们就可以在不同的Block中单独进行规约操作，最后再对所有的Block进行一次最后的规约。
+这张Slides展示的做法就是启动多个Block，然后只要每个单独的Block可以容纳1024分元素，我们就可以在不同的Block中单独进行归约操作，最后再对所有的Block进行一次最后的归约。
 
 这里对应的代码实现为：https://github.com/cuda-mode/lectures/blob/main/lecture_009/segment_reduce.cu ，贴一下这个代码：
 
@@ -345,7 +345,7 @@ int main() {
 }
 ```
 
-代码中需要特别注意的是kernel的最后一句代码，这是当我们把所有的Block处理完之后，我们进行最后一层的规约操作。我们在Block层面做规约是跨global memory的，这个时候需要使用atomicAdd来避免多个Block在同一个位置写的时候出现竞争错误。
+代码中需要特别注意的是kernel的最后一句代码，这是当我们把所有的Block处理完之后，我们进行最后一层的归约操作。我们在Block层面做归约是跨global memory的，这个时候需要使用atomicAdd来避免多个Block在同一个位置写的时候出现竞争错误。
 
 ![](https://files.mdnice.com/user/59/74f090db-a6fd-4532-a5d4-644cd3e37e5c.png)
 
@@ -388,7 +388,7 @@ __global__ void CoarsenedReduction(float* input, float* output, int size) {
 }
 ```
 
-COARSE_FACTOR这个参数控制一个线程在一个iter里面累加多少次元素，一次就是累加2个元素，2次就是累加4个元素。这个kernel和上一个分段规约比较类似，不过现在的第一次规约是在单个线程内部进行规约，一旦一个线程上完成了规约，接下来就需要在一个线程块内进行规约，最后是在Block间进行最后的规约。
+COARSE_FACTOR这个参数控制一个线程在一个iter里面累加多少次元素，一次就是累加2个元素，2次就是累加4个元素。这个kernel和上一个分段归约比较类似，不过现在的第一次归约是在单个线程内部进行归约，一旦一个线程上完成了归约，接下来就需要在一个线程块内进行归约，最后是在Block间进行最后的归约。
 
 ![](https://files.mdnice.com/user/59/14e0762a-d5e5-4174-a319-83ce2c3bf6f1.png)
 
@@ -406,11 +406,11 @@ COARSE_FACTOR这个参数控制一个线程在一个iter里面累加多少次元
 
 ![](https://files.mdnice.com/user/59/e70fa816-d5eb-4982-b97c-122e868683d1.png)
 
-作者还额外准备了几张Slides让大家了解一下深度学习框架中规约操作是如何实现的。
+作者还额外准备了几张Slides让大家了解一下深度学习框架中归约操作是如何实现的。
 
 ![](https://files.mdnice.com/user/59/f8056699-ac21-4beb-b0d9-cc25ffbd0fac.png)
 
-例如，以PyTorch为例子，已经有了一系列面向用户的规约操作，比如torch.max/torch.min,torch.mean等等。这些操作是如何用CUDA Kernel实现的呢？我们从上面最后两个版本的优化可以注意到，这些优化考虑是为了输入数据很大的时候做的,但如果输入数据很小,那么上面的所有考虑都变得没有意义了,使用非分段的Reduction算法更合理。对多个维度的数据进行规约应该怎么做？当输入和输出的数据类型发生变化时，我们需要的实现吗？我们是否应该考虑修改累加器的dtype呢？因此，如果你尝试写一个广泛适用的kernel，你需要考虑很多因素。因为如果你构建的kernel仅仅适用于特定的场景，这意味着你的二进制文件会非常庞大，因为你需要为每一种不同的排列组合都在代码库中加入一个kernel。而如果你拥有的是一个更侧重代码生成并具备启发式方法来选择适合kernel的系统，那么你的框架很可能会持续成为人们进行实验探索的平台。这正是PyTorch取得成功的一大关键因素。这种哲学理念在实践中的一个例子基本上就是我们的reduce kernel，所以PyTorch的reduction kernel并不是像我们有一个max.cuh/mean.cuh那样，而是只有一个单独的Reduce.cuh，因为所有的规约操作都具有相同的结构，它们在数学上是高度等价的。我们期望构建一个更为通用的基础设施，其中可以赋予它一个累加器以及一个操作符，然后通过代码生成来获得最优的算法。大家可以详细读一下这个实现 https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/Reduce.cuh 
+例如，以PyTorch为例子，已经有了一系列面向用户的归约操作，比如torch.max/torch.min,torch.mean等等。这些操作是如何用CUDA Kernel实现的呢？我们从上面最后两个版本的优化可以注意到，这些优化考虑是为了输入数据很大的时候做的,但如果输入数据很小,那么上面的所有考虑都变得没有意义了,使用非分段的Reduction算法更合理。对多个维度的数据进行归约应该怎么做？当输入和输出的数据类型发生变化时，我们需要的实现吗？我们是否应该考虑修改累加器的dtype呢？因此，如果你尝试写一个广泛适用的kernel，你需要考虑很多因素。因为如果你构建的kernel仅仅适用于特定的场景，这意味着你的二进制文件会非常庞大，因为你需要为每一种不同的排列组合都在代码库中加入一个kernel。而如果你拥有的是一个更侧重代码生成并具备启发式方法来选择适合kernel的系统，那么你的框架很可能会持续成为人们进行实验探索的平台。这正是PyTorch取得成功的一大关键因素。这种哲学理念在实践中的一个例子基本上就是我们的reduce kernel，所以PyTorch的reduction kernel并不是像我们有一个max.cuh/mean.cuh那样，而是只有一个单独的Reduce.cuh，因为所有的归约操作都具有相同的结构，它们在数学上是高度等价的。我们期望构建一个更为通用的基础设施，其中可以赋予它一个累加器以及一个操作符，然后通过代码生成来获得最优的算法。大家可以详细读一下这个实现 https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/Reduce.cuh 
 
 
 ![](https://files.mdnice.com/user/59/38813b68-a4d8-4044-812e-6f6e9368c273.png)
