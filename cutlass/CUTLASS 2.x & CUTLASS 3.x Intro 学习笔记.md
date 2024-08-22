@@ -239,7 +239,7 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
 - KernelSchedulerAuto:
     - 这是一个基于配置的自动选择器。
     - 推荐作为首次尝试的好选择。
-- TMA (Tensor Memory Access) 限制:
+- TMA (Tensor Memory Accelerator) 限制:
     - TMA 只支持 16 字节对齐的buffer。
     - 对于 8 字节或 4 字节对齐的情况，需要使用 LDGSTS (CpAsync)。
 - 具体实现细节:
@@ -278,7 +278,7 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
 
 这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Kernel Scheduler，特别是KernelMultistage调度器。
 
-- Kernel Scheduler类型列表：分为两类：LDGSTS (Load Global Store Shared) 和 UTMALDG (Unified Tensor Memory Access Load Global)。
+- Kernel Scheduler类型列表：分为两类：LDGSTS (Load Global Store Shared) 和 UTMALDG (Unified Tensor Memory Accelerator Load Global)。
 - 相关代码文件：cutlass/gemm/kernel/sm70_gemm.hpp & cutlass/gemm/collective/sm80_mma_multistage.hpp
 - KernelMultistage执行模型图示：
     - 展示了4个warp (Warp0到Warp3) 的执行模式。
@@ -295,7 +295,7 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
 
 ![](https://files.mdnice.com/user/59/6648ccb9-a251-4ab5-b5aa-7ab5d6724c57.png)
 
-这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Kernel TMA (Tensor Memory Access) 调度器。
+这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Kernel TMA (Tensor Memory Accelerator) 调度器。
 - 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss.hpp
 - KernelTMA执行模型图示：
     - 展示了4个warp (Warp0到Warp3) 的执行模式。
@@ -453,7 +453,7 @@ CUTLASS库在2.x到3.x版本的迭代中有了显著的变化,这主要是为了
 
 如果在Hopper架构上使用CUTLASS,建议采用3.x版本,并参考以下最佳实践:
 
-- 在访问内存时,优先使用TMA(Tensor Memory Access)而非CpAsync。
+- 在访问内存时,优先使用TMA(Tensor Memory Accelerator)而非CpAsync。
 - 优先选择Warp Specialized类型的kernel。
 - 根据问题的规模,在Warp Specialized、Pingpong、Cooperative三种kernel中选择最合适的一种。
 - 通过调整BlockShape、ClusterShape、CTA swizzle等参数,进一步优化性能。
