@@ -1,6 +1,6 @@
 > 博客来源：https://research.colfax-intl.com/tutorial-python-binding-for-cuda-libraries-in-pytorch/ ，这里做了一个翻译学习一下。
 
-# 教程:在PyTorch中为CUDA库绑定Python接口
+# 教程: 在PyTorch中为CUDA库绑定Python接口
 
 PyTorch是当今最受欢迎的AI框架之一。它由Meta(前Facebook)开发并于2017年开源,具有简洁友好的"Python式"接口。这种易用性使其特别适合于研究和开发领域,研究人员可能需要多次迭代新的AI工作负载。然而,纯Python开发也存在一些缺陷,常见的主要缺陷之一就是性能问题。Python通常比诸如C++这样的语言运行速度较慢,尤其是当Python代码根本没有利用GPU硬件加速,或者只以较为简单的方式加速时(例如,未针对特定GPU架构的特殊特性进行优化)。
 
