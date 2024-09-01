@@ -101,9 +101,8 @@ copy(rmem, thr_tile_DT);
 
 现在我们可以将这个方法与纯copy kernel内核进行基准测试比较。copy kernel的代码基于CUTLASS的tiled_copy示例(https://github.com/NVIDIA/cutlass/blob/main/examples/cute/tutorial/tiled_copy.cu)，所以我们将解析它作为读者的练习。此外，我们通过实验发现，对于我们的工作负载，`32 x 1024`的tile大小提供了最佳性能。
 
-![](https://files.mdnice.com/user/59/8b71d72d-288b-4f18-8ccb-50cf7f458586.png)
+![基准测试在NVIDIA H100 PCIe GPU上进行，矩阵大小M=N=32768。使用PyTorch基准测试工具Timer进行测量。](https://files.mdnice.com/user/59/8b71d72d-288b-4f18-8ccb-50cf7f458586.png)
 
-基准测试在NVIDIA H100 PCIe GPU上进行，矩阵大小M=N=32768。使用PyTorch基准测试工具Timer进行测量。
 
 正如我们在Harris的文章中看到的，这种朴素方法的速度并不理想。这是因为这种复制是从GMEM到GMEM的跨步复制。为了确认这一点，让我们使用NVIDIA Nsight™ Compute对这个转置进行性能分析。这个性能分析工具可以检测代码中导致性能降低的问题。对朴素转置进行性能分析，GUI的摘要页面显示：
 
@@ -225,6 +224,57 @@ Tensor sS  = make_tensor(make_smem_ptr(smem.data()), smemLayout);
 Tensor sD = make_tensor(make_smem_ptr(smem.data()), smemLayoutT);
 ```
 
+最后，我们可以使用 `cute::copy` 来从 GMEM 复制到 SMEM，然后再从 SMEM 复制回 GMEM。请注意，这里的 S 和 D 是 tensor_S 和 tensor_D 的 `tiled_divide`，而 tS 和 tD 是选择的线程布局，以确保对 GMEM 的合并访问（事实上，它们都等于上面的 thr_layout）。
+
+```c++
+// Slice to get the CTA's view of GMEM.
+Tensor gS = S(make_coord(_, _), blockIdx.x, blockIdx.y); // (bM, bN)
+Tensor gD = D(make_coord(_, _), blockIdx.y, blockIdx.x); // (bN, bM)
+ 
+// Create the thread partitions for each Tensor.
+Tensor tSgS = local_partition(gS, tS, threadIdx.x);
+Tensor tSsS = local_partition(sS, tS, threadIdx.x);
+Tensor tDgD = local_partition(gD, tD, threadIdx.x);
+Tensor tDsD = local_partition(sD, tD, threadIdx.x);
+ 
+// Copy GMEM to SMEM.
+cute::copy(tSgS, tSsS); 
+ 
+// Synchronization step. On SM80 and above, cute::copy
+// does LDGSTS which necessitates async fence and wait.
+cp_async_fence();
+cp_async_wait<0>();
+__syncthreads();
+ 
+// Copy transposed SMEM to GMEM.
+cute::copy(tDsD, tDgD);
+```
+
+现在当我们进行基准测试时，我们得到了一个更好的结果。
+
+
+![基准测试在 NVIDIA H100 PCIe GPU 上进行，M=N=32768。使用 PyTorch 基准测试工具 Timer 进行测量。](https://files.mdnice.com/user/59/5f7cb12a-7b34-4429-9608-2fe00223bc2c.png)
+
+
+尽管如此，我们的结果仍然与复制操作的结果有一定差距。再次对代码进行分析，我们可以发现下一个需要解决的问题——内存Bank Conflict。
+
+## 内存Bank Conflict
+
+带步长的SMEM版本比朴素版本性能好得多，但仍然无法匹配复制操作的性能。这种差异的很大一部分是由于内存Bank Conflict造成的。在大多数NVIDIA GPU上，共享内存被组织成32个内存Bank。一个线程束中只有一个线程能够在同一时间访问一个内存Bank；这对读取和写入访问都适用。因此，如果多个线程试图访问同一个内存Bank，这些访问就会被串行化。这被称为Bank Conflict。关于Bank Conflict的更深入讨论，我们推荐Lei Mao的优秀博客文章(https://leimao.github.io/blog/CUDA-Shared-Memory-Bank/)。
+
+更具体地说，元素以32位为单位以轮询方式分配给内存Bank。前32位分配给0号Bank，接下来32位分配给1号Bank，依此类推，直到第33组32位再次分配给0号Bank。所以在一个32x32（行主序）的float类型tile中，每一列都映射到同一个内存Bank。这是最坏的情况；对于一个有32个线程的线程束，这会导致32路Bank Conflict。
+
+Mark Harris的教程通过将行填充1个数字来解决这个问题。这会偏移元素，使得一列中的每个元素落在不同的Bank中。我们可以通过使用非默认步长在CuTe中复制这种解决方法。CuTe Layout包含有关步长的信息，它定义了每个维度中元素之间的偏移。我们可以通过将列的步长设置为33而不是32来添加填充。在代码中，这可以简单地通过以下方式完成：
+
+```c++
+auto block_shape = make_shape(Int<32>, Int<33>); // (b, b+1)
+ 
+// Create two Layouts, one col-major and one row-major
+auto smemLayout = make_layout(block_shape, GenRowMajor{});
+auto smemLayoutT = make_layout(block_shape, GenColMajor{});
+```
+
+然而，这会浪费SMEM中额外32个数字的内存。在本文中，我们将实现一个替代解决方案——交织（swizzle）。
 
 
 
