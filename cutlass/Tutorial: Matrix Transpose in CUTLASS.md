@@ -1,6 +1,6 @@
-> 博客来源：https://research.colfax-intl.com/tutorial-matrix-transpose-in-cutlass/ ，这里做了一个翻译学习一下，通过这篇博客可以对CuTe编程时涉及到的内存拷贝有深入的了解，请享受。
+> 博客来源：https://research.colfax-intl.com/tutorial-matrix-transpose-in-cutlass/ ，这里做了一个翻译学习一下，通过这篇博客可以对CuTe编程时涉及到的内存拷贝（矩阵转置）有简单的了解，是一篇很优质的技术博客。
 
-# 教程：CUTLASS中的矩阵转置
+# 教程：CUTLASS中的矩阵转置 (使用CuTe把矩阵转置优化到GPU内存带宽上下限)
 
 本教程的目标是阐明在使用CUTLASS及其核心后端库CuTe在NVIDIA® GPU上编程时涉及的内存复制概念和技术。具体来说，我们将以矩阵转置任务作为说明这些概念的示例。我们选择这个任务是因为它除了将数据从一组地址复制到另一组地址外不涉及其他操作，这使我们能够单独研究内存复制那些方面的优化，如内存合并访问，这些方面可以与同时涉及计算的工作负载分开。
 
@@ -46,17 +46,17 @@ float *d_S, *d_D; // 声明指向GPU内存的指针，用于源矩阵(d_S)和目
 auto tensor_shape = make_shape(M, N);
 auto tensor_shape_trans = make_shape(N, M); // 创建表示矩阵形状的对象，一个是原始形状，一个是转置后的形状。
 auto gmemLayoutS = make_layout(tensor_shape, GenRowMajor{});
-auto gmemLayoutD = make_layout(tensor_shape_trans, GenRowMajor{}); // 为源矩阵和目标矩阵创建行主序布局。
+auto gmemLayoutD = make_layout(tensor_shape_trans, GenRowMajor{}); // 为源矩阵和目标矩阵创建行主序 Layout。
  
 // Create the row major tensors.
 Tensor tensor_S = make_tensor(make_gmem_ptr(d_S), gmemLayoutS);
-Tensor tensor_D = make_tensor(make_gmem_ptr(d_D), gmemLayoutD); // 使用之前创建的布局和GPU内存指针创建CuTe张量对象。
+Tensor tensor_D = make_tensor(make_gmem_ptr(d_D), gmemLayoutD); // 使用之前创建的 Layout和GPU内存指针创建CuTe张量对象。
  
 // Create a column major layout. Note that we use (M,N) for shape.
-auto gmemLayoutDT = make_layout(tensor_shape, GenColMajor{}); // 创建一个列主序布局，注意这里使用的是原始形状(M,N)。
+auto gmemLayoutDT = make_layout(tensor_shape, GenColMajor{}); // 创建一个列主序 Layout，注意这里使用的是原始形状(M,N)。
  
 // Create a column major view of the dst tensor.
-Tensor tensor_DT = make_tensor(make_gmem_ptr(d_D), gmemLayoutDT); // 创建目标数据的列主序视图。这个视图和tensor_D指向相同的内存，但布局不同
+Tensor tensor_DT = make_tensor(make_gmem_ptr(d_D), gmemLayoutDT); // 创建目标数据的列主序视图。这个视图和tensor_D指向相同的内存，但 Layout不同
 ```
 
 这里有一个重要注意事项，虽然我们有三个张量，但实际上只有两份数据副本。这是因为tensor_D和tensor_DT都使用d_D中的数据 — 它们是同一数据的两种不同视图。我们将在转置kernel中使用列主序视图，但在验证转置结果时使用行主序视图。
@@ -73,7 +73,7 @@ Tensor tiled_tensor_DT = tiled_divide(tensor_DT, block_shape); // ([b,b], n/b, m
 
 在这里，我们将Tile大小指定为32 x 32。Tile大小是一个重要的调优参数，应该针对每个特定的工作负载进行调整。实际上，32 x 32并不是转置kernel的最优值，我们将在基准测试之前对其进行调优。
 
-`tiled_divide`创建一个具有相同数据但不同布局的张量，即数据的不同视图。在我们的例子中，对于`tensor_S`，我们从一个大小为`(M, N)`的2D矩阵开始。`cute::tiled_divide`与Tile大小b一起生成一个大小为`([b,b], M/b, N/b)`的3D矩阵视图；即在`M/b x N/b`网格中的`b x b`小矩阵。
+`tiled_divide`创建一个具有相同数据但不同 Layout的张量，即数据的不同视图。在我们的例子中，对于`tensor_S`，我们从一个大小为`(M, N)`的2D矩阵开始。`cute::tiled_divide`与Tile大小b一起生成一个大小为`([b,b], M/b, N/b)`的3D矩阵视图；即在`M/b x N/b`网格中的`b x b`小矩阵。
 
 这种视图使得在kernel中访问正确的Tile变得更加容易。
 
@@ -82,7 +82,7 @@ Tensor tile_S = tiled_tensor_S(make_coord(_, _), blockIdx.x, blockIdx.y);
 Tensor tile_DT = tiled_tensor_DT(make_coord(_, _), blockIdx.x, blockIdx.y);
 ```
 
-在这里，将`make_coord(_, )`作为第一个参数会取整个第一维 (也就是`[b, b]`)，而将第二和第三维的整数值指定为块索引则会取张量的相应切片。（对于熟悉numpy的人来说：CuTe中的下划线(_)等同于numpy中的冒号(:)表示法。）换句话说，tile_S表示位于网格点`(blockIdx.x, blockIdx.y)`的整个`b x b`矩阵。注意，在切片`tiled_tensor_DT`时我们不交换blockIdx.x和blockIdx.y，因为我们已经采用了形状为(M, N)的列主序视图（相比之下，如果我们采用tensor_D的tile划分，我们就需要交换块索引，然后在`local_partition`中为源和目标使用不同的线程布局）。然后我们可以通过以下方式获得分配给特定线程的部分：
+在这里，将`make_coord(_, )`作为第一个参数会取整个第一维 (也就是`[b, b]`)，而将第二和第三维的整数值指定为块索引则会取张量的相应切片。（对于熟悉numpy的人来说：CuTe中的下划线(_)等同于numpy中的冒号(:)表示法。）换句话说，tile_S表示位于网格点`(blockIdx.x, blockIdx.y)`的整个`b x b`矩阵。注意，在切片`tiled_tensor_DT`时我们不交换blockIdx.x和blockIdx.y，因为我们已经采用了形状为(M, N)的列主序视图（相比之下，如果我们采用tensor_D的tile划分，我们就需要交换块索引，然后在`local_partition`中为源和目标使用不同的线程 Layout）。然后我们可以通过以下方式获得分配给特定线程的部分：
 
 ```c++
 auto thr_layout =
@@ -91,7 +91,7 @@ Tensor thr_tile_S = local_partition(tile_S, thr_layout, threadIdx.x);
 Tensor thr_tile_DT = local_partition(tile_DT, thr_layout, threadIdx.x); 
 ```
 
-在这里，我们以每个CTA 256个线程启动kernel，并选择了一个线程布局，使得从gmem的加载是合并的，而存储到gmem是非合并的（如我们上面强调的，无论选择哪种线程布局，都会有非合并访问）。最后，我们可以使用`cute::copy`来将数据从thr_tile_S复制到thr_tile_DT。
+在这里，我们以每个CTA 256个线程启动kernel，并选择了一个线程 Layout，使得从gmem的加载是合并的，而存储到gmem是非合并的（如我们上面强调的，无论选择哪种线程 Layout，都会有非合并访问）。最后，我们可以使用`cute::copy`来将数据从thr_tile_S复制到thr_tile_DT。
 
 ```c++
 Tensor rmem = make_tensor_like(thr_tile_S);
@@ -99,7 +99,7 @@ copy(thr_tile_S, rmem);
 copy(rmem, thr_tile_DT);
 ```
 
-现在我们可以将这个方法与纯copy kernel内核进行基准测试比较。copy kernel的代码基于CUTLASS的tiled_copy示例(https://github.com/NVIDIA/cutlass/blob/main/examples/cute/tutorial/tiled_copy.cu)，所以我们将解析它作为读者的练习。此外，我们通过实验发现，对于我们的工作负载，`32 x 1024`的tile大小提供了最佳性能。
+现在我们可以将这个方法与纯copy kernel进行基准测试比较。copy kernel的代码基于CUTLASS的tiled_copy示例(https://github.com/NVIDIA/cutlass/blob/main/examples/cute/tutorial/tiled_copy.cu)，所以我们将解析它作为读者的练习。此外，我们通过实验发现，对于我们的工作负载，`32 x 1024`的tile大小提供了最佳性能。
 
 ![基准测试在NVIDIA H100 PCIe GPU上进行，矩阵大小M=N=32768。使用PyTorch基准测试工具Timer进行测量。](https://files.mdnice.com/user/59/8b71d72d-288b-4f18-8ccb-50cf7f458586.png)
 
@@ -120,7 +120,7 @@ Nsight Compute提供了广泛的工具来帮助优化，但全面探索Nsight超
 
 using namespace cute;
 
-// 使用模板来支持不同类型的张量和线程布局。__launch_bounds__(256, 1)指定了每个线程块最多有256个线程。
+// 使用模板来支持不同类型的张量和线程 Layout。__launch_bounds__(256, 1)指定了每个线程块最多有256个线程。
 template <class TensorS, class TensorD, class ThreadLayoutS, class ThreadLayoutD>
 __global__ static void __launch_bounds__(256, 1)
 transposeKernelNaive(TensorS const S, TensorD const DT,
@@ -200,7 +200,7 @@ extern __shared__ char shared_memory[];
 CuteArray &smem = *reinterpret_cast<CuteArray*>(shared_memory);
 ```
 
-这里， smemLayout 是用于单个Tile的SMEM的布局。我们现在可以创建一个数据指针为shared_memory的张量：
+这里， smemLayout 是用于单个Tile的SMEM的 Layout。我们现在可以创建一个数据指针为shared_memory的张量：
 
 ```c++
 Tensor sS = make_tensor(make_smem_ptr(smem.data()), smemLayout);
@@ -224,7 +224,7 @@ Tensor sS  = make_tensor(make_smem_ptr(smem.data()), smemLayout);
 Tensor sD = make_tensor(make_smem_ptr(smem.data()), smemLayoutT);
 ```
 
-最后，我们可以使用 `cute::copy` 来从 GMEM 复制到 SMEM，然后再从 SMEM 复制回 GMEM。请注意，这里的 S 和 D 是 tensor_S 和 tensor_D 的 `tiled_divide`，而 tS 和 tD 是选择的线程布局，以确保对 GMEM 的合并访问（事实上，它们都等于上面的 thr_layout）。
+最后，我们可以使用 `cute::copy` 来从 GMEM 复制到 SMEM，然后再从 SMEM 复制回 GMEM。请注意，这里的 S 和 D 是 tensor_S 和 tensor_D 的 `tiled_divide`，而 tS 和 tD 是选择的线程 Layout，以确保对 GMEM 的合并访问（事实上，它们都等于上面的 thr_layout）。
 
 ```c++
 // Slice to get the CTA's view of GMEM.
@@ -276,9 +276,205 @@ auto smemLayoutT = make_layout(block_shape, GenColMajor{});
 
 然而，这会浪费SMEM中额外32个数字的内存。在本文中，我们将实现一个替代解决方案——交织（swizzle）。
 
+## 交织（Swizzle）和Layout组合
+
+为了讨论交织，我们首先需要详细解释CuTe Layout。 Layout不仅仅是存储张量结构信息的容器，而是一个将一个坐标映射到另一个坐标的函数。例如，考虑一个列主序的张量A，有M行和N列。给定坐标(4,5)——第4列，第5行——这个 Layout会将元组(4,5)映射到整数5M+4。这是1D指针中坐标(4,5)处元素的索引。这种抽象消除了在处理高维张量时经常出现的令人困惑的坐标数学计算。
+
+通常，坐标计算是使用张量的步长来完成的，步长定义了一个维度中相邻元素在1D内存空间中的偏移。例如，对于同一个张量A，步长是(1,M)。一列中的元素相邻，即偏移为1，而一行中的元素偏移为M。
+
+CuTe提供了更复杂的坐标映射函数工具。其中之一就是交织。交织的具体细节超出了本教程的范围，我们建议好奇的读者参考NVIDIA的PTX文档(https://docs.nvidia.com/cuda/parallel-thread-execution/#tensor-swizzling-modes)。
+
+通过定义适当的交织函数，CuTe程序员可以像在非交织情况下一样访问数据，而无需担心Bank Conflict。CuTe通过使用组合操作将交织作为张量 Layout的属性来抽象交织细节(https://github.com/NVIDIA/cutlass/blob/main/media/docs/cute/02_layout_algebra.md#composition)。
+
+组合，顾名思义，创建了 Layout参数的函数组合。具体来说，当程序员在SMEM中访问交织张量的数据时——比如在CuTe中调用`tensor(i)`，其中逻辑索引i是他们认为的访问位置——他们实际上是在访问swizzle_function(tensor(i))处的数据。
+
+回到转置，我们需要的交织函数是`Swizzle<5,0,5>`。这里的数字5指的是掩码中的位数(https://github.com/NVIDIA/cutlass/blob/main/include/cute/swizzle.hpp#L44)。根据CuTe文档，这个函数通过取下5位与上5位的异或来修改下5位（掩码）。然后将这个模式应用到32x32的地址集合中，一列中没有元素映射到同一内存Banck，从而避免了所有Bank Conflict。我们将这个交织模式添加到我们的 Layout中。
+
+```c++
+auto tileLayoutS = make_layout(block_shape, GenRowMajor{});
+auto smemLayoutS_swizzle = composition(Swizzle<5, 0, 5>{}, tileLayoutS);
+```
+
+![Swizzle<5,0,5>应用于32x32 Tile的结果。索引取模32。](https://files.mdnice.com/user/59/85eb5049-00dd-43db-bb56-4e3ed0fad3ba.png)
+
+我们还注意到，SMEM中的其它数据存储模式将需要不同的交织函数。我们鼓励读者尝试CuTe提供的通用交织函数，并选择最适合他们的函数。
+
+## 通过Layout组合进行转置
+
+上文中，我们讨论了如何通过定义tile的列主序 Layout在SMEM中转置一个tile。这里，我们展示了一种使用 Layout组合的替代方法。具体来说，我们创建一个由swizzled LayoutS和LayoutD组成的 Layout。
+
+```c++
+auto tileLayoutD = make_layout(block_shape_trans, GenRowMajor{});
+auto smemLayoutD_swizzle = composition(smemLayoutS_swizzle, tileLayoutD);
+```
+
+这里的技巧在于，这两个 Layout都被定义为行主序，但CuTe默认使用列主序，包括 Layout代数。我们现在声称 composition(tileLayoutS,tileLayoutD) 等同于
+
+```c++
+auto tileLayoutDT = make_layout(block_shape_trans, GenColMajor{});
+```
+
+为了解释，让块的维度为`bM`和`bN`，所以`tileLayoutS`和`tileLayoutD`的Shape:Stride分别为`(bM,bN):(bN,1)`和`(bN,bM):(bM,1)`。然后我们有：
+
+```c++
+tileLayoutS(tileLayoutD(x,y)) = tileLayoutS(bM*x+y).
+```
+
+现在要计算`bM*x+y`在`tileLayoutS`下映射到什么整数，将其表示为域形状`(bM,bN)`中的坐标对很方便。但由于CuTe代数将1D索引映射到坐标时是列主序的（或从左到右），我们发现`bM*x+y`对应于坐标(y,x)。因此，我们得到：
+
+```c++
+tileLayoutS(bM*x+y) = tileLayoutS((y,x)) = bN*y+x.
+```
+
+这表明组合的 Layout函数等同于 `Layout(bN,bM):(1,bN)`的函数，验证了我们的声明。最后，我们注意到，在存在后置组合（post-composition）与swizzle函数时，前置组合（pre-composition）保留了原地swizzle，从而避免了一些代码重复。
+
+我们的swizzled解决方案使我们接近复制kernel的性能，就像Mark Harris的文章中所做到的那样。
+
+![基准测试在 NVIDIA H100 PCIe GPU 上进行，M=N=32768。使用 PyTorch 基准测试工具 Timer 进行测量。](https://files.mdnice.com/user/59/86603b62-15e3-43ee-bbe2-ecf6198db79a.png)
+
+随着性能接近带宽限制，我们正在接近硬件限制。在prfoile swizzle版本时，ncu摘要页面显示：
+
+![](https://files.mdnice.com/user/59/229dac2f-58e0-433c-9d23-c2973add72b5.png)
+
+我们看到我们已经解决了内存Bank Conflict问题。最后报告的长记分板停顿问题可以忽略，因为我们正在分析一个完全受内存限制的kernel。
+
+## CuTe transpose_smem 代码实现补充
+
+这部分的代码对应为：https://github.com/ColfaxResearch/cfx-article-src/blob/master/transpose-cute/include/transpose_smem.h
+
+代码里把是否使用Swizzle作为一个模板参数 isSwizzled ，方便对比是否产生Bank Conflict时的性能。
+
+```c++
+template <class TensorS, class TensorD, class SmemLayoutS, class ThreadLayoutS,
+          class SmemLayoutD, class ThreadLayoutD>
+__global__ static void __launch_bounds__(256, 1)
+    transposeKernelSmem(TensorS const S, TensorD const D,
+                        SmemLayoutS const smemLayoutS, ThreadLayoutS const tS,
+                        SmemLayoutD const smemLayoutD, ThreadLayoutD const tD) {
+  using namespace cute;
+  using Element = typename TensorS::value_type;
+
+  // Use Shared Storage structure to allocate aligned SMEM addresses.
+  extern __shared__ char shared_memory[];
+  using SharedStorage = SharedStorageTranspose<Element, SmemLayoutD>;
+  SharedStorage &shared_storage =
+      *reinterpret_cast<SharedStorage *>(shared_memory);
+
+  // two different views of smem
+  Tensor sS = make_tensor(make_smem_ptr(shared_storage.smem.data()),
+                          smemLayoutS); // (bM, bN)
+  Tensor sD = make_tensor(make_smem_ptr(shared_storage.smem.data()),
+                          smemLayoutD); // (bN, bM)
+
+  Tensor gS = S(make_coord(_, _), blockIdx.x, blockIdx.y); // (bM, bN)
+  Tensor gD = D(make_coord(_, _), blockIdx.y, blockIdx.x); // (bN, bM)
+
+  Tensor tSgS = local_partition(gS, tS, threadIdx.x); // (ThrValM, ThrValN)
+  Tensor tSsS = local_partition(sS, tS, threadIdx.x); // (ThrValM, ThrValN)
+  Tensor tDgD = local_partition(gD, tD, threadIdx.x);
+  Tensor tDsD = local_partition(sD, tD, threadIdx.x);
+
+  cute::copy(tSgS, tSsS); // LDGSTS
+
+  cp_async_fence();
+  cp_async_wait<0>();
+  __syncthreads();
+
+  cute::copy(tDsD, tDgD);
+}
+
+template <typename Element, bool isSwizzled = true> void transpose_smem(TransposeParams<Element> params) {
+
+  using namespace cute;
+
+  //
+  // Make tensors
+  //
+  auto tensor_shape = make_shape(params.M, params.N);
+  auto tensor_shape_trans = make_shape(params.N, params.M);
+  auto gmemLayoutS = make_layout(tensor_shape, LayoutRight{});
+  auto gmemLayoutD = make_layout(tensor_shape_trans, LayoutRight{});
+  Tensor tensor_S = make_tensor(make_gmem_ptr(params.input), gmemLayoutS);
+  Tensor tensor_D = make_tensor(make_gmem_ptr(params.output), gmemLayoutD);
+
+  //
+  // Tile tensors
+  //
+
+  using bM = Int<64>;
+  using bN = Int<64>;
+
+  auto block_shape = make_shape(bM{}, bN{});       // (bM, bN)
+  auto block_shape_trans = make_shape(bN{}, bM{}); // (bN, bM)
+
+  Tensor tiled_tensor_S =
+      tiled_divide(tensor_S, block_shape); // ((bM, bN), m', n')
+  Tensor tiled_tensor_D =
+      tiled_divide(tensor_D, block_shape_trans); // ((bN, bM), n', m')
+
+  auto tileShapeS = make_layout(block_shape, LayoutRight{});
+  auto tileShapeD = make_layout(block_shape_trans, LayoutRight{});
+
+  auto smemLayoutS = tileShapeS;
+  auto smemLayoutD = composition(smemLayoutS, tileShapeD);
+  auto smemLayoutS_swizzle = composition(Swizzle<5, 0, 5>{}, tileShapeS);
+  auto smemLayoutD_swizzle = composition(smemLayoutS_swizzle, tileShapeD);
+
+  auto threadLayoutS =
+      make_layout(make_shape(Int<8>{}, Int<32>{}), LayoutRight{});
+  auto threadLayoutD =
+      make_layout(make_shape(Int<8>{}, Int<32>{}), LayoutRight{});
+
+  size_t smem_size = int(
+      sizeof(SharedStorageTranspose<Element, decltype(smemLayoutS_swizzle)>));
+
+  //
+  // Determine grid and block dimensions
+  //
+
+  dim3 gridDim(
+      size<1>(tiled_tensor_S),
+      size<2>(tiled_tensor_S)); // Grid shape corresponds to modes m' and n'
+  dim3 blockDim(size(threadLayoutS)); // 256 threads
+
+  if constexpr (isSwizzled) {
+    transposeKernelSmem<<<gridDim, blockDim, smem_size>>>(
+        tiled_tensor_S, tiled_tensor_D, smemLayoutS_swizzle, threadLayoutS,
+        smemLayoutD_swizzle, threadLayoutD);
+  } else {
+    transposeKernelSmem<<<gridDim, blockDim, smem_size>>>(
+        tiled_tensor_S, tiled_tensor_D, smemLayoutS, threadLayoutS,
+        smemLayoutD, threadLayoutD);
+  }
+}
+```
 
 
+## TMA: 
+
+注意，GMEM和SMEM之间的数据传输占用了我们转置kernel中绝大部分时间。张量内存加速器（TMA）是NVIDIA Hopper™架构中引入的一项特性，可以用来替代GMEM和SMEM之间的常规加载和存储指令，从而可能提高我们转置kernel的性能。我们研究了本教程中TMA的使用情况，并得到了一些混合结果，我们将在本节中描述。
+
+回顾一下，TMA是一个专用的异步内存复制单元，用于在GMEM和SMEM之间复制多维数据。在TMA的异步复制模型中，不是让CTA中的线程/线程束协作复制源张量的一部分到目标张量，而是选择CTA中的单个线程来发出加载或存储TMA指令。虽然指令在异步代理中执行，但线程可以自由地执行其他独立工作。使用屏障对象和同步原语（fence、arrive和wait）来同步依赖于数据的计算与数据移动。当与软件流水线(https://github.com/NVIDIA/cutlass/blob/main/test/unit/pipeline/pipeline_tma_async_warp_specialized.cu)方案结合使用时，TMA允许内存复制指令与计算重叠，这有助于隐藏延迟。然而，由于转置kernel只进行内存复制，我们在本教程中没有机会展示TMA的这一优势。
+
+为了明确TMA在单纯内存复制中的性能，我们首先研究了TMA加载和存储复制kernel与其他替代方案的性能，如CuTe的TiledCopy教程（https://github.com/NVIDIA/cutlass/blob/main/examples/cute/tutorial/tiled_copy.cu），该教程执行128位向量化的加载和存储，仅通过RMEM传递。我们发现在这种情况下，TMA的性能与这种更简单的替代方案（经过两者的tile大小tuning后）相当，都达到了设备的内存带宽规格。这个结果符合我们的预期——事实上，我们没有理由期望TMA在纯内存复制的情况下表现更好。
+
+相比之下，在转置kernel中同时使用TMA进行加载和存储，使用与上述相同的tile大小，其性能比我们性能最佳的版本要差。这是由于存在Bank Conflict！直接的问题是TMA只支持有限的swizzle函数集（旨在与WGMMA一起使用）；例如，请参见CuTe代码库中的这个部分（https://github.com/NVIDIA/cutlass/blob/033d9efd2db0bbbcf3b3b0650acde6c472f3948e/include/cute/atom/copy_traits_sm90_tma_swizzle.hpp#L48-L62）。特别是，它不支持我们上面使用的Swizzle<5,0,5>函数，这使得完全消除Bank Conflict变得不那么直接。但请注意，我们没有理由认为这是一个本质问题，只是我们选择不在复制kernel的基准测试背景下进一步研究这条线。此外，当尝试一个版本，TMA仅用于128位向量化加载到寄存器然后写入SMEM时，我们发现其性能仅略低于标准版本，尽管profiler 仍报告了shared store Bank Conflict（但避免了TMA从SMEM到GMEM存储的Bank Conflict）。
+
+由于这些混合结果，我们不详细描述如何使用TMA的机制，而将此推迟到未来的博客文章，我们将在更适合其优势的背景下研究TMA。
 
 
+这一节的实验代码见：https://github.com/ColfaxResearch/cfx-article-src/blob/master/transpose-cute/include/transpose_tmastore_vectorized.h
+
+## 结论
+
+在本教程中，我们向读者介绍了一些基本的GPU内存概念，以及如何使用CuTe库通过实现高效的矩阵转置kernel来编程这些概念。
+
+从合并读取和写入开始，我们涉及了CuTe布局和张量、Bank Conflict、swizzle函数和TMA的概念。除了TMA之外，我们已经看到了对这些概念的良好理解对实现高效的转置kernel是必要的。在后续的文章中，我们计划在一个对优化重要的场景中研究TMA。
+
+为了总结本教程，我们展示了我们讨论的各种kernel的运行时间。我们包括了`JustCopy` kernel作为可达到的性能上限，以及一个朴素的PyTorch实现（通过在`torch.transpose上`调用`contiguous()`）和一个使用`torch.compile`的实现，以展示通过编写这些low-level kernel可获得的效率提升的规模。
+
+所有这些kernel的源代码以及基准测试脚本可在Colfax Research GitHub仓库(https://github.com/ColfaxResearch/cfx-article-src/tree/master/transpose-cute)中获得。
+
+![](https://files.mdnice.com/user/59/11b25161-1bf4-4cda-94d2-aa43ba2579a9.png)
 
 
