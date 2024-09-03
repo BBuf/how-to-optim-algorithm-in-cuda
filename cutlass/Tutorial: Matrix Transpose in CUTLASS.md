@@ -256,13 +256,13 @@ cute::copy(tDsD, tDgD);
 ![基准测试在 NVIDIA H100 PCIe GPU 上进行，M=N=32768。使用 PyTorch 基准测试工具 Timer 进行测量。](https://files.mdnice.com/user/59/5f7cb12a-7b34-4429-9608-2fe00223bc2c.png)
 
 
-尽管如此，我们的结果仍然与复制操作的结果有一定差距。再次对代码进行分析，我们可以发现下一个需要解决的问题——内存Bank Conflict。
+尽管如此，我们的结果仍然与复制操作的结果有一定差距。再次对代码进行分析，我们可以发现下一个需要解决的问题——Memory Bank Conflict。
 
-## 内存Bank Conflict
+## Memory Bank Conflict
 
-带步长的SMEM版本比朴素版本性能好得多，但仍然无法匹配复制操作的性能。这种差异的很大一部分是由于内存Bank Conflict造成的。在大多数NVIDIA GPU上，共享内存被组织成32个内存Bank。一个线程束中只有一个线程能够在同一时间访问一个内存Bank；这对读取和写入访问都适用。因此，如果多个线程试图访问同一个内存Bank，这些访问就会被串行化。这被称为Bank Conflict。关于Bank Conflict的更深入讨论，我们推荐Lei Mao的优秀博客文章(https://leimao.github.io/blog/CUDA-Shared-Memory-Bank/)。
+带步长的SMEM版本比朴素版本性能好得多，但仍然无法匹配复制操作的性能。这种差异的很大一部分是由于Memory Bank Conflict造成的。在大多数NVIDIA GPU上，共享内存被组织成32个Memory Bank。一个线程束中只有一个线程能够在同一时间访问一个Memory Bank；这对读取和写入访问都适用。因此，如果多个线程试图访问同一个Memory Bank，这些访问就会被串行化。这被称为Bank Conflict。关于Bank Conflict的更深入讨论，我们推荐Lei Mao的优秀博客文章(https://leimao.github.io/blog/CUDA-Shared-Memory-Bank/)。
 
-更具体地说，元素以32位为单位以轮询方式分配给内存Bank。前32位分配给0号Bank，接下来32位分配给1号Bank，依此类推，直到第33组32位再次分配给0号Bank。所以在一个32x32（行主序）的float类型tile中，每一列都映射到同一个内存Bank。这是最坏的情况；对于一个有32个线程的线程束，这会导致32路Bank Conflict。
+更具体地说，元素以32位为单位以轮询方式分配给Memory Bank。前32位分配给0号Bank，接下来32位分配给1号Bank，依此类推，直到第33组32位再次分配给0号Bank。所以在一个32x32（行主序）的float类型tile中，每一列都映射到同一个Memory Bank。这是最坏的情况；对于一个有32个线程的线程束，这会导致32路Bank Conflict。
 
 Mark Harris的教程通过将行填充1个数字来解决这个问题。这会偏移元素，使得一列中的每个元素落在不同的Bank中。我们可以通过使用非默认步长在CuTe中复制这种解决方法。CuTe Layout包含有关步长的信息，它定义了每个维度中元素之间的偏移。我们可以通过将列的步长设置为33而不是32来添加填充。在代码中，这可以简单地通过以下方式完成：
 
@@ -336,7 +336,7 @@ tileLayoutS(bM*x+y) = tileLayoutS((y,x)) = bN*y+x.
 
 ![](https://files.mdnice.com/user/59/229dac2f-58e0-433c-9d23-c2973add72b5.png)
 
-我们看到我们已经解决了内存Bank Conflict问题。最后报告的长记分板停顿问题可以忽略，因为我们正在分析一个完全受内存限制的kernel。
+我们看到我们已经解决了Memory Bank Conflict问题。最后报告的长记分板停顿问题可以忽略，因为我们正在分析一个完全受内存限制的kernel。
 
 ## CuTe transpose_smem 代码实现补充
 
