@@ -2,7 +2,7 @@
 
 ## CUDA-MODE课程笔记 第11课: Sparsity
 
-> 这节课主要是作者介绍了一下PyTorch团队在Sparsity方向做的一些事情，实际上和cuda关系不是特别大，如果大家对Sparsity感兴趣，想了解一下它在实际工程应用方面的进展可以考虑听一下，如果只关注学习cuda知识可以跳过这一节课。
+> 这节课主要是作者介绍了一下PyTorch团队在Sparsity方向做的一些工作，重点为Sparsity的GPU推理，如果大家对Sparsity感兴趣，想了解一下它在实际工程应用方面的进展可以考虑听一下，如果不感兴趣可以调过，这个技术比较冷门，目前工业界的推理方案集中在量化上面。
 
 ### 课程笔记
 
@@ -227,12 +227,11 @@ Charlie的GPTQ实验表明可以保持在bfloat16范围内。这避免了超出f
 
 ![](https://files.mdnice.com/user/59/41af8572-9bc2-4b61-a0b4-5ae73c8cf18d.png)
 
-作者并没有继续深入讲解Sparse Training，只是简单提了一下xformers支持了一个Sparse Training，并在ImageNet上做过实验。然后说明了一下Sparse Training和Inference的主要区别以及Sparse Training的一些关键组件，包括需要很快的稀疏算子，让我们完成对输入的压缩，需要自定义的torch.autograd.Function实现，需要cuSPARSELt支持转置操作与后续分布式集合通信算子的融合。
+作者并没有继续深入讲解Sparse Training，只是简单提了一下xformers支持了Semi-Structured (2:4) Sparsity Training，并在ImageNet上做过实验。然后说明了一下Sparse Training和Inference的主要区别以及Sparse Training的一些关键组件，包括需要算得很快的稀疏算子，让我们完成对输入的压缩，需要自定义的torch.autograd.Function实现，需要cuSPARSELt支持转置操作与后续分布式集合通信算子的融合。
 
 ### 总结
 
-这节课主要是作者介绍了一下PyTorch团队在Sparsity方向做的一些事情，实际上和cuda关系不是特别大，如果大家对Sparsity感兴趣，想了解一下它在实际工程应用方面的进展可以考虑听一下，如果只关注学习cuda知识可以跳过这一节课。
-
+这节课主要是作者介绍了一下PyTorch团队在Sparsity方向做的一些工作，重点为Sparsity的GPU推理，如果大家对Sparsity感兴趣，想了解一下它在实际工程应用方面的进展可以考虑听一下，如果不感兴趣可以调过，这个技术比较冷门，目前工业界的推理方案集中在量化上面。
 
 
 
