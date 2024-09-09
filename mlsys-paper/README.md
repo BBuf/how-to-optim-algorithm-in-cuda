@@ -12,3 +12,4 @@
 - [Transformer-Lite: High-efficiency Deployment of Large Language Models on Mobile Phone GPUs](https://arxiv.org/pdf/2403.20041.pdf)
 - [vAttention: Dynamic Memory Management for Serving LLMs without PagedAttention](https://arxiv.org/pdf/2405.04437v1)
 - [An LLM Compiler for Parallel Function Calling](https://openreview.net/pdf?id=uQ2FUoFjnF)
+- [NanoFlow: Towards Optimal Large Language Model Serving Throughput](https://arxiv.org/abs/2408.12757)

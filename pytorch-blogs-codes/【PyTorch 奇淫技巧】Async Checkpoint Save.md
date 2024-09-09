@@ -1,4 +1,4 @@
-## PyTorch 异步Checkpoint保存
+## PyTorch Async Checkpoint Save
 
 - PyTorch博客资料：https://pytorch.org/blog/reducing-checkpointing-times/
 - PyTorch实现和使用Demo：https://github.com/pytorch/pytorch/blob/main/torch/distributed/checkpoint/state_dict_saver.py
