@@ -5,7 +5,7 @@
 本工程记录如何基于 cuda 优化一些常见的算法。请注意，下面的介绍都分别对应了子目录的代码实现，所以想复现性能的话请查看对应子目录下面的 README 。
 
 
-### 0. cuda-model
+### 0. **cuda-mode**
 
 - 课程的 Slides 和 脚本：https://github.com/cuda-mode/lectures
 - 课程地址：https://www.youtube.com/@CUDAMODE
@@ -107,13 +107,33 @@ OneFlow 深度学习框架中基于 cuda 做的优化工作，动态更新中。
 
 ### 13. triton
 
-Triton 学习过程中的代码记录。
+Triton 学习过程中的代码记录和学习笔记。
 
 ### 14. meagtron-lm
 
 Meagtron-LM 学习笔记。
 
-### 15. 原创学习笔记
+### 15. triton-meetup
+
+Triton 中国举办的 Meetup 的slides汇总。点卡这个文件夹也可以找到对应的Meetup的视频回放。
+
+### 16. ptx-isa
+
+对 CUDA PTX ISA 文档的一个翻译和学习。
+
+### 17. pytorch-blog-codes
+
+对 PyTorch 团队发布的 cuda 技术的一些学习笔记。
+
+### 18. cutlass
+
+cutlass 相关的学习笔记。
+
+### 19. cuda-paper
+
+cuda 相关的 paper 的阅读。
+
+### 20. 原创学习笔记
 
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
@@ -154,7 +174,7 @@ Meagtron-LM 学习笔记。
 - [CUDA-MODE课程笔记 第7课: Quantization Cuda vs Triton](https://mp.weixin.qq.com/s/1gCgpp49NF7sDw__EpO-nw)
 - [TRT-LLM中的Quantization GEMM（Ampere Mixed GEMM）CUTLASS 2.x 课程学习笔记](https://mp.weixin.qq.com/s/NPytrkchX25YRBc_6Zy6nA)
 
-### 16. 学习资料收集
+### 21. CUDA 学习资料收集
 
 #### 专栏
 
