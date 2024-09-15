@@ -535,7 +535,7 @@ torch::Tensor forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
 这个kernel在Batch和Num-heads方向上并行，`dim3 grid_dim(B, nh);`。然后每个Block处理一个Batch的一个Head的Attention计算。每个块开了Bc=Br=32个线程，因此每个线程负责每个 S:(Br, Bc) 中一行的计算（肯定有2个Tc和Tr的for循环，因此每个线程实际上会负责一共 Tc * Tr个S），每个thread访问的Qi对应行的起始地址为 tx*d，其中tx就是threadIdx.x，d就是每个注意力头的大小。
 
 ## 总结
-这节课器是内容很少，大部分时间都是作者吹水，但确实也很少有人可以几十分钟就讲清楚Flash Attention的原理+代码实现，想深入了解 Flash Attention 的朋友可以关注我在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda 这里收集的一些讲解 Flash Attention 的资料，然后可以自己动手实现一个 PyTorch 或者 cuda/triton 版本的代码。
+这节课其实内容很少，大部分时间都是作者吹水，但确实也很少有人可以几十分钟就讲清楚Flash Attention的原理+代码实现，想深入了解 Flash Attention 的朋友可以关注我在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda 这里收集的一些讲解 Flash Attention 的资料，然后可以自己动手实现一个 PyTorch 或者 cuda/triton 版本的代码。
 
 
 
