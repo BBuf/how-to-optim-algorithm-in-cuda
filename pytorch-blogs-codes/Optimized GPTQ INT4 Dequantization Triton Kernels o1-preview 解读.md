@@ -1,6 +1,6 @@
 # 0x0. 前言
 
-在[【翻译】在 GPU 上如何加速 GPTQ Triton 反量化kernel](https://mp.weixin.qq.com/s/CX6lPJOVYRPlpFS_WbGbmg) 中 PyTorch 官方给出了一系列优化 GPTQ INT4 反量化 Triton Kernels 的方法，如 L2 Cache（Block swizzled)，向量化读取，SplitK优化改善Warp Stalling，这里单独再利用目前最先进的 o1-preview 解析一下这一个Triton代码实现，看一下这个模型在阅读 Triton kernel 上面的表现。
+在[【翻译】在 GPU 上如何加速 GPTQ Triton 反量化kernel](https://mp.weixin.qq.com/s/CX6lPJOVYRPlpFS_WbGbmg) 中 PyTorch 官方给出了一系列优化 GPTQ INT4 反量化 Triton Kernels 的方法，如 L2 Cache（Block swizzled)，向量化读取，SplitK优化改善Warp Stalling，这里单独再利用目前最先进的 o1-preview 模型解析下这个Triton代码实现，看一下目前最先进的模型在阅读 Triton kernel 上面的表现。
 
 # 0x1. 前置知识
 
