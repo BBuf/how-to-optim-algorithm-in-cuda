@@ -173,6 +173,19 @@ cuda 相关的 paper 的阅读。
 - [CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记](https://mp.weixin.qq.com/s/r9b1dGyOr82ooMl4LD1n_Q)
 - [CUDA-MODE课程笔记 第7课: Quantization Cuda vs Triton](https://mp.weixin.qq.com/s/1gCgpp49NF7sDw__EpO-nw)
 - [TRT-LLM中的Quantization GEMM（Ampere Mixed GEMM）CUTLASS 2.x 课程学习笔记](https://mp.weixin.qq.com/s/NPytrkchX25YRBc_6Zy6nA)
+- [CUDA-MODE课程笔记 第8课: CUDA性能检查清单](https://mp.weixin.qq.com/s/zJLDVF-yjuZ_lMjaCHoS5g)
+- [TensorRT-LLM 中的 Hopper Mixed GEMM 的 CUTLASS 3.x 实现讲解](https://mp.weixin.qq.com/s/AntEnjuNqrAnU9pe2rGC6Q)
+- [通过微基准测试和指令级分析(Instruction-level Analysis)揭秘英伟达Ampere架构](https://mp.weixin.qq.com/s/lmy6Drqh0LbomcaA19Nf8Q)
+- [CUDA-MODE课程笔记 第9课: 归约（也对应PMPP的第10章）](https://mp.weixin.qq.com/s/jdZEPLIzgKm8hilXIUKUww)
+- [【翻译】Accelerating Llama3 FP8 Inference with Triton Kernels](https://mp.weixin.qq.com/s/v6Ah4uFtI2zTgiAZ3-mKvw)
+- [【PyTorch 奇淫技巧】Python Custom Operators翻译](https://mp.weixin.qq.com/s/1P5gXcDhQxavsgo2IYP6rQ)
+- [【翻译】教程：在PyTorch中为CUDA库绑定Python接口](https://mp.weixin.qq.com/s/sgFP59OT-Ex2F9zguSr2Rg)
+- [【翻译】教程：CUTLASS中的矩阵转置 (使用CuTe把矩阵转置优化到GPU内存带宽上下限)](https://mp.weixin.qq.com/s/IQaD4Cq0SEVjmus1wB4-cg)
+- [CUDA-MODE课程笔记 第11课: Sparsity](https://mp.weixin.qq.com/s/28Ku4_EXm0H-ipJX9LKF6g)
+- [【PyTorch 奇淫技巧】Async Checkpoint Save](https://mp.weixin.qq.com/s/DcNjBi_rJKvrU9Ssp8Mo0Q)
+- [CUDA-MODE课程笔记 第12课，Flash Attention](https://mp.weixin.qq.com/s/IBeBHO5WlS5BfyL0nZaDHg)
+- [【翻译】在 GPU 上如何加速 GPTQ Triton 反量化kernel](https://mp.weixin.qq.com/s/CX6lPJOVYRPlpFS_WbGbmg)
+- [基于o1-preview解读 Optimized GPTQ INT4 Dequantization Triton Kernel](https://mp.weixin.qq.com/s/xhCNBjFr6m5hPDPGIhDP7w)
 
 ### 21. CUDA 学习资料收集
 
