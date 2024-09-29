@@ -218,3 +218,111 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
 
 ![](https://files.mdnice.com/user/59/b70b5a76-b1da-4c0d-aebd-b74a0d49800e.png)
 
+这里介绍了一下"Ring Attention"的主要概念。内容包括：
+- **计算顺序的灵活性**：块计算的顺序可以是任意的，不受限制。
+- **QKV序列的分割**：将QKV（查询、键和值）序列分割成N个不同的主机进行处理。
+- **主机环状结构**：这些主机形成一个概念上的环，用于交换KV（键和值）段。
+- **完成条件**：当每个节点都看到所有KV部分时，一个完整的循环就完成了。
+- **零开销**：对于较长的序列，由于计算和通信可以重叠，因此实现了零开销。
+
+![](https://files.mdnice.com/user/59/0627acad-eb05-47b8-b5ce-976d6215059d.png)
+
+这里展示了一下Ring Attention的伪代码和前面2个slides的代码是相对应的。
+
+![](https://files.mdnice.com/user/59/a7d4d710-cfee-4fcb-b119-0b02b7cb3e0a.png)
+
+这张Slides回顾了自回归模型（Autoregressive Models）中的因果掩码（Causal Masking）的概念和作用，内容包括：
+- 因果掩码是支持自回归解码所必需的，因为在自回归模型中，每个时刻的输出只能依赖当前及之前的输入，而不能看到未来的输入。
+- 注意力得分的计算变为：`dot(Q_i, K_j) if i <= j else -inf`。即，如果当前查询$Q_i$的索引$i$小于等于键$K_j$的索引$j$，则正常计算点积；否则，得分为负无穷大（-inf），使得该位置在softmax输出中为零（不会被关注）。
+- 掩码无需被显式存储，而是可以在内核（kernel）中动态计算。
+- 类似于Flash Attention的kernel可以跳过完全被掩码的键值块，从而提升计算效率。
+
+![](https://files.mdnice.com/user/59/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
+
+这张Slides描述了自回归模型中使用Ring Attention时遇到的主要问题及其影响。
+- 设备空闲问题：
+    - 当使用因果掩码（Causal Masking）时，在环形结构中某些设备会处于空闲状态。这种情况在所有自回归模型（例如语言模型）中非常常见。
+    - 由于因果掩码的存在，当查询索引（Query_index）小于键索引（Key_index）时，输出会被掩盖（置为0），导致某些设备在计算时没有实际有效的输出，因此在等待其他设备时处于空闲状态。
+- 解决方案：
+    - 使用Ring Attention的环形结构，可以动态地跳过完全被掩码的键值块，从而提升计算效率。
+    - 通过这种方式，可以减少计算资源的浪费，提高计算效率。
+
+![](https://files.mdnice.com/user/59/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
+
+这张Slides描述了自回归模型中使用Ring Attention时遇到的主要问题及其影响。
+- 设备空闲问题：
+    - 当使用因果掩码（Causal Masking）时，在环形结构中某些设备会处于空闲状态。这种情况在所有自回归模型（例如语言模型）中非常常见。
+    - 由于因果掩码的存在，当查询索引（Query_index）小于键索引（Key_index）时，输出会被掩盖（置为0），导致某些设备在计算时没有实际有效的输出，因此在等待其他设备时处于空闲状态。
+- 解决方案：
+    - 使用Ring Attention的环形结构，可以动态地跳过完全被掩码的键值块，从而提升计算效率。
+    - 通过这种方式，可以减少计算资源的浪费，提高计算效率。
+
+![](https://files.mdnice.com/user/59/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
+
+这张Slides描述了自回归模型中使用Ring Attention时遇到的主要问题及其影响。
+- **设备空闲问题**：
+    - 当使用因果掩码（Causal Masking）时，在环形结构中某些设备会处于空闲状态。这种情况在所有自回归模型（例如语言模型）中非常常见。
+    - 由于因果掩码的存在，当查询索引（Query_index）小于键索引（Key_index）时，输出会被掩盖（置为0），导致某些设备在计算时没有实际有效的输出，因此在等待其他设备时处于空闲状态。
+- **逐轮处理的过程演示**：
+    - 该图将Ring Attention过程分为了四个回合（Round 0到Round 3），每个回合中，每个设备（如GPU）负责不同的KV（键-值）块和Q（查询）块。
+    - 每个回合中，设备根据查询和键的索引关系计算输出，当掩码的值为0时（黑色格子表示被掩盖的位置），输出被强制为0。
+    - 图中可以看到，随着回合的推进，有些设备的计算结果被掩盖（黑色区域增多），导致设备无法参与有效计算。
+- **最慢的环形节点决定整体速度**：
+    - Slides 特别指出：环形结构中最慢的主机（Ring Host）决定了整体计算的速度。因此，如果某个设备因掩码导致计算时间变长或空闲时间变多，会拖慢整体环形的计算速度，降低效率。
+
+![](https://files.mdnice.com/user/59/25eca3d3-6b90-43c3-bafa-8da15355795f.png)
+
+这张Slides在上面的Slides基础上进一步详细说明了Ring Attention在自回归模型中应用因果掩码时的具体过程和问题。
+- **Causal Mask Chunks 分割及其应用**：
+    - 左侧的图例显示了一个因果掩码矩阵，将其分割成多个块（例如，A、B、C等），这些块在Ring Attention的不同回合（Rounds）中进行应用。
+    - 矩阵的每个块表示查询 Q 和键 K 之间的掩码关系。灰色表示有效计算，黑色表示被掩盖（mask）的位置。
+- **分块应用的过程**：
+    - 通过将因果掩码矩阵划分为多个小块，这些小块分别被分配到每一轮Ring Attention中进行计算。
+    - 每一轮Ring Attention（Round 0 到 Round 3）对应右侧图中的不同计算顺序。可以看到，每一轮Ring Attention中，每个设备分别计算不同的KV段，并根据分块掩码进行计算。
+    - 每个回合的底部显示了当前回合的因果掩码矩阵的分块（例如，A、F、K、P等），这些分块对应矩阵的不同部分，并标记出了在当前回合中被应用的掩码块。
+- **各个回合的掩码关系**：
+    - Round 0 应用的掩码块为：A、F、K、P。
+    - Round 1 应用的掩码块为：D、E、J、O。
+    - Round 2 应用的掩码块为：C、H、I、N。
+    - Round 3 应用的掩码块为：B、G、L、M。
+    - 每个回合通过不同的掩码块，可以逐步形成整体的因果掩码矩阵。每个掩码块仅在其对应的回合中参与计算，从而保证了自回归解码的因果性。
+- **掩码应用的顺序**：
+    - 不同颜色和字母标记的掩码块显示了Ring Attention在多个回合中如何分布和应用掩码。通过这种方式，每个设备能够在不同回合中处理不同的KV块和Q块，从而覆盖整个因果掩码矩阵。
+
+> 上面讲的都是Ring Attention的负载不均衡问题，接下来介绍个解决方案。
+
+![](https://files.mdnice.com/user/59/dbe00625-afd7-4741-b345-32b45b783e8c.png)
+
+![](https://files.mdnice.com/user/59/f2b23290-ca73-4c39-bc20-bfde8ccb2310.png)
+
+这两张slides讲解了一个Ring Attention负载不均衡的解决方案，通过 **Stripe Permutation（条带置换）** 的策略，将K，V和Q在序列维度上按条带重新排列（比如将KV0分成了0,4,8,12，而不是连续的0,1,2,3），通过重新排列KV和Q块，Striped Attention能够更好地分配计算资源，从而减轻设备之间的不平衡性，提高整体计算效率。从第二张Slides可以看到，经过条带置换后的计算过程几乎能够完美地均衡分配计算负载，从而使得设备之间的计算更加平衡，避免了Ring Attention中存在的设备空闲问题。在每个回合中，只有当“host_id < round”时，需要丢弃第一个查询和最后一个键的计算，这样做能够避免不必要的计算，进一步提升效率。
+
+![](https://files.mdnice.com/user/59/8d056f6b-6d46-43e0-8237-2aab602b9cf4.png)
+
+![](https://files.mdnice.com/user/59/ebff1ff8-f32c-4d0b-acbb-2053278fc5aa.png)
+
+这两张slides则讲述了 FlashAttention 和 Flash-Decoding 两种不同的方法在长文本推理任务中的表现差异。
+- FlashAttention 在长文本推理中表现不佳。
+    - FlashAttention 只能对查询（queries）的块和批量大小（batch size）进行并行化处理，这在逐字（token-by-token）解码过程中无法充分利用整个 GPU 的计算资源。
+    - 第一张Slides下方的图示展示了 Queries、Values 和 Keys 在 FlashAttention 中的处理方式。图中显示了 Queries、Values 和 Keys 是分块处理的，每个块的大小和位置是固定的，这种处理方式无法做到高效的并行解码。
+- Flash-Decoding
+    - Flash-Decoding 通过将 Queries、Values 和 Keys 进行多个分割来优化解码过程（图中显示了 1/5, 2/5, 3/5, 4/5 和 5/5 分割方式）。
+    - 这种方法允许每个分割独立进行并行解码，从而更好地占用 GPU 的计算资源，提高了解码的效率和速度。
+    - 图中展示了每个分割部分如何被分别处理，并最终合并成完整的输出结果。
+
+Flash-Decoding和Ring Attention的区别是，它不需要在多个Host上进行序列切分和通信传递K和V，而是通过2个Kernel来完成长序列的Attention的计算。从某种角度来说，我们也可以把Flash Decoding看作是Ring Attention在推理阶段的一个优化。
+
+![](https://files.mdnice.com/user/59/a73840aa-aa64-42d3-a7e9-e6f562a2839a.png)
+
+最后一张Slides给出了这节课的一些链接。
+
+## 总结
+
+这节课介绍了一下Ring Attention的原理，基于Flash Attention的Ring Attention的基础实现，以及如何通过Stripe Permutation来解决Ring Attention的负载不均衡问题，最后介绍了Flash Decoding和Flash Attention的原理和区别。很高兴看到国人(github.com/zhuzilin)的工作可以出圈到CUDA-MODE，也推荐大家看原作者的Ring Attention讲解和改进的文章：https://zhuanlan.zhihu.com/p/683714620 。最近作者又提出了《更适合 flash attenion 体质的长上下文训练方案》：https://zhuanlan.zhihu.com/p/718486708 ，也推荐大家学习这个。感谢zhuzilin的优秀工作以及毫不吝啬的开源和分享。
+
+
+
+
+
+
+
