@@ -197,6 +197,18 @@ output = function(shape_10_inputs)
 
 ![](https://files.mdnice.com/user/59/48fcf697-335c-4880-8d45-87c0ba298fb7.png)
 
+> 图片解释：
+
+- **源代码 (Source Code)**： 图中展示了一个简单的 Python 函数 `function(inputs)`，该函数对输入的两个张量 `x` 和 `y` 进行一些数学运算（例如 `cos` 和 `mean`）后返回 `x * y`。
+- **输入 (Input)**： 显示了该函数的输入 inputs 包含 `x` 和 `y` 两个 `torch.Tensor` 类型的张量。
+- **守护函数 (Guard)**： 守护函数基于输入和 Python 字节码生成，确保编译器在运行时验证张量 `x` 和 `y` 的形状和类型，以决定是否需要重新编译或可以直接执行。
+- **Python 字节码分析 (Python Bytecode Analysis)**： 图中显示了 Python 源代码经过编译器分析后生成的字节码。这里将 Python 操作（与张量计算无关的部分）和纯张量计算的 PyTorch 操作（如 cos、mean 等）分开列出。
+- **转换后的字节码 (Transformed Bytecode)**： 在 PyTorch 编译器将源码转换成字节码后，会根据不同操作生成相应的字节码指令，同时根据守护条件来决定执行流程。比如图中展示了 `_compiled_fn` 的实现和条件跳转操作。
+- **恢复函数 (Resume Functions)**： 当某些操作需要的条件不满足（比如某个张量值需要重新计算）时，编译器会触发恢复函数（resume function），该恢复函数可以继续进行需要的计算，并且递归地触发字节码分析。
+- **执行流程 (Execution Workflow)**： 最后，图中展示了如何从原始的字节码指令通过守护条件、张量计算图、恢复函数等一系列操作形成最终的执行字节码流程。
+
+> 注意：字节码后标注了对应的原始的python代码
+
 ``Dynamo`` 的一个重要特性是，它可以分析 ``function`` 函数内部调用的所有函数。如果一个函数可以完全用计算图表示，那么该函数调用将被内联，函数调用将被消除。
 
 ``Dynamo`` 的任务是以安全和可靠的方式从 Python 代码中提取计算图。一旦我们有了计算图，我们就可以进入计算图优化的世界了。
