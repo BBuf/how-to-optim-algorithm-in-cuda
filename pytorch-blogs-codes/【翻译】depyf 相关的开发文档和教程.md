@@ -7,7 +7,7 @@
 ``depyf`` 旨在解决 ``torch.compile`` 的两个痛点：
 
 - ``torch.compile`` 转换 Python 字节码，但很少有开发者能够阅读 Python 字节码（除非你的大脑里有一个栈机...）来理解发生了什么。``depyf`` 帮助将转换后的字节码反编译回 Python 源代码，以便开发者能够理解 ``torch.compile`` 如何转换他们的代码。这大大帮助用户适应他们的代码到 ``torch.compile``，以便他们可以编写对 ``torch.compile`` 友好的代码。
-- ``torch.compile`` 动态生成许多函数，这些函数只能作为一个黑盒运行。用户无法逐行调试代码。``depyf`` 帮助将源代码dumps到文件中，并将这些函数与源代码文件链接，以便用户可以使用调试器逐行调试这些函数。这大大帮助用户理解 ``torch.compile`` 并在训练过程中调试诸如 ``NaN`` 等问题。
+- ``torch.compile`` 动态生成许多函数，这些函数只能作为一个黑盒运行。用户无法逐行调试代码。``depyf`` 帮助将源代码转储到文件中，并将这些函数与源代码文件链接，以便用户可以使用调试器逐行调试这些函数。这大大帮助用户理解 ``torch.compile`` 并在训练过程中调试诸如 ``NaN`` 等问题。
 
 从《torch.compile 的详细示例解析教程》中获取工作流程：
 
@@ -61,7 +61,7 @@ with depyf.debug():
     output = function(shape_10_inputs)
 ```
 
-第一个上下文管理器 ``depyf.prepare_debug()`` 接受一个目录路径来dumps所有源代码。在这个上下文管理器内部，PyTorch 的所有内部细节将被 ``depyf`` 钩住，它会为你dumps必要的源代码。
+第一个上下文管理器 ``depyf.prepare_debug()`` 接受一个目录路径来转储所有源代码。在这个上下文管理器内部，PyTorch 的所有内部细节将被 ``depyf`` 钩住，它会为你转储必要的源代码。
 
 第二个上下文管理器 ``depyf.debug()`` 没有参数，它只是禁用新的编译条目。进入这个上下文管理器时，程序将暂停，你可以在你指定的目录下浏览所有源代码（在这个例子中是 ``"./debug_dir"``）。入口文件是 ``full_code_for_xxx.py``。你可以在这些文件中设置断点。最重要的是，你设置的那些断点，在这个上下文管理器下可以被命中。你可以逐行浏览代码，调试可能的 ``NaN`` 值或理解代码发生了什么。
 
@@ -78,7 +78,7 @@ with depyf.debug():
 
 #### `depyf.prepare_debug`
 
-用于dumps `torch.compile` 调试信息的一个上下文管理器。
+用于转储 `torch.compile` 调试信息的一个上下文管理器。
 它应该包裹实际触发编译的代码，而不是应用 ``torch.compile`` 的代码。
 
 示例：
@@ -105,280 +105,287 @@ if __name__ == "__main__":
         main()
 ```
 
-After running the code, you will find the dumped information in the directory ``dump_src_dir``. The details are organized into the following:
+运行代码后，你将在目录 ``dump_src_dir`` 中找到转储的信息。详细信息组织如下：
 
-- ``full_code_for_xxx.py`` for each function using torch.compile
-- ``__transformed_code_for_xxx.py`` for Python code associated with each graph.
-- ``__transformed_code_for_xxx.py.xxx_bytecode`` for Python bytecode, dumped code object, can be loaded via ``dill.load(open("/path/to/file", "wb"))``. Note that the load function might import some modules like transformers. Make sure you have these modules installed.
-- ``__compiled_fn_xxx.py`` for each computation graph and its optimization:
-    - ``Captured Graph``: a plain forward computation graph
-    - ``Joint Graph``: joint forward-backward graph from AOTAutograd
-    - ``Forward Graph``: forward graph from AOTAutograd
-    - ``Backward Graph``: backward graph from AOTAutograd
-    - ``kernel xxx``: compiled CPU/GPU kernel wrapper from Inductor.
+- ``full_code_for_xxx.py`` 用于每个使用 torch.compile 的函数
+- ``__transformed_code_for_xxx.py`` 用于与每个图相关的 Python 代码
+- ``__transformed_code_for_xxx.py.xxx_bytecode`` 用于 Python 字节码，转储的代码对象，可以通过 ``dill.load(open("/path/to/file", "wb"))`` 加载。注意，加载函数可能导入一些模块，如 transformers。请确保你已安装这些模块。
+- ``__compiled_fn_xxx.py`` 用于每个计算图及其优化：
+    - ``Captured Graph``：一个简单的正向计算图
+    - ``Joint Graph``：来自 AOTAutograd 的联合正向-反向图
+    - ``Forward Graph``：来自 AOTAutograd 的正向图
+    - ``Backward Graph``：来自 AOTAutograd 的反向图
+    - ``kernel xxx``：来自 Inductor 的编译 CPU/GPU kernel包装器
 
-Arguments:
+参数：
 
-- ``dump_src_dir``: the directory to dump the source code.
-- ``clean_wild_fx_code``: whether to clean the wild fx code that are not recognized for parts of compiled functions. They are usually used by PyTorch internally.
-- ``log_bytecode``: whether to log bytecode (original bytecode, transformed bytecode from Dynamo, and decompiled_and_compiled_back_code).
+- ``dump_src_dir``：转储源代码的目录
+- ``clean_wild_fx_code``：是否清理未识别的编译函数部分中的 wild fx 代码。它们通常由 PyTorch 内部使用。
+- ``log_bytecode``：是否记录字节码（原始字节码、来自 Dynamo 的转换字节码和反编译并重新编译的字节码）
 
 #### `depyf.debug`
 
-A context manager to debug the compiled code. Essentially, it sets a breakpoint to pause the program and allows you to check the full source code in files with prefix `full_code_for_` in the `dump_src_dir` argument of `depyf.prepare_debug()`, and set breakpoints in their separate `__transformed_code_` files according to the function name. Then continue your debugging.
+用于调试编译代码的上下文管理器。本质上，它设置了一个断点来暂停程序，并允许您在 `depyf.prepare_debug()` 的 `dump_src_dir` 参数中以 `full_code_for_` 为前缀的文件中检查完整的源代码，并根据函数名称在其单独的 `__transformed_code_` 文件中设置断点。然后继续您的调试。
 
-### Decompile general Python Bytecode/Function
+### 反编译通用 Python 字节码/函数
 
 #### `depyf.decompile`
 
-Decompile any callable or code object into Python source code.
-It is especially useful for some dynamically generated code, like ``torch.compile``,
-or ``dataclasses``.
+将任何可调用对象或代码对象反编译为 Python 源代码。
+这对于一些动态生成的代码特别有用，例如 ``torch.compile`` 或 ``dataclasses``。
 
-Example usage:
+示例用法：
 
-.. code-block:: python
+```python
+from dataclasses import dataclass
+@dataclass
+class Data:
+    x: int
+    y: float
 
-    from dataclasses import dataclass
-    @dataclass
-    class Data:
-        x: int
-        y: float
+import depyf
+print(depyf.decompile(Data.__init__))
+print(depyf.decompile(Data.__eq__))
+```
 
-    import depyf
-    print(depyf.decompile(Data.__init__))
-    print(depyf.decompile(Data.__eq__))
+输出:
 
-Output:
+```python
+def __init__(self, x, y):
+    self.x = x
+    self.y = y
+    return None
 
-.. code-block:: python
+def __eq__(self, other):
+    if other.__class__ is self.__class__:
+        return (self.x, self.y) == (other.x, other.y)
+    return NotImplemented
+```
 
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        return None
+输出的源代码在语义上等同于函数，但在语法上并不相同。它详细地添加了许多在Python代码中隐藏的细节。例如，上面``__init__``的输出代码显式地返回了``None``，这在通常情况下是被忽略的。
 
-    def __eq__(self, other):
-        if other.__class__ is self.__class__:
-            return (self.x, self.y) == (other.x, other.y)
-        return NotImplemented
+另一个细节是，当类型不同时，``__eq__``的输出代码返回了``NotImplemented``而不是引发``NotImplemented``异常。乍一看，这似乎是一个错误。然而，这实际上是正确的行为。当类型不同时，``__eq__``方法应该返回``NotImplemented``，以便另一个对象可以尝试与当前对象进行比较。更多详情请参见`Python文档 <https://docs.python.org/3/library/numbers.html#implementing-the-arithmetic-operations>`_。
 
-The output source code is semantically equivalent to the function, but not syntactically the same. It verbosely adds many details that are hidden in the Python code. For example, the above output code of ``__init__`` explicitly returns ``None``, which is typically ignored.
-
-Another detail is that the output code of ``__eq__`` returns ``NotImplemented`` instead of raising ``NotImplemented`` exception when the types are different. At the first glance, it seems to be a bug. However, it is actually the correct behavior. The ``__eq__`` method should return ``NotImplemented`` when the types are different, so that the other object can try to compare with the current object. See `the Python documentation <https://docs.python.org/3/library/numbers.html#implementing-the-arithmetic-operations>`_ for more details.
-
-### Enhance PyTorch Logging
+### 增强 PyTorch 日志记录
 
 #### `depyf.install`
 
-Decompile any callable or code object into Python source code.
-It is especially useful for some dynamically generated code, like ``torch.compile``,
-or ``dataclasses``.
+安装 PyTorch 的字节码钩子，集成到 PyTorch 的日志系统中。
 
-Example usage:
+示例：
 
-.. code-block:: python
+```python
+import torch
+import depyf
+depyf.install()
+# anything with torch.compile
+@torch.compile
+def f(a, b):
+    return a + b
+f(torch.tensor(1), torch.tensor(2))
+```
 
-    from dataclasses import dataclass
-    @dataclass
-    class Data:
-        x: int
-        y: float
+通过 `export TORCH_LOGS="+bytecode"` 开启字节码日志，并执行脚本。我们将在日志中看到反编译的源代码：
 
-    import depyf
-    print(depyf.decompile(Data.__init__))
-    print(depyf.decompile(Data.__eq__))
+```shell
+ORIGINAL BYTECODE f test.py line 5 
+7           0 LOAD_FAST                0 (a)
+            2 LOAD_FAST                1 (b)
+            4 BINARY_ADD
+            6 RETURN_VALUE
 
-Output:
 
-.. code-block:: python
+MODIFIED BYTECODE f test.py line 5 
+5           0 LOAD_GLOBAL              0 (__compiled_fn_1)
+            2 LOAD_FAST                0 (a)
+            4 LOAD_FAST                1 (b)
+            6 CALL_FUNCTION            2
+            8 UNPACK_SEQUENCE          1
+            10 RETURN_VALUE
 
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        return None
 
-    def __eq__(self, other):
-        if other.__class__ is self.__class__:
-            return (self.x, self.y) == (other.x, other.y)
-        return NotImplemented
+possible source code:
+def f(a, b):
+    __temp_2, = __compiled_fn_1(a, b)
+    return __temp_2
 
-The output source code is semantically equivalent to the function, but not syntactically the same. It verbosely adds many details that are hidden in the Python code. For example, the above output code of ``__init__`` explicitly returns ``None``, which is typically ignored.
-
-Another detail is that the output code of ``__eq__`` returns ``NotImplemented`` instead of raising ``NotImplemented`` exception when the types are different. At the first glance, it seems to be a bug. However, it is actually the correct behavior. The ``__eq__`` method should return ``NotImplemented`` when the types are different, so that the other object can try to compare with the current object. See `the Python documentation <https://docs.python.org/3/library/numbers.html#implementing-the-arithmetic-operations>`_ for more details.
+If you find the decompiled code is wrong,please submit an issue at https://github.com/thuml/depyf/issues.
+```
+卸载这个钩子使用 `depyf.uninstall()`.
 
 #### `depyf.uninstall`
 
-Uninstall the bytecode hook for PyTorch. Should be called after depyf.install().
+卸载 PyTorch 的字节码钩子。应在 `depyf.install()` 之后调用。
 
 ## 优化教程
 
-In this tutorial, we will demonstrate how to optimize code using ``torch.compile``, with the help of the ``depyf`` library.
+在本教程中，我们将演示如何使用 ``torch.compile`` 优化代码，并借助 ``depyf`` 库的帮助。
 
-### Example Code
+### 示例代码
 
-Let's start with a simple example that we want to optimize:
+让我们从一个简单的示例开始，这是我们想要优化的代码：
 
-.. code-block:: python
+```python
+import torch
 
-    import torch
+class F(torch.nn.Module):
+    def __init__(self, i):
+        super().__init__()
+        self.i = i
 
-    class F(torch.nn.Module):
-        def __init__(self, i):
-            super().__init__()
-            self.i = i
+    def forward(self, x):
+        return x + self.i
 
-        def forward(self, x):
-            return x + self.i
+class Mod(torch.nn.Module):
+    def __init__(self, n: int):
+        super().__init__()
+        self.fs = torch.nn.ModuleList([F(i) for i in range(n)])
 
-    class Mod(torch.nn.Module):
-        def __init__(self, n: int):
-            super().__init__()
-            self.fs = torch.nn.ModuleList([F(i) for i in range(n)])
+    @torch.compile
+    def forward(self, x):
+        for f in self.fs:
+            x = f(x)
+        return x
 
-        @torch.compile
-        def forward(self, x):
-            for f in self.fs:
-                x = f(x)
-            return x
+total_time = 0
+import time
 
-    total_time = 0
-    import time
+mod = Mod(100)
+mod(torch.tensor([1]))  # Compile the function
 
-    mod = Mod(100)
+x = torch.tensor([2])  # Create input tensor
+start = time.time()
+for i in range(10000):
+    y = mod(x)
+    # do something with y
+end = time.time()
+total_time += end - start
+print(total_time)
+```
+
+这个示例有意简化了计算过程，以便更容易理解。在实际场景中，函数会执行更复杂的操作。在MacOS机器上，运行编译后的函数10,000次大约需要0.7秒。我们的目标是优化代码以减少执行时间。
+
+### 使用 Depyf 理解代码
+
+为了优化代码，我们首先需要理解执行过程中发生了什么。``depyf`` 库可以反编译字节码并提供洞察。我们可以在之前的代码中添加两行：
+
+```python
+# Insert these lines before ``mod(torch.tensor([1]))``
+import depyf
+with depyf.prepare_debug("dump_src_dir/"):
     mod(torch.tensor([1]))  # Compile the function
+# Remaining code as above
+```
 
-    x = torch.tensor([2])  # Create input tensor
-    start = time.time()
-    for i in range(10000):
-        y = mod(x)
-        # do something with y
-    end = time.time()
-    total_time += end - start
-    print(total_time)
+运行代码后，会出现一个名为 ``dump_src_dir/`` 的新目录。该目录包含反编译后的源代码。例如，在文件 ``full_code_for_forward_0.py`` 中，您将找到：
 
-This example is intentionally simplified to make the computation easy to follow. In a real-world scenario, the function would perform more complex operations. On a MacOS machine, running the compiled function 10,000 times takes around 0.7 seconds. Our goal is to optimize the code to reduce this execution time.
+```python
+def __guard_0_for_forward(L, G, **___kwargs_ignored):
+    __guard_hit = True
+    __guard_hit = __guard_hit and utils_device.CURRENT_DEVICE == None
+    __guard_hit = __guard_hit and ___check_global_state()
+    __guard_hit = __guard_hit and check_tensor(L['x'], Tensor, DispatchKeySet(CPU, ...), ...)
+    ...
+    __guard_hit = __guard_hit and len(L['self'].fs) == 100
+    __guard_hit = __guard_hit and L['self'].fs[0].i == 0
+    __guard_hit = __guard_hit and L['self'].fs[1].i == 1
+    __guard_hit = __guard_hit and L['self'].fs[2].i == 2
+    ...
+    return __guard_hit
+```
 
-### Understanding the Code with Depyf
+这是 ``torch.compile`` 生成的代码，用于检查函数的输入是否仍然对编译后的函数有效。然而，这些检查中有许多过于保守。例如，``L['self'].fs[0].i == 0`` 检查 ``self.fs[0].i`` 是否仍然是 ``0``，即使我们的代码没有修改这个值。
 
-To optimize the code, we first need to understand what's happening during execution. The ``depyf`` library can decompile the bytecode and provide insights. We can add two lines to the previous code:
+> ``torch.compile`` 是一个即时编译器。这意味着每次调用函数时都会执行上述所有检查，从而引入显著的开销。
 
-.. code-block:: python
+### 优化代码
 
-    # Insert these lines before ``mod(torch.tensor([1]))``
-    import depyf
-    with depyf.prepare_debug("dump_src_dir/"):
-        mod(torch.tensor([1]))  # Compile the function
-    # Remaining code as above
+由于 ``torch.compile`` 每次调用函数时都会执行这些检查，因此引入了开销。为了优化代码，我们可以绕过这些检查。一种方法是修改 ``__guard_0_for_forward`` 函数以立即返回 ``True``，但 ``torch.compile`` 没有提供直接的机制来实现这一点。
 
-After running the code, a new directory named ``dump_src_dir/`` will appear. This directory contains the decompiled source code. For example, in the file ``full_code_for_forward_0.py``, you will find:
+相反，我们可以使用 ``depyf`` 直接调用编译后的函数而无需检查。以下代码演示了这种方法：
 
-.. code-block:: python
+```python
 
-    def __guard_0_for_forward(L, G, **___kwargs_ignored):
-        __guard_hit = True
-        __guard_hit = __guard_hit and utils_device.CURRENT_DEVICE == None
-        __guard_hit = __guard_hit and ___check_global_state()
-        __guard_hit = __guard_hit and check_tensor(L['x'], Tensor, DispatchKeySet(CPU, ...), ...)
-        ...
-        __guard_hit = __guard_hit and len(L['self'].fs) == 100
-        __guard_hit = __guard_hit and L['self'].fs[0].i == 0
-        __guard_hit = __guard_hit and L['self'].fs[1].i == 1
-        __guard_hit = __guard_hit and L['self'].fs[2].i == 2
-        ...
-        return __guard_hit
+import torch
+import depyf
+from depyf.optimization import TorchCompileWrapperWithCustomDispatcher
 
-This is the code that ``torch.compile`` generates to check whether the function's input remains valid for the compiled function. However, many of these checks are overly conservative. For example, ``L['self'].fs[0].i == 0`` checks that ``self.fs[0].i`` is still ``0``, even though our code doesn't modify this value.
+class F(torch.nn.Module):
+    def __init__(self, i):
+        super().__init__()
+        self.i = i
 
-Remember from the :doc:`walk_through`, that ``torch.compile`` is a just-in-time compiler. It means all the above checks are executed every time we call the function, introducing significant overhead.
+    def forward(self, x):
+        return x + self.i
 
-### Optimizing the Code
+class Mod(TorchCompileWrapperWithCustomDispatcher):
+    def __init__(self, n: int):
+        self.fs = torch.nn.ModuleList([F(i) for i in range(n)])
+        compiled_callable = torch.compile(self.forward)
+        super().__init__(compiled_callable)
 
-Since ``torch.compile`` performs these checks every time the function is called, they introduce overhead. To optimize the code, we can bypass these checks. One approach is to modify the ``__guard_0_for_forward`` function to return ``True`` immediately, but ``torch.compile`` doesn't provide a direct mechanism for this.
+    def forward(self, x):
+        for f in self.fs:
+            x = f(x)
+        return x
 
-Instead, we can use ``depyf`` to directly call the compiled function without the checks. The following code demonstrates this approach:
+    def __call__(self, x):
+        if len(self.compiled_codes) == 1:
+            with self.dispatch_to_code(0):
+                return self.forward(x)
+        else:
+            return self.compiled_callable(x)
 
-.. code-block:: python
+total_time = 0
+import time
 
-    import torch
-    import depyf
-    from depyf.optimization import TorchCompileWrapperWithCustomDispatcher
+mod = Mod(100)
+mod(torch.tensor([1]))  # Compile
 
-    class F(torch.nn.Module):
-        def __init__(self, i):
-            super().__init__()
-            self.i = i
+x = torch.tensor([2])  # Input tensor
+start = time.time()
+for i in range(10000):
+    y = mod(x)
+end = time.time()
+total_time += end - start
+print(total_time)
+```
 
-        def forward(self, x):
-            return x + self.i
+在这段代码中，使用了 ``TorchCompileWrapperWithCustomDispatcher`` 类来绕过检查。通过这样做，执行时间从原来的 0.7 秒下降到大约 0.05 秒。这表明检查是大部分开销的来源。
 
-    class Mod(TorchCompileWrapperWithCustomDispatcher):
-        def __init__(self, n: int):
-            self.fs = torch.nn.ModuleList([F(i) for i in range(n)])
-            compiled_callable = torch.compile(self.forward)
-            super().__init__(compiled_callable)
+### 工作原理
 
-        def forward(self, x):
-            for f in self.fs:
-                x = f(x)
-            return x
+``TorchCompileWrapperWithCustomDispatcher`` 劫持了 ``torch.compile`` 生成的字节码，并直接调用编译后的函数，跳过了守卫检查。``__call__`` 方法检查是否已经存在编译版本，如果存在，则直接分派到编译后的代码。
 
-        def __call__(self, x):
-            if len(self.compiled_codes) == 1:
-                with self.dispatch_to_code(0):
-                    return self.forward(x)
-            else:
-                return self.compiled_callable(x)
+### 实际应用
 
-    total_time = 0
-    import time
+这是一个极端的例子，计算非常简单，但Dynamo引入的开销却不成比例地大。在实际应用中，开销通常不会这么严重。然而，在高性能环境中，例如在TPU上运行代码时，这种开销仍然可能非常显著。TPU代码通常对性能非常敏感，移除不必要的检查可以带来显著的加速。
 
-    mod = Mod(100)
-    mod(torch.tensor([1]))  # Compile
+例如，在 `vLLM的TPU集成 <https://github.com/vllm-project/vllm/pull/7898>`_ 中，这种优化技术被用来移除Dynamo的开销，从而将TPU的吞吐量提高了4%。
 
-    x = torch.tensor([2])  # Input tensor
-    start = time.time()
-    for i in range(10000):
-        y = mod(x)
-    end = time.time()
-    total_time += end - start
-    print(total_time)
+### 结论
 
-In this code, the ``TorchCompileWrapperWithCustomDispatcher`` class is used to bypass the checks. By doing this, the execution time drops to about 0.05 seconds, compared to the original 0.7 seconds. This shows that the checks were responsible for most of the overhead.
+使用 ``torch.compile`` 优化代码涉及以下步骤：
 
-### How It Works
+1. 使用 ``depyf`` 反编译字节码并理解性能瓶颈。
+2. 识别并解决不必要的检查或其他开销来源。
+3. 使用 ``depyf`` 直接调用编译后的函数，在适当的地方绕过不必要的步骤。
 
-``TorchCompileWrapperWithCustomDispatcher`` hijacks the bytecode generated by ``torch.compile`` and directly calls the compiled function without the guards. The ``__call__`` method checks whether a compiled version already exists, and if so, it dispatches directly to the compiled code.
-
-### Real-World Applications
-
-This is an extreme example with a trivial computation, where the overhead introduced by Dynamo is disproportionately large. In practice, the overhead is typically not as severe. However, it can still be significant in high-performance environments, such as when running code on TPU. TPU code is often performance-sensitive, and removing unnecessary checks can lead to substantial speedups.
-
-For example, in `vLLM's TPU integration <https://github.com/vllm-project/vllm/pull/7898>`_, this optimization technique is used to remove Dynamo's overhead, improving TPU throughput by 4%.
-
-### Conclusion
-
-Optimizing code with ``torch.compile`` involves:
-
-1. Using ``depyf`` to decompile the bytecode and understand the performance bottlenecks.
-2. Identifying and addressing unnecessary checks or other sources of overhead.
-3. Using ``depyf`` to directly call the compiled function, bypassing unnecessary steps where appropriate.
-
-By following these steps, we can significantly improve performance, especially in environments where execution time is critical.
+通过遵循这些步骤，我们可以显著提高性能，特别是在执行时间至关重要的环境中。
 
 ## 开发者文档
 
-For developers, if you want to understand and contribute to the codebase, this section is for you.
+对于开发者，如果你想了解和贡献代码库，本节适合你。
 
-### Overall architecture of the library
+### 库的总体架构
 
 ![](https://files.mdnice.com/user/59/f9a4bbf8-39d8-445a-86e0-1f578bbf0319.png)
 
-The figure above shows the overall architecture of the library.
+上图展示了库的整体架构。
 
-1. Normally, when we execute Python code, the code is compiled into Python bytecode, which is then executed by the Python interpreter.
-2. When ``torch.compile`` is used, PyTorch will compile the function into a new bytecode object to execute. It achieves this via registering a frame-evaluation function to the Python interpreter. The frame-evaluation function will be called whenever the function is executed. PyTorch wraps the frame-evaluation callback registration via the ``torch._C._dynamo.eval_frame.set_eval_frame`` function. Because PyTorch directly generates the bytecode, it does not have the source code information. The bytecode is directly executed by the Python interpreter.
-3. When ``depyf`` is used together with PyTorch, it will register a bytecode hook to PyTorch via ``torch._dynamo.convert_frame.register_bytecode_hook`` (we work together with the PyTorch team to design this bytecode hook mechanism). The hook will be called whenever PyTorch compiles a function. The hook will decompile the bytecode into source code and dump the source code to disk. The source code is then compiled into a new bytecode object, which is functionally equivalent to the bytecode generated by PyTorch, but with source code information. PyTorch will use the new bytecode object to execute the function. The part related with ``depyf`` is marked as green.
+1. 通常，当我们执行Python代码时，代码会被编译成Python字节码，然后由Python解释器执行。
+2. 当使用``torch.compile``时，PyTorch会将函数编译成一个新的字节码对象来执行。它通过向Python解释器注册一个帧评估函数来实现这一点。每当函数被执行时，帧评估函数都会被调用。PyTorch通过``torch._C._dynamo.eval_frame.set_eval_frame``函数包装了帧评估回调注册。因为PyTorch直接生成字节码，所以它没有源代码信息。字节码直接由Python解释器执行。
+3. 当``depyf``与PyTorch一起使用时，它将通过``torch._dynamo.convert_frame.register_bytecode_hook``向PyTorch注册一个字节码钩子（我们与PyTorch团队合作设计了这个字节码钩子机制）。每当PyTorch编译一个函数时，钩子都会被调用。钩子会将字节码反编译成源代码并将其转储到磁盘。然后，源代码被编译成一个新的字节码对象，该对象在功能上等同于PyTorch生成的字节码，但包含源代码信息。PyTorch将使用这个新的字节码对象来执行函数。与``depyf``相关的部分标记为绿色。
 
 With this, it is clear that the library is a Python bytecode decompiler with tight integration with PyTorch. It naturally falls into 2 parts:
 
@@ -391,8 +398,7 @@ The decompiler part is more challenging. It is complicated and needs to deal wit
 
 If you want to dive deeper into the decompiler part, please go on reading.
 
-Overview of the decompiler
---------------------------
+### Overview of the decompiler
 
 To become comfortable with reading bytecode, it is recommended to read the following materials first:
 
