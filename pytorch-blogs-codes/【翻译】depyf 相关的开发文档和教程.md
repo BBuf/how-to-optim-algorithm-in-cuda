@@ -387,104 +387,103 @@ print(total_time)
 2. 当使用``torch.compile``时，PyTorch会将函数编译成一个新的字节码对象来执行。它通过向Python解释器注册一个帧评估函数来实现这一点。每当函数被执行时，帧评估函数都会被调用。PyTorch通过``torch._C._dynamo.eval_frame.set_eval_frame``函数包装了帧评估回调注册。因为PyTorch直接生成字节码，所以它没有源代码信息。字节码直接由Python解释器执行。
 3. 当``depyf``与PyTorch一起使用时，它将通过``torch._dynamo.convert_frame.register_bytecode_hook``向PyTorch注册一个字节码钩子（我们与PyTorch团队合作设计了这个字节码钩子机制）。每当PyTorch编译一个函数时，钩子都会被调用。钩子会将字节码反编译成源代码并将其转储到磁盘。然后，源代码被编译成一个新的字节码对象，该对象在功能上等同于PyTorch生成的字节码，但包含源代码信息。PyTorch将使用这个新的字节码对象来执行函数。与``depyf``相关的部分标记为绿色。
 
-With this, it is clear that the library is a Python bytecode decompiler with tight integration with PyTorch. It naturally falls into 2 parts:
+由此可以看出，该库是一个与PyTorch紧密集成的Python字节码反编译器。它自然地分为两个部分：
 
-* The decompiler is implemented in the ``depyf/decompiler.py`` file. It can also be used as a standalone library to decompile Python bytecode.
-* The PyTorch integration is implemented in the ``depyf/explain/enable_debugging.py`` file. It also contains lots of code to deal with the rest of the PyTorch compiler, such as graph compilation and transformation, code guards and caches, etc.
+- 反编译器部分实现在 ``depyf/decompiler.py`` 文件中。它也可以作为一个独立的库来反编译Python字节码。
+- PyTorch集成部分实现在 ``depyf/explain/enable_debugging.py`` 文件中。它还包含大量代码来处理 PyTorch 编译器的其他部分，例如图编译和转换、代码守护和缓存等。
 
-Relatively speaking, the PyTorch integration part is easier to understand and contribute. Our main goal for the integration is to make ``depyf`` compatible with all previous versions of PyTorch starting from PyTorch 2.2 . To achieve this goal, the test is run against the nightly build of PyTorch. Whenever we find a compatibility issue, we will fix it in a backward-compatible way. If such a fix is not possible, we will discuss with the PyTorch team to find a solution.
+相对而言，PyTorch集成部分更容易理解和贡献。我们的主要目标是使 ``depyf`` 兼容从PyTorch 2.2开始的所有先前版本的PyTorch。为了实现这一目标，测试针对PyTorch的nightly构建版本运行。每当我们发现兼容性问题时，我们都会以向后兼容的方式修复它。如果无法进行这样的修复，我们将与PyTorch团队讨论以找到解决方案。
 
-The decompiler part is more challenging. It is complicated and needs to deal with all sorts of random Python implementation details. Fortunately, we only need to deal with official release versions of Python, which makes the task more manageable. The decompiler only needs to be updated once we find a bug or a new Python version is released.
+反编译器部分更具挑战性。它很复杂，需要处理各种随机的Python实现细节。幸运的是，我们只需要处理官方发布的Python版本，这使得任务更加可管理。反编译器只需要在我们发现错误或发布新版本的Python时进行更新。
 
-If you want to dive deeper into the decompiler part, please go on reading.
+如果你想深入研究反编译器部分，请继续阅读。
 
-### Overview of the decompiler
+### 反编译器概述
 
-To become comfortable with reading bytecode, it is recommended to read the following materials first:
+要熟悉阅读字节码，建议首先阅读以下材料：
 
-- `torchdynamo deepdive <https://www.youtube.com/watch?v=egZB5Uxki0I>`_ : This video explains the motivation and design of torchdynamo. In particular, it mentions how Python bytecode acts like a stack machine, which helps to understand how the bytecode is executed.
-- `Python bytecode documentation <https://docs.python.org/3/library/dis.html>`_ : This documentation explains the Python bytecode instructions. Note that Python bytecode does not guarentee any backward compatibility, so the bytecode instructions may change for every Python versions. We should consider all the supported Python versions when implementing the decompiler.
-- `A Python Interpreter Written in Python <https://aosabook.org/en/500L/a-python-interpreter-written-in-python.html>`_ : This book chapter explains how to write a Python interpreter in Python. It is a good starting point to understand how Python bytecode is executed.
+- `torchdynamo deepdive <https://www.youtube.com/watch?v=egZB5Uxki0I>`_：这个视频解释了torchdynamo的动机和设计。特别是，它提到了Python字节码如何像堆栈机一样工作，这有助于理解字节码的执行方式。
+- `Python字节码文档 <https://docs.python.org/3/library/dis.html>`_：这份文档解释了Python字节码指令。请注意，Python字节码不保证任何向后兼容性，因此字节码指令可能会随着每个Python版本而变化。在实现反编译器时，我们应该考虑所有支持的Python版本。
+- `用Python编写的Python解释器 <https://aosabook.org/en/500L/a-python-interpreter-written-in-python.html>`_：本书章节解释了如何用Python编写Python解释器。它是理解Python字节码如何执行的一个很好的起点。
 
-The decompilation process is achieved by executing the Python bytecode and recording the stack and the variables, with the value of the variables represented by their source code.
+反编译过程是通过执行Python字节码并记录堆栈和变量来实现的，变量的值由其源代码表示。
 
-For example, consider the following simple function:
+例如，考虑以下简单的函数：
 
-.. code-block:: python
+```python
+def f(a, b):
+    return a + b
+```
 
-    def f(a, b):
-        return a + b
+它具有以下字节码：
 
-It has the following bytecode:
+```shell
+0 LOAD_FAST                0 (a)
+2 LOAD_FAST                1 (b)
+4 BINARY_ADD
+6 RETURN_VALUE
+```
 
-.. code-block:: text
+当我们执行第一个字节码 ``LOAD_FAST`` 时，我们不是将变量加载到堆栈中，而是将变量名 ``"a"`` 推入堆栈，这是一个字符串表示的变量。
 
-    0 LOAD_FAST                0 (a)
-    2 LOAD_FAST                1 (b)
-    4 BINARY_ADD
-    6 RETURN_VALUE
+当我们执行第二个字节码 ``LOAD_FAST`` 时，同样地，我们将变量名 ``"b"`` 推入堆栈。
 
-When we execute the first bytecode ``LOAD_FAST``, instead of loading a variable into the stack, we push the variable name ``"a"`` in the stack, which is a string representation of the variable.
+当我们执行第三个字节码 ``BINARY_ADD`` 时，它打算将两个变量相加，我们从堆栈中弹出这两个变量，并执行字符串连接 ``"a + b"``。连接后的字符串被推回堆栈。
 
-When we execute the second bytecode ``LOAD_FAST``, likewise, we push the variable name ``"b"`` in the stack.
+最后，当我们执行第四个字节码 ``RETURN_VALUE`` 时，我们从堆栈中弹出字符串，在其前面加上 ``return`` 关键字，然后我们得到反编译后的源代码 ``"return a + b"``。
 
-When we execute the third bytecode ``BINARY_ADD``, which intends to add the two variables, we pop the two variables from the stack, and perform the string concatenation ``"a + b"``. The concatenated string is pushed back to the stack.
+为了准确地反编译字节码，我们需要忠实地遵循 Python 字节码指令的语义。值得注意的是，`Python 字节码文档 <https://docs.python.org/3/library/dis.html>`_ 也可能过时和不准确。黄金标准是参考 CPython 源代码和 Python 解释器的行为。`torchdynamo 源代码 <https://github.com/pytorch/pytorch/blob/main/torch/_dynamo/symbolic_convert.py>`_ 也是一个很好的参考，可以理解 PyTorch 如何生成 Python 字节码。
 
-Finally, when we execute the fourth bytecode ``RETURN_VALUE``, we pop the string from the stack, prefix it with the ``return`` keyword, and then we get the decompiled source code ``"return a + b"``.
-
-To accurately decompile the bytecode, we need to faithfully respect the semantics of the Python bytecode instructions. It is noteworthy that the `Python bytecode documentation <https://docs.python.org/3/library/dis.html>`_ can be outdated and inaccurate, too. The golden standard is to refer to the CPython source code and the Python interpreter's behavior. The `torchdynamo source code <https://github.com/pytorch/pytorch/blob/main/torch/_dynamo/symbolic_convert.py>`_ is also a good reference to understand how the Python bytecode is generated by PyTorch.
-
-Should you have any further questions, feel free to ask in the `GitHub Issues <https://github.com/thuml/depyf/issues>`_ section.
+如果您有任何进一步的问题，请随时在 `GitHub Issues <https://github.com/thuml/depyf/issues>`_ 部分提问。
 
 ## 常见QA
 
-### Is ``depyf`` a general purpose Python bytecode decompiler?
+### ``depyf`` 是一个通用的 Python 字节码反编译器吗？
 
-This package is intended to understand the generated PyTorch bytecode, and does not aim to fully cover all the syntax of Python. For example, async operations like ``async/await`` are not supported.
+这个包旨在理解生成的 PyTorch 字节码，并不旨在完全覆盖 Python 的所有语法。例如，像 ``async/await`` 这样的异步操作是不支持的。
 
-All the bytecode generated by PyTorch when benchmarking timm and huggingface transformers are collected `here <https://github.com/thuml/learn_torch.compile>`_. We can make several observations:
+所有在基准测试 timm 和 huggingface transformers 时生成的 PyTorch 字节码都收集在 `这里 <https://github.com/thuml/learn_torch.compile>`_。我们可以做出以下观察：
 
-- No while loops (no jump back instructions).
-- try-except-finally only has try-finally.
-- No complicated conditions like ``if a and b or c or (d and e)``.
+- 没有 while 循环（没有跳回指令）。
+- try-except-finally 只有 try-finally。
+- 没有像 ``if a and b or c or (d and e)`` 这样复杂的条件。
 
-Then, we can overfit the decompiler to work for the bytecode generated by PyTorch. How? Pure labor work. Implement all bytecode for all the supported Python versions, one by one. Yes, that's it.
+然后，我们可以使反编译器过度拟合以适用于 PyTorch 生成的字节码。怎么做？纯粹的劳动工作。为所有支持的 Python 版本逐个实现所有字节码。是的，就是这样。
 
-#### How do I know the set of supported bytecode?
+#### 我如何知道支持的字节码集合？
 
+你可以通过简单地运行 ``python python_coverage.py`` 来查看覆盖率报告。该脚本位于 `仓库 <https://github.com/thuml/depyf/blob/master/python_coverage.py>`_ 中。
 
-You can see the coverage report by simply running ``python python_coverage.py``. The script is located in the `repository <https://github.com/thuml/depyf/blob/master/python_coverage.py>`_.
+#### ``depyf`` 和 ``TORCH_COMPILE_DEBUG`` 有什么区别？
 
-#### What is the difference between ``depyf`` and ``TORCH_COMPILE_DEBUG``?
+这是一个非常好的问题。
 
-That's a very good question.
+让我们以 readme 中的这个简单示例代码为例：
 
-Let's take this simple example code from readme:
+```python
+# test.py
+import torch
+from torch import _dynamo as torchdynamo
+from typing import List
 
-.. code-block:: python
+@torch.compile
+def toy_example(a, b):
+    x = a / (torch.abs(a) + 1)
+    if b.sum() < 0:
+        b = b * -1
+    return x * b
 
-    # test.py
-    import torch
-    from torch import _dynamo as torchdynamo
-    from typing import List
+def main():
+    for _ in range(100):
+        toy_example(torch.randn(10), torch.randn(10))
 
-    @torch.compile
-    def toy_example(a, b):
-        x = a / (torch.abs(a) + 1)
-        if b.sum() < 0:
-            b = b * -1
-        return x * b
+if __name__ == "__main__":
+    main()
+```
 
-    def main():
-        for _ in range(100):
-            toy_example(torch.randn(10), torch.randn(10))
+当你运行 ``TORCH_COMPILE_DEBUG=1 python test.py`` 时，你会得到一个名为 ``torch_compile_debug/run_2024_02_05_23_02_45_552124-pid_9520`` 的目录。目录内部包含：
 
-    if __name__ == "__main__":
-        main()
-
-When you run ``TORCH_COMPILE_DEBUG=1 python test.py``, you will get a directory named ``torch_compile_debug/run_2024_02_05_23_02_45_552124-pid_9520``. Inside the directory:
-
-.. code-block:: text
+```shell
 
     .
     ├── torchdynamo
@@ -514,36 +513,36 @@ When you run ``TORCH_COMPILE_DEBUG=1 python test.py``, you will get a directory 
             ├── ir_post_fusion.txt
             ├── ir_pre_fusion.txt
             └── output_code.py
+```
 
-When you use ``depyf`` with the following code:
+当你使用 ``depyf`` 和以下代码时：
 
-.. code-block:: python
+```python
+# test.py
+import torch
+from torch import _dynamo as torchdynamo
+from typing import List
 
-    # test.py
-    import torch
-    from torch import _dynamo as torchdynamo
-    from typing import List
+@torch.compile
+def toy_example(a, b):
+    x = a / (torch.abs(a) + 1)
+    if b.sum() < 0:
+        b = b * -1
+    return x * b
 
-    @torch.compile
-    def toy_example(a, b):
-        x = a / (torch.abs(a) + 1)
-        if b.sum() < 0:
-            b = b * -1
-        return x * b
+def main():
+    for _ in range(100):
+        toy_example(torch.randn(10), torch.randn(10))
 
-    def main():
-        for _ in range(100):
-            toy_example(torch.randn(10), torch.randn(10))
+if __name__ == "__main__":
+    import depyf
+    with depyf.prepare_debug("depyf_debug_dir"):
+        main()
+```
 
-    if __name__ == "__main__":
-        import depyf
-        with depyf.prepare_debug("depyf_debug_dir"):
-            main()
+运行 ``python test.py`` 后，你会得到一个名为 ``depyf_debug_dir`` 的目录，其中包含以下文件：
 
-After running ``python test.py``, you get a directory ``depyf_debug_dir``, under which are these files:
-
-.. code-block:: text
-
+```shell
     .
     ├── __compiled_fn_0 AFTER POST GRAD 0.py
     ├── __compiled_fn_0 Captured Graph 0.py
@@ -561,10 +560,13 @@ After running ``python test.py``, you get a directory ``depyf_debug_dir``, under
     ├── __transformed_code_0_for_toy_example.py
     ├── __transformed_code_1_for_torch_dynamo_resume_in_toy_example_at_8.py
     └── full_code_for_toy_example_0.py
+```
 
-So what's the difference?
+那么有什么区别呢？
 
-1. When you use ``TORCH_COMPILE_DEBUG``, the ``torchdynamo/debug.log`` is long and difficult to understand. ``depyf`` helps to decompile the bytecode into readable source code in ``__transformed_code_xx.py`` file.
-2. When you use ``TORCH_COMPILE_DEBUG``, the ``torchinductor/model__5_inference_11.2`` etc names are very difficult to understand. Users have to manually figure out which function inside ``torchdynamo/debug.log`` corresponds to which directory. Meanwhile, in ``depyf``, ``__compiled_fn_0`` and other functions have exactly the same names as they appear in ``torchdynamo/debug.log``.
+1. 当你使用 ``TORCH_COMPILE_DEBUG`` 时，``torchdynamo/debug.log`` 文件很长且难以理解。``depyf`` 帮助将字节码反编译成可读的源代码，存储在 ``__transformed_code_xx.py`` 文件中。
+2. 当你使用 ``TORCH_COMPILE_DEBUG`` 时，``torchinductor/model__5_inference_11.2`` 等名称非常难以理解。用户必须手动找出 ``torchdynamo/debug.log`` 中的哪个函数对应哪个目录。而在 ``depyf`` 中，``__compiled_fn_0`` 和其他函数的名称与它们在 ``torchdynamo/debug.log`` 中出现的名称完全相同。
 
-In summary, ``depyf`` is a much more improved version of debugging information for ``torch.compile`` than ``TORCH_COMPILE_DEBUG``.
+总之，``depyf`` 是 ``torch.compile`` 调试信息的改进版本，比 ``TORCH_COMPILE_DEBUG`` 更加完善。
+
+
