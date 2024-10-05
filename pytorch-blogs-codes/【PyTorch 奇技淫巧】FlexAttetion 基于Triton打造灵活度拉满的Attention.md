@@ -340,6 +340,137 @@ flex_attention(..., score_mod=bias_mod2) # Doesn't need to recompile!
 block_mask = create_block_mask(causal_mask, 1, 1, S,S)
 causal_attention = functools.partial(flex_attention, block_mask=block_mask)
 ```
+**掩码每批次变化（例如文档掩码）**
+在这种情况下，我们建议在模型的开始处计算BlockMask，并将其传递到模型中——在所有层中重复使用BlockMask。
+
+```python
+def forward(self, x, doc_mask):
+    # Compute block mask at beginning of forwards
+    block_mask = create_block_mask(doc_mask, None, None, S, S)    
+    x = self.layer1(x, block_mask)
+    x = self.layer2(x, block_mask)
+    ...
+    # amortize block mask construction cost across all layers
+    x = self.layer3(x, block_mask) 
+    return x
+```
+
+**每层掩码变化（例如数据依赖的稀疏性）**
+这是最困难的设置，因为我们无法在多个 FlexAttention 调用中分摊块掩码的计算。尽管 FlexAttention 仍然可以在此情况下受益，但 BlockMask 的实际好处取决于您的注意力掩码的稀疏程度以及我们构建 BlockMask 的速度。这引导我们……
+
+> 注：这里没有继续给出解决方法
+
+**Q: 如何更快地计算BlockMask？**
+
+`create_block_mask` 不幸地相当昂贵，无论是从内存还是计算的角度来看，因为确定一个块是否完全稀疏需要评估 `mask_mod` 在块中的每一个点。有几种方法可以解决这个问题：
+
+- 如果你的掩码在批次大小或头数上是相同的，确保你在这些维度上进行广播（即在 `create_block_mask` 中将它们设置为 `None`）。
+- 编译 `create_block_mask`。不幸的是，目前 `torch.compile` 不能直接在 `create_block_mask` 上工作，因为一些不幸的限制。然而，你可以设置 `_compile=True`，这将显著减少峰值内存和运行时间（在我们的测试中通常是一个数量级的减少）。
+- 编写一个自定义的 BlockMask 构造器。BlockMask 的元数据非常简单（参见文档 https://pytorch.org/docs/main/nn.attention.flex_attention.html#blockmask ）。它基本上是两个张量。a. `num_blocks`：为每个query块计算的 KV 块的数量。b. `indices`：为每个query块计算的 KV 块的位置。
+
+例如，这里是一个用于 `causal_mask` 的自定义 BlockMask 构造器。
+
+```python
+def create_causal_mask(S):
+    BLOCK_SIZE = 128
+    # 第一个查询块计算一个块，第二个查询块计算两个块，依此类推。
+    num_blocks = torch.arange(S // BLOCK_SIZE, device="cuda") + 1
+    # 由于我们总是从左到右计算，
+    # 我们可以为每个查询块使用索引 [0, 1, 2, ...]。
+    indices = torch.arange(S // BLOCK_SIZE, device="cuda").expand(
+        S // BLOCK_SIZE, S // BLOCK_SIZE
+    )
+    num_blocks = num_blocks[None, None, :]
+    indices = indices[None, None, :]
+    return BlockMask(num_blocks, indices, BLOCK_SIZE=BLOCK_SIZE, mask_mod=causal_mask)
+```
+
+**Q: 为什么 `score_mod` 和 `mask_mod` 不同？难道 `mask_mod` 不就是 `score_mod` 的一个特例吗？**
+非常敏锐的问题！事实上，任何 `mask_mod` 都可以很容易地转换为 `score_mod`（我们不建议在实践中使用这个函数！）
+
+```python
+def mask_mod_as_score_mod(b, h, q_idx, kv_idx):
+    return torch.where(mask_mod(b, h, q_idx, kv_idx), score, -float("inf"))
+```
+
+所以，如果 `score_mod` 可以实现 `mask_mod` 的所有功能，那么为什么还需要 `mask_mod` 呢？
+
+一个直接的挑战是：`score_mod` 需要实际的分数值作为输入，但在我们预计算 BlockMask 时，我们没有实际的分数值。我们可以通过传入全零来伪造这些值，如果 `score_mod` 返回 `-inf`，那么我们就认为它被掩码了（事实上，我们最初就是这样做的！）。
+
+然而，有两个问题。第一个问题是这是hacky的——如果用户的 `score_mod` 在输入为0时返回 `-inf` 怎么办？或者如果用户的 `score_mod` 用一个大的负值而不是 `-inf` 来掩码怎么办？看起来我们正在试图把一个圆钉子塞进一个方孔里。然而，还有一个更重要的原因来分离 `mask_mod` 和 `score_mod`——它从根本上来说更高效！
+
+事实证明，对每个计算的元素应用掩码实际上相当昂贵——我们的基准测试显示性能下降了大约15-20%！因此，尽管我们可以通过跳过一半的计算来获得显著的加速，但我们从需要掩码每个元素中失去了部分加速！
+
+幸运的是，如果我们可视化因果掩码，我们会注意到绝大多数块根本不需要“因果掩码”——它们是完全计算的！只有对角线上的块，部分计算和部分掩码，才需要应用掩码。
+
+![](https://files.mdnice.com/user/59/cc316171-a969-44ca-9f4b-8647191c173a.png)
+
+BlockMask 之前告诉我们哪些块需要计算，哪些块可以跳过。现在，我们进一步增强这个数据结构，以告诉我们哪些块是“完全计算”的（即可以跳过掩码），哪些块是“部分计算”的（即需要应用掩码）。然而，需要注意的是，尽管在“完全计算”的块上可以跳过掩码，但其他 `score_mods` 如相对位置嵌入仍然需要应用。
+
+仅给定一个 `score_mod`，我们无法明确地知道它的哪些部分是“掩码”。因此，用户必须将这些部分自己分离到 `mask_mod` 中。
+
+**Q: BlockMask 需要多少额外的内存？**
+BlockMask 的元数据大小为 `[BATCH_SIZE, NUM_HEADS, QUERY_LEN//BLOCK_SIZE, KV_LEN//BLOCK_SIZE]`。如果掩码在批次或头维度上是相同的，它可以在这个维度上进行广播以节省内存。
+
+在默认的 `BLOCK_SIZE` 为 128 的情况下，我们预计大多数用例的内存使用量将非常小。例如，对于序列长度为 100 万的情况，BlockMask 只会使用 60MB 的额外内存。如果这是一个问题，你可以增加块大小：`create_block_mask(..., BLOCK_SIZE=1024)`。例如，将 `BLOCK_SIZE` 增加到 1024 将使这个元数据减少到不到 1MB。
+
+**Q: 数值比较如何？**
+尽管结果不是逐位相同的，但我们有信心FlexAttention在数值精度上与FlashAttention相当。我们生成了以下差异分布，比较了FlashAttention与FlexAttention在大量输入上的因果和非因果注意力变体。误差几乎相同。
+
+![](https://files.mdnice.com/user/59/ab342da2-b26b-410e-a7b7-547f4fdc169b.png)
+
+## Performance
+一般来说，FlexAttention 的性能几乎与手写的 Triton kernel相当，这并不令人意外，因为我们大量利用了手写的 Triton kernel。然而，由于其通用性，我们确实会受到一些性能损失。例如，我们必须承担一些额外的延迟来确定下一个要计算的块。在某些情况下，我们提供了一些kernel选项，这些选项可以在改变其行为的同时影响kernel的性能。它们可以在这里找到：性能旋钮（https://github.com/pytorch/pytorch/blob/ee09d066d35d7e17cf7e9479c0b8bfc70cffc264/torch/_inductor/kernel/flex_attention.py#L146-L155）
+
+作为一个案例研究，让我们探讨这些旋钮如何影响因果注意力的性能。我们将在 A100 上比较 Triton kernel与 FlashAttentionv2 的性能。脚本可以在这里找到（https://github.com/pytorch/pytorch/blob/main/benchmarks/transformer/score_mod.py）。
+
+FlexAttention 在前向pass中达到了 FlashAttention2 性能的 90%，在后向pass中达到了 85%。FlexAttention 目前使用了一种确定性算法，该算法比 FAv2 重新计算更多的中间结果，但我们有计划改进 FlexAttention 的后向算法，并希望缩小这一差距！
+
+![](https://files.mdnice.com/user/59/4ac2f33b-5c56-41d2-a52a-bca48be3b7fa.png)
+
+![](https://files.mdnice.com/user/59/d806f798-e280-4916-9de9-9413fa612101.png)
+
+## 结论
+
+我们希望您在使用FlexAttention时能像我们开发它时一样有趣！在开发过程中，我们最终发现了比预期更多的API应用。我们已经看到它将torchtune的sample packing吞吐量提高了71%（https://github.com/pytorch/torchtune/pull/1193），取代了研究人员花费一周时间编写自己的定制Triton kernel的需求，并以与定制手写注意力变体相竞争的性能交付。
+
+实现FlexAttention非常有趣的一个最后一点是，我们能够以一种有趣的方式利用大量现有的PyTorch基础设施。例如，TorchDynamo（torch.compile的前端）的一个独特之处在于，它不需要在编译函数中使用的张量显式地作为输入传递。这使我们能够编译像document masking这样的修改，这些修改需要访问全局变量，而这些全局变量需要更改！
+
+```python
+bias = torch.randn(1024, 1024)
+def score_mod(score, b, h, q_idx, kv_idx):
+    return score + bias[q_idx][kv_idx] # The bias tensor can change!
+```
+
+此外，`torch.compile` 作为一个通用的图捕获机制，也使其能够支持更多“高级”的转换，例如将任何 `mask_mod` 转换为适用于锯齿张量的更高阶转换。
+
+我们还利用了 TorchInductor（torch.compile 的后端）基础设施来支持 Triton 模板。这不仅使支持 FlexAttention 的代码生成变得容易，还自动为我们提供了对动态形状以及epilogue融合（即在注意力末尾融合操作符）的支持！在未来，我们计划扩展这种支持，以允许量化版本的注意力或类似 RadixAttention（https://lmsys.org/blog/2024-01-17-sglang/）的东西。
+
+此外，我们还利用了高阶操作、PyTorch 的 autograd 来自动生成反向传播，以及 vmap 来自动应用 `score_mod` 来创建 BlockMask。
+
+当然，如果没有 Triton 和 TorchInductor 生成 Triton 代码的能力，这个项目是不可能实现的。
+
+我们期待着利用我们在这里使用的方法，在未来应用于更多的应用！
+
+## 限制与未来工作
+
+- FlexAttention 目前仅在 PyTorch 的 nightly 版本中可用，我们计划在 2.5.0 版本中将其作为原型功能发布。
+- 我们没有在这里介绍如何使用 FlexAttention 进行推理（或如何实现 PagedAttention）——我们将在后续文章中介绍这些内容。
+- 我们正在努力改进 FlexAttention 的性能，以匹配 H100 GPU 上的 FlashAttention3。
+- FlexAttention 要求所有序列长度必须是 128 的倍数——这个问题将很快得到解决。
+- 我们计划很快添加 GQA 支持——目前，您可以简单地复制 kv heads。
+
+## 致谢
+
+我们想强调一些先前的工作（和人），这些工作启发了 FlexAttention。
+- Tri Dao 在 FlashAttention 上的工作
+- Francisco Massa 和 Xformers 团队在 Triton 中的 BlockSparseAttention
+- Jax 团队在 SplashAttention 上的工作
+- Philippe Tillet 和 Keren Zhou 帮助我们使用 Triton
+- Ali Hassani 在邻域注意力上的讨论
+- 所有抱怨注意力kernel不支持他们最喜欢的注意力变体的人 :)
+
+
 
 
 
