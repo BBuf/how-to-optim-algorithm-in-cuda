@@ -432,7 +432,7 @@ FlexAttention 在前向pass中达到了 FlashAttention2 性能的 90%，在后�
 
 ## 结论
 
-我们希望您在使用FlexAttention时能像我们开发它时一样有趣！在开发过程中，我们最终发现了比预期更多的API应用。我们已经看到它将torchtune的sample packing吞吐量提高了71%（https://github.com/pytorch/torchtune/pull/1193），取代了研究人员花费一周时间编写自己的定制Triton kernel的需求，并以与定制手写注意力变体相竞争的性能交付。
+我们希望您在使用FlexAttention时能像我们开发它时一样有趣！在开发过程中，我们最终发现了比预期更多的API应用。我们已经看到它将torchtune的sample packing吞吐量提高了71%(https://github.com/pytorch/torchtune/pull/1193)，取代了研究人员花费一周时间编写自己的定制Triton kernel的需求，并以与定制手写注意力变体相竞争的性能交付。
 
 实现FlexAttention非常有趣的一个最后一点是，我们能够以一种有趣的方式利用大量现有的PyTorch基础设施。例如，TorchDynamo（torch.compile的前端）的一个独特之处在于，它不需要在编译函数中使用的张量显式地作为输入传递。这使我们能够编译像document masking这样的修改，这些修改需要访问全局变量，而这些全局变量需要更改！
 
@@ -444,7 +444,7 @@ def score_mod(score, b, h, q_idx, kv_idx):
 
 此外，`torch.compile` 作为一个通用的图捕获机制，也使其能够支持更多“高级”的转换，例如将任何 `mask_mod` 转换为适用于锯齿张量的更高阶转换。
 
-我们还利用了 TorchInductor（torch.compile 的后端）基础设施来支持 Triton 模板。这不仅使支持 FlexAttention 的代码生成变得容易，还自动为我们提供了对动态形状以及epilogue融合（即在注意力末尾融合操作符）的支持！在未来，我们计划扩展这种支持，以允许量化版本的注意力或类似 RadixAttention（https://lmsys.org/blog/2024-01-17-sglang/）的东西。
+我们还利用了 TorchInductor（torch.compile 的后端）基础设施来支持 Triton 模板。这不仅使支持 FlexAttention 的代码生成变得容易，还自动为我们提供了对动态形状以及epilogue融合（即在注意力末尾融合操作符）的支持！在未来，我们计划扩展这种支持，以允许量化版本的注意力或类似 RadixAttention(https://lmsys.org/blog/2024-01-17-sglang/)的东西。
 
 此外，我们还利用了高阶操作、PyTorch 的 autograd 来自动生成反向传播，以及 vmap 来自动应用 `score_mod` 来创建 BlockMask。
 
