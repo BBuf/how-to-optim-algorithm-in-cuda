@@ -1,6 +1,6 @@
-> 对FlexAttention的常见API的使用方法做一个浏览，来源：https://github.com/pytorch-labs/attention-gym/blob/main/examples/flex_attn.ipynb ，我对代码添加了一些解释，修复了几个代码中的bug并使用PyTorch的nightly版本运行了示例，得到了每个custom attention的输出，也展示在了下面的每个示例代码后面。
+> 对FlexAttention的常见API的使用方法做一个解读，博客来源：https://github.com/pytorch-labs/attention-gym/blob/main/examples/flex_attn.ipynb ，在此基础上我对部分代码添加了一些解释，修复了几个代码中的bug并使用PyTorch的nightly版本运行了示例，得到了每个custom attention的输出，展示在了下面的每个示例代码后面。最后还补充了一下torch compile inductor后端中实现FlexAttention的入口的代码浏览。
 
-# FlexAttention API 使用笔记本
+# FlexAttention API 使用 NoteBook
 
 本笔记本演示了新的 FlexAttention API 的使用方法，该 API 允许用户指定对缩放点积注意力（SDPA）中计算的注意力分数进行修改。
 
@@ -10,12 +10,12 @@
 2. [设置](#设置)
 3. [基本用法](#基本用法)
 4. [分数修改 vs 分数掩码](#分数修改vs分数掩码)
-5. [分数修改示例](#score-modification-examples)
-   - [全注意力（无操作）](#full-attention-no-op)
-   - [标准因果掩码](#standard-causal-mask)
-   - [滑动窗口注意力](#sliding-window-attention)
+5. [分数修改示例](#分数修改示例)
+   - [全注意力（无操作）](#全注意力)
+   - [标准因果掩码](#标准因果掩码)
+   - [滑动窗口注意力](#滑动窗口注意力)
    - [前缀 LM（双向 + 因果）](#prefix-lm-bidirectional-causal)
-   - [文档掩码](#document-masking)
+   - [文档掩码](#文档掩码)
    - [NATTEN 掩码](#natten-masking)
    - [Alibi 偏置](#alibi-bias)
    - [Tanh 软上限](#tanh-soft-capping)
@@ -902,6 +902,213 @@ mask = create_mask(vision_x_attention_mask, 1, 1, num_tokens, num_image_tokens, 
 
 print(mask)
 ```
+
+
+# FlexAttention是如何实现的
+
+FlexAttention是通过PyTorch编译器来实现的，通过inductor后端生成FlexAttention的各种变体对应的Triton代码。具体实现见：https://github.com/pytorch/pytorch/blob/ee09d066d35d7e17cf7e9479c0b8bfc70cffc264/torch/_inductor/kernel/flex_attention.py#L317 ，下面对 flex_attention 的核心入口简单浏览一下：
+
+```python
+# TODO: We probably also need a layout constraint?
+@register_lowering(torch.ops.higher_order.flex_attention, type_promotion_kind=None)
+def flex_attention(
+    query,
+    key,
+    value,
+    subgraph,
+    block_mask,
+    scale,
+    score_mod_other_buffers,
+    mask_mod_other_buffers,
+):
+    # 这行代码实际上就获取了我们在API应用中定义的score_mod和mask_mod之后真正要计算的Q,K,V
+    (
+        kv_num_blocks,
+        kv_indices,
+        full_kv_num_blocks,
+        full_kv_indices,
+        q_num_blocks,
+        q_indices,
+        full_q_num_blocks,
+        full_q_indices,
+        SPARSE_KV_BLOCK_SIZE,
+        SPARSE_Q_BLOCK_SIZE,
+        mask_graph,
+    ) = block_mask
+    // 创建占位符输入列表，包含score、b、h、m、n五个占位符，类型分别为query的类型和int32
+    placeholder_inps = [
+        create_placeholder(name, dtype, query.get_device())
+        for name, dtype in [
+            ("score", query.get_dtype()),
+            ("b", torch.int32),
+            ("h", torch.int32),
+            ("m", torch.int32),
+            ("n", torch.int32),
+        ]
+    ]
+    // 构建子图缓冲区，包含占位符输入和其他分数修改缓冲区
+    subgraph_buffer = build_subgraph_buffer(
+        placeholder_inps + list(score_mod_other_buffers), subgraph
+    )
+    // 创建掩码图的占位符输入列表，包含b、h、m、n四个占位符，类型均为int32
+    mask_graph_placeholder_inps = [
+        create_placeholder(name, dtype, query.get_device())
+        for name, dtype in [
+            ("b", torch.int32),
+            ("h", torch.int32),
+            ("m", torch.int32),
+            ("n", torch.int32),
+        ]
+    ]
+    // 构建掩码图缓冲区，包含掩码图的占位符输入和其他掩码修改缓冲区
+    mask_graph_buffer = build_subgraph_buffer(
+        mask_graph_placeholder_inps + list(mask_mod_other_buffers), mask_graph
+    )
+    // 如果使用Flex解码，则返回创建的Flex解码内核
+    if _use_flex_decoding(query):
+        return create_flex_decoding_kernel(
+            query,
+            key,
+            value,
+            block_mask,
+            scale,
+            subgraph_buffer,
+            mask_graph_buffer,
+            score_mod_other_buffers,
+            mask_mod_other_buffers,
+        )
+    // 对所有缓冲区进行realize操作，确保它们被实例化
+    for buf in [
+        query,
+        key,
+        value,
+        kv_num_blocks,
+        kv_indices,
+        q_num_blocks,
+        q_indices,
+        full_kv_num_blocks,
+        full_kv_indices,
+        full_q_num_blocks,
+        full_q_indices,
+    ]:
+        if buf is not None:
+            buf.realize()
+
+    // 创建布局对象，包含设备、数据类型、大小和步幅信息
+    layout = FixedLayout(
+        query.get_device(),
+        query.get_dtype(),
+        query.get_size(),
+        query.get_stride(),
+    )
+    // 计算logsumexp的形状，即query的形状去掉最后一个维度
+    logsumexp_shape = query.get_size()[:-1]  # [B, H, M]
+    // 创建logsumexp张量，类型为float32，设备与query相同
+    logsumexp = empty_strided(
+        logsumexp_shape,
+        None,
+        dtype=torch.float32,  # The logsumexp is always stored in fp32 regardless of the input dtype
+        device=query.get_device(),
+    )
+    // 判断是否存在完整块，如果full_kv_num_blocks为None，则不存在完整块
+    has_full_blocks = full_kv_num_blocks is not None
+    if full_kv_num_blocks is None:
+        full_kv_num_blocks, full_kv_indices = (
+            empty(0, device=query.get_device()) for _ in range(2)
+        )
+    // 初始化选择列表和配置列表
+    choices: List[Any] = []
+    configs: List[Tuple[int, int, int, int]] = []
+    // 添加默认配置
+    configs.append(_get_default_config_fwd(query))
+    // 如果启用了最大自动调优，则添加其他配置
+    if config.max_autotune:
+        configs += [
+            (128, 64, 4, 3),
+            (128, 128, 4, 3),
+            (128, 128, 8, 2),
+            (64, 128, 4, 3),
+            (64, 64, 4, 3),
+        ]
+
+    // 遍历所有配置，如果块大小不匹配或配置为2阶段，则跳过
+    for BLOCK_M, BLOCK_N, num_warps, num_stages in configs:
+        if SPARSE_KV_BLOCK_SIZE % BLOCK_N != 0 or SPARSE_Q_BLOCK_SIZE % BLOCK_M != 0:
+            continue
+        if num_stages == 2:
+            continue
+
+        // 将当前配置添加到选择列表中
+        flex_attention_template.maybe_append_choice(
+            choices=choices,
+            input_nodes=[
+                query,
+                key,
+                value,
+                logsumexp,
+                kv_num_blocks,
+                kv_indices,
+                full_kv_num_blocks,
+                full_kv_indices,
+            ],
+            layout=layout,
+            subgraphs=[
+                subgraph_buffer,
+                mask_graph_buffer,
+            ],
+            mutated_inputs=[
+                logsumexp,
+            ],
+            num_stages=num_stages,
+            num_warps=num_warps,
+            call_sizes=query.get_size(),
+            OUTPUT_LOGSUMEXP=True,
+            SM_SCALE=scale,
+            BLOCK_DMODEL=query.get_size()[-1],
+            BLOCK_M=BLOCK_M,
+            BLOCK_N=BLOCK_N,
+            SPARSE_Q_BLOCK_SIZE=SPARSE_Q_BLOCK_SIZE,
+            SPARSE_KV_BLOCK_SIZE=SPARSE_KV_BLOCK_SIZE,
+            ROWS_GUARANTEED_SAFE=False,
+            PRESCALE_QK=False,
+            HAS_FULL_BLOCKS=has_full_blocks,
+        )
+    // 创建用于自动调优的输入列表
+    inputs_for_autotuning = (
+        [
+            query,
+            key,
+            value,
+            logsumexp,
+            kv_num_blocks,
+            kv_indices,
+            full_kv_num_blocks,
+            full_kv_indices,
+        ]
+        + list(score_mod_other_buffers)
+        + list(mask_mod_other_buffers)
+    )
+    // 创建输入生成函数映射
+    input_gen_fns = {
+        4: create_num_blocks_fake_generator(full_kv_indices),
+        5: create_indices_fake,
+    }
+    // 返回自动调优选择算法的结果和logsumexp
+    return (
+        autotune_select_algorithm(
+            "flex_attention",
+            choices,
+            inputs_for_autotuning,
+            layout,
+            input_gen_fns=input_gen_fns,
+        ),
+        logsumexp,
+    )
+
+```
+
+
+这个`flex_attention`函数的`block_mask`参数是通过上面API应用中提到的`create_block_mask`函数来创建的。然后这个函数接受查询（query）、键（key）、值（value）、子图（subgraph）、块掩码（block_mask）、缩放因子（scale）以及分数和掩码修改缓冲区作为输入。函数内部通过创建占位符输入、构建子图和掩码图缓冲区，并根据配置选择合适的kernel来实现 FlexAttention 计算。最终返回自动调优选择算法的结果和 logsumexp 张量。感兴趣的朋友也可以看下这里的triton kernel的具体实现。
 
 
 
