@@ -199,13 +199,13 @@ output = function(shape_10_inputs)
 
 > 图片解释：
 
-- **源代码 (Source Code)**： 图中展示了一个简单的 Python 函数 `function(inputs)`，该函数对输入的两个张量 `x` 和 `y` 进行一些数学运算（例如 `cos` 和 `mean`）后返回 `x * y`。
-- **输入 (Input)**： 显示了该函数的输入 inputs 包含 `x` 和 `y` 两个 `torch.Tensor` 类型的张量。
-- **守护函数 (Guard)**： 守护函数基于输入和 Python 字节码生成，确保编译器在运行时验证张量 `x` 和 `y` 的形状和类型，以决定是否需要重新编译或可以直接执行。
-- **Python 字节码分析 (Python Bytecode Analysis)**： 图中显示了 Python 源代码经过编译器分析后生成的字节码。这里将 Python 操作（与张量计算无关的部分）和纯张量计算的 PyTorch 操作（如 cos、mean 等）分开列出。
-- **转换后的字节码 (Transformed Bytecode)**： 在 PyTorch 编译器将源码转换成字节码后，会根据不同操作生成相应的字节码指令，同时根据守护条件来决定执行流程。比如图中展示了 `_compiled_fn` 的实现和条件跳转操作。
-- **恢复函数 (Resume Functions)**： 当某些操作需要的条件不满足（比如某个张量值需要重新计算）时，编译器会触发恢复函数（resume function），该恢复函数可以继续进行需要的计算，并且递归地触发字节码分析。
-- **执行流程 (Execution Workflow)**： 最后，图中展示了如何从原始的字节码指令通过守护条件、张量计算图、恢复函数等一系列操作形成最终的执行字节码流程。
+- **源代码 (Source Code)** ： 图中展示了一个简单的 Python 函数 `function(inputs)`，该函数对输入的两个张量 `x` 和 `y` 进行一些数学运算（例如 `cos` 和 `mean`）后返回 `x * y`。
+- **输入 (Input)** ： 显示了该函数的输入 inputs 包含 `x` 和 `y` 两个 `torch.Tensor` 类型的张量。
+- **守护函数 (Guard)** ： 守护函数基于输入和 Python 字节码生成，确保编译器在运行时验证张量 `x` 和 `y` 的形状和类型，以决定是否需要重新编译或可以直接执行。
+- **Python 字节码分析 (Python Bytecode Analysis)** ： 图中显示了 Python 源代码经过编译器分析后生成的字节码。这里将 Python 操作（与张量计算无关的部分）和纯张量计算的 PyTorch 操作（如 cos、mean 等）分开列出。
+- **转换后的字节码 (Transformed Bytecode)** ： 在 PyTorch 编译器将源码转换成字节码后，会根据不同操作生成相应的字节码指令，同时根据守护条件来决定执行流程。比如图中展示了 `_compiled_fn` 的实现和条件跳转操作。
+- **恢复函数 (Resume Functions)** ： 当某些操作需要的条件不满足（比如某个张量值需要重新计算）时，编译器会触发恢复函数（resume function），该恢复函数可以继续进行需要的计算，并且递归地触发字节码分析。
+- **执行流程 (Execution Workflow)** ： 最后，图中展示了如何从原始的字节码指令通过守护条件、张量计算图、恢复函数等一系列操作形成最终的执行字节码流程。
 
 > 注意：字节码后标注了对应的原始的python代码
 
@@ -432,4 +432,60 @@ run_autograd_ahead_of_time(f, [input], [grad_output])
 下表显示了 ``torch.compile`` 中几个 ``backend`` 选项的区别。如果我们想要适应我们的代码到 ``torch.compile``，建议首先尝试 ``backend="eager"`` 来看看我们的代码如何转换为计算图，然后尝试 ``backend="aot_eager"`` 来看看我们是否满意反向图，最后尝试 ``backend="inductor"`` 来看看我们是否能获得任何性能提升。
 
 ![](https://files.mdnice.com/user/59/933488bc-3a0b-4793-a805-c02bcdf6a28a.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
