@@ -409,17 +409,17 @@ torch.Tensor
 示例
 --------
 
->>> import torch
->>> import flashinfer
->>> kv_len = 4096
->>> num_qo_heads = 32
->>> num_kv_heads = 32
->>> head_dim = 128
->>> q = torch.randn(num_qo_heads, head_dim).half().to("cuda:0")
->>> k = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
->>> v = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
->>> o = flashinfer.single_decode_with_kv_cache(q, k, v)
->>> o.shape
+import torch
+import flashinfer
+kv_len = 4096
+num_qo_heads = 32
+num_kv_heads = 32
+head_dim = 128
+q = torch.randn(num_qo_heads, head_dim).half().to("cuda:0")
+k = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+v = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+o = flashinfer.single_decode_with_kv_cache(q, k, v)
+o.shape
 torch.Size([32, 128])
 
 Note
@@ -714,25 +714,25 @@ Parameters
     示例
     --------
 
-    >>> import torch
-    >>> import flashinfer
-    >>> qo_len = 128
-    >>> kv_len = 4096
-    >>> num_qo_heads = 32
-    >>> num_kv_heads = 4
-    >>> head_dim = 128
-    >>> q = torch.randn(qo_len, num_qo_heads, head_dim).half().to("cuda:0")
-    >>> k = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
-    >>> v = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
-    >>> o = flashinfer.single_prefill_with_kv_cache(q, k, v, causal=True,
+    import torch
+    import flashinfer
+    qo_len = 128
+    kv_len = 4096
+    num_qo_heads = 32
+    num_kv_heads = 4
+    head_dim = 128
+    q = torch.randn(qo_len, num_qo_heads, head_dim).half().to("cuda:0")
+    k = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+    v = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+    o = flashinfer.single_prefill_with_kv_cache(q, k, v, causal=True,
             allow_fp16_qk_reduction=True)
-    >>> o.shape
+    o.shape
     torch.Size([128, 32, 128])
-    >>> mask = torch.tril(
-    >>>     torch.full((qo_len, kv_len), True, device="cuda:0"),
-    >>>     diagonal=(kv_len - qo_len),
-    >>> )
-    >>> mask
+    mask = torch.tril(
+        torch.full((qo_len, kv_len), True, device="cuda:0"),
+        diagonal=(kv_len - qo_len),
+    )
+    print(mask)
     tensor([[ True,  True,  True,  ..., False, False, False],
             [ True,  True,  True,  ..., False, False, False],
             [ True,  True,  True,  ..., False, False, False],
@@ -740,8 +740,8 @@ Parameters
             [ True,  True,  True,  ...,  True, False, False],
             [ True,  True,  True,  ...,  True,  True, False],
             [ True,  True,  True,  ...,  True,  True,  True]], device='cuda:0')
-    >>> o_custom = flashinfer.single_prefill_with_kv_cache(q, k, v, custom_mask=mask)
-    >>> torch.allclose(o, o_custom, rtol=1e-3, atol=1e-3)
+    o_custom = flashinfer.single_prefill_with_kv_cache(q, k, v, custom_mask=mask)
+    assert torch.allclose(o, o_custom, rtol=1e-3, atol=1e-3)
     True
 
     注意
@@ -751,5 +751,135 @@ Parameters
 
 - `single_prefill_with_kv_cache_return_lse(q, k, v)`: 单请求的预填充/追加注意力，使用 KV 缓存，返回注意力输出。
 
+### Batch Prefill/Append Attention
+
+`class flashinfer.prefill.BatchPrefillWithPagedKVCacheWrapper(float_workspace_buffer: torch.Tensor, kv_layout: str = 'NHD', use_cuda_graph: bool = False, qo_indptr_buf: torch.Tensor | None = None, paged_kv_indptr_buf: torch.Tensor | None = None, paged_kv_indices_buf: torch.Tensor | None = None, paged_kv_last_page_len_buf: torch.Tensor | None = None, custom_mask_buf: torch.Tensor | None = None, qk_indptr_buf: torch.Tensor | None = None)`
+
+用于批量请求的prefill/append注意力的 Paged  kv-cache 包装器类。
+
+示例：
+
+```python
+import torch
+import flashinfer
+num_layers = 32
+num_qo_heads = 64
+num_kv_heads = 16
+head_dim = 128
+max_num_pages = 128
+page_size = 16
+# allocate 128MB workspace buffer
+workspace_buffer = torch.empty(128 * 1024 * 1024, dtype=torch.uint8, device="cuda:0")
+prefill_wrapper = flashinfer.BatchPrefillWithPagedKVCacheWrapper(
+    workspace_buffer, "NHD"
+)
+batch_size = 7
+nnz_qo = 100
+qo_indptr = torch.tensor(
+    [0, 33, 44, 55, 66, 77, 88, nnz_qo], dtype=torch.int32, device="cuda:0"
+)
+paged_kv_indices = torch.arange(max_num_pages).int().to("cuda:0")
+paged_kv_indptr = torch.tensor(
+    [0, 17, 29, 44, 48, 66, 100, 128], dtype=torch.int32, device="cuda:0"
+)
+# 1 <= paged_kv_last_page_len <= page_size
+paged_kv_last_page_len = torch.tensor(
+    [1, 7, 14, 4, 3, 1, 16], dtype=torch.int32, device="cuda:0"
+)
+q_at_layer = torch.randn(num_layers, nnz_qo, num_qo_heads, head_dim).half().to("cuda:0")
+kv_cache_at_layer = torch.randn(
+    num_layers, max_num_pages, 2, page_size, num_kv_heads, head_dim, dtype=torch.float16, device="cuda:0"
+)
+# create auxiliary data structures for batch prefill attention
+prefill_wrapper.plan(
+    qo_indptr,
+    paged_kv_indptr,
+    paged_kv_indices,
+    paged_kv_last_page_len,
+    num_qo_heads,
+    num_kv_heads,
+    head_dim,
+    page_size,
+    causal=True,
+)
+outputs = []
+for i in range(num_layers):
+    q = q_at_layer[i]
+    kv_cache = kv_cache_at_layer[i]
+    # compute batch prefill attention, reuse auxiliary data structures
+    o = prefill_wrapper.run(q, kv_cache)
+    outputs.append(o)
+
+print(outputs[0].shape)
+# torch.Size([100, 64, 128])
+
+# below is another example of creating custom mask for batch prefill attention
+mask_arr = []
+qo_len = (qo_indptr[1:] - qo_indptr[:-1]).cpu().tolist()
+kv_len = (page_size * (paged_kv_indptr[1:] - paged_kv_indptr[:-1] - 1) + paged_kv_last_page_len).cpu().tolist()
+for i in range(batch_size):
+    mask_i = torch.tril(
+        torch.full((qo_len[i], kv_len[i]), True, device="cuda:0"),
+        diagonal=(kv_len[i] - qo_len[i]),
+    )
+    mask_arr.append(mask_i.flatten())
+
+mask = torch.cat(mask_arr, dim=0)
+prefill_wrapper.plan(
+    qo_indptr,
+    paged_kv_indptr,
+    paged_kv_indices,
+    paged_kv_last_page_len,
+    num_qo_heads,
+    num_kv_heads,
+    head_dim,
+    page_size,
+    custom_mask=mask,
+)
+for i in range(num_layers):
+    q = q_at_layer[i]
+    kv_cache = kv_cache_at_layer[i]
+    # compute batch prefill attention, reuse auxiliary data structures
+    o_custom = prefill_wrapper.run(q, kv_cache)
+    assert torch.allclose(o_custom, outputs[i], rtol=1e-3, atol=1e-3)
+```
+
+
+> 注意：为了加速计算，FlashInfer 的批量预填充/追加注意力操作符会创建一些辅助数据结构，这些数据结构可以在多次预填充/追加注意力调用中重用（例如，不同的 Transformer 层）。此包装类管理这些数据结构的生命周期。
+
+`__init__(float_workspace_buffer: torch.Tensor, kv_layout: str = 'NHD', use_cuda_graph: bool = False, qo_indptr_buf: torch.Tensor | None = None, paged_kv_indptr_buf: torch.Tensor | None = None, paged_kv_indices_buf: torch.Tensor | None = None, paged_kv_last_page_len_buf: torch.Tensor | None = None, custom_mask_buf: torch.Tensor | None = None, qk_indptr_buf: torch.Tensor | None = None) → None`
+
+Constructor of `BatchPrefillWithPagedKVCacheWrapper`.
+
+```python
+参数
+    ----------
+    float_workspace_buffer : torch.Tensor
+        用户预留的工作区缓冲区，用于在 split-k 算法中存储中间注意力结果。推荐大小为 128MB，工作区缓冲区的设备应与输入张量的设备相同。
+
+    kv_layout : str
+        输入 k/v 张量的布局，可以是 ``NHD`` 或 ``HND``。
+
+    use_cuda_graph : bool
+        是否启用 CUDA 图捕获以加速预填充内核，如果启用，辅助数据结构将存储在提供的缓冲区中。当启用 CUDAGraph 时，此包装器的生命周期内 ``batch_size`` 不能改变。
+
+    qo_indptr_buf : Optional[torch.Tensor]
+        用户预留的缓冲区，用于存储 ``qo_indptr`` 数组，缓冲区的大小应为 ``[batch_size + 1]``。仅当 ``use_cuda_graph`` 为 ``True`` 时此参数才有效。
+
+    paged_kv_indptr_buf : Optional[torch.Tensor]
+        用户预留的缓冲区，用于存储 ``paged_kv_indptr`` 数组，此缓冲区的大小应为 ``[batch_size + 1]``。仅当 ``use_cuda_graph`` 为 ``True`` 时此参数才有效。
+
+    paged_kv_indices_buf : Optional[torch.Tensor]
+        用户预留的缓冲区，用于存储 ``paged_kv_indices`` 数组，应足够大以存储此包装器生命周期内 ``paged_kv_indices`` 数组的最大可能大小。仅当 ``use_cuda_graph`` 为 ``True`` 时此参数才有效。
+
+    paged_kv_last_page_len_buf : Optional[torch.Tensor]
+        用户预留的缓冲区，用于存储 ``paged_kv_last_page_len`` 数组，缓冲区的大小应为 ``[batch_size]``。仅当 ``use_cuda_graph`` 为 ``True`` 时此参数才有效。
+
+    custom_mask_buf : Optional[torch.Tensor]
+        用户预留的缓冲区，用于存储自定义掩码张量，应足够大以存储此包装器生命周期内打包的自定义掩码张量的最大可能大小。仅当 ``use_cuda_graph`` 设置为 ``True`` 且自定义掩码将用于注意力计算时此参数才有效。
+
+    qk_indptr_buf : Optional[torch.Tensor]
+        用户预留的缓冲区，用于存储 ``qk_indptr`` 数组，缓冲区的大小应为 ``[batch_size + 1]``。仅当 ``use_cuda_graph`` 为 ``True`` 且自定义掩码将用于注意力计算时此参数才有效。
+```
 
 
