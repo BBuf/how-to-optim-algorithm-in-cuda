@@ -274,9 +274,9 @@ FlashInfer 提供了 `flashinfer.prefill.BatchPrefillWithRaggedKVCacheWrapper` �
 
 ![](https://files.mdnice.com/user/59/942262b0-0690-452f-9949-524a0139ddae.png)
 
-当请求数量大于 1 时，不同的请求可能具有不同的查询长度和 kv 长度。为了避免填充，我们使用 2D ragged tensor 来存储注意力掩码。输入的 ``qo_indptr`` 和 ``kv_indptr`` 数组（长度均为 ``num_requests+1``）用于存储每个请求的可变序列长度信息，``qo_indptr[i+1]-qo_indptr[i]`` 是请求 ``i`` 的查询长度（``qo_len[i]``），``kv_indptr[i+1]-kv_indptr[i]`` 是请求 ``i`` 的 kv 长度（``kv_len[i]``）。
+当请求数量大于 1 时，不同的请求可能具有不同的Query长度和 kv 长度。为了避免填充，我们使用 2D ragged tensor 来存储注意力掩码。输入的 ``qo_indptr`` 和 ``kv_indptr`` 数组（长度均为 ``num_requests+1``）用于存储每个请求的可变序列长度信息，``qo_indptr[i+1]-qo_indptr[i]`` 是请求 ``i`` 的Query长度（``qo_len[i]``），``kv_indptr[i+1]-kv_indptr[i]`` 是请求 ``i`` 的 kv 长度（``kv_len[i]``）。
 
-所有请求的掩码数组被展平（查询作为第一维度，kv 作为最后一维）并连接成一个 1D 数组：``mask_data``。FlashInfer 会隐式创建一个 ``qk_indptr`` 数组来存储每个请求的掩码在展平的掩码数组中的起始偏移量：``qk_indptr[1:] = cumsum(qo_len * kv_len)``。
+所有请求的掩码数组被展平（Query作为第一维度，kv 作为最后一维）并连接成一个 1D 数组：``mask_data``。FlashInfer 会隐式创建一个 ``qk_indptr`` 数组来存储每个请求的掩码在展平的掩码数组中的起始偏移量：``qk_indptr[1:] = cumsum(qo_len * kv_len)``。
 
 ``mask_data`` 的形状为 ``(qk_indptr[-1],)``，我们可以使用 ``mask_data[qk_indptr[i]:qk_indptr[i+1]]`` 来切片请求 ``i`` 的展平掩码。
 
@@ -290,12 +290,12 @@ FlashInfer 提供了 `flashinfer.prefill.BatchPrefillWithRaggedKVCacheWrapper` �
 
 ## Page Table 布局
 
-当 KV-Cache 是动态的（例如在 append 或 decode 阶段），打包所有键/值是不高效的，因为每个请求的序列长度会随时间变化。`vLLM <https://arxiv.org/pdf/2309.06180.pdf>`_ 
-提出将 KV-Cache 组织为Page Table。在 FlashInfer 中，我们将 Page Table 视为一个块稀疏矩阵（每个使用的页面可以视为块稀疏矩阵中的一个非零块）并使用 `CSR 格式 <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html>` 来索引 KV-Cache 中的Page。
+当 KV-Cache 是动态的（例如在 append 或 decode 阶段），打包所有Key/Value是不高效的，因为每个请求的序列长度会随时间变化。`vLLM <https://arxiv.org/pdf/2309.06180.pdf>`_ 
+提出将 KV-Cache 组织为Page Table。在 FlashInfer 中，我们将 Page Table 视为一个块稀疏矩阵（每个使用的Page 可以视为块稀疏矩阵中的一个非零块）并使用 `CSR 格式 <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html>` 来索引 KV-Cache 中的Page。
 
 ![](https://files.mdnice.com/user/59/d14c4007-6568-4039-9733-ac5fd069ecb7.png)
 
-对于每个请求，我们记录其 ``page_indices`` 和 ``last_page_len``，分别跟踪该请求使用的页面和最后一个页面中的条目数量。请求 ``i`` 的 KV 序列长度为 ``page_size * (len(page_indices[i]) - 1) + last_page_length[i]``。
+对于每个请求，我们记录其 ``page_indices`` 和 ``last_page_len``，分别跟踪该请求使用的Page 和最后一个Page 中的条目数量。请求 ``i`` 的 KV 序列长度为 ``page_size * (len(page_indices[i]) - 1) + last_page_length[i]``。
 
 > 每个请求的 ``last_page_len`` 必须大于零，并且小于或等于 ``page_size``。
 
@@ -313,48 +313,443 @@ FlashInfer 提供了 `flashinfer.prefill.BatchPrefillWithRaggedKVCacheWrapper` �
 (max_num_pages, num_heads, page_size, head_dim) # HND layout
 ```
 
-其中，``max_num_pages`` 是所有请求使用的最大页面数，``page_size`` 是每个页面中容纳的 token 数量。在单个张量存储中，``2`` 表示 K/V（第一个用于Key，第二个用于Value）。
+其中，``max_num_pages`` 是所有请求使用的最大Page 数，``page_size`` 是每个Page 中容纳的 token 数量。在单个张量存储中，``2`` 表示 K/V（第一个用于Key，第二个用于Value）。
 
 ### FlashInfer APIs
 
-:meth:`flashinfer.page.append_paged_kv_cache` can append a batch of keys/values (stored as ragged tensors) to the paged KV-Cache
-(the pages for these appended keys/values must be allocated prior to calling this API).
+`flashinfer.page.append_paged_kv_cache` 可以将一批Key/Value（存储为 ragged tensors）追加到分页的 KV-Cache 中（这些追加的Key/Value的Page 必须在调用此 API 之前分配）。
 
-:class:`flashinfer.decode.BatchDecodeWithPagedKVCacheWrapper` and :class:`flashinfer.prefill.BatchPrefillWithPagedKVCacheWrapper` implements the decode attention
-and prefill/append attention between queries stored in ragged tensors and keys/values stored in paged KV-Cache.
+`flashinfer.decode.BatchDecodeWithPagedKVCacheWrapper` 和 `flashinfer.prefill.BatchPrefillWithPagedKVCacheWrapper` 实现了在存储为 ragged tensors 的Query和存储在分页 KV-Cache 中的Key/Value之间的解码注意力和预填充/追加注意力。
 
-.. _cascade-inference-data-layout:
 
-Multi-level Cascade Inference Data Layout
------------------------------------------
+## 多级级联推理数据布局
 
-When using multi-level `cascade inference <https://flashinfer.ai/2024/02/02/cascade-inference.html>`_,
-the query and output are stored in ragged tensors, and KV-Cache of all levels are stored
-in a unified Paged KV-Cache. Each level has a unique ``qo_indptr`` array which is the prefix sum of the
-accumulated number of tokens to append in the subtree, as well as ``kv_page_indptr``, ``kv_page_indices``, and
-``kv_last_page_len`` which has same semantics as in :ref:`page-layout` section. The following figure
-introduce how to construct these data structures for append attention operation for 8 requests where we
-treat their KV-Cache as 3 levels for prefix reuse:
+当使用多级 `级联推理 <https://flashinfer.ai/2024/02/02/cascade-inference.html>`_ 时，Query和输出存储在 ragged tensors 中，所有级别的 KV-Cache 存储在一个统一的分页 KV-Cache 中。每个级别都有一个唯一的 ``qo_indptr`` 数组，该数组是子树中累积的要追加的 token 数的前缀和，以及 ``kv_page_indptr``、``kv_page_indices`` 和 ``kv_last_page_len``，这些数组的语义与 Page Table 布局 部分中的相同。下图介绍了如何为 8 个请求构建这些数据结构，我们将这些请求的 KV-Cache 视为 3 个级别以实现前缀重用：
 
-.. image:: https://raw.githubusercontent.com/flashinfer-ai/web-data/main/tutorials/cascade_inference_data_layout.png
-  :width: 800
-  :align: center
-  :alt: Cascade inference data layout.
+![](https://files.mdnice.com/user/59/1d076e3c-c2c1-4378-87cd-aa32314e5368.png)
 
-Note that we don't have to change the data layout of ragged query/output tensor or paged kv-cache for each level.
-All levels share the same underlying data layout, but we use different ``qo_indptr`` / ``kv_page_indptr`` arrays
-so that we can view them in different ways.
+请注意，我们不需要为每个级别更改 ragged query/output 张量或分页 kv-cache 的数据布局。所有级别共享相同的基础数据布局，但我们使用不同的 ``qo_indptr`` / ``kv_page_indptr`` 数组，以便以不同的方式查看它们。
 
-FlashInfer APIs
-~~~~~~~~~~~~~~~
+### FlashInfer APIs
+FlashInfer 提供 `flashinfer.cascade.MultiLevelCascadeAttentionWrapper` 用于计算级联注意力。
 
-FlashInfer provides :class:`flashinfer.cascade.MultiLevelCascadeAttentionWrapper` to compute
-the cascade attention.
+## FAQ
 
-FAQ
----
+**FlashInfer 如何管理 KV-Cache？**
 
-How do FlashInfer manages KV-Cache?
-  FlashInfer itself is not responsible for managing the page-table (pop and allocate new pages, etc.) and we leave the strategy
-  to the user: different serving engine might have different strategies to manage the page-table. FlashInfer is only responsible
-  for computing the attention between queries and keys/values stored in KV-Cache.
+  FlashInfer 本身不负责管理Page Table（例如弹出和分配新Page 等），而是将策略留给用户：不同的服务引擎可能有不同的策略来管理Page Table。FlashInfer 仅负责计算存储在 KV-Cache 中的Query和Key/Value之间的注意力。
+
+# FlashInfer API
+
+## flashinfer.decode
+
+### Single Request Decoding
+
+- `single_decode_with_kv_cache(q, k, v[, ...])`: 使用 KV 缓存对单个请求进行解码注意力，返回注意力输出。
+
+`def single_decode_with_kv_cache(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    kv_layout: str = "NHD",
+    pos_encoding_mode: str = "NONE",
+    use_tensor_cores: bool = False,
+    q_scale: Optional[float] = None,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+    window_left: int = -1,
+    logits_soft_cap: Optional[float] = None,
+    sm_scale: Optional[float] = None,
+    rope_scale: Optional[float] = None,
+    rope_theta: Optional[float] = None,
+) -> torch.Tensor:`
+
+单请求解码注意力，使用 KV 缓存，返回注意力输出。
+
+```python
+
+参数
+
+q : torch.Tensor
+    查询张量，形状：``[num_qo_heads, head_dim]``。
+k : torch.Tensor
+    键张量，形状：如果 `kv_layout` 为 ``NHD``，则为 ``[kv_len, num_kv_heads, head_dim]``，如果 `kv_layout` 为 ``HND``，则为 ``[num_kv_heads, kv_len, head_dim]``。
+v : torch.Tensor
+    值张量，形状：如果 `kv_layout` 为 ``NHD``，则为 ``[kv_len, num_kv_heads, head_dim]``，如果 `kv_layout` 为 ``HND``，则为 ``[num_kv_heads, kv_len, head_dim]``。
+kv_layout : str
+    输入键/值张量的布局，可以是 ``NHD`` 或 ``HND``。
+pos_encoding_mode : str
+    在注意力内核中应用的位置编码，可以是 ``NONE``/``ROPE_LLAMA``（LLAMA 风格的旋转编码）/``ALIBI``。默认为 ``NONE``。
+use_tensor_cores: bool
+    是否使用张量核心进行计算。对于大组大小的分组查询注意力，使用张量核心会更快。默认为 ``False``。
+q_scale : Optional[float]
+    查询的 fp8 输入的校准比例，如果未提供，将设置为 ``1.0``。
+k_scale : Optional[float]
+    键的 fp8 输入的校准比例，如果未提供，将设置为 ``1.0``。
+v_scale : Optional[float]
+    值的 fp8 输入的校准比例，如果未提供，将设置为 ``1.0``。
+window_left : int
+    注意力窗口的左（包含）窗口大小，当设置为 ``-1`` 时，窗口大小将设置为序列的全长。默认为 ``-1``。
+logits_soft_cap : Optional[float]
+    注意力对数的软上限值（用于 Gemini、Grok 和 Gemma-2 等），如果未提供，将设置为 ``0``。如果大于 0，对数将根据公式进行上限：
+    $\text{logits_soft_cap} \times \mathrm{tanh}(x / \text{logits_soft_cap})$，
+    其中 $x$ 是输入对数。
+sm_scale : Optional[float]
+    softmax 的比例，如果未提供，将设置为 ``1 / sqrt(head_dim)``。
+rope_scale : Optional[float]
+    RoPE 插值中使用的比例，如果未提供，将设置为 ``1.0``。
+rope_theta : Optional[float]
+    RoPE 中使用的 theta，如果未提供，将设置为 ``1e4``。
+
+返回
+-------
+torch.Tensor
+    注意力输出，形状：``[num_qo_heads, head_dim]``
+
+示例
+--------
+
+>>> import torch
+>>> import flashinfer
+>>> kv_len = 4096
+>>> num_qo_heads = 32
+>>> num_kv_heads = 32
+>>> head_dim = 128
+>>> q = torch.randn(num_qo_heads, head_dim).half().to("cuda:0")
+>>> k = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+>>> v = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+>>> o = flashinfer.single_decode_with_kv_cache(q, k, v)
+>>> o.shape
+torch.Size([32, 128])
+
+Note
+----
+The ``num_qo_heads`` must be a multiple of ``num_kv_heads``. If ``num_qo_heads`` is
+not equal to ``num_kv_heads``, the function will use
+`grouped query attention <https://arxiv.org/abs/2305.13245>`_.
+
+```
+
+### Batch Decoding
+
+`class flashinfer.decode.BatchDecodeWithPagedKVCacheWrapper(float_workspace_buffer: torch.Tensor, kv_layout: str = 'NHD', use_cuda_graph: bool = False, use_tensor_cores: bool = False, paged_kv_indptr_buffer: torch.Tensor | None = None, paged_kv_indices_buffer: torch.Tensor | None = None, paged_kv_last_page_len_buffer: torch.Tensor | None = None)`
+
+用于批量请求的Paged KV Cache解码注意力的包装类（首次在 vLLM 中提出）。
+
+例子
+
+```python
+import torch
+import flashinfer
+num_layers = 32
+num_qo_heads = 64
+num_kv_heads = 8
+head_dim = 128
+max_num_pages = 128
+page_size = 16
+# allocate 128MB workspace buffer
+workspace_buffer = torch.empty(128 * 1024 * 1024, dtype=torch.uint8, device="cuda:0")
+decode_wrapper = flashinfer.BatchDecodeWithPagedKVCacheWrapper(
+    workspace_buffer, "NHD"
+)
+batch_size = 7
+# kv_page_indices: [0, 1, 2, ..., 128]
+kv_page_indices = torch.arange(max_num_pages).int().to("cuda:0")
+kv_page_indptr = torch.tensor(
+    [0, 17, 29, 44, 48, 66, 100, 128], dtype=torch.int32, device="cuda:0"
+) # 注意，这里是前缀的关系，每个请求的 Paged Table 数是[17, 12, 15, 4, 18, 34, 28]
+# 1 <= kv_last_page_len <= page_size
+kv_last_page_len = torch.tensor(
+    [1, 7, 14, 4, 3, 1, 16], dtype=torch.int32, device="cuda:0"
+)
+kv_cache_at_layer = [
+    torch.randn(
+        max_num_pages, 2, page_size, num_kv_heads, head_dim, dtype=torch.float16, device="cuda:0"
+    ) for _ in range(num_layers)
+]
+# create auxiliary data structures for batch decode attention
+decode_wrapper.plan(
+    kv_page_indptr,
+    kv_page_indices,
+    kv_last_page_len,
+    num_qo_heads,
+    num_kv_heads,
+    head_dim,
+    page_size,
+    pos_encoding_mode="NONE",
+    data_type=torch.float16
+)
+outputs = []
+for i in range(num_layers):
+    q = torch.randn(batch_size, num_qo_heads, head_dim).half().to("cuda:0")
+    kv_cache = kv_cache_at_layer[i]
+    # compute batch decode attention, reuse auxiliary data structures for all layers
+    o = decode_wrapper.run(q, kv_cache)
+    outputs.append(o)
+
+print(outputs[0].shape)
+# torch.Size([7, 64, 128])
+```
+
+> 为了加速计算，FlashInfer 的批量解码注意力创建了一些辅助数据结构，这些数据结构可以在多个批量解码注意力调用中重用（例如，不同的 Transformer 层）。这个包装类管理这些数据结构的生命周期。
+
+`__init__(float_workspace_buffer: torch.Tensor, kv_layout: str = 'NHD', use_cuda_graph: bool = False, use_tensor_cores: bool = False, paged_kv_indptr_buffer: torch.Tensor | None = None, paged_kv_indices_buffer: torch.Tensor | None = None, paged_kv_last_page_len_buffer: torch.Tensor | None = None) → None`
+
+构造 `BatchDecodeWithPagedKVCacheWrapper`.
+
+```python
+Parameters
+    float_workspace_buffer : torch.Tensor
+        用户预留的浮点工作区缓冲区，用于存储 split-k 算法中的中间注意力结果。推荐大小为 128MB，工作区缓冲区的设备应与输入张量的设备相同。
+
+    kv_layout : str
+        输入 k/v 张量的布局，可以是 ``NHD`` 或 ``HND``。
+
+    use_cuda_graph : bool
+        是否启用 CUDAGraph 用于批量解码注意力，如果启用，辅助数据结构将存储在提供的缓冲区中。当启用 CUDAGraph 时，此包装器的生命周期内 ``batch_size`` 不能改变。
+
+    use_tensor_cores : bool
+        是否使用张量核心进行计算。对于大型组查询注意力，使用张量核心会更快。默认为 ``False``。
+
+    indptr_buffer : Optional[torch.Tensor]
+        用户预留的 GPU 缓冲区，用于存储 Paged KV Cache 的 indptr，缓冲区的大小应为 ``[batch_size + 1]``。
+        仅在 ``use_cuda_graph`` 为 ``True`` 时需要。
+
+    indices_buffer : Optional[torch.Tensor]
+        用户预留的 GPU 缓冲区，用于存储 Paged KV Cache 的页索引，缓冲区应足够大以存储此包装器生命周期内的最大页索引数（``max_num_pages``）。
+        仅在 ``use_cuda_graph`` 为 ``True`` 时需要。
+
+    last_page_len_buffer : Optional[torch.Tensor]
+        用户预留的 GPU 缓冲区，用于存储最后一页的条目数，缓冲区的大小应为 ``[batch_size]``。
+        仅在 ``use_cuda_graph`` 为 ``True`` 时需要。
+```
+
+`plan(indptr: torch.Tensor, indices: torch.Tensor, last_page_len: torch.Tensor, num_qo_heads: int, num_kv_heads: int, head_dim: int, page_size: int, pos_encoding_mode: str = 'NONE', window_left: int = -1, logits_soft_cap: float | None = None, data_type: str | torch.dtype = 'float16', q_data_type: str | torch.dtype | None = None, sm_scale: float | None = None, rope_scale: float | None = None, rope_theta: float | None = None) → None`
+
+Plan batch decode for given problem specification.
+
+```python
+Parameters
+    indptr : torch.Tensor
+         Paged KV Cache 的 indptr，形状：``[batch_size + 1]``
+    indices : torch.Tensor
+         Paged KV Cache 的页索引，形状：``[qo_indptr[-1]]``
+    last_page_len : torch.Tensor
+        每个请求在 Paged KV Cache 中最后一页的条目数，形状：``[batch_size]``
+    num_qo_heads : int
+        查询/输出头的数量
+    num_kv_heads : int
+        键/值头的数量
+    head_dim : int
+        头的维度
+    page_size : int
+         Paged KV Cache 的页大小
+    pos_encoding_mode : str
+        在注意力内核中应用的位置编码，可以是
+        ``NONE``/``ROPE_LLAMA``（LLAMA 风格的旋转嵌入）/``ALIBI``。
+        默认为 ``NONE``。
+    window_left : int
+        注意力窗口的左（包含）窗口大小，当设置为 ``-1`` 时，窗口大小将设置为序列的全长。默认为 ``-1``。
+    logits_soft_cap : Optional[float]
+        注意力 logits 的软上限值（用于 Gemini、Grok 和 Gemma-2 等），如果未提供，将设置为 ``0``。如果大于 0，logits 将根据公式进行上限：
+        $\texttt{logits_soft_cap} \times \mathrm{tanh}(x / \texttt{logits_soft_cap})$，
+        其中 $x$ 是输入 logits。
+    data_type : Union[str, torch.dtype]
+         Paged KV Cache 的数据类型。默认为 ``float16``。
+    q_data_type : Optional[Union[str, torch.dtype]]
+        查询张量的数据类型。如果为 None，将设置为
+        ``data_type``。默认为 ``None``。
+
+    注意
+    ----
+    在任何 `run` 或 `run_return_lse` 调用之前，应调用 `plan` 方法，辅助数据结构将在此次调用中创建并缓存以供多次运行调用。
+
+    ``num_qo_heads`` 必须是 ``num_kv_heads`` 的倍数。如果 ``num_qo_heads``
+    不等于 ``num_kv_heads``，函数将使用`分组查询注意力 <https://arxiv.org/abs/2305.13245>`_。
+```
+
+`reset_workspace_buffer(float_workspace_buffer: torch.Tensor, int_workspace_buffer: torch.Tensor) → None`
+
+Reset the workspace buffer.
+
+```python
+Parameters
+    float_workspace_buffer : torch.Tensor
+        新的浮点工作区缓冲区，其设备应与输入张量的设备相同。
+
+    int_workspace_buffer : torch.Tensor
+        新的整数工作区缓冲区，其设备应与输入张量的设备相同。
+```
+
+`run(q: torch.Tensor, paged_kv_cache: torch.Tensor | Tuple[torch.Tensor, torch.Tensor], q_scale: float | None = None, k_scale: float | None = None, v_scale: float | None = None, return_lse: bool = False) → torch.Tensor | Tuple[torch.Tensor, torch.Tensor]`
+
+Compute batch decode attention between query and paged kv cache.
+
+```python
+Parameters
+    q : torch.Tensor
+        查询张量，形状：``[batch_size, num_qo_heads, head_dim]``
+    paged_kv_cache : Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+         Paged KV Cache ，存储为张量元组或单个张量：
+
+        * 一个 4-D 张量元组 ``(k_cache, v_cache)``，每个张量的形状为：
+            ``[max_num_pages, page_size, num_kv_heads, head_dim]`` 如果 `kv_layout` 是 ``NHD``,
+            和 ``[max_num_pages, num_kv_heads, page_size, head_dim]`` 如果 `kv_layout` 是 ``HND``。
+
+        * 一个 5-D 张量，形状为：
+            ``[max_num_pages, 2, page_size, num_kv_heads, head_dim]`` 如果
+            `kv_layout` 是 ``NHD``，和
+            ``[max_num_pages, 2, num_kv_heads, page_size, head_dim]`` 如果
+            `kv_layout` 是 ``HND``。其中 ``paged_kv_cache[:, 0]`` 是键缓存，``paged_kv_cache[:, 1]`` 是值缓存。
+
+    q_scale : Optional[float]
+        查询的校准比例，对于 fp8 输入，如果未提供，将设置为 ``1.0``。
+    k_scale : Optional[float]
+        键的校准比例，对于 fp8 输入，如果未提供，将设置为 ``1.0``。
+    v_scale : Optional[float]
+        值的校准比例，对于 fp8 输入，如果未提供，将设置为 ``1.0``。
+    return_lse : bool
+        是否返回注意力分数的 logsumexp，默认为 ``False``。
+
+    返回
+    Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+        如果 `return_lse` 是 ``False``，返回注意力输出，形状：``[batch_size, num_qo_heads, head_dim]``。
+        如果 `return_lse` 是 ``True``，返回一个包含两个张量的元组：
+
+        * 注意力输出，形状：``[batch_size, num_qo_heads, head_dim]``
+        * 注意力分数的 logsumexp，形状：``[batch_size, num_qo_heads]``。
+```
+
+`class flashinfer.decode.CUDAGraphBatchDecodeWithPagedKVCacheWrapper(workspace_buffer: torch.Tensor, indptr_buffer: torch.Tensor, indices_buffer: torch.Tensor, last_page_len_buffer: torch.Tensor, kv_layout: str = 'NHD', use_tensor_cores: bool = False)`
+
+与 CUDAGraph 兼容的解码注意力包装类，用于处理 Paged KV Cache （首次在 `vLLM <https://arxiv.org/abs/2309.06180>`_ 中提出）的批量请求。
+
+请注意，此包装类可能不如 `BatchDecodeWithPagedKVCacheWrapper` 高效，因为为了适应 CUDAGraph 的要求，我们不会为不同的批量大小、序列长度等分派不同的kernel。
+
+> plan() 方法无法被 CUDAGraph 捕获。
+
+Constructor of `BatchDecodeWithPagedKVCacheWrapper`.
+
+```python
+Parameters
+    workspace_buffer : torch.Tensor
+        用户预留的 GPU 工作区缓冲区，用于存储辅助数据结构，建议大小为 128MB，工作区缓冲区的设备应与输入张量的设备相同。
+
+    indptr_buffer : torch.Tensor
+        用户预留的 GPU 缓冲区，用于存储分页 kv 缓存的 indptr，应足够大以存储此包装器生命周期内的最大批量大小（``[max_batch_size + 1]``）的 indptr。
+
+    indices_buffer : torch.Tensor
+        用户预留的 GPU 缓冲区，用于存储分页 kv 缓存的页索引，应足够大以存储此包装器生命周期内的最大页索引数（``max_num_pages``）。
+
+    last_page_len_buffer : torch.Tensor
+        用户预留的 GPU 缓冲区，用于存储每页的条目数，应足够大以存储此包装器生命周期内的最大批量大小（``[max_batch_size]``）。
+
+    use_tensor_cores : bool
+        是否使用张量核心进行计算。对于大组大小的分组查询注意力，使用张量核心会更快。默认为 ``False``。
+
+    kv_layout : str
+        输入 k/v 张量的布局，可以是 ``NHD`` 或 ``HND``。
+```
+
+## flashinfer.prefill
+
+Attention kernels for prefill & append attention in both single request and batch serving setting.
+
+### Single Request Prefill/Append Attention
+
+- `single_prefill_with_kv_cache(q, k, v[, ...])`: 单请求的预填充/追加注意力，使用 KV 缓存，返回注意力输出。
+
+```python
+Parameters
+    参数
+    ----------
+    q : torch.Tensor
+        查询张量，形状：``[qo_len, num_qo_heads, head_dim]``。
+    k : torch.Tensor
+        键张量，形状：``[kv_len, num_kv_heads, head_dim]`` 如果 `kv_layout` 是 ``NHD``，或 ``[num_kv_heads, kv_len, head_dim]`` 如果 `kv_layout` 是 ``HND``。
+    v : torch.Tensor
+        值张量，形状：``[kv_len, num_kv_heads, head_dim]`` 如果 `kv_layout` 是 ``NHD``，或 ``[num_kv_heads, kv_len, head_dim]`` 如果 `kv_layout` 是 ``HND``。
+    custom_mask : Optional[torch.Tensor]
+        自定义布尔掩码张量，形状：``[qo_len, kv_len]``。
+        掩码张量中的元素应为 ``True`` 或 ``False``，其中 ``False`` 表示注意力矩阵中对应的元素将被屏蔽。
+
+        当提供 `custom_mask` 且未提供 `packed_custom_mask` 时，函数会将自定义掩码张量打包成 1D 打包掩码张量，这会引入额外的开销。
+    packed_custom_mask : Optional[torch.Tensor]
+        1D 打包的 uint8 掩码张量，如果提供，`custom_mask` 将被忽略。
+        打包的掩码张量由 :func:`flashinfer.quantization.packbits` 生成。
+    causal : bool
+        是否对注意力矩阵应用因果掩码。
+        仅在未提供 `custom_mask` 时有效。
+    kv_layout : str
+        输入 k/v 张量的布局，可以是 ``NHD`` 或 ``HND``。
+    pos_encoding_mode : str
+        在注意力内核中应用的位置编码，可以是 ``NONE``/``ROPE_LLAMA``（LLAMA 风格的旋转嵌入）/``ALIBI``。
+        默认为 ``NONE``。
+    allow_fp16_qk_reduction : bool
+        是否使用 f16 进行 qk reduction（更快但精度略有损失）。
+    window_left : int
+        注意力窗口的左（包含）窗口大小，当设置为 ``-1`` 时，窗口大小将设置为序列的全长。默认为 ``-1``。
+    logits_soft_cap : Optional[float]
+        注意力 logit 的软上限值（用于 Gemini, Grok 和 Gemma-2 等），如果未提供，将设置为 ``0``。如果大于 0，logits 将根据公式进行上限：
+        $\texttt{logits_soft_cap} \times \mathrm{tanh}(x / \texttt{logits_soft_cap})$，
+        其中 $x$ 是输入 logits。
+    sm_scale : Optional[float]
+        用于 softmax 的缩放因子，如果未提供，将设置为 ``1.0 / sqrt(head_dim)``。
+    rope_scale : Optional[float]
+        用于 RoPE 插值的缩放因子，如果未提供，将设置为 1.0。
+    rope_theta : Optional[float]
+        用于 RoPE 的 theta，如果未提供，将设置为 1e4。
+    return_lse : bool
+        是否返回注意力 logit 的 logsumexp 值。
+
+    返回
+    -------
+    Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+        如果 `return_lse` 是 ``False``，返回注意力输出，形状：``[qo_len, num_qo_heads, head_dim]``。
+        如果 `return_lse` 是 ``True``，返回一个包含两个张量的元组：
+
+        * 注意力输出，形状：``[qo_len, num_qo_heads, head_dim]``。
+        * 注意力 logit 的 logsumexp 值，形状：``[qo_len, num_qo_heads]``。
+
+    示例
+    --------
+
+    >>> import torch
+    >>> import flashinfer
+    >>> qo_len = 128
+    >>> kv_len = 4096
+    >>> num_qo_heads = 32
+    >>> num_kv_heads = 4
+    >>> head_dim = 128
+    >>> q = torch.randn(qo_len, num_qo_heads, head_dim).half().to("cuda:0")
+    >>> k = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+    >>> v = torch.randn(kv_len, num_kv_heads, head_dim).half().to("cuda:0")
+    >>> o = flashinfer.single_prefill_with_kv_cache(q, k, v, causal=True,
+            allow_fp16_qk_reduction=True)
+    >>> o.shape
+    torch.Size([128, 32, 128])
+    >>> mask = torch.tril(
+    >>>     torch.full((qo_len, kv_len), True, device="cuda:0"),
+    >>>     diagonal=(kv_len - qo_len),
+    >>> )
+    >>> mask
+    tensor([[ True,  True,  True,  ..., False, False, False],
+            [ True,  True,  True,  ..., False, False, False],
+            [ True,  True,  True,  ..., False, False, False],
+            ...,
+            [ True,  True,  True,  ...,  True, False, False],
+            [ True,  True,  True,  ...,  True,  True, False],
+            [ True,  True,  True,  ...,  True,  True,  True]], device='cuda:0')
+    >>> o_custom = flashinfer.single_prefill_with_kv_cache(q, k, v, custom_mask=mask)
+    >>> torch.allclose(o, o_custom, rtol=1e-3, atol=1e-3)
+    True
+
+    注意
+    ----
+    ``num_qo_heads`` 必须是 ``num_kv_heads`` 的倍数。如果 ``num_qo_heads`` 不等于 ``num_kv_heads``，函数将使用 `分组查询注意力 <https://arxiv.org/abs/2305.13245>`_。
+```
+
+- `single_prefill_with_kv_cache_return_lse(q, k, v)`: 单请求的预填充/追加注意力，使用 KV 缓存，返回注意力输出。
+
+
+
