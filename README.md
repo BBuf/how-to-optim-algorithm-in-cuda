@@ -359,6 +359,9 @@ cuda 相关的 paper 的阅读。
 - [CUTLASS 3.x 异构编程随感](https://zhuanlan.zhihu.com/p/689829403)
 - [Triton到PTX（1）：Elementwise](https://zhuanlan.zhihu.com/p/699979345)
 - [Triton到SASS（2）：Reduction](https://zhuanlan.zhihu.com/p/703748336)
+- [cuda的ldmatrix指令的详细解释](https://zhuanlan.zhihu.com/p/697228676)
+- [基于 CuTe 理解 swizzle, LDSM, MMA](https://zhuanlan.zhihu.com/p/934430036)
+
 
 ## Star History
 

@@ -345,7 +345,7 @@ FlashInfer 提供 `flashinfer.cascade.MultiLevelCascadeAttentionWrapper` 用于�
 
 ### Single Request Decoding
 
-- `single_decode_with_kv_cache(q, k, v[, ...])`: 使用 KV 缓存对单个请求进行解码注意力，返回注意力输出。
+- `single_decode_with_kv_cache(q, k, v[, ...])`: 使用 kv cache 对单个请求进行解码注意力，返回注意力输出。
 
 `def single_decode_with_kv_cache(
     q: torch.Tensor,
@@ -364,7 +364,7 @@ FlashInfer 提供 `flashinfer.cascade.MultiLevelCascadeAttentionWrapper` 用于�
     rope_theta: Optional[float] = None,
 ) -> torch.Tensor:`
 
-单请求解码注意力，使用 KV 缓存，返回注意力输出。
+单请求解码注意力，使用 kv cache ，返回注意力输出。
 
 ```python
 
@@ -636,10 +636,10 @@ Parameters
         用户预留的 GPU 工作区缓冲区，用于存储辅助数据结构，建议大小为 128MB，工作区缓冲区的设备应与输入张量的设备相同。
 
     indptr_buffer : torch.Tensor
-        用户预留的 GPU 缓冲区，用于存储分页 kv 缓存的 indptr，应足够大以存储此包装器生命周期内的最大批量大小（``[max_batch_size + 1]``）的 indptr。
+        用户预留的 GPU 缓冲区，用于存储分页 kv cache 的 indptr，应足够大以存储此包装器生命周期内的最大批量大小（``[max_batch_size + 1]``）的 indptr。
 
     indices_buffer : torch.Tensor
-        用户预留的 GPU 缓冲区，用于存储分页 kv 缓存的页索引，应足够大以存储此包装器生命周期内的最大页索引数（``max_num_pages``）。
+        用户预留的 GPU 缓冲区，用于存储分页 kv cache 的页索引，应足够大以存储此包装器生命周期内的最大页索引数（``max_num_pages``）。
 
     last_page_len_buffer : torch.Tensor
         用户预留的 GPU 缓冲区，用于存储每页的条目数，应足够大以存储此包装器生命周期内的最大批量大小（``[max_batch_size]``）。
@@ -657,7 +657,7 @@ Attention kernels for prefill & append attention in both single request and batc
 
 ### Single Request Prefill/Append Attention
 
-- `single_prefill_with_kv_cache(q, k, v[, ...])`: 单请求的预填充/追加注意力，使用 KV 缓存，返回注意力输出。
+- `single_prefill_with_kv_cache(q, k, v[, ...])`: 单请求的预填充/追加注意力，使用 kv cache ，返回注意力输出。
 
 ```python
 Parameters
@@ -749,7 +749,7 @@ Parameters
     ``num_qo_heads`` 必须是 ``num_kv_heads`` 的倍数。如果 ``num_qo_heads`` 不等于 ``num_kv_heads``，函数将使用 `分组查询注意力 <https://arxiv.org/abs/2305.13245>`_。
 ```
 
-- `single_prefill_with_kv_cache_return_lse(q, k, v)`: 单请求的预填充/追加注意力，使用 KV 缓存，返回注意力输出。
+- `single_prefill_with_kv_cache_return_lse(q, k, v)`: 单请求的预填充/追加注意力，使用 kv cache ，返回注意力输出。
 
 ### Batch Prefill/Append Attention
 
@@ -883,3 +883,120 @@ Constructor of `BatchPrefillWithPagedKVCacheWrapper`.
 ```
 
 
+`plan(qo_indptr: torch.Tensor, paged_kv_indptr: torch.Tensor, paged_kv_indices: torch.Tensor, paged_kv_last_page_len: torch.Tensor, num_qo_heads: int, num_kv_heads: int, head_dim: int, page_size: int, custom_mask: torch.Tensor | None = None, packed_custom_mask: torch.Tensor | None = None, causal: bool = False, pos_encoding_mode: str = 'NONE', allow_fp16_qk_reduction: bool = False, sm_scale: float | None = None, window_left: int = -1, logits_soft_cap: float | None = None, rope_scale: float | None = None, rope_theta: float | None = None, q_data_type: str | torch.dtype = 'float16', kv_data_type: str | torch.dtype | None = None) → None`
+
+Plan batch prefill/append attention on Paged KV-Cache for given problem specification.
+
+```python
+Parameters
+    ----------
+    qo_indptr : torch.Tensor
+        查询/输出张量的 indptr，形状: ``[batch_size + 1]``。
+    paged_kv_indptr : torch.Tensor
+        分页的 kv cache 的 indptr，形状: ``[batch_size + 1]``。
+    paged_kv_indices : torch.Tensor
+        分页的 kv cache 的页索引，形状: ``[qo_indptr[-1]]``。
+    paged_kv_last_page_len : torch.Tensor
+        每个请求在分页的 kv cache 中的最后一页的条目数，形状: ``[batch_size]``。
+    num_qo_heads : int
+        查询/输出头的数量。
+    num_kv_heads : int
+        键/值头的数量。
+    head_dim : int
+        头的维度。
+    page_size : int
+        分页的 kv cache 中每个页的大小。
+    custom_mask : Optional[torch.Tensor]
+        布尔掩码张量的展平形式，形状: ``(sum(q_len[i] * k_len[i] for i in range(batch_size))``。
+        掩码张量中的元素应为 ``True`` 或 ``False``，其中 ``False`` 表示注意力矩阵中的相应元素将被屏蔽。
+
+        有关掩码张量展平布局的详细信息，请参阅 `mask layout <mask-layout>`。
+
+        当提供 `custom_mask` 且未提供 `packed_custom_mask` 时，函数会将自定义掩码张量打包成 1D 打包掩码张量，这会引入额外的开销。
+    packed_custom_mask : Optional[torch.Tensor]
+        1D 打包的 uint8 掩码张量，如果提供，`custom_mask` 将被忽略。
+        打包的掩码张量由 :func:`flashinfer.quantization.packbits` 生成。
+    causal : bool
+        是否对注意力矩阵应用因果掩码。
+        仅当在 :meth:`plan` 中未提供 `custom_mask` 时，此参数才有效。
+    pos_encoding_mode : str
+        在注意力内核中应用的位置编码，可以是 ``NONE``/``ROPE_LLAMA`` (LLAMA 风格的旋转嵌入) /``ALIBI``。
+        默认值为 ``NONE``。
+    allow_fp16_qk_reduction : bool
+        是否使用 f16 进行 qk 降维（更快但精度略有损失）。
+    window_left : int
+        注意力窗口的左（包含）窗口大小，当设置为 ``-1`` 时，窗口大小将设置为序列的全长。默认值为 ``-1``。
+    logits_soft_cap : Optional[float]
+        注意力 logit 的软上限值（用于 Gemini, Grok 和 Gemma-2 等），如果未提供，将设置为 ``0``。如果大于 0，logit 将根据以下公式进行上限：
+        $\texttt{logits_soft_cap} \times \mathrm{tanh}(x / \texttt{logits_soft_cap})$，
+        其中 $x$ 是输入 logit。
+    sm_scale : Optional[float]
+        用于 softmax 的缩放因子，如果未提供，将设置为 ``1.0 / sqrt(head_dim)``。
+    rope_scale : Optional[float]
+        用于 RoPE 插值的缩放因子，如果未提供，将设置为 ``1.0``。
+    rope_theta : Optional[float]
+        用于 RoPE 的 theta，如果未提供，将设置为 ``1e4``。
+    q_data_type : Union[str, torch.dtype]
+        查询张量的数据类型，默认为 torch.float16。
+    kv_data_type : Optional[Union[str, torch.dtype]]
+        键/值张量的数据类型。如果为 None，将设置为 `q_data_type`。
+
+    注意
+    ----
+    在调用任何 :meth:`run` 或 :meth:`run_return_lse` 之前，应调用 :meth:`plan` 方法，辅助数据结构将在此调用期间创建并缓存以供多次内核运行使用。
+
+    ``num_qo_heads`` 必须是 ``num_kv_heads`` 的倍数。如果 ``num_qo_heads`` 不等于 ``num_kv_heads``，函数将使用 `分组查询注意力 <https://arxiv.org/abs/2305.13245>`_。
+```
+
+`reset_workspace_buffer(float_workspace_buffer: torch.Tensor, int_workspace_buffer: torch.Tensor) → None`
+
+Reset the workspace buffer.
+
+```python
+Parameters
+    float_workspace_buffer : torch.Tensor
+        新的浮点工作区缓冲区，其设备应与输入张量的设备相同。
+
+    int_workspace_buffer : torch.Tensor
+        新的整数工作区缓冲区，其设备应与输入张量的设备相同。
+```
+
+`run(q: torch.Tensor, paged_kv_cache: torch.Tensor | Tuple[torch.Tensor, torch.Tensor], k_scale: float | None = None, v_scale: float | None = None, return_lse: bool = False) → torch.Tensor | Tuple[torch.Tensor, torch.Tensor]`
+
+Compute batch prefill/append attention between query and paged kv-cache.
+
+```python
+Parameters
+    ----------
+    q : torch.Tensor
+        The query tensor, shape: ``[qo_indptr[-1], num_qo_heads, head_dim]``
+    paged_kv_cache : Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+        The paged KV-Cache stored as a tuple of tensors or a single tensor:
+
+        * a tuple ``(k_cache, v_cache)`` of 4-D tensors, each with shape:
+            ``[max_num_pages, page_size, num_kv_heads, head_dim]`` if `kv_layout` is ``NHD``,
+            and ``[max_num_pages, num_kv_heads, page_size, head_dim]`` if `kv_layout` is ``HND``.
+
+        * a single 5-D tensor with shape:
+            ``[max_num_pages, 2, page_size, num_kv_heads, head_dim]`` if
+            `kv_layout` is ``NHD``, and
+            ``[max_num_pages, 2, num_kv_heads, page_size, head_dim]`` if
+            `kv_layout` is ``HND``. Where ``paged_kv_cache[:, 0]`` is the key-cache and
+            ``paged_kv_cache[:, 1]`` is the value-cache.
+
+    k_scale : Optional[float]
+        The calibration scale of key for fp8 input, if not provided, will be set to ``1.0``.
+    v_scale : Optional[float]
+        The calibration scale of value for fp8 input, if not provided, will be set to ``1.0``.
+    return_lse : bool
+        Whether to return the logsumexp of attention output
+
+    Returns
+    -------
+    Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+        If `return_lse` is ``False``, the attention output, shape: ``[qo_indptr[-1], num_qo_heads, head_dim]``.
+        If `return_lse` is ``True``, a tuple of two tensors:
+
+        * The attention output, shape: ``[qo_indptr[-1], num_qo_heads, head_dim]``.
+        * The logsumexp of attention output, shape: ``[qo_indptr[-1], num_qo_heads]``.
+```
