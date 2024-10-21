@@ -1,6 +1,4 @@
-> 博客链接：https://pytorch.org/blog/maximizing-training/
-
-> 由 IBM 的 PyTorch 团队和 Meta 的 PyTorch 团队撰写
+> 博客链接：https://pytorch.org/blog/maximizing-training/ 。博客由 IBM 的 PyTorch 团队和 Meta 的 PyTorch 团队撰写。目前Torch也持续在训练Infra上面推理，除了DeepSpeed，Meagtron-LM之外，我们也可以选择PyTorch的FSDP来训练更大的例如72B内的模型。这篇博客介绍了基于FSDP如何对7B/13B/34B/70B的模型在A100/H100上高效训练，所有代码均开源在：https://github.com/foundation-model-stack/fms-fsdp 。除了这个博客中介绍的Pretrain和SFT训练之外，源码里也提供了HF的转换脚本让这个训练的模型可以使用Hugging Face生态中的Post Traning工具。
 
 在这篇博客中，我们展示了 FSDP 的可扩展性，以一个预训练示例（一个训练了 2T 个 token 的 7B 模型）为例，并分享了我们用于实现每个 GPU 3,700 个 token/秒的快速训练速度的各种技术，即在 128 个 A100 GPU 上每天处理 40B 个 token。这相当于 57% 的模型 FLOPS 利用率（MFU）和硬件 FLOPS 利用率（HFU）。此外，我们观察到 FSDP 在扩展到 512 个 GPU 时几乎呈线性增长，这意味着使用这种方法在 512 个 GPU 上训练一个 7B 模型到 2T 个 token 只需不到两周的时间。
 
