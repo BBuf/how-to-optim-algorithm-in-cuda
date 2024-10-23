@@ -425,3 +425,43 @@ print(f'all_gather_object={timeit.Timer("all_gather_object()", globals=globals()
 print(f'all_reduce       ={timeit.Timer("all_reduce()"       , globals=globals()).timeit(number=1000)}')
 ```
 
+# 禁用NVLink基准测试
+
+让我们比较一下在wikitext的小样本上训练gpt2语言模型的情况。
+
+结果如下：
+
+| NVlink | 时间 |
+| -----  | ---: |
+| 是     | 101秒 |
+| 否     | 131秒 |
+
+你可以看到，使用NVLink完成训练的速度快了约23%。在第二个基准测试中，我们使用`NCCL_P2P_DISABLE=1`来告诉GPU不要使用NVLink，而是使用PCIe。
+
+我们将使用HF Transformers示例(https://github.com/huggingface/transformers/blob/58e3d23e97078f361a533b9ec4a6a2de674ea52a/examples/pytorch/language-modeling/run_clm.py)。
+
+以下是完整的基准测试代码和输出：
+
+```bash
+# DDP w/ NVLink
+
+rm -r /tmp/test-clm; CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch \
+--nproc_per_node 2 examples/pytorch/language-modeling/run_clm.py --model_name_or_path gpt2 \
+--dataset_name wikitext --dataset_config_name wikitext-2-raw-v1 --do_train \
+--output_dir /tmp/test-clm --per_device_train_batch_size 4 --max_steps 200
+
+{'train_runtime': 101.9003, 'train_samples_per_second': 1.963, 'epoch': 0.69}
+
+# DDP w/o NVLink
+
+rm -r /tmp/test-clm; CUDA_VISIBLE_DEVICES=0,1 NCCL_P2P_DISABLE=1 python -m torch.distributed.launch \
+--nproc_per_node 2 examples/pytorch/language-modeling/run_clm.py --model_name_or_path gpt2 \
+--dataset_name wikitext --dataset_config_name wikitext-2-raw-v1 --do_train
+--output_dir /tmp/test-clm --per_device_train_batch_size 4 --max_steps 200
+
+{'train_runtime': 131.4367, 'train_samples_per_second': 1.522, 'epoch': 0.69}
+```
+
+硬件: 2块TITAN RTX 24GB显卡 + 2条NVLink连接 (`nvidia-smi topo -m`中显示为`NV2`)
+软件: `pytorch-1.8-to-be` + `cuda-11.0` / `transformers==4.3.0.dev0`
+
