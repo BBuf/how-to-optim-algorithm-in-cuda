@@ -1,4 +1,4 @@
-> 文档来源：https://github.com/stas00/ml-engineering 。
+> 文档来源：https://github.com/stas00/ml-engineering 。这篇文档主要介绍了如何诊断和解决NCCL多GPU和多节点连接问题。它详细说明了如何使用NCCL调试信息来识别网络接口和协议问题，如何正确配置网络接口，以及如何在Docker容器中使用NCCL。文档还介绍了检查GPU P2P支持的方法，如何统计NCCL调用次数，以及一些有用的NCCL调试环境变量。此外，文档提供了一个用于测试分布式GPU设置的Python脚本。
 
 # 网络调试
 

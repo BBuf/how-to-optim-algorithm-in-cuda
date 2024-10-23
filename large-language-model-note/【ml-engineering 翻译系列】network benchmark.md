@@ -1,3 +1,5 @@
+> 文档来源：https://github.com/stas00/ml-engineering 。这篇文档主要介绍了大规模分布式机器学习训练中的网络基准测试和优化。文档首先介绍了几个用于测试网络性能的工具脚本,包括`all_reduce_bench.py`、`all_gather_object_vs_all_reduce.py`和`all_reduce_latency_comp.py`。然后讨论了进行网络基准测试的关键要求,强调了可重复性的重要性。接着详细介绍了网络吞吐量的重要性,包括如何测试和解释结果,以及不同GPU和框架对网络带宽的要求。文档还讨论了NCCL(NVIDIA Collective Communications Library)的性能优化,介绍了几个重要的NCCL环境变量及其作用。最后,文档提供了三个基准测试脚本的详细代码,包括`all_reduce_bench.py`、`all_reduce_latency_comp.py`和`all_gather_object_vs_all_reduce.py`,这些脚本可用于测试不同场景下的网络性能。
+
 # 网络基准测试
 
 **工具**:
@@ -271,5 +273,155 @@ def init_processes(local_rank, fn, backend='nccl'):
 if __name__ == "__main__":
     local_rank = int(os.environ["LOCAL_RANK"])
     init_processes(local_rank=local_rank, fn=run)
+```
+
+## `all_reduce_latency_comp.py`
+
+> 这个脚本举例说明1次4GB规模的归约操作比1000次4MB规模的归约操作要快得多。
+
+```python
+#!/usr/bin/env python
+
+# 这个脚本源自 all_reduce_bench.py
+# 但经过调整以展示 1x 4GB 规模的归约操作比 1000x 4MB 规模的归约操作要快得多
+#
+# 在 8 个 GPU 上运行的命令:
+# python -u -m torch.distributed.run --nproc_per_node=8 all_reduce_latency_comp.py
+
+import os
+import socket
+import torch
+import torch.distributed as dist
+
+TRIALS = 1  # 实验重复次数
+
+# 这些参数模拟将成为 M * N * 4 大小张量的有效载荷
+N = 500000
+M = 2000
+
+def timed_allreduce(mat, repeat_times, id, start_event, end_event):
+    start_event.record()
+    for i in range(repeat_times):
+        dist.all_reduce(mat)
+    end_event.record()
+
+    torch.cuda.synchronize()
+    duration = start_event.elapsed_time(end_event) / 1000  # 转换为秒
+
+    size = M * N * 4  # 4 是 fp32 的字节数
+    algbw = (size / duration) * 8  # 8 是字节转比特
+    n = dist.get_world_size()
+    # all-reduce 特有的 2*(n-1)/n busbw 校正因子在这里解释：
+    # https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md#allreduce
+    # busbw 反映了硬件的使用效率
+    busbw = algbw * (2*(n - 1) / n)
+
+    # 在全局 rank 0 上收集所有数据并打印结果，以避免打印交错
+    data = [id, duration, algbw, busbw]
+    output = [None for _ in range(dist.get_world_size())] if dist.get_rank() == 0 else None
+    dist.gather_object(data, output, dst=0)
+    if dist.get_rank() == 0:
+        for data in output:
+            id, duration, algbw, busbw = data
+            print(f"{id}:\n",
+                  f"duration: {duration:.3f} sec\n",
+                  f"algbw: {algbw/1e9:.3f} Gbps\n",
+                  f"busbw: {busbw / 1e9:.3f} Gbps"
+    )
+
+def run(local_rank):
+    hostname = socket.gethostname()
+    id = f"{hostname}:{local_rank}"
+    global_rank = dist.get_rank()
+
+    chunks = 1000
+    mat1 = torch.rand(N, M, dtype=torch.float32).cuda(local_rank)  # 4GB 张量
+    mat2 = torch.rand(int(N/chunks), M, dtype=torch.float32).cuda(local_rank)  # 4MB 张量
+
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    for i in range(TRIALS):
+        dist.barrier()  # 同步所有进程
+
+        if global_rank == 0:
+            print(f"\n\n\n----------- 1x {N*M*4/1e9}GB ----------------")
+        timed_allreduce(mat1, 1, id, start_event, end_event)  # 测试单次 4GB all-reduce
+
+        if global_rank == 0:
+            print(f"\n\n\n----------- {chunks}x {(N*M*4/chunks)/1e9}GB ----------------")
+        timed_allreduce(mat2, chunks, id, start_event, end_event)  # 测试 1000 次 4MB all-reduce
+
+def init_processes(local_rank, fn, backend='nccl'):
+    torch.cuda.set_device(local_rank)  # 设置当前进程使用的 GPU
+    dist.init_process_group(backend)  # 初始化分布式环境
+    fn(local_rank)
+
+if __name__ == "__main__":
+    local_rank = int(os.environ["LOCAL_RANK"])  # 获取本地 rank
+    print("local_rank: %d" % local_rank)
+    init_processes(local_rank=local_rank, fn=run)
+```
+
+## `all_gather_object_vs_all_reduce.py`
+
+> 使用all_reduce在进程组间收集计数比使用all_gather_object快23倍。
+
+```python
+#!/usr/bin/env python
+
+#
+# 使用all_reduce在进程组间收集计数比使用all_gather_object快23倍
+#
+# 运行命令: python -m torch.distributed.run --nproc_per_node 2 all_gather_object_vs_all_reduce.py
+#
+# 示例输出:
+# all_gather_object=0.26279118900129106
+# all_gather_object=0.2628160299973388
+# all_reduce       =0.011241967000387376
+# all_reduce       =0.011610440000367817
+
+import torch.distributed as dist
+import torch
+import os
+
+# 获取本地进程的rank
+local_rank = int(os.environ["LOCAL_RANK"])
+# 设置当前进程使用的GPU
+torch.cuda.set_device(local_rank)
+# 初始化分布式环境
+dist.init_process_group("nccl")
+# 设置设备为GPU(如果可用)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# 获取进程组的大小和当前进程的rank
+world_size = dist.get_world_size()
+rank = dist.get_rank()
+
+# 创建用于测试的张量和Python对象
+flag_pt = torch.tensor(1.0, device=device)
+flag_py = 1
+
+def all_gather_object():
+    # 创建一个列表来存储收集的对象
+    output_objects = [None for _ in range(world_size)]
+    # 使用all_gather_object收集所有进程的对象
+    dist.all_gather_object(output_objects, flag_py)
+    # 对收集的对象求和
+    flag = sum(output_objects)
+    return flag
+
+def all_reduce():
+    # 使用all_reduce对张量进行求和操作
+    dist.all_reduce(flag_pt, op=dist.ReduceOp.SUM)
+    return flag_pt
+
+# 测试两个函数
+print(f"all_gather_object: {all_gather_object()}\n")
+print(f"all_reduce: {all_reduce()}\n")
+
+import timeit
+# 使用timeit模块测量两个函数的执行时间(运行1000次)
+print(f'all_gather_object={timeit.Timer("all_gather_object()", globals=globals()).timeit(number=1000)}')
+print(f'all_reduce       ={timeit.Timer("all_reduce()"       , globals=globals()).timeit(number=1000)}')
 ```
 
