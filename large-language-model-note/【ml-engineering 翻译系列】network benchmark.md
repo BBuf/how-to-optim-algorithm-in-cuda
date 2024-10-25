@@ -1,4 +1,6 @@
-> 文档来源：https://github.com/stas00/ml-engineering 。这篇文档主要介绍了大规模分布式机器学习训练中的网络基准测试和优化。文档首先介绍了几个用于测试网络性能的工具脚本,包括`all_reduce_bench.py`、`all_gather_object_vs_all_reduce.py`和`all_reduce_latency_comp.py`。然后讨论了进行网络基准测试的关键要求,强调了可重复性的重要性。接着详细介绍了网络吞吐量的重要性,包括如何测试和解释结果,以及不同GPU和框架对网络带宽的要求。文档还讨论了NCCL(NVIDIA Collective Communications Library)的性能优化,介绍了几个重要的NCCL环境变量及其作用。最后,文档提供了三个基准测试脚本的详细代码,包括`all_reduce_bench.py`、`all_reduce_latency_comp.py`和`all_gather_object_vs_all_reduce.py`,这些脚本可用于测试不同场景下的网络性能。
+> 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
+
+> 本篇文档的来源：https://github.com/stas00/ml-engineering 。这篇文档主要介绍了大规模分布式机器学习训练中的网络基准测试和优化。文档首先介绍了几个用于测试网络性能的工具脚本,包括`all_reduce_bench.py`、`all_gather_object_vs_all_reduce.py`和`all_reduce_latency_comp.py`。然后讨论了进行网络基准测试的关键要求,强调了可重复性的重要性。接着详细介绍了网络吞吐量的重要性,包括如何测试和解释结果,以及不同GPU和框架对网络带宽的要求。文档还讨论了NCCL(NVIDIA Collective Communications Library)的性能优化,介绍了几个重要的NCCL环境变量及其作用。最后,文档提供了三个基准测试脚本的详细代码,包括`all_reduce_bench.py`、`all_reduce_latency_comp.py`和`all_gather_object_vs_all_reduce.py`,这些脚本可用于测试不同场景下的网络性能。
 
 # 网络基准测试
 

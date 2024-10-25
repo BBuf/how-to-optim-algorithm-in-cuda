@@ -1,4 +1,6 @@
-> 文档来源：https://github.com/stas00/ml-engineering 。这篇文档主要探讨了机器学习工作负载中CPU的使用情况。它详细介绍了CPU核心需求的计算方法,强调每个加速器和DataLoader工作进程都需要专用的CPU核心。文档还讨论了CPU内存的使用,指出通常每个节点的CPU内存应至少与GPU内存相当,并列举了主要的内存使用场景。此外,文档还提到了NUMA亲和性、超线程等可能影响性能的因素,以及使用mmap模式时可能出现的内存使用误判。
+> 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
+
+> 本篇文档的来源：https://github.com/stas00/ml-engineering 。这篇文档主要探讨了机器学习工作负载中CPU的使用情况。它详细介绍了CPU核心需求的计算方法,强调每个加速器和DataLoader工作进程都需要专用的CPU核心。文档还讨论了CPU内存的使用,指出通常每个节点的CPU内存应至少与GPU内存相当,并列举了主要的内存使用场景。此外,文档还提到了NUMA亲和性、超线程等可能影响性能的因素,以及使用mmap模式时可能出现的内存使用误判。
 
 # CPU
 
