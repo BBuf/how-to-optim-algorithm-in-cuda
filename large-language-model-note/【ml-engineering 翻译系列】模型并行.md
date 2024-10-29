@@ -92,117 +92,117 @@ x1 => GPU1
 x2 => GPU2
 ```
 
-The inputs are unmodified - they think they are going to be processed by the normal model.
+输入数据保持不变 - 它们认为会被正常模型处理。
 
-First, the inputs hit the layer La.
+首先,输入数据进入层 La。
 
-Let's focus just on GPU0: x0 needs a0, a1, a2 params to do its forward path, but GPU0 has only a0 - it gets sent a1 from GPU1 and a2 from GPU2, bringing all pieces of the model together.
+让我们只关注 GPU0:x0 需要 a0、a1、a2 参数来完成前向传播,但 GPU0 只有 a0 - 它从 GPU1 获得 a1,从 GPU2 获得 a2,将模型的所有部分组合在一起。
 
-In parallel, GPU1 gets mini-batch x1 and it only has a1, but needs a0 and a2 params, so it gets those from GPU0 and GPU2.
+同时,GPU1 获得 mini-batch x1,它只有 a1,但需要 a0 和 a2 参数,所以它从 GPU0 和 GPU2 获得这些参数。
 
-Same happens to GPU2 that gets input x2. It gets a0 and a1 from GPU0 and GPU1, and with its a2 it reconstructs the full tensor.
+GPU2 也是一样,它获得输入 x2。它从 GPU0 和 GPU1 获得 a0 和 a1,并用它的 a2 重建完整的张量。
 
-All 3 GPUs get the full tensors reconstructed and a forward happens.
+所有3个 GPU 都重建了完整的张量并进行前向计算。
 
-As soon as the calculation is done, the data that is no longer needed gets dropped - it's only used during the calculation. The reconstruction is done efficiently via a pre-fetch.
+一旦计算完成,不再需要的数据就会被丢弃 - 它只在计算期间使用。重建是通过预取高效完成的。
 
-And the whole process is repeated for layer Lb, then Lc forward-wise, and then backward Lc -> Lb -> La.
+整个过程在层 Lb、然后 Lc 的前向传播中重复,然后在反向传播中按 Lc -> Lb -> La 的顺序重复。
 
-To me this sounds like an efficient group backpacking weight distribution strategy:
+对我来说,这听起来像是一个高效的团队背包重量分配策略:
 
-1. person A carries the tent
-2. person B carries the stove
-3. person C carries the axe
+1. A 负责携带帐篷
+2. B 负责携带炉子
+3. C 负责携带斧头
 
-Now each night they all share what they have with others and get from others what they don't have, and in the morning they pack up their allocated type of gear and continue on their way. This is Sharded DDP / Zero DP.
+每天晚上他们都会分享自己拥有的东西,并从其他人那里获得他们没有的东西,早上他们打包自己分配的装备类型并继续前进。这就是分片 DDP / Zero DP。
 
-Compare this strategy to the simple one where each person has to carry their own tent, stove and axe, which would be far more inefficient. This is DataParallel (DP and DDP) in Pytorch.
+与每个人都必须携带自己的帐篷、炉子和斧头的简单策略相比,这种策略要高效得多。这就是 PyTorch 中的数据并行(DP 和 DDP)。
 
-While reading the literature on this topic you may encounter the following synonyms: Sharded, Partitioned.
+在阅读这个主题的文献时,你可能会遇到以下同义词:Sharded、Partitioned。
 
-If you pay close attention the way ZeRO partitions the model's weights - it looks very similar to tensor parallelism which will be discussed later. This is because it partitions/shards each layer's weights, unlike vertical model parallelism which is discussed next.
+如果你仔细观察 ZeRO 分区模型权重的方式 - 它看起来与稍后将讨论的张量并行非常相似。这是因为它对每个层的权重进行分区/分片,而不像接下来讨论的垂直模型并行。
 
-Implementations of ZeRO-DP stages 1+2+3:
+ZeRO-DP 阶段 1+2+3 的实现:
 - DeepSpeed(https://www.deepspeed.ai/tutorials/zero/)
-- PyTorch(https://pytorch.org/docs/stable/fsdp.html) (originally it was implemented in FairScale(https://github.com/facebookresearch/fairscale/) and later it was upstreamed into the PyTorch core)
+- PyTorch(https://pytorch.org/docs/stable/fsdp.html) (最初在 FairScale(https://github.com/facebookresearch/fairscale/) 中实现,后来被 upstream 到 PyTorch Core)
 
-Deepspeed ZeRO Integration:
-- HF Trainer integration(https://huggingface.co/docs/transformers/main_classes/deepspeed)
+Deepspeed ZeRO 集成:
+- HF Trainer 集成(https://huggingface.co/docs/transformers/main_classes/deepspeed)
 - Accelerate(https://huggingface.co/docs/accelerate/usage_guides/deepspeed)
 - PyTorch Lightning(https://lightning.ai/docs/pytorch/stable/advanced/model_parallel/deepspeed.html)
 - Determined.AI(https://docs.determined.ai/latest/model-dev-guide/api-guides/apis-howto/deepspeed/_index.html)
 
-FSDP Integration:
-- HF Trainer integration(https://huggingface.co/docs/transformers/main/en/fsdp)
+FSDP 集成:
+- HF Trainer 集成(https://huggingface.co/docs/transformers/main/en/fsdp)
 - Accelerate(https://huggingface.co/docs/accelerate/main/en/usage_guides/fsdp)
 - PyTorch Lightning(https://lightning.ai/docs/pytorch/stable/advanced/model_parallel/fsdp.html)
 
-Important papers:
+重要论文:
 
-Deepspeed and ZeRO in general:
-- ZeRO: Memory Optimizations Toward Training Trillion Parameter Models(https://arxiv.org/abs/1910.02054)
-- ZeRO-Offload: Democratizing Billion-Scale Model Training(https://arxiv.org/abs/2101.06840)
-- ZeRO-Infinity: Breaking the GPU Memory Wall for Extreme Scale Deep Learning(https://arxiv.org/abs/2104.07857)
-- ZeRO++: Extremely Efficient Collective Communication for Giant Model Training(https://arxiv.org/abs/2306.10209)
-- DeepSpeed Ulysses: System Optimizations for Enabling Training of Extreme Long Sequence Transformer Models(https://arxiv.org/abs/2309.14509)
-- AMSP: Reducing Communication Overhead of ZeRO for Efficient LLM Training(https://arxiv.org/abs/2311.00257)
+Deepspeed 和 ZeRO 总体:
+- ZeRO:面向训练万亿参数模型的内存优化(https://arxiv.org/abs/1910.02054)
+- ZeRO-Offload:民主化十亿规模模型训练(https://arxiv.org/abs/2101.06840)
+- ZeRO-Infinity:突破 GPU 内存墙以实现极端规模深度学习(https://arxiv.org/abs/2104.07857)
+- ZeRO++:用于巨型模型训练的极其高效的集体通信(https://arxiv.org/abs/2306.10209)
+- DeepSpeed Ulysses:实现训练极长序列 Transformer 模型的系统优化(https://arxiv.org/abs/2309.14509)
+- AMSP:减少 ZeRO 的通信开销以实现高效的 LLM 训练(https://arxiv.org/abs/2311.00257)
 
 PyTorch:
-- PyTorch FSDP: Experiences on Scaling Fully Sharded Data Parallel(https://arxiv.org/abs/2304.11277)
+- PyTorch FSDP:扩展完全分片数据并行的经验(https://arxiv.org/abs/2304.11277)
 
-Main DeepSpeed ZeRO Resources:
-- Project's github(https://github.com/microsoft/deepspeed)
-- Usage docs(https://www.deepspeed.ai/getting-started/)
-- API docs(https://deepspeed.readthedocs.io/en/latest/index.html)
-- Blog posts(https://www.microsoft.com/en-us/research/search/?q=deepspeed)
+主要 DeepSpeed ZeRO 资源:
+- 项目 github(https://github.com/microsoft/deepspeed)
+- 使用文档(https://www.deepspeed.ai/getting-started/)
+- API 文档(https://deepspeed.readthedocs.io/en/latest/index.html)
+- 博客文章(https://www.microsoft.com/en-us/research/search/?q=deepspeed)
 
-#### Overcoming the huge global batch size issue
+#### 克服巨大全局批量大小的问题
 
-If you use, say, 1024 accelerators, you'll have tiny shards per accelerator and a ton of free memory for micro-batch-size (MBS), let's say you can fit MBS=32 - you end up with GBS=32k - most likely not what you want.
+如果你使用1024个加速器,每个加速器上的分片会很小,并且会有大量的空闲内存用于微批量大小(MBS),假设你可以设置MBS=32 - 最终得到GBS=32k - 这很可能不是你想要的。
 
-So you either need to deploy Tensor Parallelism which is non-trivial to implement, or often it's much simpler to deploy Sequence Parallelism(https://arxiv.org/abs/2305.14343). I'm yet to try it in action, but so far what I gathered is for:
+所以你要么需要部署张量并行(这很难实现),要么通常更简单的方法是部署序列并行(https://arxiv.org/abs/2305.14343)。我还没有实际尝试过,但到目前为止我了解到:
 
-- Deepspeed ZeRO use Deepspeed-Ulysses(https://arxiv.org/abs/2309.14509)
-- FSDP use Paged Ring Attention(https://github.com/lucidrains/ring-attention-pytorch) (paper(https://arxiv.org/abs/2402.08268))
+- Deepspeed ZeRO 使用 Deepspeed-Ulysses(https://arxiv.org/abs/2309.14509)
+- FSDP 使用 Paged Ring Attention(https://github.com/lucidrains/ring-attention-pytorch) (论文(https://arxiv.org/abs/2402.08268))
 
-Please note that most likely it won't be as efficient as Tensor Parallelism(https://arxiv.org/abs/2305.14343) - but I don't yet know of the actual additional overhead.
+请注意,这可能不会像张量并行(https://arxiv.org/abs/2305.14343)那样高效 - 但我还不知道实际的额外开销。
 
-#### ZeRO with multiple replicas
+#### 使用多个副本的 ZeRO
 
-By default ZeRO uses all GPUs to create a single model replica - that's the model is spread out across all gpus. Which leads to various limitations such as:
+默认情况下,ZeRO 使用所有 GPU 来创建单个模型副本 - 即模型分布在所有 GPU 上。这会导致各种限制,例如:
 
-1. the global batch size is inflexible - it's always a function of `total_gpus*micro_batch_size` - which on large clusters could lead to a huge global batch size which might be detrimental for efficient convergence. Granted one could use a tiny micro batch size to keep the global batch size in check, but this leads to smaller matrices on each GPU which results in less efficient compute
-2. the much faster intra-node networking is not being benefited from since the slower inter-node network defines the overall speed of communications.
+1. 全局批量大小不灵活 - 它总是 `total_gpus*micro_batch_size` 的函数 - 在大型集群上可能会导致巨大的全局批量大小,这可能不利于高效收敛。当然可以使用很小的微批量大小来控制全局批量大小,但这会导致每个 GPU 上的矩阵更小,从而降低计算效率
+2. 没有充分利用更快的节点内网络,因为较慢的节点间网络定义了通信的整体速度。
 
-ZeRO++(https://arxiv.org/abs/2306.10209) solves the 2nd limitation by introducing Hierarchical Weight Partition for ZeRO (hpZ). In this approach instead of spreading whole model weights across all the gpus, each model replica is restricted to a single node. This increases the memory usage by the total number of nodes, but now the 2x `all_gather` calls to gather the sharded components are performed over a much faster intra-node connection. Only the `reduce_scatter` to aggregate and redistribute gradients is performed over the slower inter-node network.
+ZeRO++(https://arxiv.org/abs/2306.10209) 通过引入分层权重分区(hpZ)解决了第二个限制。在这种方法中,每个模型副本被限制在单个节点内,而不是将整个模型权重分散到所有 GPU 上。这会使内存使用量增加节点总数倍,但现在收集分片组件的 2x `all_gather` 调用是在更快的节点内连接上执行的。只有用于聚合和重新分配梯度的 `reduce_scatter` 是在较慢的节点间网络上执行的。
 
-The first limitation doesn't exactly get fixed since the overall global batch size remains the same, but since each replica is more efficient and because the additional memory pressure is likely to limit the possible micro batch size on each gpu, this overall should improve the throughput of the system.
+第一个限制并没有完全解决,因为总体全局批量大小保持不变,但由于每个副本更高效,并且由于额外的内存压力可能会限制每个 GPU 上可能的微批量大小,这总体上应该会提高系统的吞吐量。
 
-PyTorch FSDP has this feature implemented in shardingStrategy.HYBRID_SHARD(https://pytorch.org/docs/stable/fsdp.html)
+PyTorch FSDP 在 shardingStrategy.HYBRID_SHARD(https://pytorch.org/docs/stable/fsdp.html) 中实现了这个功能
 
-Papers:
+相关论文:
 
-- ZeRO++: Extremely Efficient Collective Communication for Giant Model Training(https://arxiv.org/abs/2306.10209)
-- PyTorch FSDP: Experiences on Scaling Fully Sharded Data Parallel(https://arxiv.org/abs/2304.11277)
-
-
-#### ZeRO variations
-
-Published papers that propose modifications to the ZeRO protocol:
-
-- MiCS: Near-linear Scaling for Training Gigantic Model on Public Cloud(https://arxiv.org/abs/2205.00119) (2022)
-- AMSP: Super-Scaling LLM Training via Advanced Model States Partitioning(https://arxiv.org/abs/2311.00257) (2023)
+- ZeRO++: 巨型模型训练的极其高效的集体通信(https://arxiv.org/abs/2306.10209)
+- PyTorch FSDP: 扩展完全分片数据并行的经验(https://arxiv.org/abs/2304.11277)
 
 
+#### ZeRO 变体
+
+提出对 ZeRO 协议进行修改的已发表论文:
+
+- MiCS: 在公有云上训练巨型模型的近线性扩展(https://arxiv.org/abs/2205.00119) (2022)
+- AMSP: 通过高级模型状态分区实现 LLM 训练的超级扩展(https://arxiv.org/abs/2311.00257) (2023)
 
 
-## Pipeline Parallelism methods
 
-### Naive Model Parallelism (Vertical)
 
-Naive Model Parallelism (MP) is where one spreads groups of model layers across multiple GPUs. The mechanism is relatively simple - switch the desired layers `.to()` the desired devices and now whenever the data goes in and out those layers switch the data to the same device as the layer and leave the rest unmodified.
+## 流水线并行方法
 
-We refer to it as Vertical MP, because if you remember how most models are drawn, we slice the layers vertically. For example, if the following diagram shows an 8-layer model:
+### 朴素模型并行(垂直)
+
+朴素模型并行(MP)是指将模型层组分布在多个 GPU 上。其机制相对简单 - 将目标层通过 `.to()` 切换到目标设备,现在当数据进出这些层时,将数据切换到与该层相同的设备,其余部分保持不变。
+
+我们将其称为垂直 MP,因为如果你还记得大多数模型是如何绘制的,我们垂直切分层。例如,如果下图显示了一个8层模型:
 
 ```
 ===================  ===================
@@ -210,151 +210,150 @@ We refer to it as Vertical MP, because if you remember how most models are drawn
 ===================  ===================
         gpu0                 gpu1
 ```
-we just sliced it in 2 vertically, placing layers 0-3 onto GPU0 and 4-7 to GPU1.
+我们将其垂直切分为2部分,将第0-3层放在GPU0上,将第4-7层放在GPU1上。
 
-Now while data travels from layer 0 to 1, 1 to 2 and 2 to 3 this is just the normal model. But when data needs to pass from layer 3 to layer 4 it needs to travel from GPU0 to GPU1 which introduces a communication overhead. If the participating GPUs are on the same compute node (e.g. same physical machine) this copying is pretty fast, but if the GPUs are located on different compute nodes (e.g. multiple machines) the communication overhead could be significantly larger.
+当数据从第0层传递到第1层,第1层到第2层,以及第2层到第3层时,这就像普通模型一样。但是当数据需要从第3层传递到第4层时,它需要从GPU0传输到GPU1,这会引入通信开销。如果参与的GPU位于同一计算节点(例如同一物理机)上,这种复制速度相当快,但如果GPU位于不同的计算节点(例如多台机器)上,通信开销可能会显著增加。
 
-Then layers 4 to 5 to 6 to 7 are as a normal model would have and when the 7th layer completes we often need to send the data back to layer 0 where the labels are (or alternatively send the labels to the last layer). Now the loss can be computed and the optimizer can do its work.
+然后第4层到第5层到第6层到第7层的运行就像普通模型一样,当第7层完成时,我们通常需要将数据发送回第0层(标签所在的位置),或者将标签发送到最后一层。现在可以计算损失,优化器可以开始工作。
 
-Problems:
-- the main deficiency and why this one is called "naive" MP, is that all but one GPU is idle at any given moment. So if 4 GPUs are used, it's almost identical to quadrupling the amount of memory of a single GPU, and ignoring the rest of the hardware. Plus there is the overhead of copying the data between devices. So 4x 6GB cards will be able to accommodate the same size as 1x 24GB card using naive MP, except the latter will complete the training faster, since it doesn't have the data copying overhead. But, say, if you have 40GB cards and need to fit a 45GB model you can with 4x 40GB cards (but barely because of the gradient and optimizer states)
-- shared embeddings may need to get copied back and forth between GPUs.
+问题:
+- 主要缺陷(也是为什么称之为"朴素"MP的原因)是在任何时刻只有一个GPU在工作,其他GPU都处于空闲状态。因此,如果使用4个GPU,这几乎等同于将单个GPU的内存量增加4倍,而忽略了其余的硬件。此外还有设备间数据复制的开销。所以4个6GB显卡使用朴素MP可以容纳与1个24GB显卡相同大小的模型,但后者会更快完成训练,因为它没有数据复制开销。但是,比如说,如果你有40GB的显卡,需要容纳一个45GB的模型,你可以用4个40GB的显卡(但由于梯度和优化器状态的存在,勉强可以)
+- 共享嵌入可能需要在GPU之间来回复制。
 
-### Pipeline Parallelism
+### 流水线并行
 
-Pipeline Parallelism (PP) is almost identical to a naive MP, but it solves the GPU idling problem, by chunking the incoming batch into micro-batches and artificially creating a pipeline, which allows different GPUs to concurrently participate in the computation process.
+流水线并行(PP)与朴素MP几乎相同,但它通过将输入批次分块成微批次并人为创建流水线来解决GPU空闲问题,这使得不同的GPU可以同时参与计算过程。
 
-The following illustration from the GPipe paper(https://ai.googleblog.com/2019/03/introducing-gpipe-open-source-library.html) shows the naive MP on the top, and PP on the bottom:
+下面来自GPipe论文(https://ai.googleblog.com/2019/03/introducing-gpipe-open-source-library.html)的插图展示了朴素MP(上图)和PP(下图):
 
 ![](https://files.mdnice.com/user/59/45f49066-bd31-4336-886d-2d750dc0d000.png)
 
 
-It's easy to see from the bottom diagram how PP has less dead zones, where GPUs are idle. The idle parts are referred to as the "bubble".
+从中图可以很容易看出PP如何减少了GPU空闲的死区。这些空闲部分被称为"气泡"。
 
-Both parts of the diagram show a parallelism that is of degree 4. That is 4 GPUs are participating in the pipeline. So there is the forward path of 4 pipe stages F0, F1, F2 and F3 and then the return reverse order backward path of B3, B2, B1 and B0.
+图中的两部分都展示了pp=4的并行性。也就是说有4个GPU参与流水线。因此有4个管道阶段的前向路径F0、F1、F2和F3,然后是反向顺序的反向路径B3、B2、B1和B0。
 
-PP introduces a new hyper-parameter to tune and it's `chunks` which defines how many chunks of data are sent in a sequence through the same pipe stage. For example, in the bottom diagram you can see that `chunks=4`. GPU0 performs the same forward path on chunk 0, 1, 2 and 3 (F0,0, F0,1, F0,2, F0,3) and then it waits for other GPUs to do their work and only when their work is starting to be complete, GPU0 starts to work again doing the backward path for chunks 3, 2, 1 and 0 (B0,3, B0,2, B0,1, B0,0).
+PP引入了一个新的超参数`chunks`来调优,它定义了通过同一管道阶段按顺序发送多少块数据。例如,在图中可以看到`chunks=4`。GPU0对块0、1、2和3执行相同的前向路径(F0,0、F0,1、F0,2、F0,3),然后等待其他GPU完成它们的工作,只有当它们的工作开始完成时,GPU0才会再次工作,对块3、2、1和0执行反向路径(B0,3、B0,2、B0,1、B0,0)。
 
-Note that conceptually this is the same concept as gradient accumulation steps (GAS). Pytorch uses `chunks`, whereas DeepSpeed refers to the same hyper-parameter as GAS.
+注意,从概念上讲,这与梯度累积步骤(GAS)是相同的概念。PyTorch使用`chunks`,而DeepSpeed将相同的超参数称为GAS。
 
-Because of the chunks, PP introduces the concept of micro-batches (MBS). DP splits the global data batch size into mini-batches, so if you have a DP degree of 4, a global batch size of 1024 gets split up into 4 mini-batches of 256 each (1024/4). And if the number of `chunks` (or GAS) is 32 we end up with a micro-batch size of 8 (256/32). Each Pipeline stage works with a single micro-batch at a time.
+由于分块,PP引入了微批次(MBS)的概念。DP将全局数据批次大小分成小批次,因此如果DP度为4,全局批次大小1024会被分成4个每个256的小批次(1024/4)。如果`chunks`(或GAS)数量为32,我们最终得到微批次大小为8(256/32)。每个流水线阶段一次处理一个微批次。
 
-To calculate the global batch size of the DP + PP setup we then do: `mbs*chunks*dp_degree` (`8*32*4=1024`).
+要计算DP + PP设置的全局批次大小,我们执行:`mbs*chunks*dp_degree`(`8*32*4=1024`)。
 
-Let's go back to the diagram.
+让我们回到这个图。
 
-With `chunks=1` you end up with the naive MP, which is very inefficient. With a very large `chunks` value you end up with tiny micro-batch sizes which could be not every efficient either. So one has to experiment to find the value that leads to the highest efficient utilization of the gpus.
+当`chunks=1`时,你最终会得到朴素MP,这是非常低效的。而当`chunks`值很大时,你会得到非常小的微批次大小,这也可能不太高效。因此,需要通过实验来找到能够实现GPU最高效利用率的值。
 
-While the diagram shows that there is a bubble of "dead" time that can't be parallelized because the last `forward` stage has to wait for `backward` to complete the pipeline, the purpose of finding the best value for `chunks` is to enable a high concurrent GPU utilization across all participating GPUs which translates to minimizing the size of the bubble.
+虽然图中显示了一个无法并行化的"死亡"时间气泡(因为最后的`forward`阶段必须等待`backward`完成管道),但寻找最佳`chunks`值的目的是实现所有参与GPU的高并发利用率,这意味着要最小化气泡的大小。
 
+调度的选择对高效性能至关重要,按发明顺序排列的最常见调度方式包括:
 
-The choice of the schedule is critical to the efficient performance, with the most common schedules being in the order of invention:
+- 顺序 Gpipe: 使用流水线并行实现巨型神经网络的高效训练(https://arxiv.org/abs/1811.06965)
+- 交错 1F1B Pipedream: 快速高效的流水线并行DNN训练(https://arxiv.org/abs/1806.03377)
+- 循环、深度优先的高效大规模语言模型在GPU集群上的训练使用Megatron-LM(https://arxiv.org/abs/2104.04473)
+- 广度优先的流水线并行(https://arxiv.org/abs/2211.05953)
 
-- sequential Gpipe: Efficient training of giant neural networks using pipeline parallelism(https://arxiv.org/abs/1811.06965)
-- interleaved 1F1B Pipedream: Fast and efficient pipeline parallel dnn training(https://arxiv.org/abs/1806.03377)
-- looped, depth-first Efficient large-scale language model training on gpu clusters using Megatron-LM(https://arxiv.org/abs/2104.04473)
-- breadth-first Breadth-First Pipeline Parallelism(https://arxiv.org/abs/2211.05953)
-
-Here is for example an interleaved pipeline:
+这里是一个交错流水线的例子:
 
 ![parallelism-sagemaker-interleaved-pipeline](https://files.mdnice.com/user/59/a302752e-b7b4-4c83-8592-634598fcdf2e.png)
 
-Here the bubble (idle time) is further minimized by prioritizing backward passes.
+在这里,气泡(空闲时间)通过优先处理反向传播进一步最小化。
 
-It's used by DeepSpeed, Varuna and SageMaker to name a few.
+DeepSpeed、Varuna和SageMaker等都使用了这种方式。
 
-Varuna further tries to improve the schedule by using simulations to discover the most efficient scheduling.
+Varuna通过使用模拟来发现最有效的调度方式,从而进一步改进调度。
 
-There are 2 groups of PP solutions - the traditional Pipeline API and the more modern solutions that make things much easier for the end user by helping to partially or fully automate the process:
+PP解决方案有两类 - 传统的Pipeline API和更现代的解决方案,后者通过帮助部分或完全自动化流程,使最终用户使用起来更加容易:
 
-1. Traditional Pipeline API solutions:
+1. 传统的Pipeline API解决方案:
 - Megatron-LM
 - DeepSpeed
 - PyTorch
 
-2. Modern solutions:
+2. 现代解决方案:
 - PiPPy
 - Varuna
 - Sagemaker
 
-Problems with traditional Pipeline API solutions:
-- have to modify the model quite heavily, because Pipeline requires one to rewrite the normal flow of modules into a `nn.Sequential` sequence of the same, which may require changes to the design of the model.
-- currently the Pipeline API is very restricted. If you had a bunch of python variables being passed in the very first stage of the Pipeline, you will have to find a way around it. Currently, the pipeline interface requires either a single Tensor or a tuple of Tensors as the only input and output. These tensors must have a batch size as the very first dimension, since pipeline is going to chunk the mini batch into micro-batches. Possible improvements are being discussed here https://github.com/pytorch/pytorch/pull/50693
-- conditional control flow at the level of pipe stages is not possible - e.g., Encoder-Decoder models like T5 require special workarounds to handle a conditional encoder stage.
-- have to arrange each layer so that the output of one model becomes an input to the other model.
+传统Pipeline API解决方案的问题:
+- 必须对模型进行大量修改,因为Pipeline要求将模块的正常流程重写为相同模块的`nn.Sequential`序列,这可能需要更改模型的设计。
+- 目前Pipeline API非常受限。如果在Pipeline的第一阶段有一堆Python变量需要传递,你必须找到解决方法。目前,pipeline接口只接受单个Tensor或Tensor元组作为唯一的输入和输出。这些张量的第一个维度必须是批次大小,因为pipeline会将mini batch分成micro-batches。可能的改进正在这里讨论(https://github.com/pytorch/pytorch/pull/50693)
+- 在pipe阶段级别的条件控制流是不可能的 - 例如,像T5这样的编码器-解码器模型需要特殊的变通方法来处理条件编码器阶段。
+- 必须安排每一层,使一个模型的输出成为另一个模型的输入。
 
-I'm yet to try to experiment with Varuna and SageMaker but their papers report that they have overcome the list of problems mentioned above and that they require much smaller changes to the user's model.
+我还没有尝试过Varuna和SageMaker,但根据他们的论文报告,他们已经克服了上述问题列表,并且对用户的模型只需要很小的改动。
 
-Implementations:
-- Pytorch(https://pytorch.org/docs/stable/pipeline.html) (initial support in pytorch-1.8, and progressively getting improved in 1.9 and more so in 1.10). Some examples(https://github.com/pytorch/pytorch/blob/master/benchmarks/distributed/pipeline/pipe.py)
+实现:
+- Pytorch(https://pytorch.org/docs/stable/pipeline.html) (在pytorch-1.8中初步支持,并在1.9和1.10中逐步改进)。一些示例(https://github.com/pytorch/pytorch/blob/master/benchmarks/distributed/pipeline/pipe.py)
 - FairScale(https://fairscale.readthedocs.io/en/latest/tutorials/pipe.html)
 - DeepSpeed(https://www.deepspeed.ai/tutorials/pipeline/)
-- Megatron-LM(https://github.com/NVIDIA/Megatron-LM) has an internal implementation - no API.
+- Megatron-LM(https://github.com/NVIDIA/Megatron-LM)有内部实现 - 没有API。
 - Varuna(https://github.com/microsoft/varuna)
-- SageMaker(https://arxiv.org/abs/2111.05972) - this is a proprietary solution that can only be used on AWS.
-- OSLO(https://github.com/eleutherAI/Oslo) - this is implemented based on the Hugging Face Transformers.
-- PiPPy(https://github.com/pytorch/pippy) - automatic PP via `torch.fx`
+- SageMaker(https://arxiv.org/abs/2111.05972) - 这是一个只能在AWS上使用的专有解决方案。
+- OSLO(https://github.com/eleutherAI/Oslo) - 这是基于Hugging Face Transformers实现的。
+- PiPPy(https://github.com/pytorch/pippy) - 通过`torch.fx`自动PP
 - nanotron(https://github.com/huggingface/nanotron)
 
 
 
 
-## Tensor Parallelism
+## 张量并行
 
-In Tensor Parallelism each GPU processes only a slice of a tensor and only aggregates the full tensor for operations that require the whole thing.
+在张量并行中,每个GPU只处理张量的一个切片,只在需要完整张量的操作时才聚合完整的张量。
 
-In this section we use concepts and diagrams from the Megatron-LM(https://github.com/NVIDIA/Megatron-LM) paper: Efficient Large-Scale Language Model Training on GPU Clusters(https://arxiv.org/abs/2104.04473).
+在本节中,我们使用来自Megatron-LM(https://github.com/NVIDIA/Megatron-LM)论文的概念和图表:在GPU集群上高效训练大规模语言模型(https://arxiv.org/abs/2104.04473)。
 
-The main building block of any transformer is a fully connected `nn.Linear` followed by a nonlinear activation `GeLU`.
+任何transformer的主要构建块都是一个全连接层`nn.Linear`,后面跟着一个非线性激活函数`GeLU`。
 
-Following the Megatron's paper notation, we can write the dot-product part of it as `Y = GeLU(XA)`, where `X` and `Y` are the input and output vectors, and `A` is the weight matrix.
+按照Megatron论文的符号,我们可以将点积部分写为`Y = GeLU(XA)`,其中`X`和`Y`是输入和输出向量,`A`是权重矩阵。
 
-If we look at the computation in matrix form, it's easy to see how the matrix multiplication can be split between multiple GPUs:
+如果我们以矩阵形式查看计算,很容易看出矩阵乘法如何在多个GPU之间拆分:
 
 ![Parallel GEMM](https://files.mdnice.com/user/59/f88b660b-c53f-4c23-bc83-8363e2e255d9.png)
 
 
-If we split the weight matrix `A` column-wise across `N` GPUs and perform matrix multiplications `XA_1` through `XA_n` in parallel, then we will end up with `N` output vectors `Y_1, Y_2, ..., Y_n` which can be fed into `GeLU` independently:
+如果我们将权重矩阵 `A` 按列分割到 `N` 个GPU上,并行执行矩阵乘法 `XA_1` 到 `XA_n`,那么我们将得到 `N` 个输出向量 `Y_1, Y_2, ..., Y_n`,它们可以独立地输入到 `GeLU` 中:
 
 ![independent GeLU](https://files.mdnice.com/user/59/ac0d80ee-29a4-4166-aa10-dcc9c1c8fad7.png)
 
-Using this principle, we can update an MLP of arbitrary depth, without the need for any synchronization between GPUs until the very end, where we need to reconstruct the output vector from shards. The Megatron-LM paper authors provide a helpful illustration for that:
+使用这个原理,我们可以更新任意深度的MLP,在最后需要从分片重建输出向量之前,不需要在GPU之间进行任何同步。Megatron-LM论文作者为此提供了一个有帮助的示意图:
 
 ![parallel shard processing](https://files.mdnice.com/user/59/477e5763-1ae1-4e9a-96e2-0a13763373bc.png)
 
-Parallelizing the multi-headed attention layers is even simpler, since they are already inherently parallel, due to having multiple independent heads!
+由于多头注意力层本身就具有多个独立的头,因此并行化多头注意力层甚至更简单!
 
 ![parallel self-attention](https://files.mdnice.com/user/59/fb28c287-9c49-495a-a04a-9a0e69d311d7.png)
 
-Important: TP requires very fast network, and therefore since typically intra-node networks are much faster than inter-node networks it's not advisable to do TP across nodes. Practically, if a node has 4 GPUs, the highest TP degree is therefore 4. If you need a TP degree of 8, you need to use nodes that have at least 8 GPUs.
+重要提示:TP需要非常快速的网络,由于节点内网络通常比节点间网络快得多,因此不建议跨节点进行TP。实际上,如果一个节点有4个GPU,那么TP的最高程度就是4。如果你需要8度的TP,你需要使用至少有8个GPU的节点。
 
-Important: TP degree shouldn't span across nodes. For example if the node has 8 gpus, TP degree should be no more than 8.
+重要提示:TP程度不应跨节点。例如,如果节点有8个gpu,TP程度应该不超过8。
 
-TP can combined with other parallelization methods.
+TP可以与其他并行化方法结合使用。
 
-Alternative names:
-- DeepSpeed calls it tensor slicing(https://www.deepspeed.ai/tutorials/large-models-w-deepspeed/)
+其他名称:
+- DeepSpeed称之为张量切片(https://www.deepspeed.ai/tutorials/large-models-w-deepspeed/)
 
-Implementations:
-- Megatron-LM(https://github.com/NVIDIA/Megatron-LM) has an internal implementation, as it's very model-specific
+实现:
+- Megatron-LM(https://github.com/NVIDIA/Megatron-LM)有内部实现,因为它是非常特定于模型的
 - PyTorch(https://pytorch.org/docs/stable/distributed.tensor.parallel.html)
-- SageMaker(https://arxiv.org/abs/2111.05972) - this is a proprietary solution that can only be used on AWS.
-- OSLO(https://github.com/eleutherAI/Oslo) has the tensor parallelism implementation based on the Transformers.
+- SageMaker(https://arxiv.org/abs/2111.05972) - 这是一个只能在AWS上使用的专有解决方案
+- OSLO(https://github.com/eleutherAI/Oslo)基于Transformers实现了张量并行
 - nanotron(https://github.com/huggingface/nanotron)
-- parallelformers(https://github.com/tunib-ai/parallelformers) (only inference at the moment)
+- parallelformers(https://github.com/tunib-ai/parallelformers)(目前仅支持推理)
 
 
 ## DP+PP
 
-The following diagram from the DeepSpeed pipeline tutorial(https://www.deepspeed.ai/tutorials/pipeline/) demonstrates how one combines DP with PP.
+以下来自 DeepSpeed pipeline 教程(https://www.deepspeed.ai/tutorials/pipeline/)的图表展示了如何将 DP 与 PP 结合使用。
 
 ![dp-pp-2d](https://files.mdnice.com/user/59/ce30cb13-6de8-4b7b-8a1f-bf2a609a0daa.png)
 
-Here it's important to see how DP rank 0 doesn't see GPU2 and DP rank 1 doesn't see GPU3. To DP there is just GPUs 0 and 1 where it feeds data as if there were just 2 GPUs. GPU0 "secretly" offloads some of its load to GPU2 using PP. And GPU1 does the same by enlisting GPU3 to its aid.
+这里需要注意的是,DP rank 0看不到GPU2,DP rank 1看不到GPU3。对于DP来说,只有GPU 0和1,它像只有2个GPU一样向它们输入数据。GPU0使用PP"秘密地"将一些负载卸载到GPU2。GPU1也通过利用GPU3做同样的事情。
 
-Since each dimension requires at least 2 GPUs, here you'd need at least 4 GPUs.
+由于每个维度至少需要2个GPU,所以这里你至少需要4个GPU。
 
-Implementations:
+实现:
 - DeepSpeed(https://github.com/microsoft/DeepSpeed)
 - Megatron-LM(https://github.com/NVIDIA/Megatron-LM)
 - Varuna(https://github.com/microsoft/varuna)
@@ -366,15 +365,15 @@ Implementations:
 
 ## DP+PP+TP
 
-To get an even more efficient training a 3D parallelism is used where PP is combined with TP and DP. This can be seen in the following diagram.
+为了获得更高效的训练,可以使用3D并行,即将PP与TP和DP结合使用。这可以从下图中看出。
 
 ![dp-pp-tp-3d](https://files.mdnice.com/user/59/e96ccef9-65a2-4439-980c-71d296a62a62.png)
 
-This diagram is from a blog post 3D parallelism: Scaling to trillion-parameter models(https://www.microsoft.com/en-us/research/blog/deepspeed-extreme-scale-model-training-for-everyone/), which is a good read as well.
+这个图来自博客文章《3D并行:扩展到万亿参数模型》(https://www.microsoft.com/en-us/research/blog/deepspeed-extreme-scale-model-training-for-everyone/),这也是一篇值得一读的文章。
 
-Since each dimension requires at least 2 GPUs, here you'd need at least 8 GPUs.
+由于每个维度至少需要2个GPU,所以这里你至少需要8个GPU。
 
-Implementations:
+实现:
 - DeepSpeed(https://github.com/microsoft/DeepSpeed) - DeepSpeed also includes an even more efficient DP, which they call ZeRO-DP.
 - Megatron-LM(https://github.com/NVIDIA/Megatron-LM)
 - Varuna(https://github.com/microsoft/varuna)
@@ -385,246 +384,241 @@ Implementations:
 
 ## ZeRO DP+PP+TP
 
-One of the main features of DeepSpeed is ZeRO, which is a super-scalable extension of DP. It has already been discussed in ZeRO Data Parallelism. Normally it's a standalone feature that doesn't require PP or TP. But it can be combined with PP and TP.
+DeepSpeed的主要特性之一是ZeRO,它是DP的一个超可扩展扩展。在ZeRO数据并行中已经讨论过了。通常它是一个独立的功能,不需要PP或TP。但它可以与PP和TP结合使用。
 
-When ZeRO-DP is combined with PP (and optionally TP) it typically enables only ZeRO stage 1 (optimizer sharding).
+当ZeRO-DP与PP(和可选的TP)结合时,通常只启用ZeRO stage 1(优化器分片)。
 
-While it's theoretically possible to use ZeRO stage 2 (gradient sharding) with Pipeline Parallelism, it will have bad performance impacts. There would need to be an additional reduce-scatter collective for every micro-batch to aggregate the gradients before sharding, which adds a potentially significant communication overhead. By nature of Pipeline Parallelism, small micro-batches are used and instead the focus is on trying to balance arithmetic intensity (micro-batch size) with minimizing the Pipeline bubble (number of micro-batches). Therefore those communication costs are going to hurt.
+虽然理论上可以将ZeRO stage 2(梯度分片)与流水线并行结合使用,但会对性能产生不良影响。每个微批次都需要一个额外的reduce-scatter集合来在分片之前聚合梯度,这会增加潜在的显著通信开销。由于流水线并行的本质,使用小的微批次,而重点是尝试平衡算术强度(微批次大小)与最小化流水线气泡(微批次数量)。因此这些通信成本会造成伤害。
 
-In addition, there are already fewer layers than normal due to PP and so the memory savings won't be huge. PP already reduces gradient size by ``1/PP``, and so gradient sharding savings on top of that are less significant than pure DP.
+此外,由于PP的原因,层数已经比正常情况下少了,所以内存节省不会很大。PP已经将梯度大小减少了"1/PP",因此在此基础上的梯度分片节省相比纯DP来说不那么显著。
 
-ZeRO stage 3 is not a good choice either for the same reason - more inter-node communications required.
+由于同样的原因,ZeRO stage 3也不是一个好选择 - 需要更多的节点间通信。
 
-And since we have ZeRO, the other benefit is ZeRO-Offload. Since this is stage 1 optimizer states can be offloaded to CPU.
+由于我们有ZeRO,另一个好处是ZeRO-Offload。由于这是stage 1,优化器状态可以被卸载到CPU。
 
-Implementations:
-- Megatron-DeepSpeed(https://github.com/microsoft/Megatron-DeepSpeed) and Megatron-Deepspeed from BigScience(https://github.com/bigscience-workshop/Megatron-DeepSpeed), which is the fork of the former repo.
+实现:
+- Megatron-DeepSpeed(https://github.com/microsoft/Megatron-DeepSpeed)和来自BigScience的Megatron-Deepspeed(https://github.com/bigscience-workshop/Megatron-DeepSpeed),后者是前者的分支。
 - OSLO(https://github.com/eleutherAI/Oslo)
 
-Important papers:
+重要论文:
 
-- Using DeepSpeed and Megatron to Train Megatron-Turing NLG 530B, A Large-Scale Generative Language Model(
+- 使用DeepSpeed和Megatron训练Megatron-Turing NLG 530B,一个大规模生成语言模型(
 https://arxiv.org/abs/2201.11990)
 
 
 
-## Sequence Parallelism
+## 序列并行
 
-ML tasks, such as DNA sequencing, may require training with very long sequence lengths (e.g. 256K), and even normal LLMs could be trained on sequences of 10k and longer.
+机器学习任务,比如DNA测序,可能需要训练非常长的序列长度(例如256K),甚至普通的大语言模型也可能需要训练10k及更长的序列。
 
-Self-Attention, which is the key component of Transformers, suffers from quadratic memory requirements with respect to the sequence length, therefore when sequence length gets to a certain length, even a batch size of 1 might not be able to fit onto a single GPU and require additional partitioning along the sequence dimension. And once this is done, the sequence can be of any length.
+Self-Attention作为Transformer的关键组件,其内存需求与序列长度呈二次方关系,因此当序列长度达到一定长度时,即使batch size为1也可能无法装入单个GPU,需要沿序列维度进行额外的切分。一旦完成切分,序列可以是任意长度。
 
-As this type of parallelism is orthogonal to the other parallelization types described in this document, it can be combined with any of them, leading to 4D, ZeRO-DP+SP and other combinations.
+由于这种并行类型与本文档中描述的其他并行化类型是正交的,它可以与任何其他类型组合,从而形成4D、ZeRO-DP+SP等组合。
 
 ### Deepspeed-Ulysses SP
 
-Paper: DeepSpeed Ulysses: System Optimizations for Enabling Training of Extreme Long Sequence Transformer Models(https://arxiv.org/abs/2309.14509)
+论文: DeepSpeed Ulysses: 支持训练超长序列Transformer模型的系统优化(https://arxiv.org/abs/2309.14509)
 
-In this implementation 2 elements are sharded:
-1. The multiple-head attention weights are split across the participating GPUs so that each GPU has a few sub-heads only. This is done when the model is created/loaded. This is somewhat similar to Tensor Parallelism.
-2. During training each input sequence is partitioned into chunks and each chunk is sent to one of the GPUs, which reminds us of ZeRO-3 sharding, except instead of weights the inputs are sharded.
+在这个实现中,有2个元素被分片:
+1. 多头注意力权重在参与的GPU之间进行分割,使得每个GPU只有几个子头。这在模型创建/加载时完成。这有点类似于张量并行。
+2. 在训练期间,每个输入序列被分成块,每个块被发送到其中一个GPU,这让我们想起了ZeRO-3分片,只不过这里分片的是输入而不是权重。
 
-During compute each sequence chunk is projected onto QKV and then gathered to the full sequence QKV on each device, computed on each device only for the subheads it owns and then gathered again into the full attention output for the MLP block.
+在计算过程中,每个序列块都被投影到QKV上,然后在每个设备上收集成完整序列的QKV,每个设备只计算它拥有的子头,然后再次收集到MLP块的完整注意力输出中。
 
 ![deepspeed-ulysses sp](https://files.mdnice.com/user/59/284c6ec7-8b0f-42cd-8fc9-04d3f7ba3ac7.png)
 
-source(https://github.com/microsoft/DeepSpeed/tree/master/blogs/deepspeed-ulysses)
+源码(https://github.com/microsoft/DeepSpeed/tree/master/blogs/deepspeed-ulysses)
 
-On the diagram:
-1. Input sequences N are partitioned across P available devices.
-2. Each local N/P partition of the input sequence is projected into queries (Q), keys (K) and values (V) embeddings.
-3. Next, local QKV embeddings are gathered into global QKV through highly optimized all-to-all collectives between participating compute devices.
-4. Then the attention computation per head is performed:
+在图中:
+1. 输入序列N被分割到P个可用设备上。
+2. 输入序列的每个局部N/P分区被投影到查询(Q)、键(K)和值(V)嵌入。
+3. 接下来,通过参与计算设备之间高度优化的all-to-all集合通信,将局部QKV嵌入收集到全局QKV中。
+4. 然后对每个注意力头执行注意力计算:
 
 ![](https://files.mdnice.com/user/59/2211bb3c-6f7d-41dc-8d87-07fcfdfc1727.png)
 
 
-5. At the end another all-to-all collective transforms output context tensor of attention computation to sequence (N/P) parallel for subsequent operators (MLP MatMul, layer norm, etc.) in the remaining modules of transformer layer block.
+5. 最后,另一个all-to-all集合将注意力计算的输出上下文张量转换为序列(N/P)并行,以供transformer层块中剩余模块的后续操作(MLP MatMul、层归一化等)使用。
 
-Example: Let's consider seqlen=8K, num_heads=128 and a single node of num_gpus=8
+示例:让我们考虑序列长度=8K,头数=128,单节点GPU数=8的情况
 
-1. each GPU gets a 1K-long chunk of the original sequence (`8K/8`)
-2. each GPU gets assigned 16 sub-heads (`128/8`)
-3. a. on gpu0 before `forward` the original sequence is gathered back into 8K tokens
-   b. the attention computation is done on the first 16 sub-heads
-the same logic is performed on the remaining 7 GPUs, each computing 8k attention over its 16 sub-heads
+1. 每个GPU获得原始序列的1K长度块(`8K/8`)
+2. 每个GPU分配16个子头(`128/8`) 
+3. a. 在gpu0上,在`forward`之前,原始序列被重新收集为8K个token
+   b. 在前16个子头上执行注意力计算
+其余7个GPU执行相同的逻辑,每个GPU在其16个子头上计算8k注意力
 
-You can read the specifics of the very efficient comms here(https://github.com/microsoft/DeepSpeed/tree/master/blogs/deepspeed-ulysses#significant-communication-volume-reduction).
+你可以在这里阅读高效通信的具体细节(https://github.com/microsoft/DeepSpeed/tree/master/blogs/deepspeed-ulysses#significant-communication-volume-reduction)。
 
-DeepSpeed-Ulysses keeps communication volume consistent by increasing GPUs proportional to message size or sequence length.
+DeepSpeed-Ulysses通过增加与消息大小或序列长度成比例的GPU数量来保持通信量的一致性。
 
-### Colossal-AI's SP
+### Colossal-AI的序列并行
 
-Paper: Sequence parallelism: Long sequence training from system perspective(https://arxiv.org/abs/2105.13120)
+论文: 从系统角度看序列并行:长序列训练(https://arxiv.org/abs/2105.13120)
 
-Colossal-AI's SP implementation uses ring self-attention, a ring-like communication collective in which query projections are local whereas key and values projections are transmitted in a ring-style to compute global attention, resulting in communication complexity linear in message size, M.
+Colossal-AI的序列并行实现使用环形自注意力机制,这是一种环形通信集合,其中查询投影是局部的,而键和值投影以环形方式传输以计算全局注意力,导致通信复杂度与消息大小M呈线性关系。
 
-### Megatron-LM's SP
+### Megatron-LM的序列并行
 
-Paper: Reducing Activation Recomputation in Large Transformer Models(https://arxiv.org/abs/2205.05198)
+论文: 减少大型Transformer模型中的激活重计算(https://arxiv.org/abs/2205.05198)
 
-Megatron-LM's SP is tightly integrated with its TP. Megatron-LM partitions sequence along sequence dimensions and applies allgather and reduce scatter collective to aggregate QKV projections for attention computation. Its communication volume increases linearly with message size (M) regardless of number of compute devices.
+Megatron-LM的序列并行与其张量并行紧密集成。Megatron-LM沿序列维度对序列进行切分,并应用allgather和reduce scatter集合操作来聚合QKV投影以进行注意力计算。无论计算设备数量如何,其通信量都与消息大小(M)呈线性增长。
 
-### Ring Attention with Blockwise Transformers
+### 带块状Transformer的环形注意力
 
-Paper: Ring Attention with Blockwise Transformers for Near-Infinite Context(https://arxiv.org/abs/2310.01889)
+论文: 使用块状Transformer的环形注意力实现近乎无限的上下文(https://arxiv.org/abs/2310.01889)
 
-1. Tensors are sharded along the sequence dimension throughout: (`seq_len // N, d_model`)-shaped
-2. In the attention layers, every GPU starts by computing the part of the attention scores they are able to w/ their available shards.
-3. Simultaneously, the keys and values from other sequence chunks are communicated around.
-4. Once the keys/values from another chunk are available, each GPU continues on with their attention computation using the key/value tensors from this new segment of the sequence
-5. Continue until attention computation is complete.
+1. 张量始终沿序列维度进行分片:形状为(`seq_len // N, d_model`)
+2. 在注意力层中,每个GPU首先使用其可用分片计算它们能够计算的注意力分数部分。
+3. 同时,来自其他序列块的键和值在周围进行通信。
+4. 一旦另一个块的键/值可用,每个GPU就使用来自序列这个新片段的键/值张量继续进行注意力计算
+5. 继续直到注意力计算完成。
 
-SP Implementations:
+序列并行实现:
 - Megatron-LM(https://github.com/NVIDIA/Megatron-LM)
 - Deepspeed(https://github.com/microsoft/DeepSpeed)
 - Colossal-AI(https://colossalai.org/)
 
-PyTorch is also working on this feature and calling it Context Parallel (CP).
+PyTorch也在开发这个功能,并将其称为上下文并行(CP)。
 
+## 专家并行
 
+当使用混合专家模型(MoE)(特别是在推理过程中)时,可以为每个专家分配自己的加速器(如果一个不够的话可以分配多个)。这为并行化增加了另一个维度,并且可以显著加速可能会命中所有专家的大批量数据。
 
-## Expert Parallelism
-
-When Mixture-Of-Experts (MoE) is used (in particular during inference) one could give each expert its own accelerator (or a few if one isn't enough). This adds another dimension for parallelization and can significantly speed things up for large batches that are likely to hit all of the experts.
-
-For detailed explanations please see:
-- DeepSpeed-MoE: Advancing Mixture-of-Experts Inference and Training to Power Next-Generation AI Scale(https://arxiv.org/abs/2201.05596)
-- Mixture of Experts Explained(https://huggingface.co/blog/moe#parallelism)
+详细说明请参见:
+- DeepSpeed-MoE:推进混合专家模型推理和训练以支持下一代AI规模(https://arxiv.org/abs/2201.05596)
+- 混合专家模型解释(https://huggingface.co/blog/moe#parallelism)
 
 ## FlexFlow
 
-FlexFlow(https://github.com/flexflow/FlexFlow) also solves the parallelization problem in a slightly different approach.
+FlexFlow(https://github.com/flexflow/FlexFlow)以略微不同的方式解决并行化问题。
 
-Paper: "Beyond Data and Model Parallelism for Deep Neural Networks" by Zhihao Jia, Matei Zaharia, Alex Aiken(https://arxiv.org/abs/1807.05358)
+论文:"超越深度神经网络的数据和模型并行" 作者:Zhihao Jia, Matei Zaharia, Alex Aiken(https://arxiv.org/abs/1807.05358)
 
-It performs a sort of 4D Parallelism over Sample-Operator-Attribute-Parameter.
+它在样本-算子-属性-参数这4个维度上执行并行化。
 
-1. Sample = Data Parallelism (sample-wise parallel)
-2. Operator = Parallelize a single operation into several sub-operations
-3. Attribute = Data Parallelism (length-wise parallel)
-4. Parameter = Model Parallelism (regardless of dimension - horizontal or vertical)
+1. 样本 = 数据并行(样本维度并行)
+2. 算子 = 将单个操作并行化为多个子操作
+3. 属性 = 数据并行(长度维度并行)
+4. 参数 = 模型并行(不考虑维度 - 水平或垂直)
 
-Examples:
-* Sample
+示例:
+* 样本
 
-Let's take 10 batches of sequence length 512. If we parallelize them by sample dimension into 2 devices, we get 10 x 512 which becomes be 5 x 2 x 512.
+假设有10个批次,每个序列长度为512。如果我们在样本维度上将它们并行到2个设备上,我们得到10 x 512变成5 x 2 x 512。
 
-* Operator
+* 算子
 
-If we perform layer normalization, we compute std first and mean second, and then we can normalize data. Operator parallelism allows computing std and mean in parallel. So if we parallelize them by operator dimension into 2 devices (cuda:0, cuda:1), first we copy input data into both devices, and cuda:0 computes std, cuda:1 computes mean at the same time.
+如果我们执行层归一化,我们首先计算std然后计算mean,然后我们可以归一化数据。算子并行允许并行计算std和mean。所以如果我们在算子维度上将它们并行到2个设备(cuda:0, cuda:1),首先我们将输入数据复制到两个设备,cuda:0计算std,cuda:1同时计算mean。
 
-* Attribute
+* 属性
 
-We have 10 batches of 512 length. If we parallelize them by attribute dimension into 2 devices, 10 x 512 will be 10 x 2 x 256.
+我们有10个批次,每个长度为512。如果我们在属性维度上将它们并行到2个设备,10 x 512将变成10 x 2 x 256。
 
-* Parameter
+* 参数
 
-It is similar with tensor model parallelism or naive layer-wise model parallelism.
+这与张量模型并行或简单的层级模型并行类似。
 
 ![flex-flow-soap](https://files.mdnice.com/user/59/9e75c6fd-6937-44c0-aa33-ffc9f4ca0fd5.png)
 
+这个框架的重要性在于它可以处理如(1) GPU/TPU/CPU、(2) RAM/DRAM、(3) 快速内部连接/慢速外部连接等资源,并自动优化所有这些资源,以算法方式决定在哪里使用哪种并行化。
 
-The significance of this framework is that it takes resources like (1) GPU/TPU/CPU vs. (2) RAM/DRAM vs. (3) fast-intra-connect/slow-inter-connect and it automatically optimizes all these  algorithmically deciding which parallelisation to use where.
+一个非常重要的方面是,FlexFlow 专门用于优化具有静态和固定工作负载的 DNN 并行化,因为具有动态行为的模型可能在不同迭代中倾向于不同的并行化策略。
 
-One very important aspect is that FlexFlow is designed for optimizing DNN parallelizations for models with static and fixed workloads, since models with dynamic behavior may prefer different parallelization strategies across iterations.
-
-So the promise is very attractive - it runs a 30min simulation on the cluster of choice and it comes up with the best strategy to utilise this specific environment. If you add/remove/replace any parts it'll run and re-optimize the plan for that. And then you can train. A different setup will have its own custom optimization.
-
+所以这个承诺非常有吸引力 - 它在所选的集群上运行30分钟的模拟,并提出最佳策略来利用这个特定环境。如果你添加/删除/替换任何部分,它都会重新运行并重新优化计划。然后你就可以开始训练了。不同的设置将有其自己的定制优化。
 
 
+## 使用ZeRO的节点间速度要求
 
-## Inter-node speed requirements to use ZeRO
+ZeRO可扩展性协议,无论是Deepspeed ZeRO还是PyTorch FSDP,都需要比TP+PP+DP解决方案更多的节点间流量。有时它无法利用更快的节点内连接,因此如果你的节点间网络速度较慢,你的昂贵GPU可能会因通信而严重受限。
 
-The ZeRO scalability protocol, be it Deepspeed ZeRO or PyTorch FSDP, requires a lot more inter-node traffic than TP+PP+DP solutions, and sometimes it can't take advantage of the faster intra-node connectivity, and therefore if your inter-node network is slow your expensive GPUs might be massively bottlenecked by the comms.
+ZeRO协议部分地将通信与计算重叠,所以理想情况下你希望达到`通信时间 <= 计算时间`。重叠并不完美,所以总会有一些网络瓶颈,但我们要确保`通信时间`不会比`计算时间`大太多。
 
-The ZeRO protocol partially overlaps comms with compute, so ideally you want to get close to `comms_time <= compute_time`. The overlap is not perfect, so there will be always some network bottleneck, but we want to make sure that `comms_time` is not much larger than `compute_time`.
+在ZeRO-3中,我们在`forward`中对权重进行`all_gather`,然后在`backward`中对权重进行`all_gather`,最后在backward中对梯度进行`reduce_scatter`。总共有3次全局集合调用,每次发送的模型大小乘以每个参数使用的字节数。例如,一个10B参数的bf16模型在ZeRO-3下需要发送`10*2*3` = 60GB的数据。
 
-In ZeRO-3, we have `all_gather` on weights in `forward`, then `all_gather` on weights in `backward`, last is `reduce_scatter` on gradients in backward. In total there are 3 global collective calls each sending a model size multiplied by how many bytes per parameter are used. e.g. a 10B param model in bf16 under ZeRO-3 will need to send `10*2*3` = 60GB of data.
+相比之下,DistributedDataParallel(DDP)使用单个`all_reduce`调用,但需要2倍的数据传输,因此10B参数的bf16模型在DDP下需要发送`10*2*2` = 40GB的数据。
 
-In comparison DistributedDataParallel(https://pytorch.org/docs/stable/generated/torch.nn.parallel.DistributedDataParallel.html) (DDP) uses a single `all_reduce` call, but which requires 2x data transmission, and so a 10B param model in bf16 under DDP will need to send `10*2*2` = 40GB of data.
+ZeRO-1只分片优化器状态,像DDP一样,也需要传输40GB数据(一次`all_gather`和一次`reduce_scatter`)。
 
-ZeRO-1 which only shards the optimiser states, like DDP, will too need to transmit 40GB of data (one `all_gather` and one `reduce_scatter`.)
+以下是如何计算通信和计算的时间(秒):
 
-Here is how to calculate time in seconds for communication and compute:
+- `通信时间 = 传输次数 * 字节数 * 模型大小(B) / 节点间吞吐量(GBps)`
+- `计算时间 = 计算次数 * 字节数 * 模型大小(B) * 序列长度 * 全局批量大小 / (总GPU数 * 1e3 * 无通信时的TFLOPS)`
 
-- `comms_time = n_transmissions * n_bytes * model_size_in_B / inter-node-throughput_in_GBps`
-- `compute_time = n_passes * n_bytes * model_size_in_B * seqlen * global_batch_size / (total_gpus * 1e3 * tflops_wo_comms)`
+计算时间公式是一个粗略估计,适用于任何基于Transformer块的模型。它忽略了任何小计算,只包括大型`matmul`。
 
-The compute time formula is a rough estimate which works for any Transformer-block based model. It ignores any small computations and includes only the massive `matmul`s.
+让我们以IDEFICS-80B训练的数据点为例进行实验。
 
-As an experiment let's use the data points from IDEFICS-80B(https://huggingface.co/HuggingFaceM4/idefics-80b/) training.
+当我们使用340GBs EFA训练IDEFICS-80B时,使用Deepspeed ZeRO-3在A100上只能获得90TFLOPs,而Megatron的TP+PP+DP可以获得150+TFLOPs。而且模型的很大一部分是冻结的,因为我们正在基于一个语言模型和一个视觉模型构建新模型。所以我们的乘数小于3。另一方面,我们使用激活重计算来节省内存,所以这需要额外传输所有模型权重,而且由于nccl不支持适当的半精度reduction,我们对梯度reduction使用fp32,所以实际上我们的乘数不是3而是4.5。
 
-When we trained IDEFICS-80B with a 340GBs EFA we were getting only 90TFLOPs w/ Deepspeed ZeRO-3 on A100s as compared to 150+TFLOPs one was getting with Megatron's TP+PP+DP. and moreover a big chunk of the model was frozen as were building a new models based on one language and one vision model. So our multiplier was less than 3. On the other hand we were using activation recomputation to save memory, so this is an additional transmission of all model weights and to top it all off since nccl wasn't supporting proper half-precision reduction we used fp32 for gradient reductions, so really our multiplier wasn't 3 but more like 4.5.
-
-Values used for IDEFICS-80B training:
+IDEFICS-80B训练使用的值:
 - `model_size_in_B` = `80`
-- `n_bytes` = `2` in case of bf16 which is 2 bytes
-- `n_transmissions` = `3` in the case of ZeRO-3/FSDP (1x reduce_scatter + 2x all_gather (fwd + bwd)) and 2 in case of ZeRO-1 (1x reduce_scatter + 1x all_gather),
-- additionally, in the case of IDEFICS-80B we decided to reduce grads in fp32 to minimize NCCL accumulation loss, so we actually had `n_transmissions*n_bytes=3*2+2=4*2` for the additional 2 bytes but since half the model was frozen only about half of gradients were sent, so we still have the multiplier of 3.
-- `n_passes` = `4` with activation recomputation, or `3` w/o it. The model has to do only 1x compute per `forward` and 2x per `backward` (since the grads are calculated twice - once wrt inputs and once wrt weights). And with activation recomputation one more `forward` is done.
+- `n_bytes` = `2` (bf16是2字节)
+- `n_transmissions` = `3` (ZeRO-3/FSDP的情况下是1次reduce_scatter + 2次all_gather(fwd + bwd)),ZeRO-1是2(1次reduce_scatter + 1次all_gather)
+- 另外,对于IDEFICS-80B,我们决定在fp32中reduce梯度以最小化NCCL累积损失,所以实际上我们有`n_transmissions*n_bytes=3*2+2=4*2`用于额外的2字节,但由于模型一半被冻结,只有大约一半的梯度被发送,所以我们仍然有3的乘数。
+- `n_passes` = `4` (使用激活重计算),或`3` (不使用)。模型在`forward`中只需要1次计算,在`backward`中需要2次(因为梯度计算了两次 - 一次是相对于输入,一次是相对于权重)。使用激活重计算时还要多做一次`forward`。
 - `total_gpus` = `512`
 - `global_batch_size` = `3584`
 - `seqlen` = `1024`
 - `inter-node-throughput_in_GBps` = 42.5 (340Gbps) (AWS EFA v1)
--`tflops_wo_comms` is the tflops w/o the communication overhead. Not theoretical peak as that is unachievable, but perhaps 75% in the case of A100@BF16 - so `312*0.75=234` TFLOPS
+- `tflops_wo_comms`是没有通信开销的tflops。不是理论峰值,因为那是无法达到的,但在A100@BF16的情况下可能是75% - 所以是`312*0.75=234` TFLOPS
 
-We derived 340Gbps inter-node network throughput using `all_reduce_bench.py`(https://github.com/stas00/ml-engineering/blob/master/network/benchmarks/all_reduce_bench.py) which by default uses a payload of 4GB. In the case of IDEFICS-80B we had 80 layers, so approximately each layer was 1B params large. Which means that each layer was sending 2GB of data for bf16 tensors and 4GB of data with fp32 tensors, which matches the network benchmark. If you were to have a much smaller layer size, I'd recommend adapting the benchmark to that size. For example, if your layer size was only 100M param large, then your payload would be 0.2GB for bf16 tensors. As this is an order of magnitude smaller, the network is likely to give you a lower bandwidth, and you should use that in your calculations.
+我们使用`all_reduce_bench.py`得出340Gbps节点间网络吞吐量,它默认使用4GB的有效载荷。在IDEFICS-80B的情况下,我们有80层,所以每层大约有1B参数。这意味着每层对于bf16张量发送2GB数据,对于fp32张量发送4GB数据,这与网络基准相匹配。如果你的层大小小得多,我建议调整基准以适应该大小。例如,如果你的层大小只有100M参数,那么bf16张量的有效载荷将是0.2GB。由于这比较小一个数量级,网络可能会给你更低的带宽,你应该在计算中使用这个值。
 
-footnote: if parts of your model are frozen, then there will be less data sent in syncing the gradients. in IDEFICS we had more than half of the model frozen, so when grads were reduced we only had about half the traffic.
+注:如果你的模型部分被冻结,那么在同步梯度时会发送更少的数据。在IDEFICS中,我们有超过一半的模型被冻结,所以当梯度被reduce时,我们只有大约一半的流量。
 
-Which gives us:
+这给我们:
 
-- comms = `3 * 2 * 80 / 42.5` = 11 sec
-- compute = `4 * 2 * 80 * 1024 * 3584 / (512 * 1e3 * 250)` = 18 sec
+- 通信 = `3 * 2 * 80 / 42.5` = 11秒
+- 计算 = `4 * 2 * 80 * 1024 * 3584 / (512 * 1e3 * 250)` = 18秒
 
-If we check against our IDEFICS-80B logs, which had each iteration at about 49 seconds.
+如果我们对照IDEFICS-80B的日志,每次迭代大约49秒。
 
-So the good news is that the math checks out as comms + compute are in the ballpark of the measured time, except
+好消息是数学计算是正确的,因为通信+计算与测量时间大致相符,除了
 
-We can do another sanity check by feeding the compute formulae 90 TFLOPS that we logged, in which case:
+我们可以通过将计算公式输入我们记录的90 TFLOPS进行另一次完整性检查:
 
-- compute = `4 * 2 * 80 * 1024 * 3584 / (512 * 1e3 * 90)` = 51 sec
+- 计算 = `4 * 2 * 80 * 1024 * 3584 / (512 * 1e3 * 90)` = 51秒
 
-and so 49 and 51 secs are pretty close. Except this tells us nothing since the logged TFLOPS were calculated using this formula, so, of course, it should match.
+所以49和51秒非常接近。但这什么都说明不了,因为记录的TFLOPS是使用这个公式计算的,所以当然应该匹配。
 
-What I'd expect in the best case is where I have used close to theoretical peak TFLOPS in the formula and received the compute estimate to be about the same as the actual compute time measured on the system. Remember that since comms are interleaved with compute, when we measure `forward`+`backward` wallclock time it includes comms in it.
+在最好的情况下,我期望在公式中使用接近理论峰值的TFLOPS,并得到与系统上实际测量的计算时间大致相同的计算估计。记住,由于通信与计算交织在一起,当我们测量`forward`+`backward`的墙钟时间时,它包括了通信时间。
 
-What's the conclusion? I'd say more investigation is needed as clearly there are additional hidden bottlenecks here. I no longer have access to this setup to investigate, so I will repeat this exercise afresh when I train another largish model and share the updated math with you. But this workout should give you a feeling for what's going on behind the scenes and how all these numbers work together.
+结论是什么?我认为需要更多的调查,因为显然这里有额外的隐藏瓶颈。我不再能访问这个设置进行调查,所以当我训练另一个较大的模型时,我会重新进行这个练习,并与你分享更新的数学计算。但这个练习应该让你感受到幕后发生的事情以及这些数字是如何协同工作的。
 
-Also this discussion didn't include into the math gradient accumulation steps (GAS). In the case of IDEFICS-80B it wasn't used. If GAS>1 the theoretical compute time doesn't change, but comms time instead of `3*2*M/GBps` would become `GAS*3*2*M/GBps`. The weights gathering via `all_gather` for `forward` and `backward` would transpire as many times as there are gradient accumulation steps. In theory for grads it'd need to happen only once, but since there is no place to store intermediary grads of the gathered weight on each GPU it'll have to be reduced GAS times as well. This is for ZeRO-2 and ZeRO-3. For ZeRO-1 GAS>1 requires no additional comms.
+此外,这个讨论没有将梯度累积步骤(GAS)纳入数学计算。在IDEFICS-80B的情况下没有使用它。如果GAS>1,理论计算时间不变,但通信时间从`3*2*M/GBps`变为`GAS*3*2*M/GBps`。`forward`和`backward`的权重收集通过`all_gather`会发生与梯度累积步骤一样多的次数。理论上对于梯度只需要发生一次,但由于每个GPU上没有地方存储收集权重的中间梯度,它也需要reduce GAS次。这适用于ZeRO-2和ZeRO-3。对于ZeRO-1,GAS>1不需要额外的通信。
 
-We also didn't discuss the `DataLoader` as a potential bottleneck here, but we tested that it was under 1 sec, i.e. a very small overhead.
+我们也没有讨论`DataLoader`作为这里的潜在瓶颈,但我们测试发现它不到1秒,即开销很小。
 
-Going back to comms math, we also didn't take into an account various hardware latencies, but when dealing with a large payloads they shouldn't add up a significant additional overhead.
+回到通信数学,我们也没有考虑各种硬件延迟,但在处理大型有效载荷时,它们不应该增加显著的额外开销。
 
-And now you know how long it'll take to transmit that many GBs over the network of your system. For example, if the network were to be 5x slower than the one we used for IDEFICS-80B training, that is 8.5GBps (68Gbps) then:
+现在你知道在你的系统网络上传输那么多GB需要多长时间。例如,如果网络比我们用于IDEFICS-80B训练的网络慢5倍,即8.5GBps(68Gbps),那么:
 
-- comms = `3 * 2 * 80 / 8.5` = 56 sec
+- 通信 = `3 * 2 * 80 / 8.5` = 56秒
 
-which would definitely be a huge bottleneck compared to the faster compute.
+这与更快的计算相比肯定会是一个巨大的瓶颈。
 
-If the network were to be 5x faster, that is 212GBs (1700Gbps) then:
+如果网络快5倍,即212GBs(1700Gbps),那么:
 
-- comms = `3 * 2 * 80 / 212` = 2 sec
+- 通信 = `3 * 2 * 80 / 212` = 2秒
 
-which would be insignificant comparatively to the compute time, especially if some of it is successfully overlapped with the commute.
+这相对于计算时间来说将是微不足道的,特别是如果其中一些成功地与计算重叠。
 
-Also the Deepspeed team empirically benchmarked a 176B model(https://github.com/microsoft/DeepSpeed/issues/2928#issuecomment-1463041491) on 384 V100 GPUs (24 DGX-2 nodes) and found that:
+此外,Deepspeed团队在384个V100 GPU(24个DGX-2节点)上对176B模型进行了经验基准测试,发现:
 
-1. With 100 Gbps IB, we only have <20 TFLOPs per GPU (bad)
-2. With 200-400 Gbps IB, we achieve reasonable TFLOPs around 30-40 per GPU (ok)
-3. For 800 Gbps IB, we reach 40+ TFLOPs per GPU (excellent)
+1. 使用100 Gbps IB,每个GPU只有<20 TFLOPs(差)
+2. 使用200-400 Gbps IB,每个GPU达到合理的30-40 TFLOPs(可以)
+3. 对于800 Gbps IB,每个GPU达到40+ TFLOPs(优秀)
 
-To remind the peak TFLOPS for NVIDIA V100 at fp16 is 125 TFLOPS(https://www.nvidia.com/en-us/data-center/v100/).
+提醒一下,NVIDIA V100在fp16的峰值TFLOPS是125 TFLOPS。
 
-But be careful here - this benchmark is for V100s! Which is about 2-3x slower than A100, and 4-8x slower than H100 for half-precision. So the comms have to be at least 4-8x faster for H100 nodes to match the above table at half precision. We need more benchmarks with more recent hardware.
+但要小心 - 这个基准是针对V100的!它比A100慢2-3倍,比H100慢4-8倍(半精度)。所以对于H100节点,通信必须至少快4-8倍才能在半精度下匹配上述表格。我们需要更多使用更新硬件的基准测试。
 
-footnote: the 2-3x range is because the official specs claim 3x TFLOPS increase for V100->A100, and A100->H100 each, but users benchmarking the difference report at most 2.5x improvements.
+注:2-3倍范围是因为官方规格声称V100->A100和A100->H100各增加3倍TFLOPS,但用户基准测试报告的差异最多为2.5倍改进。
 
-They also noticed that when training at scale, the communication overhead is more pronounced with small micro-batch size per GPU. And we may not be able to increase micro-batch size since global-batch size is often fixed to achieve good model convergence rate. This is solved by the recently introduced ZeRO++.
+他们还注意到,在大规模训练时,每个GPU的小微批量大小会使通信开销更加明显。而且我们可能无法增加微批量大小,因为全局批量大小通常是固定的,以实现良好的模型收敛率。这个问题通过最近引入的ZeRO++得到解决。
 
-Finally, when doing the math above you need to know the actual bandwidth you get on your setup - which changes with payload size - the larger the payload the better the bandwidth. To get this information you need to look at your `reduce_bucket_size` and `prefetch_bucket_size` settings in the Deepspeed configuration file for reduction and prefetch correspondingly. The default is 0.5B params, which is 1GB in half-precision (0.5B x 2 bytes), or 2GB (0.5B x 4 bytes) if you use fp32 precision. So in order to measure the actual throughput you need to run an `all_reduce` benchmark with that payload and see what bandwidth gets reported. Then you can feed it to the calculations above.
+最后,在进行上述数学计算时,你需要知道在你的设置上获得的实际带宽 - 这会随有效载荷大小而变化 - 有效载荷越大,带宽越好。要获取这些信息,你需要查看Deepspeed配置文件中的`reduce_bucket_size`和`prefetch_bucket_size`设置,分别用于reduction和预取。默认是0.5B参数,在半精度下是1GB(0.5B x 2字节),如果使用fp32精度则是2GB(0.5B x 4字节)。所以为了测量实际吞吐量,你需要用那个有效载荷运行`all_reduce`基准测试,看看报告的带宽是多少。然后你可以将其输入到上述计算中。
 
 
 
