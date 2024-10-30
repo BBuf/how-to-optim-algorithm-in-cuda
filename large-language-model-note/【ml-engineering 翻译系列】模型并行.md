@@ -1,5 +1,5 @@
 > 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 
-> 本篇文档的来源：https://github.com/stas00/ml-engineering 。
+> 本篇文档的来源：https://github.com/stas00/ml-engineering 。这篇文档全面介绍了大规模深度学习模型训练中的并行化策略，包括传统的数据并行(DP)、ZeRO优化的数据并行、张量并行(TP)、流水线并行(PP)以及序列并行(SP)等方法。文档详细解释了每种并行方式的工作原理，以及它们如何解决大模型训练中的内存限制和计算效率问题。特别是对ZeRO并行策略进行了深入讲解，包括其实现原理、网络带宽要求和与其他并行方式的组合使用。针对不同的硬件配置（单GPU、单节点多GPU、多节点）和模型规模，文档提供了具体的并行化策略选择建议，帮助我们在实际应用中根据具体场景选择最适合的并行化方案，从而实现大规模模型的高效训练。
 
 # 模型并行
 
