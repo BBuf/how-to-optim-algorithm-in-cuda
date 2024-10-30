@@ -622,57 +622,56 @@ IDEFICS-80B训练使用的值:
 
 
 
-## Which Strategy To Use When
+## 何时使用哪种策略
 
-Here is a very rough outline at which parallelism strategy to use when. The first on each list is typically faster.
+以下是一个非常粗略的并行策略使用指南。每个列表中的第一个通常更快。
 
-**⇨ Single GPU**
+**⇨ 单GPU**
 
-* Model fits onto a single GPU:
+* 模型能装入单个GPU:
 
-    1. Normal use
+    1. 正常使用
 
-* Model doesn't fit onto a single GPU:
+* 模型无法装入单个GPU:
 
-    1. ZeRO + Offload CPU and optionally NVMe
-    2. as above plus Memory Centric Tiling (see below for details) if the largest layer can't fit into a single GPU
+    1. ZeRO + CPU卸载,可选择性地使用NVMe
+    2. 如果最大的层无法装入单个GPU,则使用上述方法加上内存中心分块(详见下文)
 
-* Largest Layer not fitting into a single GPU:
+* 最大的层无法装入单个GPU:
 
-1. ZeRO - Enable Memory Centric Tiling(https://deepspeed.readthedocs.io/en/latest/zero3.html#memory-centric-tiling) (MCT). It allows you to run arbitrarily large layers by automatically splitting them and executing them sequentially. MCT reduces the number of parameters that are live on a GPU, but it does not affect the activation memory. As this need is very rare as of this writing a manual override of `torch.nn.Linear` needs to be done by the user.
+1. ZeRO - 启用内存中心分块(https://deepspeed.readthedocs.io/en/latest/zero3.html#memory-centric-tiling)(MCT)。它允许通过自动分割并顺序执行来运行任意大的层。MCT减少了GPU上活跃的参数数量,但不影响激活内存。由于这种需求目前很罕见,用户需要手动重写`torch.nn.Linear`。
 
-**⇨ Single Node / Multi-GPU**
+**⇨ 单节点/多GPU**
 
-* Model fits onto a single GPU:
+* 模型能装入单个GPU:
 
-    1. DDP - Distributed DP
-    2. ZeRO - may or may not be faster depending on the situation and configuration used
+    1. DDP - 分布式数据并行
+    2. ZeRO - 根据具体情况和使用的配置,可能更快也可能更慢
 
-* Model doesn't fit onto a single GPU:
+* 模型无法装入单个GPU:
 
-    1. PP
+    1. PP(流水线并行)
     2. ZeRO
-    3. TP
+    3. TP(张量并行)
 
-    With very fast intra-node connectivity of NVLINK or NVSwitch all three should be mostly on par, without these PP will be faster than TP or ZeRO. The degree of TP may also make a difference. Best to experiment to find the winner on your particular setup.
+    在具有NVLINK或NVSwitch的快速节点内连接的情况下,这三种方法的性能应该大致相当。如果没有这些,PP会比TP或ZeRO更快。TP的程度也可能产生差异。最好在你的特定设置上进行实验以找出最优方案。
 
-    TP is almost always used within a single node. That is TP size <= gpus per node.
+    TP几乎总是在单个节点内使用。即TP大小 <= 每个节点的GPU数量。
 
-* Largest Layer not fitting into a single GPU:
+* 最大的层无法装入单个GPU:
 
-    1. If not using ZeRO - must use TP, as PP alone won't be able to fit.
-    2. With ZeRO see the same entry for "Single GPU" above
+    1. 如果不使用ZeRO - 必须使用TP,因为单独的PP无法装入。
+    2. 使用ZeRO时,参见上面"单GPU"部分的相同条目
 
+**⇨ 多节点/多GPU**
 
-**⇨ Multi-Node / Multi-GPU**
+* 如果模型能装入单个节点,首先尝试使用多副本的ZeRO(#zero-with-multiple-replicas),因为这样你将在更快的节点内连接上进行ZeRO,在较慢的节点间连接上进行DDP
 
-* If the model fits into a single node first try ZeRO with multiple replicas(#zero-with-multiple-replicas), because then you will be doing ZeRO over the faster intra-node connectivity, and DDP over slower inter-node
+* 当你有快速的节点间连接时:
 
-* When you have fast inter-node connectivity:
+    1. ZeRO - 因为它几乎不需要对模型进行修改
+    2. PP+TP+DP - 通信更少,但需要对模型进行大量更改
 
-    1. ZeRO - as it requires close to no modifications to the model
-    2. PP+TP+DP - less communications, but requires massive changes to the model
-
-* when you have slow inter-node connectivity and still low on GPU memory:
+* 当你有较慢的节点间连接且GPU内存仍然不足时:
 
     1. DP+PP+TP+ZeRO-1
