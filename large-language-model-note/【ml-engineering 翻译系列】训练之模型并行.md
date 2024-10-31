@@ -341,7 +341,16 @@ TP可以与其他并行化方法结合使用。
 - OSLO(https://github.com/eleutherAI/Oslo)基于Transformers实现了张量并行
 - nanotron(https://github.com/huggingface/nanotron)
 - parallelformers(https://github.com/tunib-ai/parallelformers)(目前仅支持推理)
+- torchtian(https://github.com/pytorch/torchtitan)
 
+## 异步张量并行
+
+TP的一个缺陷是很难将其通信与计算重叠。PyTorch提出使用异步TP(https://discuss.pytorch.org/t/distributed-w-torchtitan-introducing-async-tensor-parallelism-in-pytorch/209487)来克服这个问题,它将all-gather + matmul的依赖序列分解为一系列cudaMemcpyAsync调用和更小的部分matmul - 并且使用torch.compile可以自动为你完成这些!
+
+- Megatron-LM也通过--tp-comm-overlap实现了这一功能。
+
+## 相关阅读
+- 张量并行和序列并行:详细分析(https://insujang.github.io/2024-01-11/tensor-parallelism-and-sequence-parallelism-detailed-analysis/#sequence-parallelism)
 
 ## DP+PP
 
