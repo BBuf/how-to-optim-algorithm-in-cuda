@@ -258,12 +258,14 @@ class Float8LinearConfig:
                
 
 
-# Pre-made recipes for common configurations
-# TODO(future PR): go through a round of design on this, and eventually expose
-# as a top level public API.
+# 预制的常用配置方案
+# TODO(未来PR): 对此进行一轮设计,最终作为顶层公共API暴露出去
 class Float8LinearRecipeName(enum.Enum):
-    ALL_TENSORWISE = "all_tensorwise"
+    # 所有操作使用tensorwise缩放粒度
+    ALL_TENSORWISE = "all_tensorwise"  
+    # 所有操作使用axiswise缩放粒度
     ALL_AXISWISE = "all_axiswise"
+    # 前向使用axiswise缩放,权重梯度使用高精度计算
     LW_AXISWISE_WITH_GW_HP = "lw_axiswise_with_gw_hp"
 
 
@@ -271,27 +273,26 @@ def recipe_name_to_linear_config(
     recipe_name: Float8LinearRecipeName,
 ) -> Float8LinearConfig:
     """
-    Input: `Float8LinearRecipeName` value
-    Output: a `Float8LinearConfig` configured to implement the recipe
+    输入: `Float8LinearRecipeName` 枚举值
+    输出: 根据配方名称返回对应的 `Float8LinearConfig` 配置
     """
 
     if recipe_name is Float8LinearRecipeName.ALL_TENSORWISE:
-        # Default, dynamic per-tensor scaling with the cuBLAS tensorwise kernel
+        # 默认配置,使用cuBLAS tensorwise内核进行动态per-tensor缩放
         return Float8LinearConfig()
 
     elif recipe_name is Float8LinearRecipeName.ALL_AXISWISE:
-        # dynamic axiswise scaling with the CUTLASS rowwise kernel
-        cc_i = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)
-        cc_w = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)
-        cc_go = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)
+        # 使用CUTLASS rowwise内核进行动态axiswise缩放
+        cc_i = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)  # 输入使用axiswise缩放
+        cc_w = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)  # 权重使用axiswise缩放
+        cc_go = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE) # 梯度输出使用axiswise缩放
 
-        # The current rowwise CUTLASS kernels in `torch._scaled_mm` are only
-        # fast with `use_fast_accum=True`. Note that rowwise scaling is more
-        # accurate than tensorwise scaling, so the overall impact on accuracy
-        # of tensorwise vs rowwise taking this flag into account will vary.
-        gc_o = Float8GemmConfig(use_fast_accum=True)
-        gc_gi = Float8GemmConfig(use_fast_accum=True)
-        gc_gw = Float8GemmConfig(use_fast_accum=True)
+        # 当前torch._scaled_mm中的rowwise CUTLASS内核只有在use_fast_accum=True时才快
+        # 注意rowwise缩放比tensorwise缩放更精确,所以考虑这个标志时,
+        # tensorwise和rowwise对精度的整体影响会有所不同
+        gc_o = Float8GemmConfig(use_fast_accum=True)   # 输出gemm配置
+        gc_gi = Float8GemmConfig(use_fast_accum=True)  # 梯度输入gemm配置  
+        gc_gw = Float8GemmConfig(use_fast_accum=True)  # 梯度权重gemm配置
 
         return Float8LinearConfig(
             cast_config_input=cc_i,
@@ -304,37 +305,35 @@ def recipe_name_to_linear_config(
 
     elif recipe_name is Float8LinearRecipeName.LW_AXISWISE_WITH_GW_HP:
 
-        # lw's recipe for a modification on all-axiswise:
+        # lw对all-axiswise的修改配方:
         #
         #   output_hp = input_fp8_axiswise_dim0 @ weight_t_axiswise_dim1
         #   grad_input_hp = grad_output_fp8_axiswise_dim0 @ weight_fp8_tensorwise
         #   grad_weight_hp = input_t_hp @ grad_output_hp
         #
-        # key characteristics:
-        #   * increased accuracy for grad_weight
-        #   * `input`, `weight` and `grad_output` now only need to be scaled
-        #     axiswise across a single dim compared to vanilla all-axiswise,
-        #     which is more amenable to fast kernels
+        # 主要特点:
+        #   * 提高了grad_weight的精度
+        #   * 与普通的all-axiswise相比,input、weight和grad_output现在只需要在单个维度上进行axiswise缩放,
+        #     这更适合快速内核
 
         # output_hp = input_fp8_axiswise_dim0 @ weight_t_axiswise_dim1
-        cc_i = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)
-        cc_w = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)
+        cc_i = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)  # 输入使用axiswise缩放
+        cc_w = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)  # 权重使用axiswise缩放
 
         # grad_input_hp = grad_output_fp8_axiswise_dim0 @ weight_fp8_tensorwise
-        cc_go = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)
-        cc_w_gi = CastConfig(scaling_granularity=ScalingGranularity.TENSORWISE)
+        cc_go = CastConfig(scaling_granularity=ScalingGranularity.AXISWISE)     # 梯度输出使用axiswise缩放
+        cc_w_gi = CastConfig(scaling_granularity=ScalingGranularity.TENSORWISE) # 用于计算梯度输入的权重使用tensorwise缩放
 
         # grad_weight_hp = input_t_hp @ grad_output_hp
-        cc_i_gw = CastConfig(scaling_type=ScalingType.DISABLED)
-        cc_go_gw = CastConfig(scaling_type=ScalingType.DISABLED)
+        cc_i_gw = CastConfig(scaling_type=ScalingType.DISABLED)   # 用于计算梯度权重的输入禁用缩放
+        cc_go_gw = CastConfig(scaling_type=ScalingType.DISABLED)  # 用于计算梯度权重的梯度输出禁用缩放
 
-        # The current rowwise CUTLASS kernels in `torch._scaled_mm` are only
-        # fast with `use_fast_accum=True`. Note that rowwise scaling is more
-        # accurate than tensorwise scaling, so the overall impact on accuracy
-        # of tensorwise vs rowwise taking this flag into account will vary.
-        gc_o = Float8GemmConfig(use_fast_accum=True)
-        gc_gi = Float8GemmConfig(use_fast_accum=True)
-        gc_gw = Float8GemmConfig(use_fast_accum=True)
+        # 当前torch._scaled_mm中的rowwise CUTLASS内核只有在use_fast_accum=True时才快
+        # 注意rowwise缩放比tensorwise缩放更精确,所以考虑这个标志时,
+        # tensorwise和rowwise对精度的整体影响会有所不同
+        gc_o = Float8GemmConfig(use_fast_accum=True)   # 输出gemm配置
+        gc_gi = Float8GemmConfig(use_fast_accum=True)  # 梯度输入gemm配置
+        gc_gw = Float8GemmConfig(use_fast_accum=True)  # 梯度权重gemm配置
 
         return Float8LinearConfig(
             cast_config_input=cc_i,
@@ -349,4 +348,4 @@ def recipe_name_to_linear_config(
         )
 
     else:
-        raise AssertionError(f"unknown recipe_name {recipe_name}")
+        raise AssertionError(f"未知的配方名称 {recipe_name}")
