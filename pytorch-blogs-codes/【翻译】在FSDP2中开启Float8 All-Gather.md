@@ -233,7 +233,7 @@ for _ in range(10):
 
 关于float8训练的一个常见问题是"相比bfloat16,float8线性层在什么情况下更快?"。给定线性层前向传播的M、K、N参数,你可以参考下表中基于NVIDIA H100的微基准测试加速比估计:
 
-<img width="805" alt="float8_speedup" src="https://github.com/user-attachments/assets/5c5f2817-7eb7-4cab-bd03-49fe70cd31a8">
+![](https://files.mdnice.com/user/59/31bd8826-a8f3-4e31-8135-84132f111ab8.png)
 
 示例1 (小形状):
 * 前向输入张量大小1024x2048,线性权重大小2048x1024; M, K, N = 1024, 2048, 1024
