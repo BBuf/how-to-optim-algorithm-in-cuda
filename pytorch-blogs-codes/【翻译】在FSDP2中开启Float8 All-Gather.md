@@ -1,4 +1,4 @@
-> 来源： https://discuss.pytorch.org/t/distributed-w-torchtitan-enabling-float8-all-gather-in-fsdp2/209323 。下面文章包含2个主题，第一个是FSDP2中开启Float8 All-Gather的Discussion的翻译，第二个是TorchAO中的Float8实现速览的翻译。
+> 来源： https://discuss.pytorch.org/t/distributed-w-torchtitan-enabling-float8-all-gather-in-fsdp2/209323 。下面文章包含2个主题，第一个是FSDP2中开启Float8 All-Gather的Discussion的翻译，第二个是TorchAO中的Float8实现速览的翻译。这篇文档主要介绍了在FSDP2中启用float8 all-gather功能的实现和优化。通过在128个H100 GPU上预训练Llama3-70B模型的验证，相比bfloat16获得了1.50倍的性能提升，其中20%来自float8 all-gather，80%来自float8计算。文档详细描述了Float8训练的两个关键组件：通过torch._scaled_mm实现的float8计算和能节省50%带宽的float8通信。在优化策略方面，通过Float8计算+Bfloat16 All-Gather获得1.40倍加速，再通过带独立AMAX All-Reduce的Float8 All-Gather和组合AMAX AllReduce分别获得0.02倍和0.08倍的额外提升，同时还优化了NCCL和Float8计算之间的SM资源竞争。文档还提供了完整的代码示例，展示了如何将nn.Linear替换为Float8Linear、配置FSDP2、处理缩放因子和实现类型转换。对于实际应用，文档建议小矩阵（如1024x2048）保持使用bfloat16，而大矩阵（如4096x8192）则建议使用float8以获得加速。未来的工作方向包括在张量并行和流水线并行中支持Float8、实现延迟缩放以提升性能，以及探索行级缩放以提高精度。TorchAO中实现的Float8在TorchTitan中端到端可用，此外Meagtron-LM目前对FP8的训练支持也趋于成熟。
 
 > 注意：FSDP2在节点内支持了TP，FSDP不支持TP是标准的Zero3。
 
@@ -316,3 +316,6 @@ python test/float8/test_fsdp2/test_fsdp2.py
 # make sure to turn on torch.compile to get the best performance
 ./benchmarks/float8/bench_linear_float8.py -o ../tmp/test.txt --compile
 ```
+
+TorchAO FP8实现的相关开源代码在 https://github.com/pytorch/ao/tree/main/torchao/float8 ，代码整体不是很长，感兴趣的读者可以阅读下。
+
