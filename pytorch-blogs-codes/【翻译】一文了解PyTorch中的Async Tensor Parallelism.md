@@ -1,116 +1,119 @@
-> 来源： https://discuss.pytorch.org/t/distributed-w-torchtitan-introducing-async-tensor-parallelism-in-pytorch/209487
+> 来源： https://discuss.pytorch.org/t/distributed-w-torchtitan-introducing-async-tensor-parallelism-in-pytorch/209487 。这篇文档介绍了PyTorch中新实现的异步张量并行(Async-TP)技术。该技术通过将通信和计算操作分解并重叠执行，显著提升了大规模语言模型训练的性能。在Llama3系列模型上的测试表明，该技术可以使前向传播速度提升20-29%，端到端训练速度提升约8%。文章详细讨论了实现过程中的技术挑战，包括通信开销和计算效率问题，并提出了相应的解决方案。目前该技术已集成到TorchTitan中，可通过torch.compile或eager模式使用，但仍存在一些限制，如需要NVSwitch支持且仅适用于节点内配置等。这项技术对提升大规模分布式训练效率具有重要意义。
 
-# [Distributed w/ TorchTitan] Introducing Async Tensor Parallelism in PyTorch
+# [分布式训练与TorchTitan] PyTorch中异步张量并行的介绍
 
-## TL;DR
+## 摘要
 
-- We implemented experimental async tensor parallelism support in PyTorch.
-- We integrated it in TorchTitan and observed:
-    - Up to ~29% forward pass speedup and ~8% E2E speedup in Llama3 7B.
-    - Up to ~20% forward pass speedup and ~8% E2E speedup in Llama3 70B.
-- We briefly discuss the performance challenges and the solutions we devised.
+- 我们在PyTorch中实现了实验性的异步张量并行支持。
+- 我们将其集成到TorchTitan中,并观察到:
+    - 在Llama3 7B模型中,前向传播速度提升最高达~29%,端到端速度提升最高达~8%。
+    - 在Llama3 70B模型中,前向传播速度提升最高达~20%,端到端速度提升最高达~8%。
+- 我们简要讨论了性能挑战以及我们设计的解决方案。
 
-## Distributed with TorchTitan
+## TorchTitan中的分布式训练
 
-The GitHub repository torchtitan 189 is a proof of concept for large-scale LLM training using native PyTorch, designed to be easy to understand, use, and extend for different training purposes, supporting multi-dimensional parallelisms with modular components. In this series of topics, we introduce the latest PyTorch features for distributed training enabled in TorchTitan.
+GitHub仓库torchtitan是一个使用原生PyTorch进行大规模LLM训练的概念验证项目。它设计得易于理解、使用和扩展,可用于不同的训练目的,通过模块化组件支持多维度并行。在这一系列主题中,我们介绍了在TorchTitan中启用的最新PyTorch分布式训练特性。
 
-- Topic 1: [【翻译】在FSDP2中开启Float8 All-Gather](https://mp.weixin.qq.com/s/44zFNWr5aVtA3zPtegY9dg)
-- → Topic 2: Introducing Async Tensor Parallelism in PyTorch
+- 主题1: [【翻译】在FSDP2中开启Float8 All-Gather](https://mp.weixin.qq.com/s/44zFNWr5aVtA3zPtegY9dg)
+- → 主题2: 在PyTorch中引入异步张量并行
 
-## Tensor Parallelism
+## 张量并行
 
-Tensor parallelism (TP) is a widely used model parallelism technique. Unlike data parallelism, which is limited to sharding computations across the batch dimension, TP further distributes the computation along the feature dimension, allowing multiple GPUs to process the same sample simultaneously. This characteristic makes TP crucial for large-scale LLM training, allowing the number of devices to scale beyond the global batch size.
+张量并行(TP)是一种广泛使用的模型并行技术。与数据并行不同,数据并行仅限于在批次维度上分片计算,而TP进一步沿特征维度分布计算,允许多个GPU同时处理相同的样本。这一特性使得TP对大规模LLM训练至关重要,因为它打破了设备数量超出全局批次大小的限制。
 
-![Figure 1: TP applied to a two-layer FFN sharded across 2 devices](https://files.mdnice.com/user/59/bbb78b1d-f1ca-4566-b500-cf934d8b5c6e.png)
+![图1: 在2个设备上应用TP的两层FFN示意图](https://files.mdnice.com/user/59/bbb78b1d-f1ca-4566-b500-cf934d8b5c6e.png)
 
-As a brief recap, the diagram illustrates TP applied to a two-layer FFN sharded across 2 devices. We begin with row-wise sharded inputs [X0, X1], column-wise sharded linear weights [A0, A1], and row-wise sharded linear weights [B0, B1]. First, an all-gather is performed on [X0, X1] to produce the unsharded input X. Then, X @ A0 @ B0 and X @ A1 @ B1 are computed independently on each device, with activations remaining sharded. The resulting partial sums of the unsharded output are then combined using a reduce-scatter to form the final sharded output.
+作为简要回顾,图示展示了在2个设备上应用TP的两层FFN。我们首先从行分片的输入[X0, X1],列分片的线性权重[A0, A1],和行分片的线性权重[B0, B1]开始。首先,对[X0, X1]执行all-gather操作以生成未分片的输入X。然后,在每个设备上独立计算X @ A0 @ B0和X @ A1 @ B1,同时保持激活分片。最后,使用reduce-scatter将未分片的输出部分和组合,形成最终的分片输出。
 
-This approach efficiently minimizes communication volume by keeping the activations sharded as long as possible. However, the communication still poses efficiency challenges because it is exposed. Async tensor parallelism is an optimization designed to address this issue.
+这种方法通过尽可能长时间地保持激活分片,有效地最小化了通信量。然而,通信仍然存在效率挑战,因为它暴露了。异步张量并行是一种优化设计,旨在解决这一问题。
 
-## Async Tensor Parallelism
+## 异步张量并行
 
-The concept of async tensor parallelism (async-TP was, to our knowledge, first introduced in the paper Breaking the Computation and Communication Abstraction Barrier in Distributed Machine Learning Workloads(https://arxiv.org/abs/2105.05720), although there have been several parallel efforts, including Wang et al. 2022(https://dl.acm.org/doi/abs/10.1145/3567955.3567959). and Chang et al. 2024(https://arxiv.org/abs/2406.06858). The key insight is that by decomposing dependent communication and computation operators, we can create overlapping opportunities that would otherwise be unachievable.
+据我们所知,异步张量并行(async-TP)的概念最早是在论文《Breaking the Computation and Communication Abstraction Barrier in Distributed Machine Learning Workloads》(https://arxiv.org/abs/2105.05720)中提出的,尽管也有一些平行的研究工作,包括Wang等人2022年的工作(https://dl.acm.org/doi/abs/10.1145/3567955.3567959)和Chang等人2024年的工作(https://arxiv.org/abs/2406.06858)。其关键洞见在于,通过分解相互依赖的通信和计算算子,我们可以创造出原本无法实现的重叠机会。
 
-![Figure 2: Async-TP applied to an all-gather followed by a matmul](https://files.mdnice.com/user/59/f41edfef-0bfc-45e0-b902-b2732b17dff1.png)
+![图2: 将异步TP应用于all-gather和矩阵乘法的示意图](https://files.mdnice.com/user/59/f41edfef-0bfc-45e0-b902-b2732b17dff1.png)
 
-The diagram from Wang et al. illustrates how this technique can be applied to an all-gather followed by a matmul. The all-gather is decomposed into send and recv operations, while the matmul is divided into sub-matmuls. With this decomposition, it becomes possible to compute one sub-matmul while simultaneously transfering the data required for the next sub-matmul, effectively hiding communication latency.
+> 上半部分 (Original传统方式): 两个分区(Partition 0和1)按顺序执行, 先进行AllGather操作收集数据, 然后执行Einsum矩阵计算，这种方式计算和通信是串行的,存在等待时间。下半部分 (Overlapped异步方式): 通信被分解为异步Send和Recv操作，计算也被分解为更小的Einsum操作。两个分区可以同时进行: Partition 0发送A0到Partition 1,同时计算Einsum(A0, B0)，Partition 1发送A1到Partition 0,同时计算Einsum(A1, B1)，通过Dynamic Update更新计算结果。这种方法通信和计算可以重叠执行，减少了整体等待时间，如图右侧箭头所示,相比传统方式节省了时间。
 
-## Performance Challenges
+Wang等人的图示展示了如何将此技术应用于all-gather后跟一个matmul。all-gather被分解为send和recv操作,而matmul被分为子matmuls。通过这种分解,可以同时计算一个子matmul,同时传输下一个子matmul所需的数据,从而有效地隐藏通信延迟。
 
-Although the concept of async-TP is straightforward in theory, achieving a performant CUDA implementation presented several challenges. In this section, we’ll explore these challenges and discuss the approaches we employed to address them.
+## 性能挑战
 
-**Acknowledgment**: Many of these challenges were initially explored by Luca Wehrstedt(https://discuss.pytorch.org/u/lcw/summary). The async-TP implementation in PyTorch drew significant inspiration from his async-TP work in xformers.
+尽管异步张量并行的概念在理论上很简单直观,但要在CUDA中实现高性能的实现却面临着一些挑战。在本节中,我们将探讨这些挑战,并讨论我们采用的解决方案。
 
-### Communication Overhead
+**致谢**: 这些挑战中的许多最初是由Luca Wehrstedt(https://discuss.pytorch.org/u/lcw/summary)探索的。PyTorch中的异步TP实现从他在xformers中的异步TP工作中获得了重要启发。
 
-When decomposing communication, it might be tempting to use NCCL send/recv due to their accessibility. However, NCCL send/recv has certain characteristics that make them less ideal for async-TP:
+### 通信开销
 
-- **Contention between overlapped computation and communication** - while it’s commonly believed that computation and communication are two resources that can be utilized independently, in reality, their independence is nuanced, and contention does occur. In intra-node settings (most common for TP), NCCL send/recv kernels utilize SMs to move data across NVLink, reducing the number of SMs available for the overlapping matmul kernels and slows them down. Interestingly, the observed slowdown can exceed the percentage of resources consumed by the communication kernels. Since cuBLAS attempts to select kernels that execute in full waves, the SMs taken by the communication kernel can tip the balance, causing the matmul kernels to execute an extra wave.
-- **Two-way synchronization** - NCCL send/recv kernels perform two-sided synchronization, meaning that both the sender and receiver are blocked until the operation is complete. This approach is not always optimal for data transfers within intra-op parallelism. Depending on the scenario, it may be preferable to perform a single synchronization for multiple data transfers or to choose between pushing data to or pulling data from remote peers.
+在分解通信时,使用NCCL的send/recv操作可能很有诱惑力,因为它们易于使用。然而,NCCL的send/recv操作具有一些特性,使其不太适合异步张量并行:
 
-Fortunately, we can avoid the previously mentioned downsides by leveraging CUDA’s P2P mechanism. The mechanism allows a device to access memory allocated on a peer device by mapping it into its virtual memory address space. This mechanism enables memory operations (load/store/atomic, etc.) to be executed over NVLink(Currently, the async-TP implementation in PyTorch requires an NVLink connection between all device pairs (e.g., through NVSwitch) to achieve speedup. This is a limitation that we plan to address in future.). Moreover, when transferring contiguous data to or from peer devices via cudaMemcpyAsync, the operation is handled by copy engines(Copy engines are dedicated hardware units on a GPU that manage data movement between different memory locations and operate independently of the GPU’s computational cores (SMs).) and does not require any SMs, thereby avoiding the contention issues discussed earlier(Data transfers via copy engines still share the same memory bandwidth. However, this is unlikely to cause significant contention because (1) the transfer rate is limited by NVLink bandwidth, which is low enough to avoid memory bandwidth contention, and (2) the overlapped matmul is compute-bound.).
+- **重叠计算和通信之间的竞争** - 虽然人们普遍认为计算和通信是可以独立使用的两种资源,但实际上它们的独立性是有细微差别的,确实会发生竞争。在节点内设置(TP最常见的情况)中,NCCL的send/recv kernel 会利用SM通过NVLink传输数据,这减少了可用于重叠矩阵乘法 kernel 的SM数量,从而降低了速度。有趣的是,观察到的速度下降可能超过通信 kernel 消耗的资源百分比。由于cuBLAS试图选择以完整waves执行的 kernel ,通信 kernel 占用的SM可能会打破平衡,导致矩阵乘法 kernel 需要执行额外的wave。
 
-To leverage this mechanism for async-TP and similar use cases in the future, we developed an experimental abstraction called SymmetricMemory(https://github.com/pytorch/pytorch/blob/main/torch/csrc/distributed/c10d/SymmetricMemory.hpp). It conceptually represents a buffer symmetrically allocated across a group of devices, providing each GPU with access to all corresponding buffers on its peers via virtual memory/multicast addresses. Direct interaction with SymmetricMemory is not necessary for using async-TP, but users can leverage it to create custom fine-grained, intra-node/intra-op optimizations similar to async-TP.
+- **双向同步** - NCCL的send/recv kernel 执行双向同步,这意味着发送方和接收方都会被阻塞直到操作完成。这种方法对于算子内并行中的数据传输并不总是最优的。根据具体情况,可能更适合对多个数据传输执行单次同步,或者在向远程节点推送数据和从远程节点拉取数据之间进行选择。
 
-### Magnified Wave Quantization Inefficiency Due to Work Decomposition
+幸运的是,我们可以通过利用CUDA的P2P机制来避免前面提到的缺点。该机制允许设备通过将其映射到虚拟内存地址空间来访问对等设备上分配的内存。这种机制使得内存操作(加载/存储/原子等)可以通过NVLink执行(目前,PyTorch中的async-TP实现需要所有设备对之间都有NVLink连接(例如通过NVSwitch)才能实现加速。这是我们计划在未来解决的限制)。此外,当通过cudaMemcpyAsync在对等设备之间传输连续数据时,该操作由拷贝引擎(拷贝引擎是GPU上的专用硬件单元,用于管理不同内存位置之间的数据移动,独立于GPU的计算核心(SM)运行)处理,不需要任何SM,从而避免了前面讨论的竞争问题(通过拷贝引擎的数据传输仍然共享相同的内存带宽。然而,这不太可能造成显著的竞争,因为(1)传输速率受限于NVLink带宽,低到足以避免内存带宽竞争,(2)重叠的矩阵乘法是计算密集型的)。
 
-Tiled matmul kernels execute in waves of SM count. If the final wave consists of only a few tiles, it will take nearly as long to complete as a full wave, leading to what is known as quantization inefficiency. Decomposing a matmul leads to a smaller number of tiles per kernel [5] and the combined quantization inefficiency from the decomposed matmuls is likely to exceed that of the original matmul.
+为了在未来利用这种机制实现async-TP和类似用例,我们开发了一个名为SymmetricMemory的实验性抽象(https://github.com/pytorch/pytorch/blob/main/torch/csrc/distributed/c10d/SymmetricMemory.hpp)。从概念上讲,它表示一个在设备组之间对称分配的缓冲区,通过虚拟内存/多播地址为每个GPU提供对其对等设备上所有相应缓冲区的访问。使用async-TP不需要直接与SymmetricMemory交互,但用户可以利用它来创建类似于async-TP的自定义细粒度、节点内/算子内优化。
 
-![Figure 3: Decomposing a matmul leads to magnified quantization inefficiency](https://files.mdnice.com/user/59/008e7749-7fa6-431f-98b0-355f7b9da7fc.png)
+### 由于工作分解导致的Wave量化效率放大问题
 
-To illustrate the issue, let’s examine an all-gather → matmul example. In this example, A is sharded across 4 devices. Without async-TP, A is first all-gathered from the 4 devices, and then A @ B is computed on all devices. With async-TP, A @ B is decomposed into A0 @ B, A1 @ B, A2 @ B, and A3 @ B. An native async-TP implementation would execute the sub-matmuls sequentially in one stream while prefetching the data required for the next sub-matmul on another stream. This approach effectively hides communication latency. However, because the matmul is decomposed into smaller parts, the number of partial waves increases, leading to a longer overall matmul execution time.
+分块矩阵乘法 kernel 按SM数量以 wave 的形式执行。如果最后一个 wave 只包含少量块,完成时间几乎与完整的 wave 一样长,这就导致了所谓的量化效率问题。将一个矩阵乘法分解会导致每个 kernel 的块数减少,分解后的矩阵乘法的组合量化效率损失可能会超过原始矩阵乘法。
 
-![Figure 4: The alternating-stream implementation allows partial waves to overlap with the next sub-matmul](https://files.mdnice.com/user/59/d493d63d-436e-41a7-b972-7265212439f6.png)
+![图3: 分解矩阵乘法会导致量化效率问题被放大](https://files.mdnice.com/user/59/008e7749-7fa6-431f-98b0-355f7b9da7fc.png)
 
-To combat the magnified quantization inefficiency, we adopted an alternating-stream approach. Instead of using dedicated streams for computation and communication, we employ two symmetric streams that alternate roles. This method not only allows us to overlap computation with communication but also enables overlapping the partial wave of the current sub-matmul with the next sub-matmul, thereby mitigating the additional quantization inefficiency caused by decomposition.
+为了说明这个问题,让我们来看一个all-gather → matmul的例子。在这个例子中,A被分片到4个设备上。在不使用async-TP的情况下,首先从4个设备上收集A,然后在所有设备上计算A @ B。使用async-TP时,A @ B被分解为A0 @ B、A1 @ B、A2 @ B和A3 @ B。一个原生的async-TP实现会在一个流中顺序执行这些子矩阵乘法,同时在另一个流中预取下一个子矩阵乘法所需的数据。这种方法有效地隐藏了通信延迟。然而,由于矩阵乘法被分解成更小的部分,部分wave的数量增加,导致整体矩阵乘法执行时间变长。
 
-![Figure 5: Profiling trace of partial waves overlapping with the next sub-matmul](https://files.mdnice.com/user/59/ab411db0-48aa-45b7-a364-f9df65d98637.png)
+![图4: 交替流实现允许部分wave与下一个子矩阵乘法重叠](https://files.mdnice.com/user/59/d493d63d-436e-41a7-b972-7265212439f6.png)
 
-![Figure 6: Profiling trace comparison between baseline and async-TP](https://files.mdnice.com/user/59/a62d48c9-0734-4f2d-b84e-8d26695d708b.png)
+为了解决放大的量化效率问题,我们采用了交替流的方法。我们不使用专门的计算和通信流,而是使用两个交替角色的对称流。这种方法不仅允许计算和通信重叠,还能让当前子矩阵乘法的部分wave与下一个子矩阵乘法重叠,从而缓解了分解导致的额外量化效率问题。
+
+![图5: 部分wave与下一个子矩阵乘法重叠的性能分析跟踪](https://files.mdnice.com/user/59/ab411db0-48aa-45b7-a364-f9df65d98637.png)
+
+![图6: 基线和async-TP的性能分析跟踪对比](https://files.mdnice.com/user/59/a62d48c9-0734-4f2d-b84e-8d26695d708b.png)
 
 
-## E2E Performance Evaluation
+## 端到端性能评估
 
-We conducted an E2E performance evaluation on Llama3 8B and 70B with TorchTitan. We observed up to ~29% forward pass speedup and ~8% E2E speedup in Llama3 8B, and up to ~20% forward pass speedup and ~8% E2E speedup in Llama3 70B.
+我们使用TorchTitan对Llama3 8B和70B进行了端到端性能评估。在Llama3 8B上,我们观察到前向传播速度提升了约29%,端到端速度提升了约8%;在Llama3 70B上,前向传播速度提升了约20%,端到端速度提升了约8%。
 
-Benchmark configuration:
+基准测试配置:
 
-- The benchmarks were conducted with 64 H100 GPUs(The H100 GPUs used for the benchmark were non-standard. They have HBM2e and are limited to a lower TDP. The actual peak TFLOPs should be between SXM and NVL, and we don’t know the exact value. So the reported MFU is lower than the actual MFU because we use the peak TFLOPs of SXM directly.), each host equipped with 8 GPUs and NVSwitch.
-- torch.compile was enabled for both the baseline and async-TP configurations.
-- The models were trained using bf16 precision.
-- We applied selective activation checkpointing for Llama3 8B and full activation checkpointing for Llama3 70B.
+- 基准测试使用了64个H100 GPU(用于基准测试的H100 GPU是非标准的。它们使用HBM2e并且TDP受限。实际峰值TFLOP应该在SXM和NVL之间,我们不知道确切的值。因此报告的MFU低于实际MFU,因为我们直接使用了SXM的峰值TFLOP),每个主机配备8个GPU和NVSwitch。
+- 基线和async-TP配置都启用了torch.compile。
+- 模型使用bf16精度进行训练。
+- 我们对Llama3 8B应用了选择性激活检查点,对Llama3 70B应用了完整激活检查点。
 
-![Figure 7: E2E speedup with async-TP](https://files.mdnice.com/user/59/42148fd5-05b9-45d5-b4a4-e4991a8b647b.png)
+![图7: 使用async-TP的端到端加速效果](https://files.mdnice.com/user/59/42148fd5-05b9-45d5-b4a4-e4991a8b647b.png)
 
-![Figure 8: Forward speedup with async-TP](https://files.mdnice.com/user/59/7a8f2577-d95c-44d5-9cd9-be43c48fe153.png)
+![图8: 使用async-TP的前向传播加速效果](https://files.mdnice.com/user/59/7a8f2577-d95c-44d5-9cd9-be43c48fe153.png)
 
-![Figure 9: E2E benchmark data](https://files.mdnice.com/user/59/50cdcdf6-7da9-4e5f-8dfd-15e145e44625.png)
+![图9: 端到端基准测试数据](https://files.mdnice.com/user/59/50cdcdf6-7da9-4e5f-8dfd-15e145e44625.png)
 
-We also conducted benchmarks with async-TP on Llama 3.1 405B. You can find the details here(https://github.com/pytorch/torchtitan/blob/main/docs/performance.md)
+我们还在Llama 3.1 405B上进行了async-TP的基准测试。你可以在这里找到详细信息(https://github.com/pytorch/torchtitan/blob/main/docs/performance.md)
 
-## Using Async-TP in TorchTitan
+## 在TorchTitan中使用Async-TP
 
-The async-TP support is readily integrated into TorchTitan. To enable it, simply supply the `--experimental.enable_async_tensor_parallel` option when training with tensor parallelism.
+Async-TP支持已经集成到TorchTitan中。要启用它,只需在使用张量并行训练时提供`--experimental.enable_async_tensor_parallel`选项即可。
 
-## Using Async-TP in PyTorch
+## 在PyTorch中使用Async-TP
 
-The async-TP support is available in the latest PyTorch nightly builds. You can use it either with torch.compile or directly in eager mode.
+Async-TP支持在最新的PyTorch nightly builds中可用。你可以通过torch.compile或直接在eager模式下使用它。
 
-### Using Async-TP with torch.compile:
+### 使用torch.compile的Async-TP:
 
-![Figure 10: torch.compile automatically detects TP patterns and rewrites them into async-TP ops](https://files.mdnice.com/user/59/671b5881-dab2-45ef-a4c5-ffeca5555f54.png)
+![图10: torch.compile自动检测TP模式并将其重写为async-TP算子](https://files.mdnice.com/user/59/671b5881-dab2-45ef-a4c5-ffeca5555f54.png)
 
-torch.compile is currently our recommended method for applying async-TP:
+torch.compile 目前是我们推荐的应用 async-TP 的方法:
 
-- It automatically detects TP patterns in your model and rewrites them into async-TP ops, allowing your model to maintain its original structure.
-- The optimized async-TP implementation requires the inputs to be in a specific layout; otherwise extra copies will occur. torch.compile automatically ensures that upstream ops produce outputs in the desired layout whenever possible.
-- torch.compile is also capable of detecting situations where an all-gather can be overlapped with multiple matmuls, potentially better hiding communication latency.
+- 它能自动检测模型中的 TP 模式并将其重写为 async-TP 算子,使模型能保持其原始结构。
+- 优化的 async-TP 实现要求输入具有特定的布局;否则会发生额外的复制。torch.compile 会自动确保上游算子尽可能以所需布局生成输出。
+- torch.compile 还能检测 all-gather 可以与多个矩阵乘法重叠的情况,从而更好地隐藏通信延迟。
 
-While these can be achieved manually in eager mode, they may introduce tighter coupling between model code and optimization logic.
+虽然这些在 eager 模式下也可以手动实现,但可能会导致模型代码和优化逻辑之间的耦合更紧密。
 
-![Figure 11: torch.compile can automatically apply async-TP to an all-gather followed by multiple matmuls that consume the all-gather result (e.g., QKV projection)](https://files.mdnice.com/user/59/d8ee33ca-f30a-4ada-8516-75e9311b7062.png)
+![图11: torch.compile可以自动将async-TP应用于all-gather操作以及后续使用all-gather结果的多个矩阵乘法(例如QKV投影)](https://files.mdnice.com/user/59/d8ee33ca-f30a-4ada-8516-75e9311b7062.png)
 
-For authoring TP logic, we recommend PyTorch Tensor Parallel APIs. You can find the tutorial here(https://pytorch.org/tutorials/intermediate/TP_tutorial.html) and an example in TorchTitan here(https://github.com/pytorch/torchtitan/blob/1923ce4/torchtitan/parallelisms/parallelize_llama.py#L158-L183). Additionally, torch.compile can apply async-TP to TP logic that is manually authored using functional collectives along with `torch.mm`, `torch.matmul`, or `torch._scaled_mm`. An example can be found here(https://github.com/pytorch/pytorch/blob/16b8146/test/distributed/tensor/parallel/test_micro_pipeline_tp.py#L206-L208).
+对于编写TP逻辑,我们推荐使用PyTorch Tensor Parallel APIs。你可以在这里找到教程(https://pytorch.org/tutorials/intermediate/TP_tutorial.html)以及在TorchTitan中的示例(https://github.com/pytorch/torchtitan/blob/1923ce4/torchtitan/parallelisms/parallelize_llama.py#L158-L183)。此外,torch.compile可以将async-TP应用于使用功能性集合操作以及`torch.mm`、`torch.matmul`或`torch._scaled_mm`手动编写的TP逻辑。你可以在这里找到一个示例(https://github.com/pytorch/pytorch/blob/16b8146/test/distributed/tensor/parallel/test_micro_pipeline_tp.py#L206-L208)。
 
 ```python
 from torch.distributed._symmetric_memory import enable_symm_mem_for_group
@@ -128,9 +131,9 @@ model = torch.compile(model)
 model.tp_submodule = torch.compile(model.tp_submodule)
 ```
 
-### Using Async-TP in eager mode:
+### 在eager模式下使用Async-TP:
 
-It is also possible to apply async-TP in eager mode by directly calling async-TP ops:
+也可以通过直接调用async-TP算子在eager模式下应用async-TP:
 
 ```python
 from torch.distributed._symmetric_memory import enable_symm_mem_for_group
@@ -157,25 +160,20 @@ output = torch.ops.symm_mem.fused_matmul_reduce_scatter(
 )
 ```
 
-## Limitations and Future Work
+## 局限性和未来工作
 
-Current limitations of the async-TP support in PyTorch:
+PyTorch中async-TP支持的当前局限性:
 
-- **Optimized for large matmul problems**: Currently, async-TP in PyTorch performs best with large matmul operations, particularly those that don’t require changes in tiling size after decomposition. We are exploring finer-grained pipeline solutions to enhance performance on smaller problem sizes, such as those encountered in inference workloads.
-- **Requires NVSwitch**: At present, async-TP in PyTorch relies on NVSwitch for optimal performance. We are considering extending support to NVLink ring topologies based on community feedback and demand.
-- **Limited to intra-node configurations**: async-TP in PyTorch currently only works for intra-node setups. We may explore extending this support to cross-node environments in the future.
+- **针对大型矩阵乘法问题优化**: 目前,PyTorch中的async-TP在大型矩阵乘法操作上表现最佳,特别是那些分解后不需要改变分块大小的操作。我们正在探索更细粒度的流水线解决方案,以提高在推理工作负载等较小问题规模上的性能。
+- **需要NVSwitch**: 目前,PyTorch中的async-TP依赖NVSwitch来获得最佳性能。我们正在考虑根据社区反馈和需求扩展对NVLink环形拓扑的支持。
+- **仅限于节点内配置**: PyTorch中的async-TP目前仅适用于节点内设置。我们将来可能会探索将此支持扩展到跨节点环境。
 
-## Notes
+## 注释
 
-[1]: PyTorch Distributed opted the term “async-TP” to describe this technique, but it may not be universally referred to by this name.
-
-[2]: Currently, the async-TP implementation in PyTorch requires an NVLink connection between all device pairs (e.g., through NVSwitch) to achieve speedup. This is a limitation that we plan to address in future.
-
-[3]: Copy engines are dedicated hardware units on a GPU that manage data movement between different memory locations and operate independently of the GPU’s computational cores (SMs).
-
-[4]: Data transfers via copy engines still share the same memory bandwidth. However, this is unlikely to cause significant contention because (1) the transfer rate is limited by NVLink bandwidth, which is low enough to avoid memory bandwidth contention, and (2) the overlapped matmul is compute-bound.
-
-[5]: We assume that the matmul problem size is large enough, so that the tile shape doesn’t change after decomposition and the main source of decomposition overhead is quantization inefficiency.
-
-[6]: The H100 GPUs used for the benchmark were non-standard. They have HBM2e and are limited to a lower TDP. The actual peak TFLOPs should be between SXM and NVL, and we don’t know the exact value. So the reported MFU is lower than the actual MFU because we use the peak TFLOPs of SXM directly.
+- PyTorch Distributed选择使用"async-TP"这个术语来描述这种技术,但它可能不会被普遍地这样称呼。
+- 目前,PyTorch中的async-TP实现需要所有设备对之间都有NVLink连接(例如通过NVSwitch)才能实现加速。这是我们计划在未来解决的一个限制。
+- Copy引擎是GPU上的专用硬件单元,用于管理不同内存位置之间的数据移动,并独立于GPU的计算核心(SMs)运行。
+- 通过copy引擎的数据传输仍然共享相同的内存带宽。但是,这不太可能造成显著的竞争,因为(1)传输速率受NVLink带宽限制,低到足以避免内存带宽竞争,(2)重叠的矩阵乘法是计算密集型的。
+- 我们假设矩阵乘法问题规模足够大,因此分解后分块形状不会改变,分解开销的主要来源是量化效率。
+- 用于基准测试的H100 GPU是非标准的。它们使用HBM2e并限制在较低的TDP。实际峰值TFLOPs应该在SXM和NVL之间,我们不知道确切的值。因此报告的MFU低于实际MFU,因为我们直接使用SXM的峰值TFLOPs。
 
