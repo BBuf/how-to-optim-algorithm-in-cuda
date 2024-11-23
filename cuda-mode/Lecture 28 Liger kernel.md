@@ -16,8 +16,13 @@ Liger Kernel(https://github.com/linkedin/Liger-Kernel) 是一个专门为 LLM �
 
 这里讲到大模型的瓶颈不仅包含显存导致的OOM，还包含效率问题，有一个误区就是GPU利用率越高速度越快，实际上这是错误的理解，GPU利用率高只是说明GPU很忙，推荐阅读 https://arthurchiao.art/blog/understanding-gpu-performance/ 这篇文章来理解这个问题。此外，Profiler是理解一切性能问题的基础，推荐cuda-mode的lecture1和lecture16来学习如何使用Profiler。
 
+![](https://files.mdnice.com/user/59/20133ed9-f65d-4db0-a236-99d411d3c463.png)
 
 
+然后作者对一个LLama模型做了一个在线的Profile，我们可以看到在内存变化阶段Cross entropy有一个峰值突变，它消耗了很多内存。如下图所示：
 
+![](https://files.mdnice.com/user/59/f6219530-19a7-484c-a867-f50b9642225e.png)
 
+由于使用了Checkpointing技术，在前向和反向阶段的每个Transformer Block上也能观察到内存的升降，因为计算下一个Transformer Block的时候会释放当前Transformer Block占用的内存。这里的重点是Cross Entropy的内存消耗，来源是具体化logits的过程中产生的峰值内存，因为vocab size很大。
 
+接下来作者介绍了一下kernel trace部分，从这部分我们可以看到LLama模型有很多elmentwise ops和很多cuda kernel launch的overhead。
