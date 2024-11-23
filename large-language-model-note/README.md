@@ -531,3 +531,7 @@
 
 - [李沐论文精度文字版专栏](https://www.zhihu.com/column/c_1656053216138719233)
 
+### cursor 充值教程
+
+https://chatgpi.cn/how-subscribe-pay-cursor-pro/
+
