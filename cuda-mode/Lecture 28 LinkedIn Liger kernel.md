@@ -1,5 +1,7 @@
 > 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 。
 
+> 这节课介绍了两个LinkedIn开发的 Liger Kernel的核心优化：RMSNorm和Fused Linear Cross Entropy。本笔记详细记录了课程中的优化的数学原理、实现方法和测试验证过程，包括一些脚本的解读。RMSNorm部分展示了反向传播的推导过程和内存优化技巧；Fused Linear Cross Entropy部分展示了如何通过检查点(checkpointing)、分块(chunking)和前向梯度(gradient-in-forward)等技术来减少内存使用。此外，课程还分享了在Triton框架开发上面的优化kernel中的一些实践经验，比如连续性(Contiguity)问题和索引越界问题的处理。通过这些优化，Liger Kernel能够将多GPU训练吞吐量提升20%并减少60%的内存使用，是Triton在工业界很好的一次实践，和Triton普通教程的意义是完全不同的。
+
 # 第28课，Liger Kernel
 
 Liger Kernel(https://github.com/linkedin/Liger-Kernel) 是一个专门为 LLM 训练设计的 Triton kernels 集合，由LinkedIn的工程师开发和维护。它能有效地将多 GPU 训练吞吐量提高 20%，并将内存使用量减少 60%。目前已经实现了与 HuggingFace 兼容的 `RMSNorm`、`RoPE`、`SwiGLU`、`CrossEntropy`、`FusedLinearCrossEntropy` 等功能，未来还会有更多。Liger Kernel可以直接与 Flash Attention、PyTorch FSDP 和 Microsoft DeepSpeed 配合使用。我们欢迎社区贡献，共同收集最佳的 LLM 训练kernel。
@@ -74,18 +76,6 @@ Liger Kernel(https://github.com/linkedin/Liger-Kernel) 是一个专门为 LLM �
 ## Live Demo: RMSNorm: 确认正确性和性能的测试解读
 
 现在你已经学会了如何推导RMSNorm的Backward Pass以及内存节省技巧，实现本身相对来说比较直接。因此，我们将重点关注测试，并使用来自Liger Kernel的现有实现。
-
-### 通过运行`nvidia-smi`确保你正在使用GPU
-
-```shell
-nvidia-smi
-```
-
-### 安装liger-kernel这个库
-
-```shell
-pip install liger-kernel
-```
 
 ### 为什么需要测试？
 
@@ -345,6 +335,225 @@ bench_memory_rms_norm.run(show_plots=True, print_data=True)
 
 
 ## Live Demo: FusedLinearCrossEntropy: 确认内存减少
+
+我们已经讨论了检查点(checkpointing)、分块(chunking)和前向梯度(gradient-in-forward)这些概念,它们可以避免具体化logits以及重新计算。由于实现比较复杂,所以这部分就留给大家自学。在这个notebook中,我们将验证FusedLinearCrossEntropy是否真的可以在保持相当速度的同时减少峰值内存使用。
+
+### FusedLinearCrossEntropy基准测试
+
+比较FusedLinearCrossEntropy和Hugging Face实现在速度和内存方面的表现
+
+```python
+import os
+
+import torch
+import triton
+
+from liger_kernel.transformers.fused_linear_cross_entropy import (
+    LigerFusedLinearCrossEntropyLoss,
+)
+
+
+class TorchLMHeadCE(torch.nn.Module):
+    """Ground truth implementation of the linear fused with torch based cross entropy loss.
+
+    :param H: hidden size
+    :param V: vocab size
+    :param ignore_index: index to ignore
+    :param reduction: reduction method
+    """
+
+    def __init__(self, H: int, V: int, dtype: torch.dtype, ignore_index: int = -100):
+        super().__init__()
+        # 定义线性层,不带偏置
+        self.lin = torch.nn.Linear(
+            in_features=H, out_features=V, bias=False, dtype=dtype
+        )
+        # 定义交叉熵损失函数
+        self.ce_loss = torch.nn.CrossEntropyLoss(
+            ignore_index=ignore_index, reduction="mean"
+        )
+
+    def forward(self, x, y):
+        # 前向传播:先通过线性层,再计算交叉熵损失
+        logits = self.lin(x)
+        return self.ce_loss(logits, y)
+
+
+class LigerLMHeadCE(torch.nn.Module):
+    def __init__(self, H: int, V: int, dtype: torch.dtype, ignore_index: int = -100):
+        super().__init__()
+        # 定义线性层,不带偏置
+        self.lin = torch.nn.Linear(
+            in_features=H, out_features=V, bias=False, dtype=dtype
+        )
+        # 定义Liger的融合交叉熵损失函数
+        self.ce_loss = LigerFusedLinearCrossEntropyLoss(
+            ignore_index=ignore_index, reduction="mean"
+        )
+
+    def forward(self, x, y):
+        # 前向传播:直接使用权重矩阵、输入和目标计算融合的交叉熵损失
+        return self.ce_loss(self.lin.weight, x, y)
+
+
+def test_memory(func, _iter):
+    # 用于测试内存使用的辅助函数
+    total_mem = []
+
+    for _ in range(_iter):
+        # 重置CUDA峰值内存统计
+        torch.cuda.memory.reset_peak_memory_stats()
+        func()
+        # 获取最大分配内存(MB)
+        mem = torch.cuda.max_memory_allocated() / (2**20)
+        total_mem.append(mem)
+
+    # 返回平均内存使用量
+    return sum(total_mem) / len(total_mem)
+
+@triton.testing.perf_report(
+    [
+        triton.testing.Benchmark(
+            x_names=["BT"],
+            x_vals=[2**i for i in range(10, 13)], # 1024, 2048, 4096
+            xlabel="B x T",
+            line_arg="provider",
+            line_vals=["liger", "huggingface"],
+            line_names=["Liger", "Hugging Face"],
+            styles=[
+                ("blue", "solid"),
+                ("orange", "solid"),
+            ],
+            ylabel="GPU memory usage (MB)",
+            plot_name="fused-linear-cross-entropy-memory-benchmark",
+            args={"H": 4096, "V": 128256, "dtype": torch.float32},
+        )
+    ]
+)
+def bench_memory_cross_entropy(BT, H, V, provider, dtype, device="cuda"):
+    # 打印基准测试参数
+    print(
+        f"Running benchmark with BT={BT}, H={H}, V={V}, dtype={dtype} provider={provider}"
+    )
+    # 初始化PyTorch和Liger模型
+    torch_lm_head_ce = TorchLMHeadCE(H=H, V=V, dtype=dtype).to(device)
+    liger_lm_head_ce = LigerLMHeadCE(H=H, V=V, dtype=dtype).to(device)
+
+    # 生成随机输入和目标
+    _input = torch.randn(BT, H, requires_grad=True, dtype=dtype, device=device)
+    target = torch.randint(V, (BT, 1), dtype=torch.long, device=device).squeeze(1)
+
+    def fwd():
+        # 根据provider选择不同的前向实现
+        if provider == "liger":
+            return liger_lm_head_ce(_input, target)
+        elif provider == "huggingface":
+            return torch_lm_head_ce(_input, target)
+
+    def full():
+        # 完整的前向+反向传播
+        y = fwd()
+        y.backward()
+
+    # 测试内存使用并返回结果
+    mem = test_memory(full, _iter=10)
+    return mem
+
+
+bench_memory_cross_entropy.run(show_plots=True, print_data=True)
+```
+
+![](https://files.mdnice.com/user/59/0dd4506d-feba-436f-8272-40858ed59a98.png)
+
+```python
+@triton.testing.perf_report(
+    [
+        triton.testing.Benchmark(
+            x_names=["BT"],
+            x_vals=[2**i for i in range(10, 13)], # 1024, 2048, 4096
+            xlabel="B x T",
+            line_arg="provider",
+            line_vals=["liger", "huggingface"],
+            line_names=["Liger", "Hugging Face"],
+            styles=[
+                ("blue", "solid"),
+                ("orange", "solid"),
+            ],
+            ylabel="Time (ms)",
+            plot_name="fused-linear-cross-entropy-speed-benchmark",
+            args={"H": 4096, "V": 128256, "dtype": torch.float32},
+        )
+    ]
+)
+def bench_speed_cross_entropy(BT, H, V, provider, dtype, device="cuda"):
+    print(
+        f"Running benchmark with BT={BT}, H={H}, V={V}, dtype={dtype} provider={provider}"
+    )
+    torch_lm_head_ce = TorchLMHeadCE(H=H, V=V, dtype=dtype).to(device)
+    liger_lm_head_ce = LigerLMHeadCE(H=H, V=V, dtype=dtype).to(device)
+
+    _input = torch.randn(BT, H, requires_grad=True, dtype=dtype, device=device)
+    target = torch.randint(V, (BT, 1), dtype=torch.long, device=device).squeeze(1)
+
+    def fwd():
+        if provider == "liger":
+            return liger_lm_head_ce(_input, target)
+        elif provider == "huggingface":
+            return torch_lm_head_ce(_input, target)
+
+    def full():
+        y = fwd()
+        y.backward()
+
+    quantiles = [0.5, 0.2, 0.8]
+
+    ms, min_ms, max_ms = triton.testing.do_bench(full, quantiles=quantiles, rep=100)
+    return ms, min_ms, max_ms
+
+
+bench_speed_cross_entropy.run(show_plots=True, print_data=True)
+```
+
+![](https://files.mdnice.com/user/59/4235bf5b-f01c-41c9-bbf0-bf23ba524c5f.png)
+
+### FusedLinearCrossEntropy测试总结
+
+1. 我们可以观察到我们的实现在内存使用上有显著优势，因为我们在任何时候都不会具体化完整的logits。
+2. 速度略微变慢，但由于lm_head + cross_entropy只执行一次，而transformer block要执行N次，这个开销是可以接受的。这使我们能够增加batch size、序列长度，或者关闭梯度检查点。
+
+
+## Triton 操作的是physical view Contiguous()非常重要
+
+![](https://files.mdnice.com/user/59/a2f77c69-382b-4c1a-9c4e-95d99ce29af7.png)
+
+这张Slides主要介绍了收敛性测试中逐层比较的重要性，指出仅进行单元正确性和性能测试对于生产环境是不够的，因为实际生产中可能会遇到连续性、张量形状和数据类型的差异。因此建议通过模拟真实的生产训练环境来验证模型输出(logits)、权重(weights)和损失值(loss)，Slides底部还提供了一个Google Colab链接用于比较Triton内核补丁版本与原始模型的逐层对比，这些内容强调了在模型部署到生产环境之前进行全面测试的重要性(https://colab.research.google.com/drive/1e52FH0BcE739GZaVp-3_Dv7mc4jF1aif?usp=sharing)。这个脚本比较简单，我们也可以让ChatGPT写，这里就不单独看了。
+
+![](https://files.mdnice.com/user/59/bad2844d-067d-479d-9457-30039475fc7f.png)
+
+这张Slides主要讲解了在CUDA编程中"连续性(Contiguity)"这个容易被忽视但非常重要的问题。它指出连续性问题可能会导致难以调试的静默bug，需要花费大量时间来解决。幻灯片通过张量(Tensor)的例子，展示了逻辑视图(logical view)和物理视图(physical view)之间的区别，并用一个具体的带有stride的张量表示方式来说明这个概念。图中展示了一个2x2的张量在逻辑上和物理存储上的不同表现形式，以及相应的大小(sizes)和步长(strides)参数。对于Triton来说，它是在物理视图(physical view)上进行计算的，所以需要特别注意contiguous()的问题。https://colab.research.google.com/drive/1llnAdo0hc9FpxYRRnjih0l066NCp7Ylu?usp=sharing#scrollTo=1jTVlU1NC-TN 这个juypter展示了Liger Kernel的RoPE实现，因为忽略了对输入进行contiguous()操作导致单独的单元测试总是可以通过的，但是进行模型训练时始终出现loss发散的问题，这个问题也是通过上面的收敛性测试中逐层比较发现的。
+
+
+## Triton 中的index越界bug
+
+![](https://files.mdnice.com/user/59/268d0ccc-eeb8-4f30-9404-22b54f1c27ca.png)
+
+这张Slides讲的是Triton的program_id是int32来表示的，然后在开发Cross Entropy时没有考虑到这一点，导致在较大的Vocab Size时index会越界。https://colab.research.google.com/drive/1WgaU_cmaxVzx8PcdKB5P9yHB6_WyGd4T?usp=sharing#scrollTo=X_Dn9wzVNpMC 这个juypter展示了这个问题，修复的方案是把program_id转换为int64。不过，因为32位寻址可能会导致性能很慢，所以需要非常谨慎的处理这个问题。例如在PyTorch中，针对这两种不同的数据类型会通过C++模板来处理，它们的实现会共享一个kernel，但是可以避免这个index溢出的问题。
+
+
+## Liger Kernel 相关开源信息和反响
+
+![](https://files.mdnice.com/user/59/34761a6b-648e-4dfb-99f5-c19b6516e675.png)
+
+![](https://files.mdnice.com/user/59/961296da-fffd-4983-8a9a-d1705eda6913.png)
+
+![](https://files.mdnice.com/user/59/546c6986-4b9d-4560-8b61-b8115c1f4555.png)
+
+这几张Slides总结一下，LinkedIn开发的Liger Kernel是一个专为LLM训练优化的GPU高效运行时kernel，它能够将多GPU训练吞吐量提升20%并减少60%的内存使用，支持多种Hugging Face兼容功能，可与Flash Attention、PyTorch等主流框架协同工作。该项目在开源社区获得了积极反响，开发者反馈显示其性能表现优异。项目的成功离不开众多贡献者的支持，包括LOGO设计、训练灵感来源、测试数据集提供等方面的帮助，以及来自CUDA/Triton社区的大力支持，充分体现了开源协作的力量。
+
+## 课程笔记总结
+
+这节课介绍了两个核心优化：RMSNorm和Fused Linear Cross Entropy。本笔记详细记录了课程中的优化的数学原理、实现方法和测试验证过程，包括一些脚本的解读。RMSNorm部分展示了反向传播的推导过程和内存优化技巧；Fused Linear Cross Entropy部分展示了如何通过检查点(checkpointing)、分块(chunking)和前向梯度(gradient-in-forward)等技术来减少内存使用。此外，课程还分享了在Triton框架开发上面的优化kernel中的一些实践经验，比如连续性(Contiguity)问题和索引越界问题的处理。通过这些优化，Liger Kernel能够将多GPU训练吞吐量提升20%并减少60%的内存使用，是Triton在工业界很好的一次实践，和Triton普通教程的意义是完全不同的。
+
 
 
 
