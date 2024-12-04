@@ -1,6 +1,6 @@
 > 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 。
 
-> 这节课介绍了两个LinkedIn开发的 Liger Kernel的核心优化：RMSNorm和Fused Linear Cross Entropy。本笔记详细记录了课程中的优化的数学原理、实现方法和测试验证过程，包括一些脚本的解读。RMSNorm部分展示了反向传播的推导过程和内存优化技巧；Fused Linear Cross Entropy部分展示了如何通过检查点(checkpointing)、分块(chunking)和前向梯度(gradient-in-forward)等技术来减少内存使用。此外，课程还分享了在Triton框架开发上面的优化kernel中的一些实践经验，比如连续性(Contiguity)问题和索引越界问题的处理。通过这些优化，Liger Kernel能够将多GPU训练吞吐量提升20%并减少60%的内存使用，是Triton在工业界很好的一次实践，和Triton普通教程的意义是完全不同的。
+> 这节课介绍了两个LinkedIn开发的 Liger Kernel的核心优化：RMSNorm和Fused Linear Cross Entropy。本笔记详细记录了课程中的优化的数学原理、实现方法和测试验证过程，包括一些脚本的解读。RMSNorm部分展示了反向传播的推导过程和内存优化技巧；Fused Linear Cross Entropy部分展示了如何通过检查点(checkpointing)、分块(chunking)和前向梯度(gradient-in-forward)等技术来减少内存使用。此外，课程还分享了在Triton框架开发上面的优化kernel中的一些实践经验，比如连续性(Contiguity)问题和索引越界问题的处理。通过这些优化，Liger Kernel能够将多GPU训练吞吐量提升20%并减少60%的内存使用，是Triton在工业界很好的一次实践。
 
 # 第28课，Liger Kernel
 
@@ -552,7 +552,7 @@ bench_speed_cross_entropy.run(show_plots=True, print_data=True)
 
 ## 课程笔记总结
 
-这节课介绍了两个核心优化：RMSNorm和Fused Linear Cross Entropy。本笔记详细记录了课程中的优化的数学原理、实现方法和测试验证过程，包括一些脚本的解读。RMSNorm部分展示了反向传播的推导过程和内存优化技巧；Fused Linear Cross Entropy部分展示了如何通过检查点(checkpointing)、分块(chunking)和前向梯度(gradient-in-forward)等技术来减少内存使用。此外，课程还分享了在Triton框架开发上面的优化kernel中的一些实践经验，比如连续性(Contiguity)问题和索引越界问题的处理。通过这些优化，Liger Kernel能够将多GPU训练吞吐量提升20%并减少60%的内存使用，是Triton在工业界很好的一次实践，和Triton普通教程的意义是完全不同的。
+这节课介绍了两个核心优化：RMSNorm和Fused Linear Cross Entropy。本笔记详细记录了课程中的优化的数学原理、实现方法和测试验证过程，包括一些脚本的解读。RMSNorm部分展示了反向传播的推导过程和内存优化技巧；Fused Linear Cross Entropy部分展示了如何通过检查点(checkpointing)、分块(chunking)和前向梯度(gradient-in-forward)等技术来减少内存使用。此外，课程还分享了在Triton框架开发上面的优化kernel中的一些实践经验，比如连续性(Contiguity)问题和索引越界问题的处理。通过这些优化，Liger Kernel能够将多GPU训练吞吐量提升20%并减少60%的内存使用，是Triton在工业界很好的一次实践。
 
 
 
