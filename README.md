@@ -209,6 +209,9 @@ cuda 相关的 paper 的阅读。
 - [GPU 矩阵乘实际可达最大FLOPS测量工具](https://mp.weixin.qq.com/s/kkIxIUaKtSECMNcvma_ayg)
 - [CUDA-MODE 课程笔记 第28课 用在生产环境中的LinkedIn Liger kernel](https://mp.weixin.qq.com/s/Mcmii9XYR7zw2H_DA8IUUQ)
 - [RMSNorm的精度陷阱：记一次LLM推理精度调查](https://mp.weixin.qq.com/s/Jag-WRH_2w5-GjTYbRnb-Q)
+- [如何正确理解NVIDIA GPU利用率的概念 ](https://mp.weixin.qq.com/s/sYJvdqB9PGhEJphMkuSOzw)
+- [CUDA-MODE 课程笔记 第29课 Triton内部机制](https://mp.weixin.qq.com/s/7tfTXaG7D208l_5DzN9hBw)
+- [GTX 4090 的 cuda graph 诡异](https://mp.weixin.qq.com/s/SAfnlT4aTd67sRqOAoCxQg)
 
 ### 21. CUDA 学习资料收集
 
