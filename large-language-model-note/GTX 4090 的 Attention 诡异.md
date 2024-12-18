@@ -299,5 +299,3 @@ print(f"\n输出形状: {out.shape}")
 
 flashinfer的这个算子在这种情况下，算力没有打满，是compute bound的，然后存在大量的内存非合并访问，然后从Memory Workloads Analysis看到从HBM读数据达到了惊人的647GB。
 
-大概问题就是这些，期待搞清楚FlashAttention的诡异MFU问题，FlashInfer的低MFU问题还有都存在的HBM Memory大量读取问题。
-
