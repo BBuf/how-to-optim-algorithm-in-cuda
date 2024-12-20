@@ -1,6 +1,15 @@
 > 来源：https://pytorch.org/blog/accelerating-generative-ai-2/
 
-# 槽点
+# GPT Fast的几个问题
+
+GPT Fast 的代码很短，然后它应用了`torch.compile`等比较先进的技术，也包括int8/int4 weight only quantize的实现。不过这里面存在几个明显的问题，这是我尝试将GPT Fast的INT8/INT4 weight only quantize代码移植到一个 DiT 模型时发现的。
+
+- 首先，GPT Fast会加载原始的Bfloat16权重，然后进行int8/int4量化，也就是https://github.com/pytorch-labs/gpt-fast/blob/7dd5661e2adf2edd6a1042a2732dcd3a94064ad8/generate.py#L242 这里的`model = simple_quantizer.convert_for_runtime()`，这样很明显如果原始的BF6模型无法放在更小显存的卡中，那么即使是INT8/INT4量化的模型也无法正常加载，因为是在运行时修改的Linear Module。
+- 在INT8 weight only的量化实现时，代码如下：https://github.com/pytorch-labs/gpt-fast/blob/7dd5661e2adf2edd6a1042a2732dcd3a94064ad8/quantize.py#L355 。`return F.linear(input, self.weight.to(dtype=input.dtype)) * self.scales` , 实际上这里的 INT8 量化还是直接回退到了BF16的实现，并没有实现gemm和dequantize的kernel融合。在 https://github.com/pytorch-labs/gpt-fast/pull/187 里面提到了`torch.ops.aten._weight_int8pack_mm`可以实现这个功能，不过我尝试运行的时候会报错。
+- 运行INT4 weight only的量化时，`torch.ops.aten._weight_int4pack_mm`首先需要sm89或者sm90以上的架构，然后我分别使用了PyTorch nightly和PyTorch 2.4尝试运行，均在kernel内部触发了cuda illegal memory access的错误。
+- 由于目前推理框架已经转向VLLM/SGLang等专业框架，可以把GPT Fast当成一个demo来看，它也基本没有继续维护了，不过blog和代码涉及到的技术目前都是推理框架中最主流的技术，大家可以参考。
+
+
 
 # 使用 PyTorch 加速生成式 AI 第二部分: GPT Fast
 
@@ -247,4 +256,169 @@ PyTorch 一直允许简单性、易用性和灵活性。然而,随着 `torch.com
 - Andrej Karpathy 推动了简单、可解释和快速的 LLM 实现。
 - MLC-LLM 推动了在异构硬件上的 4 位量化性能。
 
+
+# 推测解码代码阅读
+
+解读一下推测解码的代码  https://github.com/pytorch-labs/gpt-fast/blob/7dd5661e2adf2edd6a1042a2732dcd3a94064ad8/generate.py#L103 
+
+```python
+def speculative_decode(
+    model: Transformer,  # 目标模型
+    draft_model: Transformer,  # 草稿模型
+    cur_token: torch.Tensor,  # 当前token
+    input_pos: int,  # 输入位置
+    speculate_k: int,  # 推测的token数量
+    **sampling_kwargs
+) -> torch.Tensor:
+    # 获取设备信息
+    device = cur_token.device
+    # 记录原始输入位置
+    orig_input_pos = torch.tensor([input_pos], dtype=torch.int64, device=cur_token.device)
+    # 使用草稿模型顺序生成k个token及其概率
+    draft_tokens, draft_probs = decode_n_tokens(draft_model, cur_token.view(1, -1), orig_input_pos.clone(), speculate_k, **sampling_kwargs)
+
+    draft_tokens = torch.cat(draft_tokens)
+    # 使用目标模型并行推理草稿token
+    target_logits = model_forward(
+        model,
+        torch.cat([cur_token.view(1), draft_tokens]).view(1, -1),
+        torch.arange(input_pos, input_pos + speculate_k + 1, device=cur_token.device)
+    )
+    # 将logits转换为概率分布
+    target_probs = logits_to_probs(target_logits[0], **sampling_kwargs)
+    draft_probs = torch.stack(draft_probs)
+    
+    # 计算接受概率
+    # q: 目标模型概率, p: 草稿模型概率
+    # q >= p: 总是接受草稿token
+    # q < p: 以q/p的概率接受草稿token
+    p = draft_probs[torch.arange(0, speculate_k, device=device), draft_tokens]
+    q = target_probs[torch.arange(0, speculate_k, device=device), draft_tokens]
+    accept_draft_prob = torch.minimum(torch.ones(()), q[:speculate_k]/ p)
+    # 找出被拒绝的位置
+    rejected_locations = (torch.rand_like(accept_draft_prob) > accept_draft_prob).nonzero()
+
+    if rejected_locations.shape[0] == 0:  # 所有草稿token都被接受
+        accept_length = speculate_k + 1
+        # 采样最后一个token
+        last_token = multinomial_sample_one_no_sync(target_probs[-1])
+        # 将最后一个token输入草稿模型
+        model_forward(
+            draft_model,
+            draft_tokens[-1].view(1, -1),
+            orig_input_pos + speculate_k,
+        )
+        return torch.cat([draft_tokens, last_token])
+    else:  # 存在被拒绝的token
+        # 获取第一个被拒绝位置之前的token数量
+        accept_length = rejected_locations[0].item()
+        p = draft_probs[accept_length]
+        q = target_probs[accept_length]
+        # 计算新的概率分布
+        new = q - p
+        new = torch.where(new > 0, new, 0.0)
+        new = new / new.sum()
+        # 从新的概率分布中采样下一个token
+        next_token = multinomial_sample_one_no_sync(new)
+        return torch.cat([draft_tokens[:accept_length], next_token])
+
+
+
+@torch.no_grad()
+def generate(
+    model: Transformer,  # 目标模型
+    prompt: torch.Tensor,  # 输入提示
+    max_new_tokens: int,  # 最大生成token数
+    batch_size: int,  # 批次大小
+    *,
+    interactive: bool,  # 是否交互模式
+    draft_model: Transformer,  # 草稿模型
+    speculate_k: Optional[int] = 8,  # 推测token数量
+    callback = lambda x: x,  # 回调函数
+    **sampling_kwargs  # 采样相关参数
+) -> torch.Tensor:
+    """
+    Takes a conditioning sequence (prompt) as input and continues to generate as many tokens as requested.
+    """
+
+    # 检查是否使用推测解码
+    is_speculative = draft_model is not None
+    # 计算序列长度
+    T = prompt.size(-1)  # 输入序列长度
+    T_new = T + max_new_tokens  # 最终序列长度
+    # 设置最大序列长度
+    if interactive:
+        max_seq_length = 350  # 交互模式下固定长度
+    else:
+        max_seq_length = min(T_new, model.config.block_size)  # 非交互模式取较小值
+
+    # 获取设备和数据类型
+    device, dtype = prompt.device, prompt.dtype
+    # 如果使用推测解码,增加序列长度以容纳推测token
+    max_seq_length = max_seq_length + speculate_k + 1 if is_speculative else max_seq_length
+    # 设置模型缓存
+    with torch.device(device):
+        model.setup_caches(max_batch_size=batch_size, max_seq_length=max_seq_length)
+        if is_speculative and draft_model is not model:
+            draft_model.setup_caches(max_batch_size=batch_size, max_seq_length=max_seq_length)
+
+    # 创建输出序列tensor
+    empty = torch.empty(batch_size, T_new, dtype=dtype, device=device)
+    # 将prompt复制到每个batch
+    prompt = prompt.view(1, -1).repeat(batch_size, 1)
+    empty[:, :T] = prompt
+    seq = empty
+    input_pos = torch.arange(0, T, device=device)
+
+    # 使用prefill生成第一个token
+    next_token = prefill(model, prompt.view(batch_size, -1), input_pos, **sampling_kwargs).clone()
+    if is_speculative:
+        prefill(draft_model, prompt.view(batch_size, -1), input_pos, **sampling_kwargs)
+    seq[:, T] = next_token.squeeze()
+
+    # 设置输入位置和接受计数器
+    input_pos = torch.tensor([T], device=device, dtype=torch.int)
+    accept_counts = [0] * (speculate_k + 1)
+
+    # 主生成循环
+    if is_speculative:  # 使用推测解码
+        input_pos = input_pos.item()  # 转为标量便于推测解码
+        while input_pos < T_new - 1:
+            cur_token = next_token.view(())
+
+            # 使用推测解码生成下一组token
+            next_tokens = speculative_decode(
+                model, draft_model, cur_token, input_pos, speculate_k, **sampling_kwargs
+            )
+
+            # 更新接受计数
+            accept_counts[len(next_tokens) - 1] += 1
+            # 计算实际添加的token数量
+            num_added = min(T_new - input_pos - 1, len(next_tokens))
+            # 将生成的token添加到序列中
+            seq[input_pos + 1 : input_pos + num_added + 1] = next_tokens[: num_added]
+            # 对每个token调用回调函数
+            for i in next_tokens[: num_added,]:
+                callback(i)
+            # 更新位置和下一个token
+            input_pos = input_pos + num_added
+            next_token = next_tokens[-1]
+    else:  # 不使用推测解码
+        # 直接生成所有token
+        generated_tokens, _ = decode_n_tokens(model, next_token.view(batch_size, -1), input_pos, max_new_tokens - 1, callback=callback, **sampling_kwargs)
+        seq[:, T + 1:] = torch.cat(generated_tokens, dim=-1)
+
+    # 返回生成序列和统计信息
+    generate_stats = {
+        'accept_counts': accept_counts
+    }
+    return seq, generate_stats
+```
+
+代码整体上比较好懂，不过这行代码不知道有什么实际作用。
+
+```python
+for i in next_tokens[: num_added,]:
+    callback(i)
+```
 
