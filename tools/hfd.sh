@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-echo 'NOTE(tianchao): https://hf-mirror.com is used automatically'
-echo 'NOTE(tianchao): https://hf-mirror.com is used automatically'
-echo 'NOTE(tianchao): https://hf-mirror.com is used automatically'
-echo 'NOTE(tianchao): https://hf-mirror.com is used automatically'
+echo 'NOTE(bbuf): https://hf-mirror.com is used automatically'
+echo 'NOTE(bbuf): https://hf-mirror.com is used automatically'
+echo 'NOTE(bbuf): https://hf-mirror.com is used automatically'
+echo 'NOTE(bbuf): https://hf-mirror.com is used automatically'
 export HF_ENDPOINT=https://hf-mirror.com
 
 # Color definitions
