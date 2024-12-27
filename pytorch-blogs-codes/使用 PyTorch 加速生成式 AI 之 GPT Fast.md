@@ -1,4 +1,4 @@
-> 来源：https://pytorch.org/blog/accelerating-generative-ai-2/
+> 来源：https://pytorch.org/blog/accelerating-generative-ai-2/ 。这篇博客展示了如何仅使用纯PyTorch来优化LLM推理性能。从基础实现的25.5 tok/s开始，文章通过一系列优化手段，包括使用torch.compile和静态kv-cache减少CPU开销、应用int8权重量化缓解内存带宽瓶颈、使用推测解码技术让小模型预测大模型输出、采用int4量化和GPTQ进一步压缩权重，以及引入张量并行在多GPU上扩展，最终将性能提升了近10倍达到244.7 tok/s。最重要的是，这些优化完全基于PyTorch原生功能实现，不需要额外依赖，整个实现仅用了不到1000行代码，同时保持了代码的简洁性和易用性。
 
 # GPT Fast的几个问题
 
