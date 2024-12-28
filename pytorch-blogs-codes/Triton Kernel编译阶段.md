@@ -154,7 +154,7 @@ Triton编译器通过不同的硬件后端管理汇编代码的编译,以生成�
 
 ## 总结
 
-Triton提供了一个高级抽象来为不同类型的硬件编写和编译kernel。在这篇博客中，我们强调了Triton代码表示和Triton编译器的不同阶段。有关包括自定义Triton内核或使用Triton内核加速不同工作负载的详细信息，请查看PyTorch Triton教程(https://pytorch.org/tutorials/recipes/torch_compile_user_defined_triton_kernel_tutorial.html)、Triton GPTQ kernel博客(https://mp.weixin.qq.com/s/CX6lPJOVYRPlpFS_WbGbmg)、使用Triton进行Llama3 FP8推理(https://mp.weixin.qq.com/s/v6Ah4uFtI2zTgiAZ3-mKvw)、LLMs的CUDA-Free推理(https://mp.weixin.qq.com/s/KlxBzBNxyRBnoEr8qXjgeg)，或PyTorch 2.2节(https://pytorch.org/assets/pytorch2-2.pdf)中关于Triton代码生成的内容。
+Triton提供了一个高级抽象来为不同类型的硬件编写和编译kernel。在这篇博客中，我们强调了Triton代码表示和Triton编译器的不同阶段。有关包括自定义Triton kernel或使用Triton kernel加速不同工作负载的详细信息，请查看PyTorch Triton教程(https://pytorch.org/tutorials/recipes/torch_compile_user_defined_triton_kernel_tutorial.html)、Triton GPTQ kernel博客(https://mp.weixin.qq.com/s/CX6lPJOVYRPlpFS_WbGbmg)、使用Triton进行Llama3 FP8推理(https://mp.weixin.qq.com/s/v6Ah4uFtI2zTgiAZ3-mKvw)、LLMs的CUDA-Free推理(https://mp.weixin.qq.com/s/KlxBzBNxyRBnoEr8qXjgeg)，或PyTorch 2.2节(https://pytorch.org/assets/pytorch2-2.pdf)中关于Triton代码生成的内容。
 
 
 
