@@ -3,3 +3,4 @@ bin/
 *.ncu-rep
 flagged/
 __pycache__/
+.DS_Store
