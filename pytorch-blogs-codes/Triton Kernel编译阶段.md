@@ -1,4 +1,4 @@
-> 博客来源：https://pytorch.org/blog/triton-kernel-compilation-stages/
+> 博客来源：https://pytorch.org/blog/triton-kernel-compilation-stages/ 。这里做个翻译，是[CUDA-MODE 课程笔记 第29课 Triton内部机制](https://mp.weixin.qq.com/s/7tfTXaG7D208l_5DzN9hBw)的补充。
 
 # Triton Kernel Compilation Stages
 
