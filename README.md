@@ -212,6 +212,9 @@ cuda 相关的 paper 的阅读。
 - [如何正确理解NVIDIA GPU利用率的概念 ](https://mp.weixin.qq.com/s/sYJvdqB9PGhEJphMkuSOzw)
 - [CUDA-MODE 课程笔记 第29课 Triton内部机制](https://mp.weixin.qq.com/s/7tfTXaG7D208l_5DzN9hBw)
 - [GTX 4090 的 cuda graph 诡异](https://mp.weixin.qq.com/s/SAfnlT4aTd67sRqOAoCxQg)
+- [【ml-engineering 翻译系列】计算加速器之gpu](https://mp.weixin.qq.com/s/1B52ORme3s2gzpXPXGNNQw)
+- [CUDA-MODE课程笔记 第17课 GPU集合通信(NCCL)](https://mp.weixin.qq.com/s/1QdEJKs4a4u3BepNQ716cQ)
+- [Triton Kernel 编译阶段](https://mp.weixin.qq.com/s/dw9bP1ZI__0yrf2_wb6nag)
 
 ### 21. CUDA 学习资料收集
 
