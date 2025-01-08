@@ -215,6 +215,8 @@ cuda 相关的 paper 的阅读。
 - [【ml-engineering 翻译系列】计算加速器之gpu](https://mp.weixin.qq.com/s/1B52ORme3s2gzpXPXGNNQw)
 - [CUDA-MODE课程笔记 第17课 GPU集合通信(NCCL)](https://mp.weixin.qq.com/s/1QdEJKs4a4u3BepNQ716cQ)
 - [Triton Kernel 编译阶段](https://mp.weixin.qq.com/s/dw9bP1ZI__0yrf2_wb6nag)
+- [使用torchtune把LLaMa-3.1 8B蒸馏为1B](https://mp.weixin.qq.com/s/TfH9tqNjIdNiIi9iwSdY7w)
+- [[分布式训练与TorchTitan] PyTorch中的Async Tensor Parallelism介绍](https://mp.weixin.qq.com/s/Jx4B-sF9dudg7OOT-FbsLg)
 
 ### 21. CUDA 学习资料收集
 
