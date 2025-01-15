@@ -217,6 +217,7 @@ cuda 相关的 paper 的阅读。
 - [Triton Kernel 编译阶段](https://mp.weixin.qq.com/s/dw9bP1ZI__0yrf2_wb6nag)
 - [使用torchtune把LLaMa-3.1 8B蒸馏为1B](https://mp.weixin.qq.com/s/TfH9tqNjIdNiIi9iwSdY7w)
 - [[分布式训练与TorchTitan] PyTorch中的Async Tensor Parallelism介绍](https://mp.weixin.qq.com/s/Jx4B-sF9dudg7OOT-FbsLg)
+- [PyTorch 博客 CUTLASS Ping-Pong GEMM Kernel 简介](https://mp.weixin.qq.com/s/QWS9YEjsbM7hzy5tJm--1g)
 
 ### 21. CUDA 学习资料收集
 
