@@ -9,7 +9,7 @@ Float8 (FP8)的2D块量化有望提高Float8量化的精度，同时加速推理
 
 对于Float8 GEMM，我们展示了Triton的3个新发展 - Warp Specialization、TMA和persistent kernel，有效地创建了一个协作式kernel(作为Ping-Pong调度的替代方案 [PyTorch 博客 CUTLASS Ping-Pong GEMM Kernel 简介](https://mp.weixin.qq.com/s/QWS9YEjsbM7hzy5tJm--1g))。因此，我们比去年最好的SplitK kernel实现了约1.2倍的加速。
 
-![**图1：在不同大小下，2D量化相对于当前基准的加速比较。(越低越好)**](https://files.mdnice.com/user/59/f886c16e-5aec-45b2-866a-0e59d378a977.jpg)
+![图1：在不同大小下，2D量化相对于当前基准的加速比较。(越低越好)](https://files.mdnice.com/user/59/f886c16e-5aec-45b2-866a-0e59d378a977.jpg)
 
 ## 为什么选择FP8的2D块量化？
 
@@ -35,7 +35,7 @@ GridQuant kernel相比最初基于标准tile的基准量化实现有几项改进
 
 这是一个重要的改进，因为这意味着我们可以对max vals评分系统进行向量化更新，而不是标量更新，从而实现更高效的更新。
 
-![**图2：输入张量的分块布局 - 在张量上创建256x256的网格，在每个256x256块内，进一步细分为32x32子块。为每个256x256块创建32x32 max_vals。**](https://files.mdnice.com/user/59/558cd48a-6552-42a6-8330-5884655409a9.png)
+![图2：输入张量的分块布局 - 在张量上创建256x256的网格，在每个256x256块内，进一步细分为32x32子块。为每个256x256块创建32x32 max_vals。](https://files.mdnice.com/user/59/558cd48a-6552-42a6-8330-5884655409a9.png)
 
 4 - 每个warp处理一个32x32块，因为我们使用4个warp，我们确保Triton编译器可以将下一个32x32块的内存加载与当前块的absmax计算流水线化。这确保了warp调度器能够在加载数据的warp和处理数据的warp之间切换，使SM持续忙碌。
 
@@ -73,7 +73,7 @@ NVIDIA Hopper GPU上的TMA单元是一个专用的硬件单元，用于处理AI�
 
 Warp专用化是一种利用GPU流水线并行性的技术。这个实验性特性通过`tl.async_task` API(https://github.com/facebookexperimental/triton/tree/ws)实现了专用线程的表达，允许用户指定Triton程序中的操作应该如何在warp之间"分割"。协作式Triton kernel执行不同类型的计算和加载，每种操作都在其专用硬件上进行。为每个专用任务提供专用硬件使得对于没有数据依赖的操作能够高效地实现并行性。
 
-![**图3. NVIDIA H100 SM中专用硬件单元的逻辑视图**](https://files.mdnice.com/user/59/ac0d3206-f4d5-4aa0-a4ea-11a0353084f4.png)
+![图3. NVIDIA H100 SM中专用硬件单元的逻辑视图](https://files.mdnice.com/user/59/ac0d3206-f4d5-4aa0-a4ea-11a0353084f4.png)
 
 我们的kernel中创建流水线的操作是：
 
@@ -87,7 +87,7 @@ D - 用A的每块缩放和B的每块缩放来缩放C tile (CUDA core)
 
 这些步骤可以分配给threadblock中专用warp组执行的"任务"。协作策略有三个warp组。一个负责给计算单元提供数据的生产者warp组和2个执行计算的消费者warp组。两个消费者warp组各自处理同一输出tile的一半。
 
-![**图4. Warp专用化Persistent协作式kernel (来源：NVIDIA(https://drive.google.com/file/d/18sthk6IUOKbdtFphpm_jZNXoJenbWR8m/view))**](https://files.mdnice.com/user/59/3d07a5ab-7350-4dcc-8183-d2050b2ccdb9.png)
+![图4. Warp专用化Persistent协作式kernel (来源：NVIDIA(https://drive.google.com/file/d/18sthk6IUOKbdtFphpm_jZNXoJenbWR8m/view))](https://files.mdnice.com/user/59/3d07a5ab-7350-4dcc-8183-d2050b2ccdb9.png)
 
 这与我们在之前博客中讨论的ping-pong调度不同，在ping-pong调度中，每个消费者warp组处理不同的输出tile。我们注意到Tensor Core操作与epilogue计算不重叠。在计算的epilogue阶段减少Tensor Core流水线的利用率将减少消费者warp组的寄存器压力，相比ping-pong总是保持Tensor Core忙碌，这允许更大的tile大小。
 
@@ -95,7 +95,7 @@ D - 用A的每块缩放和B的每块缩放来缩放C tile (CUDA core)
 
 ## 微基准测试
 
-![**图5：在小批量范围和Llama3 8192 N,K大小下，Gridquant-GEMM与我们最佳性能SplitK kernel的延迟比较(微秒)。(越低越好)**](https://files.mdnice.com/user/59/77117538-8772-4921-b7e1-fd2c1566cfbb.png)
+![图5：在小批量范围和Llama3 8192 N,K大小下，Gridquant-GEMM与我们最佳性能SplitK kernel的延迟比较(微秒)。(越低越好)](https://files.mdnice.com/user/59/77117538-8772-4921-b7e1-fd2c1566cfbb.png)
 
 Warp专用化Triton kernel在上述小M和方阵形状下实现了SOTA性能，相比SplitK Triton kernel(这是Triton GEMM在这个低算术强度范围内之前最佳性能的策略)实现了近1.2倍的加速。对于未来的工作，我们计划调优我们的kernel在中到大M范围和非方阵上的性能。
 
