@@ -218,6 +218,8 @@ cuda 相关的 paper 的阅读。
 - [使用torchtune把LLaMa-3.1 8B蒸馏为1B](https://mp.weixin.qq.com/s/TfH9tqNjIdNiIi9iwSdY7w)
 - [[分布式训练与TorchTitan] PyTorch中的Async Tensor Parallelism介绍](https://mp.weixin.qq.com/s/Jx4B-sF9dudg7OOT-FbsLg)
 - [PyTorch 博客 CUTLASS Ping-Pong GEMM Kernel 简介](https://mp.weixin.qq.com/s/QWS9YEjsbM7hzy5tJm--1g)
+- [PyTorch博客 《使用 Triton 加速 2D 动态块量化 Float8 GEMM 简介》](https://mp.weixin.qq.com/s/oK45nVPTctIHW-rXbJ128Q)
+- [使用NCU和Cursor Claude-sonnet-3.5写出高效cuda算子的正确姿势](https://mp.weixin.qq.com/s/YEw8JZxn15CfLEnK32Jj-Q)
 
 ### 21. CUDA 学习资料收集
 
