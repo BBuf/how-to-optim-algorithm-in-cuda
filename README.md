@@ -220,6 +220,7 @@ cuda 相关的 paper 的阅读。
 - [PyTorch 博客 CUTLASS Ping-Pong GEMM Kernel 简介](https://mp.weixin.qq.com/s/QWS9YEjsbM7hzy5tJm--1g)
 - [PyTorch博客 《使用 Triton 加速 2D 动态块量化 Float8 GEMM 简介》](https://mp.weixin.qq.com/s/oK45nVPTctIHW-rXbJ128Q)
 - [使用NCU和Cursor Claude-sonnet-3.5写出高效cuda算子的正确姿势](https://mp.weixin.qq.com/s/YEw8JZxn15CfLEnK32Jj-Q)
+- [Fused AllGather_MatMul Triton工程实现](https://mp.weixin.qq.com/s/oMkyrelpXjc3-KUQBVx6Tg)
 
 ### 21. CUDA 学习资料收集
 
