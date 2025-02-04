@@ -4,6 +4,7 @@
 
 本工程记录如何基于 cuda 优化一些常见的算法。请注意，下面的介绍都分别对应了子目录的代码实现，所以想复现性能的话请查看对应子目录下面的 README 。
 
+> 友情链接：https://github.com/DefTruth/CUDA-Learn-Notes
 
 ### 0. **cuda-mode**
 
@@ -221,6 +222,7 @@ cuda 相关的 paper 的阅读。
 - [PyTorch博客 《使用 Triton 加速 2D 动态块量化 Float8 GEMM 简介》](https://mp.weixin.qq.com/s/oK45nVPTctIHW-rXbJ128Q)
 - [使用NCU和Cursor Claude-sonnet-3.5写出高效cuda算子的正确姿势](https://mp.weixin.qq.com/s/YEw8JZxn15CfLEnK32Jj-Q)
 - [Fused AllGather_MatMul Triton工程实现](https://mp.weixin.qq.com/s/oMkyrelpXjc3-KUQBVx6Tg)
+
 
 ### 21. CUDA 学习资料收集
 
