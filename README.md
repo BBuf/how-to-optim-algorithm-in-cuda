@@ -136,6 +136,9 @@ cuda 相关的 paper 的阅读。
 
 ### 20. 原创学习笔记
 
+<details>
+<summary>点击展开/收起 BBuf 的 CUDA 学习笔记列表</summary>
+
 - [【BBuf的CUDA笔记】一，解析OneFlow Element-Wise 算子实现](https://zhuanlan.zhihu.com/p/591058808)
 - [【BBuf的CUDA笔记】二，解析 OneFlow BatchNorm 相关算子实现](https://zhuanlan.zhihu.com/p/593483751)
 - [【BBuf的CUDA笔记】三，reduce优化入门学习笔记](https://zhuanlan.zhihu.com/p/596012674)
@@ -223,6 +226,7 @@ cuda 相关的 paper 的阅读。
 - [使用NCU和Cursor Claude-sonnet-3.5写出高效cuda算子的正确姿势](https://mp.weixin.qq.com/s/YEw8JZxn15CfLEnK32Jj-Q)
 - [Fused AllGather_MatMul Triton工程实现](https://mp.weixin.qq.com/s/oMkyrelpXjc3-KUQBVx6Tg)
 
+</details>
 
 ### 21. CUDA 学习资料收集
 
@@ -233,6 +237,9 @@ cuda 相关的 paper 的阅读。
 - [CUDA 编程入门](https://www.zhihu.com/column/c_1699097150611595264)
 
 #### 文章
+
+<details>
+<summary>点击展开/收起 CUDA优质博客列表</summary>
 
 - [一文读懂nvidia-smi topo的输出](https://zhuanlan.zhihu.com/p/692947173)
 - [如果你是一个C++面试官，你会问哪些问题？](https://www.zhihu.com/question/451327108/answer/3299498791)
@@ -399,6 +406,7 @@ cuda 相关的 paper 的阅读。
 - [cuda的ldmatrix指令的详细解释](https://zhuanlan.zhihu.com/p/697228676)
 - [基于 CuTe 理解 swizzle, LDSM, MMA](https://zhuanlan.zhihu.com/p/934430036)
 
+</details>
 
 ## Star History
 
