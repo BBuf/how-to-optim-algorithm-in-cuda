@@ -456,9 +456,9 @@ template <typename Element, bool isSwizzled = true> void transpose_smem(Transpos
 
 回顾一下，TMA是一个专用的异步内存复制单元，用于在GMEM和SMEM之间复制多维数据。在TMA的异步复制模型中，不是让CTA中的线程/线程束协作复制源张量的一部分到目标张量，而是选择CTA中的单个线程来发出加载或存储TMA指令。虽然指令在异步代理中执行，但线程可以自由地执行其他独立工作。使用屏障对象和同步原语（fence、arrive和wait）来同步依赖于数据的计算与数据移动。当与软件流水线(https://github.com/NVIDIA/cutlass/blob/main/test/unit/pipeline/pipeline_tma_async_warp_specialized.cu)方案结合使用时，TMA允许内存复制指令与计算重叠，这有助于隐藏延迟。然而，由于转置kernel只进行内存复制，我们在本教程中没有机会展示TMA的这一优势。
 
-为了明确TMA在单纯内存复制中的性能，我们首先研究了TMA加载和存储复制kernel与其他替代方案的性能，如CuTe的TiledCopy教程（https://github.com/NVIDIA/cutlass/blob/main/examples/cute/tutorial/tiled_copy.cu），该教程执行128位向量化的加载和存储，仅通过RMEM传递。我们发现在这种情况下，TMA的性能与这种更简单的替代方案（经过两者的tile大小tuning后）相当，都达到了设备的内存带宽规格。这个结果符合我们的预期——事实上，我们没有理由期望TMA在纯内存复制的情况下表现更好。
+为了明确TMA在单纯内存复制中的性能，我们首先研究了TMA加载和存储复制kernel与其他替代方案的性能，如CuTe的TiledCopy教程（https://github.com/NVIDIA/cutlass/blob/main/examples/cute/tutorial/tiled_copy.cu） ，该教程执行128位向量化的加载和存储，仅通过RMEM传递。我们发现在这种情况下，TMA的性能与这种更简单的替代方案（经过两者的tile大小tuning后）相当，都达到了设备的内存带宽规格。这个结果符合我们的预期——事实上，我们没有理由期望TMA在纯内存复制的情况下表现更好。
 
-相比之下，在转置kernel中同时使用TMA进行加载和存储，使用与上述相同的tile大小，其性能比我们性能最佳的版本要差。这是由于存在Bank Conflict！直接的问题是TMA只支持有限的swizzle函数集（旨在与WGMMA一起使用）；例如，请参见CuTe代码库中的这个部分（https://github.com/NVIDIA/cutlass/blob/033d9efd2db0bbbcf3b3b0650acde6c472f3948e/include/cute/atom/copy_traits_sm90_tma_swizzle.hpp#L48-L62）。特别是，它不支持我们上面使用的Swizzle<5,0,5>函数，这使得完全消除Bank Conflict变得不那么直接。但请注意，我们没有理由认为这是一个本质问题，只是我们选择不在复制kernel的基准测试背景下进一步研究这条线。此外，当尝试一个版本，TMA仅用于128位向量化加载到寄存器然后写入SMEM时，我们发现其性能仅略低于标准版本，尽管profiler 仍报告了shared store Bank Conflict（但避免了TMA从SMEM到GMEM存储的Bank Conflict）。
+相比之下，在转置kernel中同时使用TMA进行加载和存储，使用与上述相同的tile大小，其性能比我们性能最佳的版本要差。这是由于存在Bank Conflict！直接的问题是TMA只支持有限的swizzle函数集（旨在与WGMMA一起使用）；例如，请参见CuTe代码库中的这个部分（https://github.com/NVIDIA/cutlass/blob/033d9efd2db0bbbcf3b3b0650acde6c472f3948e/include/cute/atom/copy_traits_sm90_tma_swizzle.hpp#L48-L62）。 特别是，它不支持我们上面使用的Swizzle<5,0,5>函数，这使得完全消除Bank Conflict变得不那么直接。但请注意，我们没有理由认为这是一个本质问题，只是我们选择不在复制kernel的基准测试背景下进一步研究这条线。此外，当尝试一个版本，TMA仅用于128位向量化加载到寄存器然后写入SMEM时，我们发现其性能仅略低于标准版本，尽管profiler 仍报告了shared store Bank Conflict（但避免了TMA从SMEM到GMEM存储的Bank Conflict）。
 
 由于这些混合结果，我们不详细描述如何使用TMA的机制，而将此推迟到未来的博客文章，我们将在更适合其优势的背景下研究TMA。
 

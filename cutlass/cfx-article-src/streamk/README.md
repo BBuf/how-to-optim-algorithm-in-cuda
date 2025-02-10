@@ -1,11 +1,11 @@
-# CuTe Transpose
+# CUTLASS Stream-K
 
-Example code for the CuTe Transpose tutorial.
+Example code for the CUTLASS Stream-K tutorial.
 
 # Installation
 
 This example requires the `nvcc` compiler to compile the CUDA application.
-Additionally, it needs the [CUTLASS]() repo. 
+Additionally, it needs the CUTLASS repo.
 But because CUTLASS is a header-only library, no installation is needed for it.
 
 CUTLASS is added as a submodule for this repo.
@@ -16,14 +16,10 @@ Otherwise, specify the CUTLASS directory with:
 export CUTLASS_DIR=/path/to/cutlass
 ```
 
-To compile and run the C++ example:
+To compile and run the example:
 ```
 make
-./transpose
+./streamk
 ```
 
-To compile the python module and run the python example:
-```
-make python -B
-python3 torch_benchmark.py
-```
+`./streamk --help` displays command-line options for choosing different schedulers, tasks, and problem shapes.

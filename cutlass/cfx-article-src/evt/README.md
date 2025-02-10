@@ -1,11 +1,11 @@
-# CuTe Transpose
+# CUTLASS EVT
 
-Example code for the CuTe Transpose tutorial.
+Example code for the CUTLASS EVT tutorial.
 
 # Installation
 
 This example requires the `nvcc` compiler to compile the CUDA application.
-Additionally, it needs the [CUTLASS]() repo. 
+Additionally, it needs the CUTLASS repo. 
 But because CUTLASS is a header-only library, no installation is needed for it.
 
 CUTLASS is added as a submodule for this repo.
@@ -16,14 +16,12 @@ Otherwise, specify the CUTLASS directory with:
 export CUTLASS_DIR=/path/to/cutlass
 ```
 
-To compile and run the C++ example:
+To compile and run the custom EVT example:
 ```
 make
-./transpose
+./evt_gemm_cute 
 ```
 
-To compile the python module and run the python example:
-```
-make python -B
-python3 torch_benchmark.py
-```
+# Appendix on EVT Node Types
+
+The supplementary material on EVT node types can be found in the `node_types.md` file located in this directory.

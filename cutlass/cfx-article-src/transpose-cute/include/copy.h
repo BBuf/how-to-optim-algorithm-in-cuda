@@ -63,37 +63,35 @@ __global__ static void __launch_bounds__(256, 1)
   using namespace cute;
   using Element = typename TensorS::value_type;
 
-  // 创建了输入和输出张量的局部视图 gS 和 gD。
   Tensor gS = S(make_coord(_, _), blockIdx.x, blockIdx.y);   // (bM, bN)
   Tensor gD = D(make_coord(_, _), blockIdx.x, blockIdx.y); // (bN, bM)
 
-  // 定义 `AccessType`，控制实际内存访问的大小
+  // Define `AccessType` which controls the size of the actual memory access.
   using AccessType = cutlass::AlignedArray<Element, size(VecLayout{})>;
 
-  // 一个复制原子对应一个硬件内存访问
+  // A copy atom corresponds to one hardware memory access.
   using Atom = Copy_Atom<UniversalCopy<AccessType>, Element>;
 
-  // 构建分块复制，复制原子的分块
+  // Construct tiled copy, a tiling of copy atoms.
   //
-  // 注意，这假设向量和线程布局与GMEM中的连续数据对齐。其他线程布局可能会导致非合并读取。
-  // 其他向量布局也是可能的，但不兼容的布局会导致编译时错误。
+  // Note, this assumes the vector and thread layouts are aligned with contigous data
+  // in GMEM. Alternative thread layouts are possible but may result in uncoalesced
+  // reads. Alternative vector layouts are also possible, though incompatible layouts
+  // will result in compile time errors.
   auto tiled_copy =
     make_tiled_copy(
-      Atom{},                       // 访问大小
-      ThreadLayout{},               // 线程布局
-      VecLayout{});                 // 向量布局（例如4x1）
+      Atom{},                       // access size
+      ThreadLayout{},               // thread layout
+      VecLayout{});                 // vector layout (e.g. 4x1)
 
-  // 构建一个张量，对应于每个线程的切片
+  // Construct a Tensor corresponding to each thread's slice.
   auto thr_copy = tiled_copy.get_thread_slice(threadIdx.x);
 
-  // 分割源张量和目标张量
   Tensor tSgS = thr_copy.partition_S(gS);             // (CopyOp, CopyM, CopyN)
   Tensor tDgD = thr_copy.partition_D(gD);             // (CopyOp, CopyM, CopyN)
 
-  // 创建一个与源张量切片相似的张量
   Tensor rmem = make_tensor_like(tSgS);               // (ThrValM, ThrValN)
 
-  // 执行复制操作
   copy(tSgS, rmem);
   copy(rmem, tDgD);
 }
