@@ -7,7 +7,7 @@ TMA（张量内存加速器）是NVIDIA Hopper™架构中引入的一项新功�
 
 与那些资源不同，本博文专注于如何编写使用TMA的kernel，以达到操作性理解。在整个过程中，我们依赖CuTe库，该库通过包装底层GPU指令的API来暴露TMA。这些指令包括PTX指令`cp.async.bulk.tensor`和`cp.reduce.async.bulk.tensor`，以及`cuTensorMap`操作数，我们也将在本文中讨论这些内容。
 
-我们将本博文组织成三个主要部分：第一部分是关于TMA load，第二部分是关于TMA load，最后第三部分涵盖了更高级的操作，如TMA load reduce 和 TMA save Multicast。本质上，TMA load将数据从GPU的GMEM复制（"加载"）到其CTA的SMEM中，而TMA save则将数据从CTA的SMEM复制（"存储"）到GPU的GMEM中。由于TMA load、TMA save和更高级的变体共享许多概念，我们将在TMA load部分介绍大部分必要概念，然后在后续部分只关注剩余的差异。
+我们将本博文组织成三个主要部分：第一部分是关于TMA load，第二部分是关于TMA save，最后第三部分涵盖了更高级的操作，如TMA load reduce 和 TMA save Multicast。本质上，TMA load将数据从GPU的GMEM复制（"加载"）到其CTA的SMEM中，而TMA save则将数据从CTA的SMEM复制（"存储"）到GPU的GMEM中。由于TMA load、TMA save和更高级的变体共享许多概念，我们将在TMA load部分介绍大部分必要概念，然后在后续部分只关注剩余的差异。
 
 此外，鉴于TMA是一种异步操作（在异步代理中执行），我们需要使用某些内存一致性强制工具，如异步内存屏障（即`mbarrier`）和异步内存栅栏（即`fence.proxy.async`），以确保 kernel 的正确行为。同步本身就是一个广泛的讨论主题，所以我们只会在实际使用所需的程度上涵盖这些概念。
 
