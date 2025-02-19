@@ -226,6 +226,8 @@ cuda 相关的 paper 的阅读。
 - [使用NCU和Cursor Claude-sonnet-3.5写出高效cuda算子的正确姿势](https://mp.weixin.qq.com/s/YEw8JZxn15CfLEnK32Jj-Q)
 - [Fused AllGather_MatMul Triton工程实现](https://mp.weixin.qq.com/s/oMkyrelpXjc3-KUQBVx6Tg)
 - [MoE之年的总结和MoE 推理优化的一些认识](https://mp.weixin.qq.com/s/RXFmnVI_JIlT0Yo6bN3ZHg)
+- [SGLang DP MLA 特性解读](https://mp.weixin.qq.com/s/X2uA507VbQVCv3JIQ8EtPA)
+- [Windsurf（可平替 Cursor） 的使用体验和技巧](https://mp.weixin.qq.com/s/3PNaEom76jQ8bdxNtYWkkA)
 
 </details>
 

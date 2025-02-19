@@ -502,6 +502,10 @@
 - [Stable Video 3D震撼登场：单图生成无死角3D视频、模型权重开放](https://zhuanlan.zhihu.com/p/688112512)
 - [PipeFusion：如何用PCIe互联GPU 低成本并行推理扩散模型](https://zhuanlan.zhihu.com/p/699612077)
 
+### 强化学习
+
+- [聊聊GRPO算法——从Open R1来看如何训练DeepSeek R1模型](https://www.cnblogs.com/zhiyong-ITNote/p/18702470)
+
 ### 大模型服务
 
 - [Gradio：轻松实现AI算法可视化部署](https://zhuanlan.zhihu.com/p/374238080)
