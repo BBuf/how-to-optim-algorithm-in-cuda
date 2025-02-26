@@ -42,7 +42,7 @@
 
 ### DDP
 
-大多数拥有2个GPU的用户已经享受到`DataParallel`（DP）和`DistributedDataParallel`（DDP）带来的训练速度提升，这些功能几乎易于使用。这是Pytorch的内置特性。
+大多数拥有2个GPU的用户已经享受到`DataParallel`（DP）和`DistributedDataParallel`（DDP）带来的训练速度提升，这些功能很易于使用，这是Pytorch的内置特性。
 
 详细信息请参见DistributedDataParallel（https://pytorch.org/docs/stable/generated/torch.nn.parallel.DistributedDataParallel.html）
 
@@ -116,7 +116,7 @@ GPU2 也是一样,它获得输入 x2。它从 GPU0 和 GPU1 获得 a0 和 a1,并
 
 每天晚上他们都会分享自己拥有的东西,并从其他人那里获得他们没有的东西,早上他们打包自己分配的装备类型并继续前进。这就是分片 DDP / Zero DP。
 
-与每个人都必须携带自己的帐篷、炉子和斧头的简单策略相比,这种策略要高效得多。这就是 PyTorch 中的数据并行(DP 和 DDP)。
+与每个人都必须携带自己的帐篷、炉子和斧头的简单策略相比,这种策略要高效得多。
 
 在阅读这个主题的文献时,你可能会遇到以下同义词:Sharded、Partitioned。
 
@@ -163,7 +163,7 @@ PyTorch:
 所以你要么需要部署张量并行(这很难实现),要么通常更简单的方法是部署序列并行(https://arxiv.org/abs/2305.14343)。我还没有实际尝试过,但到目前为止我了解到:
 
 - Deepspeed ZeRO 使用 Deepspeed-Ulysses(https://arxiv.org/abs/2309.14509)
-- FSDP 使用 Paged Ring Attention(https://github.com/lucidrains/ring-attention-pytorch) (论文(https://arxiv.org/abs/2402.08268))
+- FSDP 使用 Paged Ring Attention(https://github.com/lucidrains/ring-attention-pytorch) 论文(https://arxiv.org/abs/2402.08268)
 
 请注意,这可能不会像张量并行(https://arxiv.org/abs/2305.14343)那样高效 - 但我还不知道实际的额外开销。
 
@@ -218,7 +218,7 @@ PyTorch FSDP 在 shardingStrategy.HYBRID_SHARD(https://pytorch.org/docs/stable/f
 
 问题:
 - 主要缺陷(也是为什么称之为"朴素"MP的原因)是在任何时刻只有一个GPU在工作,其他GPU都处于空闲状态。因此,如果使用4个GPU,这几乎等同于将单个GPU的内存量增加4倍,而忽略了其余的硬件。此外还有设备间数据复制的开销。所以4个6GB显卡使用朴素MP可以容纳与1个24GB显卡相同大小的模型,但后者会更快完成训练,因为它没有数据复制开销。但是,比如说,如果你有40GB的显卡,需要容纳一个45GB的模型,你可以用4个40GB的显卡(但由于梯度和优化器状态的存在,勉强可以)
-- 共享嵌入可能需要在GPU之间来回复制。
+- 共享嵌入（Embedding权重）可能需要在GPU之间来回复制。
 
 ### 流水线并行
 
@@ -226,7 +226,7 @@ PyTorch FSDP 在 shardingStrategy.HYBRID_SHARD(https://pytorch.org/docs/stable/f
 
 下面来自GPipe论文(https://ai.googleblog.com/2019/03/introducing-gpipe-open-source-library.html)的插图展示了朴素MP(上图)和PP(下图):
 
-![](https://files.mdnice.com/user/59/45f49066-bd31-4336-886d-2d750dc0d000.png)
+![](https://files.mdnice.com/user/59/3255a30e-2664-4fc9-838c-f3ebfebddf8f.png)
 
 
 从中图可以很容易看出PP如何减少了GPU空闲的死区。这些空闲部分被称为"气泡"。
@@ -245,7 +245,7 @@ PP引入了一个新的超参数`chunks`来调优,它定义了通过同一管道
 
 当`chunks=1`时,你最终会得到朴素MP,这是非常低效的。而当`chunks`值很大时,你会得到非常小的微批次大小,这也可能不太高效。因此,需要通过实验来找到能够实现GPU最高效利用率的值。
 
-虽然图中显示了一个无法并行化的"死亡"时间气泡(因为最后的`forward`阶段必须等待`backward`完成管道),但寻找最佳`chunks`值的目的是实现所有参与GPU的高并发利用率,这意味着要最小化气泡的大小。
+虽然图中显示了一个无法并行化的"死亡"时间气泡(因为最后的`forward`阶段必须等待`backward`完成pipeline),但寻找最佳`chunks`值的目的是实现所有参与GPU的高并发利用率,这意味着要最小化气泡的大小。
 
 调度的选择对高效性能至关重要,按发明顺序排列的最常见调度方式包括:
 
@@ -253,6 +253,7 @@ PP引入了一个新的超参数`chunks`来调优,它定义了通过同一管道
 - 交错 1F1B Pipedream: 快速高效的流水线并行DNN训练(https://arxiv.org/abs/1806.03377)
 - 循环、深度优先的高效大规模语言模型在GPU集群上的训练使用Megatron-LM(https://arxiv.org/abs/2104.04473)
 - 广度优先的流水线并行(https://arxiv.org/abs/2211.05953)
+- Llama 3 训练结合了深度优先和广度优先的方法以获得最佳性能，并且允许他们在训练过程中逐步修改全局批量大小，这在使用流水线并行时通常是非常困难的。请参阅《Llama 3 模型群体》(https://arxiv.org/abs/2407.21783) 第 3.3.2 节 关于模型扩展的并行性。
 
 这里是一个交错流水线的例子:
 
@@ -263,6 +264,10 @@ PP引入了一个新的超参数`chunks`来调优,它定义了通过同一管道
 DeepSpeed、Varuna和SageMaker等都使用了这种方式。
 
 Varuna通过使用模拟来发现最有效的调度方式,从而进一步改进调度。
+
+DeepSeek v3（https://arxiv.org/abs/2412.19437） 引入了一种更高效的PP，通过DualPipe减少了气泡大小，并实现了更好的计算与通信重叠。具体细节请参见论文第3.2.1节。
+
+![来源：https://arxiv.org/abs/2412.19437](https://files.mdnice.com/user/59/36b857ea-fe9c-4f2f-9f81-33ff74de4f18.png)
 
 PP解决方案有两类 - 传统的Pipeline API和更现代的解决方案,后者通过帮助部分或完全自动化流程,使最终用户使用起来更加容易:
 
@@ -275,6 +280,7 @@ PP解决方案有两类 - 传统的Pipeline API和更现代的解决方案,后�
 - PiPPy
 - Varuna
 - Sagemaker
+- DeepSeek
 
 传统Pipeline API解决方案的问题:
 - 必须对模型进行大量修改,因为Pipeline要求将模块的正常流程重写为相同模块的`nn.Sequential`序列,这可能需要更改模型的设计。
@@ -294,8 +300,11 @@ PP解决方案有两类 - 传统的Pipeline API和更现代的解决方案,后�
 - OSLO(https://github.com/eleutherAI/Oslo) - 这是基于Hugging Face Transformers实现的。
 - PiPPy(https://github.com/pytorch/pippy) - 通过`torch.fx`自动PP
 - nanotron(https://github.com/huggingface/nanotron)
+- torchtitan(https://github.com/pytorch/torchtitan)
 
+### 相关阅读
 
+- 流水线并行：通过模型分区进行分布式训练(https://siboehm.com/articles/22/pipeline-parallel-training)
 
 
 ## 张量并行
@@ -343,14 +352,18 @@ TP可以与其他并行化方法结合使用。
 - parallelformers(https://github.com/tunib-ai/parallelformers)(目前仅支持推理)
 - torchtian(https://github.com/pytorch/torchtitan)
 
-## 异步张量并行
+### 异步张量并行
 
-TP的一个缺陷是很难将其通信与计算重叠。PyTorch提出使用异步TP(https://discuss.pytorch.org/t/distributed-w-torchtitan-introducing-async-tensor-parallelism-in-pytorch/209487)来克服这个问题,它将all-gather + matmul的依赖序列分解为一系列cudaMemcpyAsync调用和更小的部分matmul - 并且使用torch.compile可以自动为你完成这些!
+TP的一个缺陷是很难将其通信与计算重叠。PyTorch提出使用异步TP(https://discuss.pytorch.org/t/distributed-w-torchtitan-introducing-async-tensor-parallelism-in-pytorch/209487)来克服这个问题,它将`all-gather + matmul`的依赖序列分解为一系列cudaMemcpyAsync调用和更小的部分matmul - 并且使用`torch.compile`可以自动为你完成这些!
 
-- Megatron-LM也通过--tp-comm-overlap实现了这一功能。
+- Megatron-LM也通过`--tp-comm-overlap`实现了这一功能。
 
-## 相关阅读
+### 相关阅读
 - 张量并行和序列并行:详细分析(https://insujang.github.io/2024-01-11/tensor-parallelism-and-sequence-parallelism-detailed-analysis/#sequence-parallelism)
+
+## TP+SP
+
+TP可以与SP在同一进程组中结合使用，以最小化通信成本，具体解释见《在大型Transformer模型中减少激活重计算》(https://arxiv.org/abs/2205.05198)。例如，在LLMs中，TP用于嵌入、注意力和线性层，而当达到dropout和层归一化时则改用SP。
 
 ## DP+PP
 
@@ -369,7 +382,7 @@ TP的一个缺陷是很难将其通信与计算重叠。PyTorch提出使用异�
 - SageMaker(https://arxiv.org/abs/2111.05972)
 - OSLO(https://github.com/eleutherAI/Oslo)
 - nanotron(https://github.com/huggingface/nanotron)
-
+- torchtitan(https://github.com/pytorch/torchtitan)
 
 
 ## DP+PP+TP
@@ -389,11 +402,11 @@ TP的一个缺陷是很难将其通信与计算重叠。PyTorch提出使用异�
 - SageMaker(https://arxiv.org/abs/2111.05972)
 - OSLO(https://github.com/eleutherAI/Oslo)
 - nanotron(https://github.com/huggingface/nanotron)
-
+- torchtitan(https://github.com/pytorch/torchtitan)
 
 ## ZeRO DP+PP+TP
 
-DeepSpeed的主要特性之一是ZeRO,它是DP的一个超可扩展扩展。在ZeRO数据并行中已经讨论过了。通常它是一个独立的功能,不需要PP或TP。但它可以与PP和TP结合使用。
+DeepSpeed的主要特性之一是ZeRO,它是DP的一个扩展。在ZeRO数据并行中已经讨论过了。通常它是一个独立的功能,不需要PP或TP。但它可以与PP和TP结合使用。
 
 当ZeRO-DP与PP(和可选的TP)结合时,通常只启用ZeRO stage 1(优化器分片)。
 
@@ -473,9 +486,9 @@ Colossal-AI的序列并行实现使用环形自注意力机制,这是一种环�
 
 Megatron-LM的序列并行与其张量并行紧密集成。Megatron-LM沿序列维度对序列进行切分,并应用allgather和reduce scatter集合操作来聚合QKV投影以进行注意力计算。无论计算设备数量如何,其通信量都与消息大小(M)呈线性增长。
 
-### 带块状Transformer的环形注意力
+### Ring Attention with Blockwise Transformers
 
-论文: 使用块状Transformer的环形注意力实现近乎无限的上下文(https://arxiv.org/abs/2310.01889)
+论文: Ring Attention with Blockwise Transformers for Near-Infinite Context(https://arxiv.org/abs/2310.01889)
 
 1. 张量始终沿序列维度进行分片:形状为(`seq_len // N, d_model`)
 2. 在注意力层中,每个GPU首先使用其可用分片计算它们能够计算的注意力分数部分。
@@ -487,8 +500,19 @@ Megatron-LM的序列并行与其张量并行紧密集成。Megatron-LM沿序列�
 - Megatron-LM(https://github.com/NVIDIA/Megatron-LM)
 - Deepspeed(https://github.com/microsoft/DeepSpeed)
 - Colossal-AI(https://colossalai.org/)
+- torchtitan(https://github.com/pytorch/torchtitan)
 
 PyTorch也在开发这个功能,并将其称为上下文并行(CP)。
+
+### DistFlashAttn
+
+DISTFLASHATTN: 用于长上下文LLM训练的分布式内存高效注意力（https://arxiv.org/abs/2310.03294）据报道比Ring Attention快多倍，因为它在执行序列并行时在工作节点之间平衡了每个token的KVQ计算负载。
+
+![](https://files.mdnice.com/user/59/219c1879-4474-4e30-b805-f7ce244a60b7.png)
+
+### Related reading
+
+- Tensor Parallelism and Sequence Parallelism: Detailed Analysis(https://insujang.github.io/2024-01-11/tensor-parallelism-and-sequence-parallelism-detailed-analysis/#sequence-parallelism)
 
 ## 专家并行
 
@@ -528,7 +552,7 @@ FlexFlow(https://github.com/flexflow/FlexFlow)以略微不同的方式解决并�
 
 这与张量模型并行或简单的层级模型并行类似。
 
-![flex-flow-soap](https://files.mdnice.com/user/59/9e75c6fd-6937-44c0-aa33-ffc9f4ca0fd5.png)
+![](https://files.mdnice.com/user/59/3c560576-b425-46fd-a08c-9d92b0b5dfc0.png)
 
 这个框架的重要性在于它可以处理如(1) GPU/TPU/CPU、(2) RAM/DRAM、(3) 快速内部连接/慢速外部连接等资源,并自动优化所有这些资源,以算法方式决定在哪里使用哪种并行化。
 
@@ -536,6 +560,26 @@ FlexFlow(https://github.com/flexflow/FlexFlow)以略微不同的方式解决并�
 
 所以这个承诺非常有吸引力 - 它在所选的集群上运行30分钟的模拟,并提出最佳策略来利用这个特定环境。如果你添加/删除/替换任何部分,它都会重新运行并重新优化计划。然后你就可以开始训练了。不同的设置将有其自己的定制优化。
 
+### 并行网络集合
+
+由于节点内和节点间的速度通常存在10倍差异，因此在进行节点内和节点间交互时选择不同的并行化技术至关重要。例如，TP必须始终保持在节点内部，因为其巨大的同步需求。此外，一些加速器，如最新的AMD MI3**系列，其GPU间连接速度非常慢，这同样影响了并行化的最佳性能。
+
+这里有一个有用的提示：all-reduce集合可以分解为两个独立的阶段：reduce-scatter和all-gather。
+
+![来源：https://engineering.fb.com/2021/07/15/open-source/fsdp/attachment/fsdp-graph-2a/](https://files.mdnice.com/user/59/e4205b8c-2fbe-4189-ad9f-4c05f29b2b1b.png)
+
+以下是不同并行化策略所使用的集合操作的详细说明：
+
+- DDP：1次all-reduce用于梯度 - 理想情况下与计算重叠 - 总通信量：2倍模型参数
+- ZeRO-DP ZeRO-1/ZeRO-2：1次all-gather用于优化器状态加上1次reduce-scatter用于梯度 - 总通信量：2倍模型参数
+- ZeRO-DP ZeRO-3：2次all-gather用于权重（在前向传播之前和反向传播之前）加上1次reduce-scatter用于梯度 - 总通信量：3倍模型参数（比DDP和ZeRO-1/ZeRO-2多1.5倍）
+- TP：2次all-gather和2次reduce-scatter
+- PP：2次发送 + 2次接收 - 在稳定阶段与计算重叠
+- SP：取决于实现：对于隐藏层大小h、序列长度N和并行度P
+    - Megatron-LM：2次all-gather和2次reduce-scatter，通信量为每个Transformer Layer `4*N*h`（参考论文第3.2节 https://arxiv.org/abs/2309.14509）
+    - DeepSpeed Ulysses：2次all-to-all通信，通信量为每个Transformer Layer `4*N*h/P`（参考论文第3.2节 https://arxiv.org/abs/2309.14509）
+
+你可能会发现不同的实现可能使用不同的通信模式。
 
 ## 使用ZeRO的节点间速度要求
 
@@ -572,7 +616,7 @@ IDEFICS-80B训练使用的值:
 - `inter-node-throughput_in_GBps` = 42.5 (340Gbps) (AWS EFA v1)
 - `tflops_wo_comms`是没有通信开销的tflops。不是理论峰值,因为那是无法达到的,但在A100@BF16的情况下可能是75% - 所以是`312*0.75=234` TFLOPS
 
-我们使用`all_reduce_bench.py`得出340Gbps节点间网络吞吐量,它默认使用4GB的有效载荷。在IDEFICS-80B的情况下,我们有80层,所以每层大约有1B参数。这意味着每层对于bf16张量发送2GB数据,对于fp32张量发送4GB数据,这与网络基准相匹配。如果你的层大小小得多,我建议调整基准以适应该大小。例如,如果你的层大小只有100M参数,那么bf16张量的有效载荷将是0.2GB。由于这比较小一个数量级,网络可能会给你更低的带宽,你应该在计算中使用这个值。
+我们使用`all_reduce_bench.py`(https://github.com/BBuf/ml-engineering/blob/master/network/benchmarks/all_reduce_bench.py)得出340Gbps节点间网络吞吐量,它默认使用4GB的有效载荷。在IDEFICS-80B的情况下,我们有80层,所以每层大约有1B参数。这意味着每层对于bf16张量发送2GB数据,对于fp32张量发送4GB数据,这与网络基准相匹配。如果你的层大小小得多,我建议调整基准以适应该大小。例如,如果你的层大小只有100M参数,那么bf16张量的有效载荷将是0.2GB。由于这比较小一个数量级,网络可能会给你更低的带宽,你应该在计算中使用这个值。
 
 注:如果你的模型部分被冻结,那么在同步梯度时会发送更少的数据。在IDEFICS中,我们有超过一半的模型被冻结,所以当梯度被reduce时,我们只有大约一半的流量。
 
@@ -619,13 +663,13 @@ IDEFICS-80B训练使用的值:
 2. 使用200-400 Gbps IB,每个GPU达到合理的30-40 TFLOPs(可以)
 3. 对于800 Gbps IB,每个GPU达到40+ TFLOPs(优秀)
 
-提醒一下,NVIDIA V100在fp16的峰值TFLOPS是125 TFLOPS。
+提醒一下,NVIDIA V100在fp16的峰值TFLOPS是125 TFLOPS(https://www.nvidia.com/en-gb/data-center/tesla-v100/)。
 
 但要小心 - 这个基准是针对V100的!它比A100慢2-3倍,比H100慢4-8倍(半精度)。所以对于H100节点,通信必须至少快4-8倍才能在半精度下匹配上述表格。我们需要更多使用更新硬件的基准测试。
 
 注:2-3倍范围是因为官方规格声称V100->A100和A100->H100各增加3倍TFLOPS,但用户基准测试报告的差异最多为2.5倍改进。
 
-他们还注意到,在大规模训练时,每个GPU的小微批量大小会使通信开销更加明显。而且我们可能无法增加微批量大小,因为全局批量大小通常是固定的,以实现良好的模型收敛率。这个问题通过最近引入的ZeRO++得到解决。
+他们还注意到,在大规模训练时,每个GPU的小微批量大小会使通信开销更加明显。而且我们可能无法增加微批量大小,因为全局批量大小通常是固定的,以实现良好的模型收敛率。这个问题通过最近引入的ZeRO++(https://github.com/BBuf/ml-engineering/blob/master/training/model-parallelism/README.md#zero-with-multiple-replicas)得到解决。
 
 最后,在进行上述数学计算时,你需要知道在你的设置上获得的实际带宽 - 这会随有效载荷大小而变化 - 有效载荷越大,带宽越好。要获取这些信息,你需要查看Deepspeed配置文件中的`reduce_bucket_size`和`prefetch_bucket_size`设置,分别用于reduction和预取。默认是0.5B参数,在半精度下是1GB(0.5B x 2字节),如果使用fp32精度则是2GB(0.5B x 4字节)。所以为了测量实际吞吐量,你需要用那个有效载荷运行`all_reduce`基准测试,看看报告的带宽是多少。然后你可以将其输入到上述计算中。
 
@@ -648,7 +692,7 @@ IDEFICS-80B训练使用的值:
 
 * 最大的层无法装入单个GPU:
 
-1. ZeRO - 启用内存中心分块(https://deepspeed.readthedocs.io/en/latest/zero3.html#memory-centric-tiling)(MCT)。它允许通过自动分割并顺序执行来运行任意大的层。MCT减少了GPU上活跃的参数数量,但不影响激活内存。由于这种需求目前很罕见,用户需要手动重写`torch.nn.Linear`。
+1. ZeRO - 启用内存中心分块(https://deepspeed.readthedocs.io/en/latest/zero3.html#memory-centric-tiling)(MCT)。它允许通过自动分割并顺序执行来运行任意大的层。MCT减少了GPU上活跃的参数数量,但不影响激活内存。不过这种需求目前很罕见,用户需要手动重写`torch.nn.Linear`。
 
 **⇨ 单节点/多GPU**
 
@@ -674,7 +718,7 @@ IDEFICS-80B训练使用的值:
 
 **⇨ 多节点/多GPU**
 
-* 如果模型能装入单个节点,首先尝试使用多副本的ZeRO(#zero-with-multiple-replicas),因为这样你将在更快的节点内连接上进行ZeRO,在较慢的节点间连接上进行DDP
+* 如果模型能装入单个节点,首先尝试使用多副本的ZeRO(在本文档中搜索 使用多个副本的 ZeRO),因为这样你将在更快的节点内连接上进行ZeRO,在较慢的节点间连接上进行DDP
 
 * 当你有快速的节点间连接时:
 
@@ -684,3 +728,13 @@ IDEFICS-80B训练使用的值:
 * 当你有较慢的节点间连接且GPU内存仍然不足时:
 
     1. DP+PP+TP+ZeRO-1
+
+
+# 关于并行训练知乎的一些相关文献
+
+- [一文搞懂MPI通信接口的特点及原理](https://zhuanlan.zhihu.com/p/653968730)
+- [ring attention + flash attention：超长上下文之路](https://zhuanlan.zhihu.com/p/683714620)
+- [大模型训练之序列并行双雄：DeepSpeed Ulysses & Ring-Attention](https://zhuanlan.zhihu.com/p/689067888)
+- [序列并行做大模型训练，你需要知道的六件事](https://zhuanlan.zhihu.com/p/698031151)
+- [我爱DeepSpeed-Ulysses：重新审视大模型序列并行技术](https://zhuanlan.zhihu.com/p/703669087)
+- [大模型推理序列并行](https://zhuanlan.zhihu.com/p/703669087)
