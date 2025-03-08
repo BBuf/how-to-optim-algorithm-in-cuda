@@ -2,7 +2,7 @@
 
 上回讲到 SGLang 中的 DP MLA 特性 [SGLang DP MLA 特性解读](https://mp.weixin.qq.com/s/X2uA507VbQVCv3JIQ8EtPA) ，这里简单回顾一下核心idea。之所以在 MLA 中使用DP的方式是因为 MLA 在存储 KV Cache的时候对于一个token 存储的shape是`(1, 1, kv_lora_rank+qk_rope_head_dim)`，而不是普通MHA下的`(1, kv_head_num, head_dim)`。这就导致如果按照以前的TP并行方式需要在每张卡上都维护重复的KV Cache才行，为了避免这个问题就引入DP让每张卡去维护它拥有的batch的全量KV Cache，我们就不需要在每个rank上都复制所有batch的KV Cache了。当然，这里还有个问题就是如果DP MLA出现了负载不均衡问题，必然会导致某些GPU处于等待状态，这个问题怎么解决呢？我目前也不清楚。
 
-现在来到这次的话题，因为SGLang MLA除了DP之外还有挺多相关的Feature，所以打算在这里再梳理一下SGLang MLA的实现以及支持的Feature。9个月之前我在 [大模型KV Cache节省神器MLA学习笔记（包含推理时的矩阵吸收分析）](https://mp.weixin.qq.com/s/cBMrRUdM1IM0T1ji_ODxng) 这篇文章记录了一下学习 MLA 的学习笔记，那个时候是DeepSeek V2发布的时期。然后我在学习笔记中记录了一下 MLA 的原理以及矩阵吸收分析等，读者可以将这个笔记作为前置知识，我在本博客中将主要关注 SGLang 的 MLA 实现。
+现在来到这次的话题，因为SGLang MLA除了DP之外还有挺多相关的Feature，所以打算在这里再梳理一下SGLang MLA的实现以及支持的Feature。9个月之前我在 [大模型KV Cache节省神器MLA学习笔记（包含推理时的矩阵吸收分析）](https://mp.weixin.qq.com/s/cBMrRUdM1IM0T1ji_ODxng) 这篇文章记录了一下学习 MLA 的学习笔记，那个时候是DeepSeek V2发布的时期。然后我在学习笔记中记录了一下 MLA 的原理以及矩阵吸收分析等，读者可以将这个笔记作为前置知识，我在本博客中将主要关注 SGLang 的 MLA 实现，欢迎捉虫。
 
 这里的代码解读仍然采用从上到下的方式。
 
