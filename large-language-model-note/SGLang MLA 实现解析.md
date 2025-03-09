@@ -777,9 +777,9 @@ self.attn_mqa = RadixAttention(
   )
 ```
 
-所以这里的attn计算可以看成一个Multi Query Attention，其中Query的 head 是 16个， QK head_dim是192，V head_dim是128。Q的head_dim中包含不做RoPE的128和做RoPE的64两个维度。
+所以这里的attn计算可以看成一个Multi Query Attention，其中Query的 head 是 16个， QK head_dim是576，V head_dim是512。QK的head_dim中包含不做RoPE的512和做RoPE的64两个维度。
 
-其实这个MQA就是DeekSeek在开源周开源的FlashMLA的模型，如下图所示：
+其实这个MQA就是DeekSeek在开源周开源的FlashMLA，如下图所示：
 
 ![](https://files.mdnice.com/user/59/085133cc-3802-43c6-a3b3-b58e63c59af4.png)
 
