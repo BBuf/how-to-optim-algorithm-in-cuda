@@ -228,6 +228,8 @@ cuda 相关的 paper 的阅读。
 - [MoE之年的总结和MoE 推理优化的一些认识](https://mp.weixin.qq.com/s/RXFmnVI_JIlT0Yo6bN3ZHg)
 - [SGLang DP MLA 特性解读](https://mp.weixin.qq.com/s/X2uA507VbQVCv3JIQ8EtPA)
 - [Windsurf（可平替 Cursor） 的使用体验和技巧](https://mp.weixin.qq.com/s/3PNaEom76jQ8bdxNtYWkkA)
+- [SGLang MLA 实现解析](https://mp.weixin.qq.com/s/wRIjy_HHAH_CeEhkZ_BvNg)
+- [详解vLLM和SGLang awq dequantize kernel的魔法](https://mp.weixin.qq.com/s/X9AOH1HGXJ3t0jZ5_hd7Ew)
 
 </details>
 
