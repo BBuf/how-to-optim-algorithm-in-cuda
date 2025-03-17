@@ -233,7 +233,7 @@ cuda 相关的 paper 的阅读。
 
 </details>
 
-### 21. CUDA 学习资料收集
+### 21. CUDA/大模型 学习资料收集
 
 #### 专栏
 
@@ -241,7 +241,7 @@ cuda 相关的 paper 的阅读。
 - [深入浅出GPU优化 专栏by 有了琦琦的棍子](https://www.zhihu.com/column/c_1437330196193640448)
 - [CUDA 编程入门](https://www.zhihu.com/column/c_1699097150611595264)
 
-#### 文章
+#### CUDA 相关博客
 
 <details>
 <summary>点击展开/收起 CUDA优质博客列表</summary>
@@ -410,6 +410,75 @@ cuda 相关的 paper 的阅读。
 - [Triton到SASS（2）：Reduction](https://zhuanlan.zhihu.com/p/703748336)
 - [cuda的ldmatrix指令的详细解释](https://zhuanlan.zhihu.com/p/697228676)
 - [基于 CuTe 理解 swizzle, LDSM, MMA](https://zhuanlan.zhihu.com/p/934430036)
+- [一文读懂nsight system与cuda kernel的时间线分析与可视化](https://zhuanlan.zhihu.com/p/691307737)
+- [TileLang: 80行Python kernel代码实现FlashMLA 95%的性能](https://zhuanlan.zhihu.com/p/27965825936)
+- [简单CUDA Assembly介绍](https://zhuanlan.zhihu.com/p/27455487044)
+- [Deep Gemm 代码浅析](https://zhuanlan.zhihu.com/p/26916462532)
+- [如何看懂deepseek ai开源的FlashMLA中的核心cu代码？](https://www.zhihu.com/question/13188512132/answer/113811134716)
+- [浅析GEMM优化multistage数怎么算](https://zhuanlan.zhihu.com/p/714353243)
+- [DeepSeek: FlashMLA代码解析](https://zhuanlan.zhihu.com/p/26269071923)
+- [triton(openai)如何实现splitk和streamk?](https://www.zhihu.com/question/13143162788/answer/108685833211)
+- [FlashMLA性能简测](https://zhuanlan.zhihu.com/p/26113545571)
+- [DeepSeek-V3/R1 的 Hosting 成本预估](https://zhuanlan.zhihu.com/p/23282743306)
+- [实用 Swizzle 教程（一）](https://zhuanlan.zhihu.com/p/20579515046)
+- [实用 Swizzle 教程（二）](https://zhuanlan.zhihu.com/p/21142007017)
+- [CUDA编程入门之Cooperative Groups(1)](https://zhuanlan.zhihu.com/p/572820342)
+
+</details>
+
+#### 大模型Infra相关博客（DeepSeek，VERL, Megatron-LM, SGLang，vLLM等）
+
+<details>
+<summary>点击展开/收起 大模型Infra优质博客列表</summary>
+
+- [Megatron-LM 分布式执行调研](https://strint.notion.site/Megatron-LM-86381cfe51184b9c888be10ee82f3812)
+- [BLOOM 训练背后的技术](https://www.cnblogs.com/Matrix_Yao/p/17238627.html)
+- [聊聊 PyTorch2.0 中新的Distributed API](https://mp.weixin.qq.com/s/hOOFE_eFD6a8GKTdnRcJXg)
+- [聊聊 PyTorch 中新的Distributed API （二）](https://mp.weixin.qq.com/s/zDSuToVMo4iK3sxF662kvg)
+- [【LLM】从零开始训练大模型](https://zhuanlan.zhihu.com/p/636270877)
+- [在一张 24 GB 的消费级显卡上用 RLHF 微调 20B LLMs](https://www.cnblogs.com/huggingface/p/17245966.html)
+- [人手一个ChatGPT！微软DeepSpeed Chat震撼发布，一键RLHF训练千亿级大模型](https://zhuanlan.zhihu.com/p/621379646)
+- [大型语言模型(LLM)训练指南🚀](https://zhuanlan.zhihu.com/p/611325149)
+- [“StackLLaMA”: 用 RLHF 训练 LLaMA 的手把手教程](https://zhuanlan.zhihu.com/p/626896135)
+- [图解大模型训练之：流水线并行（Pipeline Parallelism），以Gpipe为例](https://zhuanlan.zhihu.com/p/613196255)
+- [图解大模型训练之：数据并行上篇(DP, DDP与ZeRO)](https://zhuanlan.zhihu.com/p/617133971)
+- [图解大模型训练之：数据并行下篇( DeepSpeed ZeRO，零冗余优化)](https://zhuanlan.zhihu.com/p/618865052)
+- [图解大模型训练之：张量模型并行(TP)，Megatron-LM](https://zhuanlan.zhihu.com/p/622212228)
+- [Megatron-LM 中的 pipeline 并行](https://zhuanlan.zhihu.com/p/432969288)
+- [图解大模型系列之：Megatron源码解读1，分布式环境初始化](https://zhuanlan.zhihu.com/p/629121480)
+- [图解大模型训练之：Megatron源码解读2，模型并行](https://zhuanlan.zhihu.com/p/634377071)
+- [聊聊序列并行Sequence parallelism](https://mp.weixin.qq.com/s/ylScQOpJ1-ufyPK7X6VUjw)
+- [深入理解 Megatron-LM（1）基础知识](https://zhuanlan.zhihu.com/p/650234985)
+- [深入理解 Megatron-LM（2）原理介绍](https://zhuanlan.zhihu.com/p/650383289)
+- [深入理解 Megatron-LM（3）代码结构](https://zhuanlan.zhihu.com/p/650237820)
+- [深入理解 Megatron-LM（4）并行设置](https://zhuanlan.zhihu.com/p/650500590)
+- [深入理解 Megatron-LM（5）张量并行](https://zhuanlan.zhihu.com/p/650237833)
+- [聊聊字节 AML 万卡工作 MegaScale: Scaling Large Language Model Training](https://mp.weixin.qq.com/s/aXsURbHZKzoBw-ChaBnjEQ)
+- [深度学习里，模型并行中怎么将模型拆分？](https://www.zhihu.com/question/319355346/answer/2985459442)
+- [Transformers DeepSpeed官方文档](https://zhuanlan.zhihu.com/p/621572871)
+- [DeepSeek-V3 MTP 工程实现思考](https://zhuanlan.zhihu.com/p/29082207943)
+- [DeepSeek V3/R1 推理效率分析（1）：关于DeepSeek V3/R1 Decoding吞吐极限的一些不负责任估计](https://zhuanlan.zhihu.com/p/27292649125)
+- [DeepSeek V3/R1 推理效率分析（2）: DeepSeek 满血版逆向工程分析](https://zhuanlan.zhihu.com/p/29841050824)
+- [DeepSeek V3/R1 推理效率分析（3）：Decode 配置泛化讨论](https://zhuanlan.zhihu.com/p/29540042383)
+- [如何估算不同规格的芯片 EP 部署 Deepseek 的单卡吞吐 V1.0](https://zhuanlan.zhihu.com/p/30471846931)
+- [深度解析FlashMLA: 一文读懂大模型加速新利器](https://zhuanlan.zhihu.com/p/27976368445)
+- [MoE Inference On AnyScale](https://zhuanlan.zhihu.com/p/28680264165)
+- [[AI Infra] VeRL 框架入门&代码带读](https://zhuanlan.zhihu.com/p/27676081245)
+- [大模型分布式通信技术博客汇总](https://zhuanlan.zhihu.com/p/30451575581)
+- [sglang 源码学习笔记（一）- Cache、Req与Scheduler](https://zhuanlan.zhihu.com/p/17186885141)
+- [DualPipe 深入浅出：没有分布式训练基础也能看懂的 DualPipe 全方位讲解](https://zhuanlan.zhihu.com/p/27045651854)
+- [DeepSeek MLA引发的一些记忆碎片](https://zhuanlan.zhihu.com/p/25210365944)
+- [DeepSeek MLA的序列并行和张量并行](https://zhuanlan.zhihu.com/p/25573883266)
+- [SGLang: Triton算子extend_attention/Prefix优化](https://zhuanlan.zhihu.com/p/22996351654)
+- [DeepSeek-V3 (671B) 模型参数量分解计算](https://zhuanlan.zhihu.com/p/21455638257)
+- [PP->VPP->ZeroBubblePP->deepseekv3 dualPipe，对PP bubble的极致压缩](https://zhuanlan.zhihu.com/p/26559590326)
+- [双流并行(DualPipe) 没有双流会更好](https://zhuanlan.zhihu.com/p/26915547331)
+- [deepseek 训练 profile data 基础分析](https://zhuanlan.zhihu.com/p/26717172494)
+- [Deepseek FlashMLA解析](https://zhuanlan.zhihu.com/p/26262350225)
+- [给 Megatron 的长文本训练抓了一个 Bug](https://zhuanlan.zhihu.com/p/26109356836)
+- [对DualPipe的一些想法](https://zhuanlan.zhihu.com/p/21525151726)
+- [SGLang: Triton算子prefill_attention](https://zhuanlan.zhihu.com/p/19989050229)
+- [[CUDA基础]📚CUDA-Learn-Notes: v3.0 大升级-面试刷题不迷路](https://zhuanlan.zhihu.com/p/19862356369)
 
 </details>
 
