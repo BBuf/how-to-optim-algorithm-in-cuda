@@ -359,6 +359,7 @@
 - [我爱DeepSpeed-Ulysses：重新审视大模型序列并行技术](https://zhuanlan.zhihu.com/p/703669087)
 - [由Ring-Attention性能问题引发的计算通信overlap分析](https://zhuanlan.zhihu.com/p/706805407)
 - [为Token-level流水并行找PMF：从TeraPipe，Seq1F1B，HPipe到PipeFusion](https://zhuanlan.zhihu.com/p/706475158)
+- [SFT Packing详解](https://zhuanlan.zhihu.com/p/707329908)
 
 ### 大模型推理技术
 
