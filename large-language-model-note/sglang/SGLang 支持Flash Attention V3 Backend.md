@@ -1,3 +1,5 @@
+> 我的课程笔记，欢迎关注：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode 。主要是LLM和cuda相关的
+
 # 0x0 前言
 
 最近SGLang在 https://github.com/sgl-project/sglang/pull/4356 中支持page_size>1的KV Cache Allocator之后让框架更加灵活，可以让用户接入新的Attention Backend，FlashMLA等先进特性。然后LinkedIn的几个小伙伴在SGLang中快速支持了FlashAttention V3的Backend，详情可以看：https://github.com/sgl-project/sglang/issues/4709 ，做了一个很好的示范。我这里尝试根据对SGLang支持Flash Attention V3的方法进行解读，如果大家有其它的Attention Backend需要对接，也可以参考他们的工作。
@@ -8,7 +10,7 @@
 
 ![](https://files.mdnice.com/user/59/7c493259-3248-4150-a988-b9109898be81.png)
 
-从Llama3的end2end测试结果来看基于Flash Attention V3的Backend和使用默认的FlashInfer的Backend差距不是很大，不过FA3支持FP8的Attention，后面可以期待一下支持后的性能。此外，这个支持比较早期，只支持Page Size=1，没有支持FP8和多模态模型等，可以关注Roadmap：自LinkedIn的工作：https://github.com/sgl-project/sglang/pull/4680 ，感兴趣的话也可以参与。
+从Llama3的end2end测试结果来看基于Flash Attention V3的Backend和使用默认的FlashInfer的Backend差距不是很大，不过FA3支持FP8的Attention，后面可以期待一下支持后的性能。此外，这个支持比较早期，只支持Page Size=1，没有支持FP8和多模态模型等，可以关注Roadmap：https://github.com/sgl-project/sglang/pull/4680 ，感兴趣的话也可以参与。
 
 # 0x2. 入口
 
@@ -356,7 +358,13 @@ def get_cuda_graph_seq_len_fill_value(self):
 
 
 
-----------------------------------------------分割线-----------------------------------------------
 
-打扰了，还有人买我家的枇杷吗？可以点这个链接：[攀枝花米易枇杷](https://mp.weixin.qq.com/s/rvk9Nhtrzw8zlEDU4HbTdQ)
+
+
+
+
+
+
+
+
 
