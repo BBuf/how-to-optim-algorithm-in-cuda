@@ -230,6 +230,8 @@ cuda 相关的 paper 的阅读。
 - [Windsurf（可平替 Cursor） 的使用体验和技巧](https://mp.weixin.qq.com/s/3PNaEom76jQ8bdxNtYWkkA)
 - [SGLang MLA 实现解析](https://mp.weixin.qq.com/s/wRIjy_HHAH_CeEhkZ_BvNg)
 - [详解vLLM和SGLang awq dequantize kernel的魔法](https://mp.weixin.qq.com/s/X9AOH1HGXJ3t0jZ5_hd7Ew)
+- [SGLang 支持Flash Attention V3 Backend](https://mp.weixin.qq.com/s/FjFi1ORhAyJITTJNA9G3wA)
+- [分享一个DeepSeek V3和R1中 Shared Experts和普通Experts融合的一个小技巧](https://mp.weixin.qq.com/s/Bz3qdkldULZiZ8ypooOX-A)
 
 </details>
 
@@ -446,6 +448,17 @@ cuda 相关的 paper 的阅读。
 - [CUTLASS CUTE MMA](https://zhuanlan.zhihu.com/p/688884665)
 - [了解FlashAttentionV3的优化需要先了解Hopper的主要技术（Hopper White Paper概述）](https://zhuanlan.zhihu.com/p/708416319)
 - [从Hopper架构到HGEMM](https://zhuanlan.zhihu.com/p/30427909948)
+- [基于CUTLASS CuTe分析cp.async的Prefetch行为](https://zhuanlan.zhihu.com/p/32486160866)
+- [为什么加pad可以解bank conflict？](https://zhuanlan.zhihu.com/p/603016056)
+- [cute swizzle](https://zhuanlan.zhihu.com/p/706796240)
+- [CUTLASS CuTe GEMM细节分析（三）——Swizzle<B, M, S>模板参数的取值](https://zhuanlan.zhihu.com/p/713713957)
+- [OpenAI Triton: Why layout is important](https://zhuanlan.zhihu.com/p/672720213)
+- [Triton到SASS（5.5）：TMA/Multicast/Warp Specialize踩坑记](https://zhuanlan.zhihu.com/p/15027115038)
+- [Tile-lang 简介](https://zhuanlan.zhihu.com/p/31180917197)
+- [CUTLASS：基于CUTE的矩阵乘法优化](https://zhuanlan.zhihu.com/p/31273798568)
+- [Marlin W4A16&W4A8代码走读](https://zhuanlan.zhihu.com/p/707470647)
+- [CUTLASS 3: CuTe Layout Algebra](https://zhuanlan.zhihu.com/p/22300321859)
+
 
 </details>
 
@@ -485,8 +498,8 @@ cuda 相关的 paper 的阅读。
 - [DeepSeek V3/R1 推理效率分析（3）：Decode 配置泛化讨论](https://zhuanlan.zhihu.com/p/29540042383)
 - [如何估算不同规格的芯片 EP 部署 Deepseek 的单卡吞吐 V1.0](https://zhuanlan.zhihu.com/p/30471846931)
 - [深度解析FlashMLA: 一文读懂大模型加速新利器](https://zhuanlan.zhihu.com/p/27976368445)
+- [Flash MLA 笔记](https://zhuanlan.zhihu.com/p/30423929220)
 - [MoE Inference On AnyScale](https://zhuanlan.zhihu.com/p/28680264165)
-- [[AI Infra] VeRL 框架入门&代码带读](https://zhuanlan.zhihu.com/p/27676081245)
 - [大模型分布式通信技术博客汇总](https://zhuanlan.zhihu.com/p/30451575581)
 - [sglang 源码学习笔记（一）- Cache、Req与Scheduler](https://zhuanlan.zhihu.com/p/17186885141)
 - [DualPipe 深入浅出：没有分布式训练基础也能看懂的 DualPipe 全方位讲解](https://zhuanlan.zhihu.com/p/27045651854)
@@ -494,10 +507,14 @@ cuda 相关的 paper 的阅读。
 - [DeepSeek MLA的序列并行和张量并行](https://zhuanlan.zhihu.com/p/25573883266)
 - [SGLang: Triton算子extend_attention/Prefix优化](https://zhuanlan.zhihu.com/p/22996351654)
 - [DeepSeek-V3 (671B) 模型参数量分解计算](https://zhuanlan.zhihu.com/p/21455638257)
+- [DeepSeek关键技术再总结](https://zhuanlan.zhihu.com/p/30971034460)
 - [PP->VPP->ZeroBubblePP->deepseekv3 dualPipe，对PP bubble的极致压缩](https://zhuanlan.zhihu.com/p/26559590326)
 - [双流并行(DualPipe) 没有双流会更好](https://zhuanlan.zhihu.com/p/26915547331)
 - [deepseek 训练 profile data 基础分析](https://zhuanlan.zhihu.com/p/26717172494)
 - [Deepseek FlashMLA解析](https://zhuanlan.zhihu.com/p/26262350225)
+- [理解DeepGEMM源码和实现逻辑](https://zhuanlan.zhihu.com/p/32383172703)
+- [DeepEP Dispatch/Combine 图示](https://zhuanlan.zhihu.com/p/29273768638)
+- [MoE并行负载均衡：EPLB的深度解析与可视化](https://zhuanlan.zhihu.com/p/29963005584)
 - [给 Megatron 的长文本训练抓了一个 Bug](https://zhuanlan.zhihu.com/p/26109356836)
 - [对DualPipe的一些想法](https://zhuanlan.zhihu.com/p/21525151726)
 - [SGLang: Triton算子prefill_attention](https://zhuanlan.zhihu.com/p/19989050229)
@@ -519,6 +536,14 @@ cuda 相关的 paper 的阅读。
 - [从零开始设计SGLang的KV Cache](https://zhuanlan.zhihu.com/p/31160183506)
 - [LLM(33)：MoE 的算法理论与 EP 的工程化问题](https://zhuanlan.zhihu.com/p/28558622452)
 - [Megatron中的MoE TokenDispatcher机制](https://zhuanlan.zhihu.com/p/30092100811)
+- [KTransformers v0.2.4: 多并发支持（上万行代码的诚意更新），Xeon6+MRDIMM 加持下单机单卡环境下四并发超过 40 tokens/s](https://zhuanlan.zhihu.com/p/1890755315215095344)
+- [从零开始的verl框架解析](https://zhuanlan.zhihu.com/p/30876678559)
+- [[AI Infra] VeRL 框架入门&代码带读](https://zhuanlan.zhihu.com/p/27676081245)
+- [【AI Infra】【RLHF框架】一、VeRL中基于Ray的执行流程源码解析](https://zhuanlan.zhihu.com/p/29997527557)
+- [【AI Infra】【RLHF框架】二、VeRL中colocate实现源码解析](https://zhuanlan.zhihu.com/p/31595392436)
+- [【AI Infra】【RLHF框架】三、VeRL中的Rollout实现源码解析](https://zhuanlan.zhihu.com/p/1888310042580743730)
+- [SGLang-veRL Server：从 Engine 到 Server，我们需要更灵活的 RLHF rollout 接口](https://zhuanlan.zhihu.com/p/1890631652486665464)
+- [vLLM V1 源码阅读](https://zhuanlan.zhihu.com/p/32045324831)
 
 </details>
 
