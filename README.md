@@ -544,6 +544,7 @@ cuda 相关的 paper 的阅读。
 - [【AI Infra】【RLHF框架】三、VeRL中的Rollout实现源码解析](https://zhuanlan.zhihu.com/p/1888310042580743730)
 - [SGLang-veRL Server：从 Engine 到 Server，我们需要更灵活的 RLHF rollout 接口](https://zhuanlan.zhihu.com/p/1890631652486665464)
 - [vLLM V1 源码阅读](https://zhuanlan.zhihu.com/p/32045324831)
+- [veRL框架初探](https://im9jhce8va.feishu.cn/docx/HQ1Hd8OcKoekhFxgkgJcnW66n8f?from=from_copylink)
 
 </details>
 
