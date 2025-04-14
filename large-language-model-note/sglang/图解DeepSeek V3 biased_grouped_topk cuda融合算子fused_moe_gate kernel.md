@@ -2,6 +2,8 @@
 
 今天介绍一个在SGLang中针对DeepSeek V3模型中的 https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/moe/topk.py#L99-L149 部分的 `biased_grouped_topk` 函数的优化。这个函数用于DeepSeek V3/R1模型中的MOE层，用于计算每个token的专家选择概率。相比于Mixtral，Qwen2等MoE模型的topk实现，DeepSeek V3引入了grouped_topk的机制，让每个token只能选择固定数量的专家组，然后每个专家组内再选择topk个专家。下面死这个函数的注释：
 
+
+```python3
 # 输入张量维度说明：
 # hidden_states: [num_token, ...]  # 具体其他维度取决于模型架构
 # gating_output: [num_token, num_experts]  # num_experts必须能被num_expert_group整除
@@ -17,7 +19,6 @@
 # - topk <= num_experts
 # - num_experts % num_expert_group == 0
 
-```python
 def biased_grouped_topk_impl(
     hidden_states: torch.Tensor,      # 输入的隐藏状态张量
     gating_output: torch.Tensor,      # 门控网络的输出，用于计算专家选择概率
@@ -79,17 +80,21 @@ def biased_grouped_topk_impl(
 
     # 返回归一化后的权重和选中的专家ID
     return topk_weights.to(torch.float32), topk_ids.to(torch.int32)
+
+
 ```
 
-无论是vLLM还是SGLang都是通过torch.compile来对这个函数进行优化，使用torch.compile的明显劣势就是启动服务的时间大大延长了，并且torch.compile优化后的性能相比于手动用CUDA实现还是有一定的差距。本篇博客将介绍一下 SGLang 中针对这个函数的CUDA kernel fuse实现，PR为：https://github.com/sgl-project/sglang/pull/4530 。
+无论是vLLM还是SGLang都是通过torch.compile来对这个函数进行优化，使用torch.compile的明显劣势就是启动服务的时间大大延长了，并且torch.compile优化后的性能相比于手动用CUDA实现还是有一定的差距，因为涉及到topk和gather这种复杂的算子，并不能对这个算子做完全的fuse 。本篇博客将介绍一下 SGLang 中针对这个函数的CUDA kernel fuse实现，PR为：https://github.com/sgl-project/sglang/pull/4530 。
 
 # 0x1. 单算子性能
 
 ![](https://files.mdnice.com/user/59/cf3c122e-9436-4718-8f1c-2af7d148f90e.png)
 
-这里的`seq_length`就是上面的`num_tokens`，假设`bs=1`。从这里的结果来看，在不同的token数下，CUDA kernel fuse后的性能相比于`torch.compile`的版本都有数量级的领先。下面来走读一下实现。
+这里的`seq_length`就是上面的`num_tokens`，假设`bs=1`。从这里的结果来看，在不同的token数下，CUDA kernel fuse后的性能相比于`torch.compile`的版本都有数量级的领先。接下来看一下实现。
 
 # 0x2. moe_fused_gate kernel 走读
+
+代码链接：https://github.com/sgl-project/sglang/blob/main/sgl-kernel/csrc/moe/moe_fused_gate.cu
 
 ## 0x2.1 Host端代码和线程模型
 
@@ -290,7 +295,7 @@ Block结构(dim3(32,6)):
 - ROWS_PER_WARP = 32/8 = 4：每个warp处理4行数据
 - ROWS_PER_CTA = 6 * 4 = 24：每个block处理24行数据
 
-## 0x2.2 不同的 kernel 版本
+## 0x2.2 dispatch 的2种 kernel 接口
 
 ```c++
 //------------------------------------------------------------------------------
