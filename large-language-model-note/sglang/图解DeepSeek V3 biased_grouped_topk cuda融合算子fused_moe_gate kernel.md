@@ -1,6 +1,6 @@
 # 0x0. 前言
 
-今天介绍一个在SGLang中针对DeepSeek V3模型中的 https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/moe/topk.py#L99-L149 部分的 `biased_grouped_topk` 函数的优化。这个函数用于DeepSeek V3/R1模型中的MOE层，用于计算每个token的专家选择概率。相比于Mixtral，Qwen2等MoE模型的topk实现，DeepSeek V3引入了grouped_topk的机制，让每个token只能选择固定数量的专家组，然后每个专家组内再选择topk个专家。下面死这个函数的注释：
+今天介绍一个在SGLang中针对DeepSeek V3模型中的 https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/moe/topk.py#L99-L149 部分的 `biased_grouped_topk` 函数的kernel优化，在DeepSeek V3端到端测试中吞吐提升5%以上。这个函数用于DeepSeek V3/R1模型中的MOE层，用于计算每个token的专家选择概率。相比于Mixtral，Qwen2等MoE模型的topk实现，DeepSeek V3引入了grouped_topk的机制，让每个token只能选择固定数量的专家组，然后每个专家组内再选择topk个专家。下面是这个函数的注释：
 
 
 ```python3
@@ -86,11 +86,57 @@ def biased_grouped_topk_impl(
 
 无论是vLLM还是SGLang都是通过torch.compile来对这个函数进行优化，使用torch.compile的明显劣势就是启动服务的时间大大延长了，并且torch.compile优化后的性能相比于手动用CUDA实现还是有一定的差距，因为涉及到topk和gather这种复杂的算子，并不能对这个算子做完全的fuse 。本篇博客将介绍一下 SGLang 中针对这个函数的CUDA kernel fuse实现，PR为：https://github.com/sgl-project/sglang/pull/4530 。
 
-# 0x1. 单算子性能
+# 0x1. 性能测试
+
+## kernel PR的测试 (https://github.com/sgl-project/sglang/pull/4530)
 
 ![](https://files.mdnice.com/user/59/cf3c122e-9436-4718-8f1c-2af7d148f90e.png)
 
-这里的`seq_length`就是上面的`num_tokens`，假设`bs=1`。从这里的结果来看，在不同的token数下，CUDA kernel fuse后的性能相比于`torch.compile`的版本都有数量级的领先。接下来看一下实现。
+这里的`seq_length`就是上面的`num_tokens`，假设`bs=1`。从这里的结果来看，在不同的token数下，CUDA kernel fuse后的性能相比于`torch.compile`的版本都有数量级的领先。
+
+下面的测试来自：https://github.com/sgl-project/sglang/pull/5371
+
+## torch profile
+
+```shell
+python3 -m sglang.bench_serving --backend sglang --num-prompts 2 --request-rate 1 --port 30001 --flush-cache --warmup-requests 1 --profile
+```
+
+### 主分支
+
+![](https://files.mdnice.com/user/59/48768a1d-4d88-46af-9959-e61358300e10.png)
+
+### 替换moe_fused_gate kernel后的分支
+
+![](https://files.mdnice.com/user/59/39a3952b-e905-4f1f-bad2-c7a452549bc3.png)
+
+
+现在只有一个kernel了。
+
+36us->8us.
+
+## 替换moe_fused_gate kernel后的DeepSeek V3模型H200端到端测试
+
+
+```shell
+SGL_ENABLE_JIT_DEEPGEMM=0 python3 -m sglang.launch_server --model /DeepSeek-V3 --tp 8 --trust-remote-code --port 30001
+python3 -m sglang.bench_serving --backend sglang --num-prompts 300 --request-rate 1 --port 30001 --flush-cache --warmup-requests 20
+```
+
+|qps|Input token throughput (tok/s)|Output token throughput (tok/s)|Total token throughput (tok/s)|
+|---|---|---|---|
+|4(main)| 719.99| 456.44| 1176.43|
+|4(pr)  | 763.11| 483.77| 1246.88|
+|8(main)| 840.96| 533.13| 1374.09|
+|8(pr)  | 887.35| 562.54| 1449.89|
+|16(main)| 892.55| 565.83| 1458.38|
+|16(pr)  | 964.91| 611.70| 1576.61|
+
+
+- qps=4: 5.9%+
+- qps=8: 5.5%+
+- qps=16: 8.1%+
+
 
 # 0x2. moe_fused_gate kernel 走读
 
@@ -470,7 +516,7 @@ if (thread_row >= num_rows) {
 - `thread_row` 对应Python代码中的token索引，用于访问 `hidden_states[token_idx]` 和 `gating_output[token_idx]`
 - `params.THREADS_PER_ROW` 等于 `num_expert_group`
 
-### 数据读取和类型转换
+### 数据读取和线程相关索引计算
 
 ```c++
 auto* input_ptr = reinterpret_cast<T*>(input);
@@ -494,7 +540,7 @@ int first_elt_read_by_thread = thread_group_idx * params.VPT;
 - `params.NUM_EXPERTS` 对应 `num_experts`
 - `params.VPT` 对应 `num_experts / num_expert_group`
 
-### Sigmoid激活函数
+### 对 gating_output 应用 Sigmoid
 
 ```c++
 ////////////////////// Sigmoid //////////////////////
@@ -510,7 +556,7 @@ for (int ii = 0; ii < params.VPT; ++ii) {
 scores = gating_output.sigmoid()
 ```
 
-### 添加偏置
+### 添加 correction_bias
 
 ```c++
 ////////////////////// Add Bias //////////////////////
