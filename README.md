@@ -134,7 +134,7 @@ cutlass 相关的学习笔记。
 
 cuda 相关的 paper 的阅读。
 
-### 20. 原创学习笔记
+### 20. 公众号学习笔记
 
 <details>
 <summary>点击展开/收起 BBuf 的 CUDA 学习笔记列表</summary>
@@ -232,6 +232,16 @@ cuda 相关的 paper 的阅读。
 - [详解vLLM和SGLang awq dequantize kernel的魔法](https://mp.weixin.qq.com/s/X9AOH1HGXJ3t0jZ5_hd7Ew)
 - [SGLang 支持Flash Attention V3 Backend](https://mp.weixin.qq.com/s/FjFi1ORhAyJITTJNA9G3wA)
 - [分享一个DeepSeek V3和R1中 Shared Experts和普通Experts融合的一个小技巧](https://mp.weixin.qq.com/s/Bz3qdkldULZiZ8ypooOX-A)
+- [CUDA优化 让向量求和变得非常快](https://mp.weixin.qq.com/s/RklG6tmJnzPbIWxVBKDgLg)
+- [DeepSeek-V3 + SGLang: 推理优化 (v0.4.3.post2+sgl-kernel:0.0.3.post6)](https://mp.weixin.qq.com/s/6wqfNgqtenlVKbp4riz5-w)
+- [图解DeepSeek V3 biased_grouped_topk cuda融合算子fused_moe_gate kernel](https://mp.weixin.qq.com/s/p6LlY4sUBTy-Xfc9WumNSw)
+- [一起聊聊Nvidia Hopper 新特性之TMA](https://mp.weixin.qq.com/s/LQ4A3U9A_fuP_AT6d7-OBw)
+- [一起聊聊Nvidia Hopper新特性之WGMMA](https://mp.weixin.qq.com/s/ysvE4PBiKkljwFfBQAN1Jw)
+- [一起聊聊Nvidia Hopper新特性之Pipeline](https://mp.weixin.qq.com/s/9K_MWQy-Yg6blk9xQ0fLQg)
+- [一起聊聊Nvidia Hopper新特性之计算切分](https://mp.weixin.qq.com/s/zMC_FCHWKGszYI6J3ube0A)
+- [【博客翻译】CUDA中的索引](https://mp.weixin.qq.com/s/Z0pMzG5XXxNX1-_81-B0WQ)
+- [图解Vllm V1系列1：整体流程](https://mp.weixin.qq.com/s/suRRucoKpFIfPSTUVW8BAQ)
+- [在 SGLang 中实现 Flash Attention 后端 - 基础和 KV 缓存](https://mp.weixin.qq.com/s/693f008zNo7olXeSogy-sg)
 
 </details>
 
