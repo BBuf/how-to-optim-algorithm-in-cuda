@@ -1,0 +1,32 @@
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+Language: Cpp
+Standard: c++17
+
+ColumnLimit: 80
+
+TabWidth: 4
+UseTab: Never
+
+IndentWidth: 4
+AllowShortBlocksOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: All
+AllowAllArgumentsOnNextLine: true
+AlignAfterOpenBracket: true
+
+AccessModifierOffset: -4
+AllowAllConstructorInitializersOnNextLine: true
+BreakConstructorInitializers: AfterColon
+
+BinPackArguments: false
+BinPackParameters: false
+ReflowComments: true
+
+SeparateDefinitionBlocks: Always
+
+IncludeCategories:
+  - Regex: "^<.*>$"
+    Priority: 1
+  - Regex: '^".*"$'
+    Priority: 2
