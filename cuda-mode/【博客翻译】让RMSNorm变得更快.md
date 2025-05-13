@@ -6,9 +6,9 @@
 
 RMS Norm是一个在现代LLMs中常用的操作。给定一个向量$v$，它的RMS Norm计算方式为$v_i = \frac{v_i}{RMS(v)} \cdot w_i$，其中$w_i$是权重，且$RMS(v) = \sqrt{\epsilon + \frac{1}{N}\sum_{i=1,...,N}v_i^2}$。在这篇博文中，我们要计算矩阵$V = [v_1,...,v_{numToken}]$中每一行的RMS Norm，其中$v_i = [x_1,...,x_{hiddenDim}]$，给定权重$w = [w_1,...,w_{hiddenDim}]$。
 
-## Sequential solution
+## 顺序实现
 
-It's important to check the correctness of our kernels with a basic sequential implementation. See below for the simple version we use.
+检查我们的kernel的正确性需要一个基本的顺序实现作为参考。下面是我们使用的简单版本。
 
 ```c++
 template <int numTokens, int hiddenDim>
