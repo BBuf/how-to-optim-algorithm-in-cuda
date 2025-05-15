@@ -1,14 +1,16 @@
+> 这篇笔记可能还有动态更新，笔记会放在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/large-language-model-note/sglang 这个目录下，感兴趣的小伙伴可以给这个仓库点个🌟🌟。
+
 # 0x0. 前言
 
-SGLang 目前在单机H200上推理DeepSeek V3/R1是跑得最快的大模型开源推理框架，不过性能快慢其实也不是特别好说，因为各个框架都一直处于你追我赶的快速优化中。我这里从开源技术分享的角度来盘点一下SGLang对单机规模推理的大量工程优化技巧，这里涉及的技巧其实也是我在参与SGLang开发中随时记录下的，自己也贡献了一部分，所以会比较详细一些。
+根据相关Benchmark 信息 SGLang 目前在单机H200上推理 DeepSeek V3/R1 应该是跑得最快的大模型开源推理框架，不过性能好坏其实也不是特别好说，因为各个框架都一直处于你追我赶的快速优化，随着时间随意领先幅度可能会缩小。我这里从开源技术分享的角度来盘点一下SGLang对单机规模推理的大量工程优化技巧，这里涉及的技巧其实也是我在参与SGLang开发中随时记录下的，自己也贡献了一部分，所以会比较详细一些。还要再说明一下，下面记录的是单机TP8不开MTP的相关优化。本文并且记录的都是在main分支上apply的优化，对于过时或者被删掉的优化技巧就忽略掉了。
 
-目前的时间是2025年5月中旬，这里主要记录的是2024年底针对 DeepSeek V3/R1 的优化，在这之前的一些优化可能更基操一些，就没有记录到，感兴趣可以参考一下SGLang之前比较老的版本的Release Blog之类的。这个时间线其实也是我参与SGLang开源的时间线，之前的我不是很熟悉就没回看了，并且在2024年底前性能也不是太强，因为有太多值得优化的地方了。下面记录的优化有大有小，但是都是为单机规模的DeepSeek V3/R1推理性能提升做了贡献的，如果对应的优化所在的PR有性能数据我也会简单截图一下。需要说明一下，性能提升截图是控制变量的方式只突出当前优化的作用，所以你可以看到下面不同的图测出来的输出吞吐差异可能比大，这个是正常的因为main分支在不断合并优化导致性能在提升，只需要关注具体优化的有效性就可以了。
+目前的时间是2025年5月中旬，这里主要记录的是2025上半年针对 DeepSeek V3/R1 的优化，在这之前的一些优化可能更基操一些，就没有记录到，感兴趣可以参考一下SGLang之前比较老的版本的Release Blog之类的。这个时间线其实也是我参与SGLang开源的时间线，之前的我不是很熟悉就没回看了，并且在2025上半年前性能也不是太强，因为有太多值得优化的地方了。下面记录的优化有大有小，但是都是为单机规模的DeepSeek V3/R1推理性能提升做了贡献的，如果对应的优化所在的PR有性能数据我也会简单截图一下。需要说明一下，性能提升截图是控制变量的方式只突出当前优化的作用，所以你可以看到下面不同的图测出来的输出吞吐差异可能比大，这个是正常的因为main分支在不断合并优化导致性能在提升，只需要关注具体优化的有效性就可以了。
 
 下面直接开始，我记录这个笔记是想到哪里记录到哪里的，并不是完全按照时间的先后顺序来。
 
 # 0x1. FP8 Block GEMM 的演进
 
-DeepSeek V3/R1 中单独的Linear对应的forward就是FP8 Block GEMM，经历了3次演讲。首先是Triton的实现，代码仍保留在这里：https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/quantization/fp8_kernel.py#L743 ，当然这里也存在对各种参数在各种平台上的调优。由于性能比较差，后续演进到使用了Cutlass的实现，具体见sgl-kernel中的：https://github.com/sgl-project/sglang/blob/main/sgl-kernel/csrc/gemm/fp8_blockwise_gemm_kernel.cu 。随后，DeepSeek的DEEPGEMM开源，SGLang更进一步使用了DEEPGEMM的实现，并且解决好了缓存JIT编译结果的问题，具体见：https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/quantization/deep_gemm.py & https://github.com/sgl-project/sglang/blob/3e350a931e990c2b09cd18bc117ba219310bcda9/python/sglang/srt/layers/quantization/fp8_kernel.py#L784 。
+DeepSeek V3/R1 中单独的Linear对应的forward就是FP8 Block GEMM，经历了3次演进。首先是Triton的实现，代码仍保留在这里：https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/quantization/fp8_kernel.py#L743 ，当然这里也存在对各种参数在各种平台上的调优。由于性能比较差，后续演进到使用了Cutlass的实现，具体见sgl-kernel中的：https://github.com/sgl-project/sglang/blob/main/sgl-kernel/csrc/gemm/fp8_blockwise_gemm_kernel.cu 。随后，DeepSeek的DEEPGEMM开源，SGLang更进一步使用了DEEPGEMM的实现，并且解决好了缓存JIT编译结果的问题，具体见：https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/quantization/deep_gemm.py & https://github.com/sgl-project/sglang/blob/3e350a931e990c2b09cd18bc117ba219310bcda9/python/sglang/srt/layers/quantization/fp8_kernel.py#L784 。
 
 现在SGLang中默认开启了DEEPGEMM，这个实现相比于sgl-kernel的cutlass实现，Triton实现基本上所有的case下都有优势，使用逻辑截图下：
 
@@ -29,6 +31,30 @@ DeepSeek V3/R1 中单独的Linear对应的forward就是FP8 Block GEMM，经历�
 代码见：https://github.com/sgl-project/sglang/blob/main/sgl-kernel/csrc/gemm/per_token_group_quant_8bit.cu & https://github.com/sgl-project/sglang/blob/main/sgl-kernel/csrc/moe/moe_align_kernel.cu 。
 
 这两个操作都是FusedMoE模块的预处理部分，kernel整体占比没有很大，都是memory bound的kernel，但是通过优化可以把单个kernel的性能都提升很多倍。具体可以见PR开发时的micro benchmark结果，例如：https://github.com/sgl-project/sglang/pull/5086 。
+
+```shell
+     num_tokens  num_experts  topk        SGL       Triton        VLLM
+160      1024.0          8.0   1.0  18.031999    52.512001   20.416001
+161      1024.0          8.0   2.0  18.432001    67.135997   27.327999
+162      1024.0          8.0   4.0  20.032000   116.640002   41.632000
+163      1024.0          8.0   8.0  21.952000   205.136001   69.760002
+164      1024.0         32.0   1.0  18.368000    55.071998   22.304000
+165      1024.0         32.0   2.0  19.040000    55.583999   29.536000
+166      1024.0         32.0   4.0  20.256000    55.264000   43.712001
+167      1024.0         32.0   8.0  23.104001    71.744002   77.408001
+168      1024.0         64.0   1.0  19.760000    56.031998   22.304000
+169      1024.0         64.0   2.0  20.368000    54.095998   26.144000
+170      1024.0         64.0   4.0  21.648001    55.103999   40.544000
+171      1024.0         64.0   8.0  24.224000    58.272000   63.904002
+172      1024.0        128.0   1.0  21.088000    56.848001   32.000002
+173      1024.0        128.0   2.0  21.984000    55.551998   35.583999
+174      1024.0        128.0   4.0  23.024000    55.808000   42.367999
+175      1024.0        128.0   8.0  24.992000    56.127999   54.111999
+176      1024.0        256.0   1.0  25.072001    52.480001   66.431999
+177      1024.0        256.0   2.0  25.264001    52.576002   67.199998
+178      1024.0        256.0   4.0  26.848000    52.416001   70.703998
+179      1024.0        256.0   8.0  29.120000    57.663999   81.055999
+```
 
 这个也是我入坑SGLang开源的头几个贡献。
 
@@ -218,4 +244,10 @@ if self.use_deep_gemm_bmm:
 
 ![](https://files.mdnice.com/user/59/ed8f1240-7882-4f27-b176-d86ec1185402.png)
 
-## 0x5.6 
+
+# 0x6. 总结
+
+我目前的记录大概就是这些，然后需要说明的是对于某一个优化并不是一个PR就能完成的，可能是一个十分长期的过程。例如一个kernel可能在几个月的时间里都有更新，再例如Flash Attention V3根据这个feature的roadmap做了长时间的优化和解决bug，都是非常不容易的工程优化。如果大家对SGLang单机H200推理DeepSeek V3/R1感兴趣的可以阅读源码获得一手信息。
+
+综合上面的各种优化，DeepSeek V3/R1在单机H200上推理的吞吐相比于年初应该被提升了几倍，如果本文对你有帮助，欢迎转发，点赞以及给SGLang点赞，谢谢支持。
+
