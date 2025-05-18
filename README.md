@@ -242,6 +242,16 @@ cuda 相关的 paper 的阅读。
 - [【博客翻译】CUDA中的索引](https://mp.weixin.qq.com/s/Z0pMzG5XXxNX1-_81-B0WQ)
 - [图解Vllm V1系列1：整体流程](https://mp.weixin.qq.com/s/suRRucoKpFIfPSTUVW8BAQ)
 - [在 SGLang 中实现 Flash Attention 后端 - 基础和 KV 缓存](https://mp.weixin.qq.com/s/693f008zNo7olXeSogy-sg)
+- [图解Vllm V1系列2：Executor-Workers架构](https://mp.weixin.qq.com/s/xSHPkUlRnfbTHeCqJmG9DQ)
+- [【博客翻译】让前缀和变得更快](https://mp.weixin.qq.com/s/aKBwPEBEsxbLXJc_CKtl-A)
+- [SGLang Team：在 96 个 H100 GPU 上部署具有 PD 分解和大规模专家并行性的 DeepSeek](https://mp.weixin.qq.com/s/31f6m1jMYHEr85s-QxiVCw)
+- [图解Vllm V1系列3：KV Cache初始化](https://mp.weixin.qq.com/s/FVsPOVBesbb8jMFJHQpbxQ)
+- [【CUDA 优化】让RMSNorm变得更快](https://mp.weixin.qq.com/s/ezx_lGMhFIfHYEXs3gwrow)
+- [在SGLang中使用reasoning模型](https://mp.weixin.qq.com/s/7Efx5Nys3HyrV6au1mx7tg)
+- [SGLang 源码学习笔记：Cache、Req与Scheduler](https://mp.weixin.qq.com/s/hQncQsXT9_luf2NAzbm1kg)
+- [单机H200最快DeepSeek V3和R1推理系统优化秘籍](https://mp.weixin.qq.com/s/ZLdu-Y8dCxA0c843416gbA)
+- [通过查看GPU Assembly分析CUDA程序](https://mp.weixin.qq.com/s/llFuPxHPqfuzZdrt2h6V1Q)
+- [sglang 源码学习笔记（二）- backend & forward 过程](https://mp.weixin.qq.com/s/YlePqFgEJDTb4SEqZhdIBQ)
 
 </details>
 
