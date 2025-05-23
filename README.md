@@ -252,6 +252,8 @@ cuda 相关的 paper 的阅读。
 - [单机H200最快DeepSeek V3和R1推理系统优化秘籍](https://mp.weixin.qq.com/s/ZLdu-Y8dCxA0c843416gbA)
 - [通过查看GPU Assembly分析CUDA程序](https://mp.weixin.qq.com/s/llFuPxHPqfuzZdrt2h6V1Q)
 - [sglang 源码学习笔记（二）- backend & forward 过程](https://mp.weixin.qq.com/s/YlePqFgEJDTb4SEqZhdIBQ)
+- [Sglang 源码学习笔记（三）- 分布式和并行（以deepseek 为例）（WIP）](https://mp.weixin.qq.com/s/nAFnk9oA3eKEcBTEcoh2VQ)
+- [【CUDA 博客】TMA简介 & 让矩阵转置在Hopper GPUs上变得更快](https://mp.weixin.qq.com/s/UVK1uO6ev0o690an1BXT8A)
 
 </details>
 
