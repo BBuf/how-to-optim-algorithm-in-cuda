@@ -14,13 +14,13 @@
   - [0x04.1 MicroBatch Overlap Decode实现](#0x041-microbatch-overlap-decode实现)
   - [0x04.2 MicroBatch Overlap Prefill实现](#0x042-microbatch-overlap-prefill实现)
 - [0x05 DeepSeek V3的MoE优化](#0x05-deepseek-v3的moe优化)
-  - [0x05.1 EP模式下Decoding阶段的Two MicroBatch Overlap实现](#0x051-ep模式下decoding阶段的two-microbatch-overlap实现)
+  - [0x05.1 Decoding阶段的Two MicroBatch Overlap实现](#0x051-decoding阶段的two-microbatch-overlap实现)
   - [0x05.2 Context/Prefill阶段的MoE重叠](#0x052-contextprefill阶段的moe重叠)
 - [0x06 分布式通信优化](#0x06-分布式通信优化)
   - [0x06.1 进程组管理](#0x061-进程组管理)
   - [0x06.2 通信重叠策略](#0x062-通信重叠策略)
 - [0x07 CUDA Graph优化](#0x07-cuda-graph优化)
-  - [0x07.1 重叠模式的CUDA Graph](#0x071-重叠模式的cuda-graph)
+  - [0x07.1 overlap模式的CUDA Graph](#0x071-overlap模式的cuda-graph)
   - [0x07.2 Graph replay 优化](#0x072-graph-replay-优化)
 - [0x08 内存管理优化](#0x08-内存管理优化)
   - [0x08.1 动态内存分配](#0x081-动态内存分配)
@@ -49,7 +49,7 @@
 
 在DeepSeek V3的多机多卡专家并行推理中，由于专家并行会引入较大的通信开销，因此采用了双batch重叠技术来掩盖通信开销，提高整体吞吐量。该技术的核心思想是将推理过程拆分为两个micro batch，通过精心设计的执行顺序实现计算和通信的重叠。
 
-对于Prefill阶段：两个batch的计算和通信交错进行，当一个batch在进行计算时可以掩盖另一个batch的通信开销。具体表现为108个流多处理器(SMs)负责计算任务，包括ATTN(注意力机制和MoE路由门控)、MLP等模块，而24个SMs专门处理通信任务，包括COMBINE(专家结果合并)和DISPATCH(专家分发)操作。两个micro batch(用橙色和绿色区分)在时间轴上交替执行，形成流水线式的重叠模式。
+对于Prefill阶段：两个batch的计算和通信交错进行，当一个batch在进行计算时可以掩盖另一个batch的通信开销。具体表现为108个流多处理器(SMs)负责计算任务，包括ATTN(注意力机制和MoE路由门控)、MLP等模块，而24个SMs专门处理通信任务，包括COMBINE(专家结果合并)和DISPATCH(专家分发)操作。两个micro batch(用橙色和绿色区分)在时间轴上交替执行，形成流水线式的overlap模式。
 
 对于Decode阶段：由于不同阶段的执行时间存在差异，系统将attention部分拆分为两个stage，总共形成5个stage的流水线来实现计算和通信的重叠。132个SMs负责计算，包括SHARED(共享专家)、ATTN-0(MLA下投影和combine all-to-all之后的其他操作)、MLP、ATTN-1(核心注意力、注意力输出投影和MoE路由门控)等模块，而通信部分包括DISPATCH和COMBINE操作。这种设计使得在一个micro batch进行计算的同时，另一个micro batch可以进行通信操作，从而有效隐藏通信延迟，显著提升推理性能。
 
@@ -687,7 +687,7 @@ class DistributeGroupManager:
 
 **关键特性**：
 - **独立通信组**：每个micro batch使用独立的通信组
-- **自定义操作**：支持自定义的gather和reduce操作
+- **自定义操作**：支持自定义的gather和reduce操作 (这个我不确定用到没)
 - **组索引管理**：通过索引快速获取对应的通信组
 
 ### 0x06.2 通信重叠策略
@@ -702,9 +702,11 @@ if enable_decode_overlap or args.enable_prefill_microbatch_overlap:
 dist_group_manager.create_groups(group_size=group_size)
 ```
 
+这里和DeepSeek Blog中看起来不一样，这里是每个Micro Batch的dispatch和Combine都在一个单独的通信组里。
+
 ## 0x07 CUDA Graph优化
 
-### 0x07.1 重叠模式的CUDA Graph
+### 0x07.1 overlap模式的CUDA Graph
 
 ```python
 def warmup_overlap(self, model):
