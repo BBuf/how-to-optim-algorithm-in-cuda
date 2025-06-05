@@ -124,78 +124,169 @@ fL1(3) = 4, fL2(3) = 4
 
 当然我们也可以通过手动计算来验证这个简单的例子。通过观察上面的例子,我们可以看到 $L_1$ 是行主序,而 $L_2$ 是列主序。
 
-## 合并
+## 补操作
 
-合并是一种操作,它:
+### 可接受性（Admissability）
+设 $L$ 是一个布局（layout），$K$ 是正整数。$(L,K)$ 是可接受的，当且仅当满足以下条件：
+$M_{i-1}d_{i-1}$ 整除 $d_i$
+$M_n d_n$ 整除 $K$
 
-- 保持布局的大小不变
-- 保持相关的布局函数不变
+### 补操作（Complement）
+如果 $(L,K)$ 是可接受的，我们定义补操作如下：
+$$\text{complement}(L,K) = \left(d_0, \frac{d_1}{M_0d_0}, \ldots, \frac{d_n}{M_{n-1}d_{n-1}}, \frac{K}{M_nd_n}\right):(1, M_0d_0, \ldots, M_nd_n)$$
 
-让我们看一个简单的例子:
+### 示例推导
 
-$$L = (2,1):(3,1)$$
+给定：$L = (2,4):(1,2)$，$K = 16$
 
-通过观察上面 $\iota$ 的定义，我们可以识别出 $\iota_2$ 将始终为0，即它不会对任何值 $x$ 的布局函数产生贡献，即：
+- 左边 $(2,4)$：$M_0 = 2, M_1 = 4$
+- 右边 $(1,2)$：$d_0 = 1, d_1 = 2$
 
-$$\text{coalesce}(L) = 2:3$$
+$M_0 d_0 = 2 \times 1 = 2$ 整除 $d_1 = 2$ ✓
+$M_1 d_1 = 4 \times 2 = 8$ 整除 $K = 16$ ✓
+因此 $(L,K)$ 是可接受的。
 
-我们可以验证这个：
+根据补操作公式：
+$$\text{complement}(L,K) = \left(d_0, \frac{d_1}{M_0d_0}, \frac{K}{M_1d_1}\right):(1, M_0d_0, M_1d_1)$$
+代入正确的数值：
+$$\text{complement}(L,K) = \left(1, \frac{2}{2 \times 1}, \frac{16}{4 \times 2}\right):(1, 2 \times 1, 4 \times 2)$$
+$$= (1, 1, 2):(1, 2, 8)$$
+
+由于前面有两个1，可以合并：
+$$A = 2:8$$
+
+我们可以使用下面的代码进行计算：
 
 ```python
 import cutlass               
 import cutlass.cute as cute  
 
 @cute.jit
-def coalesce_example():
+def complement_example():
     """
-    Coalesce in cutlass
+    Complement in cutlass
     """
-    S = (2, 1)
-    D = (3, 1)
+    S = (2, 4)
+    D = (1, 2)
     L = cute.make_layout(shape=S, stride=D)
-    cL = cute.coalesce(L)
+    K = 16
+
+    cL = cute.complement(L, K)
 
     cute.printf("L = {}, cL = {}", L, cL)
 
-coalesce_example()
+complement_example()
 ```
 
-这将打印：
+给出结果和上面推导的相同：
 
 ```shell
-L = (2,1):(3,1), cL = 2:3
+L = (2,4):(1,2), cL = 2:8
 ```
 
-## 补充（Complementation）
+我们可以这样解释补操作：
 
-### 可接受性（Admissibility）
+设 $A$ 是布局及其补操作的连接。连接可以通过将所有模式组合到一个布局中来简单形成。对于上面的例子，即：
 
-设 $L$ 为一个布局，$K$ 为一个正整数。$(L,K)$ 对于补充是可接受的，当且仅当满足以下条件：
+$$A = (2,4,2):(1,2,8)$$
 
-- $M_{i-1}d_{i-1}$ 整除 $d_i$
-- $M_n d_n$ 整除 $K$
+我们可以证明这给了我们一个双射 $f_A:[0,M) \to [0,M)$。请参见本博文的命题 2.7(https://leimao.github.io/article/CuTe-Layout-Algebra/)。
 
-### 补充操作（Complement）
+我们可以使用 CuTeDSL 来验证这一点：
 
-如果 $(L,K)$ 是可接受的，我们定义补充操作如下：
+```python
+import cutlass               
+import cutlass.cute as cute  
 
-$$\text{complement}(L,K) = (d_0, \frac{d_1}{M_0 d_0}, \ldots, \frac{d_n}{M_{n-1} d_{n-1}}, \frac{K}{M_n d_n}):(1, M_0 d_0, \ldots, M_n d_n)$$
+@cute.jit
+def complement_example2():
+    """
+    Complement in cutlass
+    """
+    S = (2, 4, 2)
+    D = (1, 2, 8)
+    L = cute.make_layout(shape=S, stride=D)
 
-让我们看一个简单的例子：
+    for i in cutlass.range_constexpr(cute.size(L)):
+        cute.printf("{} -> {}", i, L(i))
+    
+complement_example2()
 
-$$L = (2,4):(1,2), K = 16$$
+```
 
-$(L,K)$ 是可接受的。
+```shell
+0 -> 0
+1 -> 1
+2 -> 2
+3 -> 3
+4 -> 4
+5 -> 5
+6 -> 6
+7 -> 7
+8 -> 8
+9 -> 9
+10 -> 10
+11 -> 11
+12 -> 12
+13 -> 13
+14 -> 14
+15 -> 15
+```
 
-我们可以计算补充：
+注意，双射不一定是恒等映射。
 
-$$\text{complement}(L,K) = (1,1,2):(1,2,8)$$
+例如，取
 
-使用与上面相同的参数，我们可以将其合并为
+$$B = 8:2$$ 且 $$K = 32$$
 
-$$A = 2:8$$
+$(B,K)$ 是可接受的，因为 $8 \times 2 = 16$ 整除 $32$。
 
-我们可以这样计算：
+$$\text{complement}(B,K) = (2,2):(1,16)$$
 
-// ... existing code ...
+连接后的布局为
+
+$$A = (8,2,2):(2,1,16)$$
+
+打印出布局函数的值将给我们一个不等于恒等映射的双射：
+
+```shell
+0 -> 0
+1 -> 2
+2 -> 4
+3 -> 6
+4 -> 8
+5 -> 10
+6 -> 12
+7 -> 14
+8 -> 1
+9 -> 3
+10 -> 5
+11 -> 7
+12 -> 9
+13 -> 11
+14 -> 13
+15 -> 15
+16 -> 16
+17 -> 18
+18 -> 20
+19 -> 22
+20 -> 24
+21 -> 26
+22 -> 28
+23 -> 30
+24 -> 17
+25 -> 19
+26 -> 21
+27 -> 23
+28 -> 25
+29 -> 27
+30 -> 29
+31 -> 31
+```
+
+## 结论
+
+我希望这篇博文能通过将数学概念与编程连接起来，为读者提供一个简单的介绍。有关概念的更深入数学解释，请参阅Lei Mao的博客(https://leimao.github.io/article/CuTe-Layout-Algebra/)和Jay Shah关于CuTe布局代数的笔记。
+
+有关CuTeDSL的更多示例，请参阅CUTLASS存储库。
 
