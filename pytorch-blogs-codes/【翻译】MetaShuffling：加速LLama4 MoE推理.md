@@ -507,9 +507,127 @@ def index_shuffling(
 
 
 
+紧接着昨天那篇PyTorch Blog的内容[MetaShuffling：Meta的Fused MoE kernel工程方案，更激进的Kernel优化和尽量避免Padding](https://mp.weixin.qq.com/s/MdztXkwIzw0ERTOVoCUz3g)，我把fbgemm开源的moe grouped gemm kernel(https://github.com/pytorch/FBGEMM/tree/main/fbgemm_gpu/experimental/gen_ai)拷贝了一下，在H100(Hopper)和SGLang的Grouped GEMM Triton Kernel对比了一下正确性和性能，在正确性没问题的情况下，性能可以提升挺多的。细节放在这里了：https://github.com/sgl-project/sglang/pull/6924 。结论就是fbgemm可以在MoE模型上相比于SGLang的grouped gemm实现较大的性能提升，这个kernel可以在fp16/bf16和fp8 per-tensor quant的情况下直接应用到sglang的ep-moe的grouped gemm kernel中提升性能。不过TP模式下的Triton Fused MoE不是最直接的Grouped GEMM，需要有小伙伴按照这个Triton优化的技巧去改kernel才可以。
+
+## FBGEMM GroupedGEMM 基准测试结果
+
+当使用 triton==3.2.0 运行基准测试时,会出现以下警告:我们无法使用 warp专用化, 但持久化kernel和 TMA load/store 仍然可用。
+
+```shell
+/home/ubuntu/bbuf/sglang/benchmark/kernels/fbgemm/fbgemm_grouped_gemm.py:1104: UserWarning: Warp specialization is disabled as the Triton build in current environment doesn't have such support. Please build from https://github.com/facebookexperimental/triton/tree/ws-3.2.x to enable it for best performance on Nvidia's SM90 GPUs.
+```
+
+
+### Qwen2-57B-A14B-Instruct BF16 W8A8 TP4
+
+```shell
+python3 benchmark/kernels/fbgemm/benchmark_fbgemm_grouped_gemm.py --model Qwen/Qwen2-57B-A14B-Instruct --tp-size 4
+
+grouped-gemm-performance:
+    batch_size  FBGEMM Grouped GEMM BF16  SGLang Grouped GEMM BF16
+0          1.0                  0.032352                  0.022272
+1          2.0                  0.032096                  0.022080
+2          4.0                  0.032640                  0.021984
+3          8.0                  0.031840                  0.021472
+4         16.0                  0.030832                  0.021536
+5         32.0                  0.032192                  0.021632
+6         64.0                  0.393504                  0.595008
+7        128.0                  0.393872                  0.598048
+8        256.0                  0.394848                  0.589760
+9        512.0                  0.397488                  0.605888
+10      1024.0                  0.401248                  0.581952
+11      2048.0                  0.407232                  0.559232
+12      4096.0                  0.416368                  0.717936
+```
+
+
+![](https://files.mdnice.com/user/59/b47939d5-516e-47e7-884f-7d16a661d0f7.png)
 
 
 
+### Qwen2-57B-A14B-Instruct FP8 W8A8 TP4
+
+```
+python3 benchmark/kernels/fbgemm/benchmark_fbgemm_grouped_gemm.py --model Qwen/Qwen2-57B-A14B-Instruct --tp-size 4 --use-fp8-w8a8 
+
+    batch_size  FBGEMM Grouped GEMM FP8  SGLang Grouped GEMM FP8
+0          1.0                 0.042560                 0.022336
+1          2.0                 0.041312                 0.022128
+2          4.0                 0.040384                 0.022240
+3          8.0                 0.041184                 0.022016
+4         16.0                 0.040128                 0.022816
+5         32.0                 0.014272                 0.021440
+6         64.0                 0.212832                 0.595040
+7        128.0                 0.211328                 0.598688
+8        256.0                 0.211776                 0.590992
+9        512.0                 0.213504                 0.606304
+10      1024.0                 0.216864                 0.582624
+11      2048.0                 0.220512                 0.558128
+12      4096.0                 0.227296                 0.718848
+```
+
+
+![](https://files.mdnice.com/user/59/2e795cf6-ed2f-4ae5-958d-beb403739891.png)
+
+
+
+### meta-llama/Llama-4-Scout-17B-16E-Instruct FP16 TP8
+
+```shell
+python3 benchmark/kernels/fbgemm/benchmark_fbgemm_grouped_gemm.py --model meta-llama/Llama-4-Scout-17B-16E-Instruct --tp-size 8 
+
+grouped-gemm-performance:
+    batch_size  FBGEMM Grouped GEMM BF16  SGLang Grouped GEMM BF16
+0          1.0                  0.034592                  0.022816
+1          2.0                  0.033440                  0.022016
+2          4.0                  0.033984                  0.022400
+3          8.0                  0.324592                  0.532960
+4         16.0                  0.321024                  0.516960
+5         32.0                  0.322736                  0.695840
+6         64.0                  0.321184                  0.607008
+7        128.0                  0.321264                  0.475136
+8        256.0                  0.321984                  0.419232
+9        512.0                  0.325728                  0.363392
+10      1024.0                  0.339616                  0.693824
+11      2048.0                  0.396928                  1.383792
+12      4096.0                  0.732640                  2.761792
+```
+
+
+![](https://files.mdnice.com/user/59/623d8f6e-2769-4b44-984a-0b95eb863d64.png)
+
+
+### meta-llama/Llama-4-Scout-17B-16E-Instruct FP8 TP8
+
+```shell
+python3 benchmark/kernels/fbgemm/benchmark_fbgemm_grouped_gemm.py --model meta-llama/Llama-4-Scout-17B-16E-Instruct --tp-size 8 --use-fp8-w8a8
+
+grouped-gemm-performance:
+    batch_size  FBGEMM Grouped GEMM FP8  SGLang Grouped GEMM FP8
+0          1.0                 0.042336                 0.020592
+1          2.0                 0.006464                 0.013536
+2          4.0                 0.006464                 0.014112
+3          8.0                 0.171712                 0.531744
+4         16.0                 0.170944                 0.518208
+5         32.0                 0.170432                 0.693952
+6         64.0                 0.172704                 0.608352
+7        128.0                 0.173248                 0.475200
+8        256.0                 0.175040                 0.420544
+9        512.0                 0.178400                 0.367200
+10      1024.0                 0.196736                 0.697968
+11      2048.0                 0.230688                 1.385600
+12      4096.0                 0.383872                 2.766432
+```
+
+
+![](https://files.mdnice.com/user/59/7304821d-fe5d-411e-a479-c1ea28b42fa7.png)
+
+
+结论是FBGEMM相比SGLang的分组GEMM实现在MoE模型上可以实现显著的性能提升。这个kernel可以直接应用到SGLang的EP-MoE分组GEMM kernel中,以提升fp16/bf16和per-tensor量化fp8条件下的性能。
+
+## 局限性
+
+当前的局限性在于如果不编译Meta特定的Triton版本,warp专用kernel似乎无法使用。此外,这个kernel目前仅支持fp16/bf16和per-tensor量化的fp8w8a8 - 要与DeepSeek兼容还需要进一步修改。
 
 
 
