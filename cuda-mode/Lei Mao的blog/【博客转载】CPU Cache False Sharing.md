@@ -99,45 +99,57 @@ CPU缓存遵循几个规则。了解这些规则将帮助我们写出更好的�
 #include <thread>
 #include <vector>
 
+// 通用矩阵类模板，用于演示CPU缓存行为
 template <typename T>
 class Matrix
 {
 public:
+    // 构造函数：创建m行n列的矩阵，数据在内存中连续存储
     Matrix(size_t m, size_t n) : m_num_rows{m}, m_num_cols{n}, m_data(m * n){};
+    
+    // 重载()操作符，支持mat(i,j)访问方式
     T& operator()(size_t i, size_t j) noexcept
     {
-        return m_data[i * m_num_cols + j];
+        return m_data[i * m_num_cols + j];  // 行优先存储：row*cols + col
     }
     T operator()(size_t i, size_t j) const noexcept
     {
         return m_data[i * m_num_cols + j];
     }
-    // Enable mat[i][j]
+    
+    // 重载[]操作符，支持mat[i][j]访问方式
     T* operator[](size_t i) noexcept { return &m_data[i * m_num_cols]; }
     T const* operator[](size_t i) const noexcept
     {
         return &m_data[i * m_num_cols];
     }
+    
+    // 获取矩阵维度
     size_t get_num_rows() const noexcept { return m_num_rows; };
     size_t get_num_cols() const noexcept { return m_num_cols; };
+    
+    // 获取底层数据指针，用于直接内存访问
     T* data() noexcept { return m_data.data(); }
     T const* data() const noexcept { return m_data.data(); }
 
 private:
     size_t m_num_rows;
     size_t m_num_cols;
-    std::vector<T> m_data;
+    std::vector<T> m_data;  // 数据在内存中连续存储，这对缓存友好性很重要
 };
 
+// 性能测量函数模板：测量函数执行时间
 template <class T>
 float measure_performance(std::function<T(void)> bound_function,
                           int num_repeats = 100, int num_warmups = 100)
 {
+    // 预热阶段：让CPU缓存预热，避免首次运行的开销影响测量结果
     for (int i{0}; i < num_warmups; ++i)
     {
         bound_function();
     }
 
+    // 正式测量阶段
     std::chrono::steady_clock::time_point time_start{
         std::chrono::steady_clock::now()};
     for (int i{0}; i < num_repeats; ++i)
@@ -147,6 +159,7 @@ float measure_performance(std::function<T(void)> bound_function,
     std::chrono::steady_clock::time_point time_end{
         std::chrono::steady_clock::now()};
 
+    // 计算平均延迟
     auto const time_elapsed{
         std::chrono::duration_cast<std::chrono::milliseconds>(time_end -
                                                               time_start)
@@ -156,6 +169,7 @@ float measure_performance(std::function<T(void)> bound_function,
     return latency;
 }
 
+// 随机初始化矩阵：填充随机整数值
 void random_initialize_matrix(Matrix<int>& mat, unsigned int seed)
 {
     size_t const num_rows{mat.get_num_rows()};
@@ -171,11 +185,14 @@ void random_initialize_matrix(Matrix<int>& mat, unsigned int seed)
     }
 }
 
+// 行优先遍历：统计矩阵中的奇数个数
+// 这种访问模式对CPU缓存友好，因为数据在内存中是连续的
 size_t count_odd_values_row_major(Matrix<int> const& mat)
 {
     size_t num_odd_values{0};
     size_t const num_rows{mat.get_num_rows()};
     size_t const num_cols{mat.get_num_cols()};
+    // 外循环遍历行，内循环遍历列 - 访问连续内存
     for (size_t i{0}; i < num_rows; ++i)
     {
         for (size_t j{0}; j < num_cols; ++j)
@@ -189,11 +206,14 @@ size_t count_odd_values_row_major(Matrix<int> const& mat)
     return num_odd_values;
 }
 
+// 列优先遍历：统计矩阵中的奇数个数
+// 这种访问模式对CPU缓存不友好，因为跨行访问会导致缓存未命中
 size_t count_odd_values_column_major(Matrix<int> const& mat)
 {
     size_t num_odd_values{0};
     size_t const num_rows{mat.get_num_rows()};
     size_t const num_cols{mat.get_num_cols()};
+    // 外循环遍历列，内循环遍历行 - 访问非连续内存
     for (size_t j{0}; j < num_cols; ++j)
     {
         for (size_t i{0}; i < num_rows; ++i)
@@ -207,6 +227,8 @@ size_t count_odd_values_column_major(Matrix<int> const& mat)
     return num_odd_values;
 }
 
+// 多线程版本（非可扩展）：展示伪共享问题
+// 多个线程同时写入共享的results数组，导致缓存行失效
 size_t
 multi_thread_count_odd_values_row_major_non_scalable(Matrix<int> const& mat,
                                                      size_t num_threads)
@@ -218,6 +240,7 @@ multi_thread_count_odd_values_row_major_non_scalable(Matrix<int> const& mat,
     size_t const num_elements{num_rows * num_cols};
     size_t const trunk_size{(num_elements + num_threads - 1) / num_threads};
 
+    // 共享的结果数组 - 这里会发生伪共享！
     std::vector<size_t> results(num_threads, 0);
     for (size_t i{0}; i < num_threads; ++i)
     {
@@ -231,18 +254,13 @@ multi_thread_count_odd_values_row_major_non_scalable(Matrix<int> const& mat,
                 {
                     if (mat.data()[j] % 2 != 0)
                     {
-                        // False sharing
-                        // The array is shared across multiple different
-                        // threads. A consecutive piece of the array that
-                        // contains the entry will be cached in CPU for reading
-                        // in a thread. Multiple threads have multiple caches of
-                        // the same content. However, writing to the array on
-                        // main memory invalidates the all these caches that are
-                        // have the same content. The CPU would have to read
-                        // from the main memory for the updated entry and
-                        // re-cache the array. This slows down the performance
-                        // significantly.
-                        ++results[i];
+                        // 伪共享问题：
+                        // results数组被多个线程共享访问。包含该条目的连续内存块
+                        // 会被缓存到CPU中供线程读取。多个线程在多个缓存中缓存相同内容。
+                        // 但是，写入主内存中的数组会使所有具有相同内容的缓存失效。
+                        // CPU必须从主内存中读取更新的条目并重新缓存数组。
+                        // 这会显著降低性能。
+                        ++results[i];  // 每次写入都可能导致其他线程的缓存失效
                     }
                 }
             });
@@ -252,6 +270,7 @@ multi_thread_count_odd_values_row_major_non_scalable(Matrix<int> const& mat,
         workers[i].join();
     }
 
+    // 汇总所有线程的结果
     size_t num_odd_values{0};
     for (int i{0}; i < num_threads; ++i)
     {
@@ -261,6 +280,8 @@ multi_thread_count_odd_values_row_major_non_scalable(Matrix<int> const& mat,
     return num_odd_values;
 }
 
+// 多线程版本（可扩展）：解决伪共享问题
+// 使用局部变量避免频繁写入共享内存，最后一次性写入结果
 size_t multi_thread_count_odd_values_row_major_scalable(Matrix<int> const& mat,
                                                         size_t num_threads)
 {
@@ -277,7 +298,8 @@ size_t multi_thread_count_odd_values_row_major_scalable(Matrix<int> const& mat,
         workers.emplace_back(
             [&, i]()
             {
-                size_t count = 0;
+                // 关键优化：使用局部变量累积结果
+                size_t count = 0;  // 局部变量，不会引起伪共享
                 size_t const start_pos{i * trunk_size};
                 size_t const end_pos{
                     std::min((i + 1) * trunk_size, num_elements)};
@@ -285,9 +307,11 @@ size_t multi_thread_count_odd_values_row_major_scalable(Matrix<int> const& mat,
                 {
                     if (mat.data()[j] % 2 != 0)
                     {
+                        // 只修改局部变量，避免缓存失效
                         ++count;
                     }
                 }
+                // 最后一次性写入共享数组，大大减少伪共享
                 results[i] = count;
             });
     }
@@ -296,6 +320,7 @@ size_t multi_thread_count_odd_values_row_major_scalable(Matrix<int> const& mat,
         workers[i].join();
     }
 
+    // 汇总所有线程的结果
     size_t num_odd_values{0};
     for (int i{0}; i < num_threads; ++i)
     {
@@ -308,16 +333,18 @@ size_t multi_thread_count_odd_values_row_major_scalable(Matrix<int> const& mat,
 int main()
 {
     unsigned int const seed{0U};
-    int const num_repeats{100};
-    int const num_warmups{100};
+    int const num_repeats{100};    // 重复测试次数
+    int const num_warmups{100};    // 预热次数
 
-    size_t const num_threads{8};
+    size_t const num_threads{8};   // 线程数量
 
     float latency{0};
 
+    // 创建测试矩阵：1000x2000 = 200万个整数
     Matrix<int> mat(1000, 2000);
     random_initialize_matrix(mat, seed);
 
+    // 验证所有实现的正确性
     assert(count_odd_values_row_major(mat) ==
            count_odd_values_column_major(mat));
 
@@ -328,6 +355,7 @@ int main()
     assert(count_odd_values_row_major(mat) ==
            multi_thread_count_odd_values_row_major_scalable(mat, num_threads));
 
+    // 创建函数对象用于性能测试
     std::function<size_t(void)> const function_1{
         std::bind(count_odd_values_row_major, mat)};
     std::function<size_t(void)> const function_2{
@@ -338,22 +366,26 @@ int main()
     std::function<size_t(void)> const function_4{std::bind(
         multi_thread_count_odd_values_row_major_scalable, mat, num_threads)};
 
+    // 性能测试1：单线程行优先遍历（缓存友好）
     latency = measure_performance(function_1, num_repeats, num_warmups);
     std::cout << "Single-Thread Row-Major Traversal" << std::endl;
     std::cout << std::fixed << std::setprecision(3) << "Latency: " << latency
               << " ms" << std::endl;
 
+    // 性能测试2：单线程列优先遍历（缓存不友好）
     latency = measure_performance(function_2, num_repeats, num_warmups);
     std::cout << "Single-Thread Column-Major Traversal" << std::endl;
     std::cout << std::fixed << std::setprecision(3) << "Latency: " << latency
               << " ms" << std::endl;
 
+    // 性能测试3：多线程版本（有伪共享问题）
     latency = measure_performance(function_3, num_repeats, num_warmups);
     std::cout << num_threads << "-Thread Row-Major Non-Scalable Traversal"
               << std::endl;
     std::cout << std::fixed << std::setprecision(3) << "Latency: " << latency
               << " ms" << std::endl;
 
+    // 性能测试4：多线程版本（解决伪共享问题）
     latency = measure_performance(function_4, num_repeats, num_warmups);
     std::cout << num_threads << "-Thread Row-Major Scalable Traversal"
               << std::endl;
@@ -362,7 +394,9 @@ int main()
 }
 ```
 
-从延迟测量结果中我们可以看到，由于伪共享，8线程遍历的性能非常糟糕，几乎不比单线程遍历好。通过移除几乎所有的伪共享（除了最后写入输出数组），8线程遍历的性能显著提升到其理论值。
+从延迟测量结果中我们可以看到，由于伪共享，8线程遍历的性能非常糟糕，几乎不比单线
+程遍历好。通过移除几乎所有的伪共享（除了最后写入输出数组），8线程遍历的性能显著
+提升到其理论值。
 
 ```shell
 $ g++ false_sharing.cpp -o false_sharing -lpthread -std=c++14
@@ -381,11 +415,15 @@ Latency: 2.740 ms
 
 CPU缓存和GPU缓存之间有很多相似之处。
 
-例如，为了改善GPU从全局内存的内存IO，我们希望内存访问是合并的，这样缓存行中的所有条目都可以被GPU线程使用。
+例如，为了改善GPU从全局内存的内存IO，我们希望内存访问是合并的，这样缓存行中的所
+有条目都可以被GPU线程使用。
 
-此外，如果许多线程在迭代中读取和写入全局内存，GPU上也可能出现伪共享。要解决GPU上的伪共享问题，类似于CPU的解决方案，我们使用局部变量或共享内存来存储中间值，并且只在算法结束时从局部变量或共享内存向全局内存写入一次。
+此外，如果许多线程在迭代中读取和写入全局内存，GPU上也可能出现伪共享。要解决GPU
+上的伪共享问题，类似于CPU的解决方案，我们使用局部变量或共享内存来存储中间值，并
+且只在算法结束时从局部变量或共享内存向全局内存写入一次。
 
 ## 参考资料
 
-- CPU Caches and Why You Care - Scott Meyers(https://www.aristeia.com/TalkNotes/codedive-CPUCachesHandouts.pdf)
+- CPU Caches and Why You Care - Scott Meyers(https://www.aristeia.
+com/TalkNotes/codedive-CPUCachesHandouts.pdf)
 
