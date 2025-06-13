@@ -1,4 +1,4 @@
-> 博客来源：https://leimao.github.io/blog/CUDA-Shared-Memory-Bank/ ，是在 https://research.colfax-intl.com/tutorial-matrix-transpose-in-cutlass/ 博客中作者推荐的一个讲解Shared Memory Bank的优质文章。这里翻译学习一下。
+> 博客来源：https://leimao.github.io/blog/CUDA-Shared-Memory-Bank/ ，来自Lei Mao，已获得作者转载授权。
 
 # 介绍
 
