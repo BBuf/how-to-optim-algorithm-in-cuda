@@ -1,45 +1,45 @@
 > 博客来源：https://leimao.github.io/blog/CUDA-Data-Alignment/ ，来自Lei Mao，已获得作者转载授权。
 
-# CUDA Data Alignment
+# CUDA 数据对齐
 
-## Introduction
+## 简介
 
-In order to get the best performance, similar to the data alignment requirement in C++(https://leimao.github.io/blog/CPP-Data-Alignment/), CUDA also requires data alignment.
+为了获得最佳性能，与C++中的数据对齐要求类似(https://leimao.github.io/blog/CPP-Data-Alignment/)，CUDA也需要数据对齐。
 
-In this blog post, I would like to quickly discuss the data alignment requirement in CUDA.
+在这篇博客文章中，我将快速讨论CUDA中的数据对齐要求。
 
-## Coalesced Access to Global Memory
+## 全局内存的合并访问
 
-Global memory resides in device memory and device memory is accessed via 32-, 64-, or 128-byte memory transactions. These memory transactions must be naturally aligned: Only the 32-, 64-, or 128-byte segments of device memory that are aligned to their size (i.e., whose first address is a multiple of their size) can be read or written by memory transactions.
+全局内存驻留在设备内存中，设备内存通过32、64或128字节的内存事务进行访问。这些内存事务必须自然对齐：只有对齐到其大小的32、64或128字节的设备内存段（即，其首地址是其大小的倍数）才能被内存事务读取或写入。
 
-When a warp executes an instruction that accesses global memory, it coalesces the memory accesses of the threads within the warp into one or more of these memory transactions depending on the size of the word accessed by each thread and the distribution of the memory addresses across the threads. In general, the more transactions are necessary, the more unused words are transferred in addition to the words accessed by the threads, reducing the instruction throughput accordingly.
+当一个线程束执行访问全局内存的指令时，它会根据每个线程访问的字大小和内存地址在线程间的分布，将线程束内线程的内存访问合并为一个或多个内存事务。一般来说，需要的事务越多，除了线程访问的字之外传输的未使用字就越多，相应地降低了指令吞吐量。
 
-For devices of compute capability 6.0 or higher, the requirements can be summarized quite easily: the concurrent accesses of the threads of a warp will coalesce into a number of transactions equal to the number of 32-byte transactions necessary to service all of the threads of the warp.
+对于计算能力6.0或更高的设备，要求可以很容易地总结：线程束中线程的并发访问将合并为多个事务，事务数量等于服务线程束中所有线程所需的32字节事务数量。
 
-Any address of a variable residing in global memory or returned by one of the memory allocation routines from the driver or runtime API, such as `cudaMalloc` or `cudaMallocPitch`, is always aligned to at least 256 bytes.
+驻留在全局内存中的变量地址或驱动程序或运行时API的内存分配例程（如`cudaMalloc`或`cudaMallocPitch`）返回的任何地址始终至少对齐到256字节。
 
-## Example
+## 示例
 
-For example, if the each of the thread in a warp that consists of 32 threads wants to read a 4-byte data, and if the 4-byte data from all the threads in the warp (128-byte data) are adjacent to each other and 32-byte aligned, i.e., the the address of the first 4-byte data is a multiple of 32, the memory access is coalesced and GPU will make $\frac{4x32}{32}=4$ 32-byte memory transactions. Maximum memory transaction throughput is achieved because GPU made the fewest transactions possible.
+例如，如果由32个线程组成的线程束中的每个线程都想读取4字节数据，并且如果线程束中所有线程的4字节数据（128字节数据）彼此相邻且32字节对齐，即第一个4字节数据的地址是32的倍数，那么内存访问是合并的，GPU将进行$\frac{4\times 32}{32}=4$次32字节内存事务。由于GPU进行了尽可能少的事务，实现了最大内存事务吞吐量。
 
-If the 128-byte data is not 32-byte aligned on the memory, say it is 4-byte aligned instead, one additional 32-byte memory transactions will have to be made, and therefore the memory access throughput becomes $\frac{4}{5}=80%$ of the maximum theoretical throughput (speed of light).
+如果128字节数据在内存上不是32字节对齐的，比如说是4字节对齐的，那么将必须进行一次额外的32字节内存事务，因此内存访问吞吐量变为最大理论吞吐量的$\frac{4}{5}=80%$。（跨了5个数据段）
 
-Furthermore, if the 4-byte data from all the threads are not adjacent to each other and are scattered sparsely on the memory, it is possible that at most 32 32-byte memory transactions will have to be made, and the throughput becomes only $\frac{4}{32}=12.5%$ of the maximum theoretical throughput.
+此外，如果所有线程的4字节数据彼此不相邻并且在内存上稀疏分散，那么可能需要进行最多32次32字节内存事务，吞吐量仅为最大理论吞吐量的$\frac{4}{32}=12.5%$。
 
-## Size and Alignment Requirement
+## 大小和对齐要求
 
-Global memory instructions support reading or writing words of size equal to 1, 2, 4, 8, or 16 bytes. Any access (via a variable or a pointer) to data residing in global memory compiles to a single global memory instruction if and only if the size of the data type is 1, 2, 4, 8, or 16 bytes and the data is naturally aligned (i.e., its address is a multiple of that size).
+全局内存指令支持读取或写入大小等于1、2、4、8或16字节的字。只有当数据类型的大小为1、2、4、8或16字节且数据自然对齐（即，其地址是该大小的倍数）时，对驻留在全局内存中的数据的任何访问（通过变量或指针）才会编译为单个全局内存指令。
 
-If this size and alignment requirement is not fulfilled, the access compiles to multiple instructions with interleaved access patterns that prevent these instructions from fully coalescing. It is therefore recommended to use types that meet this requirement for data that resides in global memory.
+如果不满足此大小和对齐要求，访问将编译为多个具有交错访问模式的指令，这些指令阻止这些指令完全合并。因此，建议对驻留在全局内存中的数据使用满足此要求的类型。
 
-Reading non-naturally aligned 8-byte or 16-byte words produces incorrect results (off by a few words), so special care must be taken to maintain alignment of the starting address of any value or array of values of these types.
+读取非自然对齐的8字节或16字节字会产生错误结果（偏差几个字），因此必须特别注意维护这些类型的任何值或值数组的起始地址的对齐。
 
-Therefore, working with word of size equal to 1, 2, 4, 8, or 16 bytes is sometimes straightforward because as mentioned above the starting memory address returned by the memory allocation CUDA APIs is always aligned to at least 256 bytes, which is already 1, 2, 4, 8, or 16 byte-aligned. So we could safely save the word sequence, such as a numerical array, matrix, or tensor, into the allocated memory without having to worry about the reading of the words of 8-byte or 16-byte size produces incorrect results. To achieve the best memory access throughput, special attention is paid to the kernel implementation so that the coalesced memory access is also naturally aligned.
+因此，使用大小等于1、2、4、8或16字节的字有时很简单，因为如上所述，内存分配CUDA API返回的起始内存地址始终至少对齐到256字节，这已经是1、2、4、8或16字节对齐的。所以我们可以安全地将字序列（如数值数组、矩阵或张量）保存到分配的内存中，而不必担心读取8字节或16字节大小的字会产生错误结果。为了实现最佳的内存访问吞吐量，在kernel实现上需要特别注意，以便合并的内存访问也是自然对齐的。
 
-But, what if the word size is not 1, 2, 4, 8, or 16 bytes? The starting memory address returned by the memory allocation CUDA APIs will not guarantee that it is naturally aligned, and therefore the memory access throughput would be compromised significantly. There are usually two ways to handle this.
+但是，如果字大小不是1、2、4、8或16字节怎么办？内存分配CUDA API返回的起始内存地址将不保证它是自然对齐的，因此内存访问吞吐量将显著受损。通常有两种方法来处理这个问题。
 
-- Use the Built-in Vector Types(https://docs.nvidia.com/cuda/archive/11.7.0/cuda-c-programming-guide/index.html#built-in-vector-types) whose alignment requirements is already specified and fulfilled.
-- Similar to the compiler specifier `alignas` used for enforcing the structure data alignment in GCC, the compiler specifier `__align__` is used for enforcing the structure data alignment in NVCC.
+- 使用内置向量类型(https://docs.nvidia.com/cuda/archive/11.7.0/cuda-c-programming-guide/index.html#built-in-vector-types)，其对齐要求已经指定并满足。
+- 类似于GCC中用于强制结构数据对齐的编译器指定符`alignas`，在NVCC中使用编译器指定符`__align__`来强制结构数据对齐。
 
 ```c++
 struct __align__(4) int8_3_4_t
@@ -57,18 +57,16 @@ struct __align__(16) float3_16_t
 };
 ```
 
-## Conclusions
+## 结论
 
-Always making the word size equal to 1, 2, 4, 8, or 16 bytes and the data naturally aligned.
+始终使字大小等于1、2、4、8或16字节，并使数据自然对齐。
 
-Reading words and producing incorrect results rarely happen if the memory allocated is only used for a sequence of words of the same type, because the starting memory address returned by the memory allocation CUDA APIs is always aligned to at least 256 bytes. However, if one single piece of large memory is allocated for multiple sequences of words of different types with or without paddings, special care must be taken to maintain alignment of the starting address of any word or word sequence as it may produce incorrect result (for non-naturally aligned 8-byte or 16-byte words).
+如果分配的内存仅用于相同类型字的序列，读取字并产生错误结果的情况很少发生，因为内存分配CUDA API返回的起始内存地址始终至少对齐到256字节。但是，如果为不同类型的多个字序列分配一大块内存（带有或不带有填充），必须特别注意维护任何字或字序列的起始地址的对齐，因为它可能产生错误结果（对于非自然对齐的8字节或16字节字）。
 
-## References
+## 参考文献
 
 - C++ Data Alignment(https://leimao.github.io/blog/CPP-Data-Alignment/)
 - CUDA Device Memory Access(https://docs.nvidia.com/cuda/archive/11.7.0/cuda-c-programming-guide/index.html#device-memory-accesses)
 - Coalesced Access to Global Memory(https://docs.nvidia.com/cuda/archive/11.7.0/cuda-c-best-practices-guide/index.html#coalesced-access-to-global-memory)
-
-
 
 
