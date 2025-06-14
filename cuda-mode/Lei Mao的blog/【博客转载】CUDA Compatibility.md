@@ -1,4 +1,4 @@
-> 博客来源：https://leimao.github.io/blog/CUDA-Compatibility// ，来自Lei Mao，已获得作者转载授权。
+> 博客来源：https://leimao.github.io/blog/CUDA-Compatibility/ ，来自Lei Mao，已获得作者转载授权。
 
 # CUDA 兼容性
 
