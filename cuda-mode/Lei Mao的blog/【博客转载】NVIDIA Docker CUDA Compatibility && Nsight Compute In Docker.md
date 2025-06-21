@@ -445,6 +445,7 @@ $ ncu-ui
 
 从 Nsight Compute 分析详情中，我们可以看到 kernel的第一个版本 `gemm_non_coalesced` 花费了 9.85 毫秒，而 kernel的第二个版本 `gemm_coalesced` 花费了 1.20 毫秒。尽管这两个 kernel都没有得到很好的优化，但 Nsight Compute 发现了两个 kernel的很多问题。具体来说， kernel `gemm_non_coalesced` 非常受内存限制，Nsight Compute 告诉我们"This kernel has non-coalesced global accesses resulting in a total of 941339104 excessive sectors (85% of the total 1109395408 sectors)"。例如，对于 kernel `gemm_non_coalesced`，L1/TEX 缓存统计显示全局加载每个请求需要 16.51 个扇区（为了计算一个乘积，warp 中的每个线程从不同的扇区加载，一个 warp 每个请求从矩阵 A 的缓冲区加载 32 × 1 个扇区，warp 中的每个线程从相同的扇区加载，一个 warp 每个请求从矩阵 B 的缓冲区加载 1 个扇区，平均 $\frac{32 \times 1 + 1}{2} = 16.5$），全局存储每个请求需要 32 个扇区（$\frac{32 \times 1}{1} = 32$），而对于修复了全局内存合并访问问题的 kernel `gemm_coalesced`，全局加载每个请求需要 2.5 个扇区（为了计算一个乘积，warp 中每 32/4 个线程从相同的扇区加载，一个 warp 每个请求从矩阵 A 的缓冲区加载 32 × 4/32 个扇区，warp 中的每个线程从相同的扇区加载，一个 warp 每个请求从矩阵 B 的缓冲区加载 1 个扇区，平均 $\frac{32 \times 4/32 + 1}{2} = 2.5$），全局存储每个请求需要 4 个扇区（$\frac{32 \times 4/32}{1} = 4$）。一个扇区的大小是 32 字节。
 
+> 扇区（Sector）是GPU全局内存访问的基本单位，每个扇区的大小是32字节。当GPU从全局内存中读取或写入数据时，即使只需要4字节的数据，GPU也必须读取/写入整个32字节的扇区。
 
 ## GitHub
 
