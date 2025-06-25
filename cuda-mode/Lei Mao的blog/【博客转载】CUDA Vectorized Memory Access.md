@@ -22,7 +22,7 @@
 #include <vector>
 
 #include <cuda_runtime.h>
-
+// CUDA错误检查宏，用于检查CUDA API调用的返回值
 #define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
 void check(cudaError_t err, const char* const func, const char* const file,
            const int line)
@@ -36,6 +36,7 @@ void check(cudaError_t err, const char* const func, const char* const file,
     }
 }
 
+// 检查最后一个CUDA错误的宏
 #define CHECK_LAST_CUDA_ERROR() check_last(__FILE__, __LINE__)
 void check_last(const char* const file, const int line)
 {
@@ -49,11 +50,12 @@ void check_last(const char* const file, const int line)
     }
 }
 
+// 字符串居中对齐函数，用于格式化输出
 std::string std_string_centered(std::string const& s, size_t width,
                                 char pad = ' ')
 {
     size_t const l{s.length()};
-    // Throw an exception if width is too small.
+    // 如果宽度太小则抛出异常
     if (width < l)
     {
         throw std::runtime_error("Width is too small.");
@@ -65,6 +67,7 @@ std::string std_string_centered(std::string const& s, size_t width,
     return s_centered;
 }
 
+// 性能测量函数模板，用于测量CUDA函数的执行时间
 template <class T>
 float measure_performance(std::function<T(cudaStream_t)> const& bound_function,
                           cudaStream_t stream, unsigned int num_repeats = 100,
@@ -73,9 +76,11 @@ float measure_performance(std::function<T(cudaStream_t)> const& bound_function,
     cudaEvent_t start, stop;
     float time;
 
+    // 创建CUDA事件用于计时
     CHECK_CUDA_ERROR(cudaEventCreate(&start));
     CHECK_CUDA_ERROR(cudaEventCreate(&stop));
 
+    // 预热运行，避免首次运行的开销影响测量结果
     for (unsigned int i{0U}; i < num_warmups; ++i)
     {
         bound_function(stream);
@@ -83,6 +88,7 @@ float measure_performance(std::function<T(cudaStream_t)> const& bound_function,
 
     CHECK_CUDA_ERROR(cudaStreamSynchronize(stream));
 
+    // 开始计时并执行多次重复测量
     CHECK_CUDA_ERROR(cudaEventRecord(start, stream));
     for (unsigned int i{0U}; i < num_repeats; ++i)
     {
@@ -95,16 +101,21 @@ float measure_performance(std::function<T(cudaStream_t)> const& bound_function,
     CHECK_CUDA_ERROR(cudaEventDestroy(start));
     CHECK_CUDA_ERROR(cudaEventDestroy(stop));
 
+    // 计算平均延迟
     float const latency{time / num_repeats};
 
     return latency;
 }
 
+// 基础的自定义设备内存拷贝核函数
+// 每个线程处理一个数据元素
 template <typename T>
 __global__ void custom_device_memcpy(T* __restrict__ output,
                                      T const* __restrict__ input, size_t n)
 {
+    // 计算当前线程的全局索引
     size_t const idx{blockDim.x * blockIdx.x + threadIdx.x};
+    // 计算网格步长，用于处理大于线程总数的数据
     size_t const stride{blockDim.x * gridDim.x};
     for (size_t i{idx}; i < n; i += stride)
     {
@@ -112,11 +123,13 @@ __global__ void custom_device_memcpy(T* __restrict__ output,
     }
 }
 
+// 启动基础自定义设备内存拷贝的包装函数
 template <typename T>
 void launch_custom_device_memcpy(T* output, T const* input, size_t n,
                                  cudaStream_t stream)
 {
     dim3 const threads_per_block{1024};
+    // 计算所需的块数，确保不超过无符号整数的最大值
     dim3 const blocks_per_grid{static_cast<unsigned int>(std::min(
         (n + threads_per_block.x - 1U) / threads_per_block.x,
         static_cast<size_t>(std::numeric_limits<unsigned int>::max())))};
@@ -125,24 +138,28 @@ void launch_custom_device_memcpy(T* output, T const* input, size_t n,
     CHECK_LAST_CUDA_ERROR();
 }
 
+// 使用共享内存作为中间缓冲区的自定义设备内存拷贝核函数
 template <typename T, unsigned int BLOCK_DIM_X>
 __global__ void custom_device_memcpy_shared_memory(T* __restrict__ output,
                                                    T const* __restrict__ input,
                                                    size_t n)
 {
-    // Using shared memory as intermediate buffer.
+    // 使用共享内存作为中间缓冲区
     __shared__ T shared_memory[BLOCK_DIM_X];
     size_t const idx{blockDim.x * blockIdx.x + threadIdx.x};
     size_t const stride{blockDim.x * gridDim.x};
     for (size_t i{idx}; i < n; i += stride)
     {
+        // 先将数据从全局内存读取到共享内存
         shared_memory[threadIdx.x] = input[i];
-        // Synchronization is not necessary in this case.
+        // 在这种情况下不需要同步，因为每个线程只访问自己的共享内存位置
         // __syncthreads();
+        // 再从共享内存写入到输出的全局内存
         output[i] = shared_memory[threadIdx.x];
     }
 }
 
+// 启动使用共享内存的自定义设备内存拷贝的包装函数
 template <typename T>
 void launch_custom_device_memcpy_shared_memory(T* output, T const* input,
                                                size_t n, cudaStream_t stream)
@@ -156,9 +173,9 @@ void launch_custom_device_memcpy_shared_memory(T* output, T const* input,
     CHECK_LAST_CUDA_ERROR();
 }
 
-// One thread copies sizeof(R) bytes of data.
-// One warp copies 32 x sizeof(R) bytes of data via one of few memory
-// transactions.
+// 优化的自定义设备内存拷贝核函数，使用向量化内存访问
+// 一个线程拷贝sizeof(R)字节的数据
+// 一个warp通过少数几个内存事务拷贝32 x sizeof(R)字节的数据
 template <typename T, typename R = uint64_t>
 __global__ void custom_device_memcpy_optimized(T* __restrict__ output,
                                                T const* __restrict__ input,
@@ -166,16 +183,19 @@ __global__ void custom_device_memcpy_optimized(T* __restrict__ output,
 {
     size_t const idx{blockDim.x * blockIdx.x + threadIdx.x};
     size_t const stride{blockDim.x * gridDim.x};
+    // 按照R类型的大小进行向量化访问
     for (size_t i{idx}; i * sizeof(R) / sizeof(T) < n; i += stride)
     {
+        // 检查是否可以完整地拷贝一个R大小的数据块
         if ((i + 1U) * sizeof(R) / sizeof(T) < n)
         {
+            // 使用向量化内存访问，一次拷贝sizeof(R)字节
             reinterpret_cast<R*>(output)[i] =
                 reinterpret_cast<R const*>(input)[i];
         }
         else
         {
-            // Remaining units to copy.
+            // 处理剩余的不足一个R大小的数据
             size_t const start_index{i * sizeof(R) / sizeof(T)};
             size_t const remaining_units_to_copy{(n - start_index)};
             for (size_t j{0}; j < remaining_units_to_copy; ++j)
@@ -186,11 +206,13 @@ __global__ void custom_device_memcpy_optimized(T* __restrict__ output,
     }
 }
 
+// 启动优化的自定义设备内存拷贝的包装函数
 template <typename T, typename R = uint64_t>
 void launch_custom_device_memcpy_optimized(T* output, T const* input, size_t n,
                                            cudaStream_t stream)
 {
     dim3 const threads_per_block{1024};
+    // 计算需要拷贝的R类型单元数量（向上取整）
     size_t const num_units_to_copy_round_up{(n * sizeof(T) + sizeof(R) - 1U) /
                                             sizeof(R)};
     dim3 const blocks_per_grid{static_cast<unsigned int>(std::min(
@@ -202,6 +224,7 @@ void launch_custom_device_memcpy_optimized(T* output, T const* input, size_t n,
     CHECK_LAST_CUDA_ERROR();
 }
 
+// 使用CUDA官方内存拷贝函数的包装函数
 template <typename T>
 void launch_official_device_memcpy(T* output, T const* input, size_t n,
                                    cudaStream_t stream)
@@ -210,7 +233,7 @@ void launch_official_device_memcpy(T* output, T const* input, size_t n,
                                      cudaMemcpyDeviceToDevice, stream));
 }
 
-// Initialize the buffer so that the unit of the data is the index of the data.
+// 初始化缓冲区，使数据单元的值等于其索引
 template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
 void initialize_buffer(T* buffer, size_t n)
 {
@@ -221,6 +244,7 @@ void initialize_buffer(T* buffer, size_t n)
     }
 }
 
+// 验证缓冲区数据的正确性
 template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
 void verify_buffer(T* buffer, size_t n)
 {
@@ -235,8 +259,8 @@ void verify_buffer(T* buffer, size_t n)
     }
 }
 
-// Measure custom device memcpy performance given the number of units to copy,
-// the device memcpy function to use, and the number of repeats and warmups.
+// 测量自定义设备内存拷贝性能的函数
+// 给定要拷贝的单元数量、使用的设备内存拷贝函数以及重复和预热次数
 template <typename T>
 float measure_custom_device_memcpy_performance(
     size_t n,
@@ -247,35 +271,41 @@ float measure_custom_device_memcpy_performance(
     cudaStream_t stream;
     CHECK_CUDA_ERROR(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
 
+    // 准备主机端的输入和输出缓冲区
     std::vector<T> input(n);
     std::vector<T> output(n, static_cast<T>(0));
     initialize_buffer(input.data(), n);
 
+    // 分配设备端内存
     T* d_input;
     T* d_output;
 
     CHECK_CUDA_ERROR(cudaMalloc(&d_input, n * sizeof(T)));
     CHECK_CUDA_ERROR(cudaMalloc(&d_output, n * sizeof(T)));
 
+    // 将数据从主机拷贝到设备
     CHECK_CUDA_ERROR(cudaMemcpyAsync(d_input, input.data(), n * sizeof(T),
                                      cudaMemcpyHostToDevice, stream));
     CHECK_CUDA_ERROR(cudaMemcpyAsync(d_output, output.data(), n * sizeof(T),
                                      cudaMemcpyHostToDevice, stream));
-    // Run device memcpy once to check correcness.
+    // 运行一次设备内存拷贝以检查正确性
     device_memcpy_function(d_output, d_input, n, stream);
     CHECK_CUDA_ERROR(cudaMemcpyAsync(output.data(), d_output, n * sizeof(T),
                                      cudaMemcpyDeviceToHost, stream));
     CHECK_CUDA_ERROR(cudaStreamSynchronize(stream));
 
-    // Verify the correctness of the device memcpy.
+    // 验证设备内存拷贝的正确性
     verify_buffer(output.data(), n);
 
+    // 计算数据大小和性能指标
     size_t const num_bytes{n * sizeof(T)};
     float const num_giga_bytes{static_cast<float>(num_bytes) / (1 << 30)};
 
+    // 创建绑定函数用于性能测量
     std::function<void(cudaStream_t)> function{std::bind(
         device_memcpy_function, d_output, d_input, n, std::placeholders::_1)};
 
+    // 测量延迟并计算带宽
     float const latency{
         measure_performance(function, stream, num_repeats, num_warmups)};
     std::cout << std::fixed << std::setprecision(3) << "Latency: " << latency
@@ -284,12 +314,13 @@ float measure_custom_device_memcpy_performance(
               << 2.f * num_giga_bytes / (latency / 1000) << " GB/s"
               << std::endl;
 
+    // 清理设备内存
     CHECK_CUDA_ERROR(cudaFree(d_input));
     CHECK_CUDA_ERROR(cudaFree(d_output));
 
     CHECK_CUDA_ERROR(cudaStreamDestroy(stream));
 
-    // Query deive name and peak memory bandwidth.
+    // 查询设备名称和峰值内存带宽
     int device_id{0};
     cudaGetDevice(&device_id);
     cudaDeviceProp device_prop;
