@@ -1,26 +1,26 @@
 > 博客来源：https://leimao.github.io/article/CUDA-Matrix-Multiplication-Optimization/ ，来自Lei Mao，已获得作者转载授权。后续会转载一些Lei Mao的CUDA相关Blog，也是一个完整的专栏，Blog会从稍早一些的CUDA架构到当前最新的CUDA架构，也会包含实用工程技巧，底层指令分析，Cutlass分析等等多个课题，是一个时间线十分明确的专栏。
 
-# CUDA Matrix Multiplication Optimization
+# CUDA 矩阵乘法优化
 
-## Introduction
+## 介绍
 
-General matrix multiplication (GEMM) is a fundamental operation in linear algebra. It is also a very important operation in many scientific computing applications, such as machine learning and deep learning.
+通用矩阵乘法（GEMM）是线性代数中的基本运算。它也是许多科学计算应用中非常重要的运算，如机器学习和深度学习。
 
-In this article, we will discuss how to optimize the performance of FP32 GEMM on NVIDIA GPUs using CUDA and how to extend the FP32 GEMM optimizations to FP16 GEMM using NVIDIA Tensor Cores.
+在本文中，我们将讨论如何使用 CUDA 优化 NVIDIA GPU 上 FP32 GEMM 的性能，以及如何使用 NVIDIA Tensor Core 将 FP32 GEMM 优化扩展到 FP16 GEMM。
 
-## General Matrix Multiplication
+## 通用矩阵乘法
 
-GEMM operation computes $D = AB + C$, where $D \in \mathbb{R}^{m \times n}$, $A \in \mathbb{R}^{m \times k}$, $B \in \mathbb{R}^{k \times n}$, $C \in \mathbb{R}^{m \times n}$. In computer programs, usually $A$ and $B$ are constant input matrices and $C$ will be overwritten by the output matrix $D$.
+GEMM 运算计算 $D = AB + C$，其中 $D \in \mathbb{R}^{m \times n}$，$A \in \mathbb{R}^{m \times k}$，$B \in \mathbb{R}^{k \times n}$，$C \in \mathbb{R}^{m \times n}$。在计算机程序中，通常 $A$ 和 $B$ 是常量输入矩阵，$C$ 将被输出矩阵 $D$ 覆盖。
 
-In our implementations, we assume all the matrices, $A$, $B$, $C$ and $D$, are stored in the row-major order on memory with the leading dimension padded to 64 bytes for FP32 matrices and 32 bytes for FP16 matrices.
+在我们的实现中，我们假设所有矩阵 $A$、$B$、$C$ 和 $D$ 都以行主序存储在内存中，对于 FP32 矩阵，主维度填充为 64 字节，对于 FP16 矩阵，主维度填充为 32 字节。
 
-## Naive Implementation with Non-Coalesced Memory Access
+## 具有非合并内存访问的朴素实现
 
-The naive implementation is to use 2D blocks, where each thread is responsible for computing one element of the output matrix. Concretely, for each thread with global thread index $(t_m, t_n)$, where $t_m \in [1, m]$ and $t_n \in [1, n]$, it computes
+朴素实现是使用 2D 块，其中每个线程负责计算输出矩阵的一个元素。具体来说，对于全局线程索引为 $(t_m, t_n)$ 的每个线程，其中 $t_m \in [1, m]$ 和 $t_n \in [1, n]$，它计算
 
 $$D_{t_m,t_n} = \sum_{t_k=1}^{k} A_{t_m,t_k} B_{t_k,t_n} + C_{t_m,t_n}.$$
 
-The following code snippet shows the naive implementation.
+以下代码片段显示了朴素实现。
 
 ```c++
 template <typename T>
@@ -62,16 +62,15 @@ void launch_gemm_kernel_v00(size_t m, size_t n, size_t k, T const* alpha,
     CHECK_LAST_CUDA_ERROR();
 }
 ```
+然而，除了朴素算法的其他缺点之外，这个实现还有一个主要问题，即读取和写入全局内存时的非合并内存访问。在我们的实现中，由于疏忽使用快速线程索引来索引矩阵 $A$ 和 $C$ 的行，同一 warp 中的线程从以行主序存储在内存中的矩阵 $A$ 的同一列读取元素，由于读取完全不连续，导致非合并内存访问。当 warp 覆写矩阵 $C$ 的元素时也会发生同样的问题。同一 warp 中的线程读取矩阵 $B$ 的同一元素，导致广播内存访问，这不受疏忽的影响。
 
-In addition to other drawbacks from the naive algorithm, however, there is a major problem with this implementation, which is the non-coalesced memory access for both reading and writing the global memory. In our implementation specifically, because of the oversight that the fast thread index is used for indexing the row of $A$ and $C$, the threads in the same warp read the elements from the same column of $A$ that is stored in row-major order on memory, resulting in a non-coalesced memory access as the reads are completely non-consecutive. The same problem also happens when the warp overwrites the elements of $C$. The threads in the same warp read the same element of $B$, resulting in a broadcast memory access which is not affected by the oversight.
+这个 FP32 GEMM 实现的性能在 NVIDIA GeForce RTX 3090 GPU 上仅为 0.27 TFLOPS，性能非常差。
 
-The performance of this FP32 GEMM implementation is only 0.27 TFLOPS on an NVIDIA GeForce RTX 3090 GPU, which is very poor.
+## 具有合并内存访问的朴素实现
 
-## Naive Implementation with Coalesced Memory Access
+解决非合并内存访问的方法是使用快速线程索引来索引以行主序存储在内存中的矩阵的行，这样同一 warp 中的线程读取或覆写矩阵同一行的元素时是合并的。在我们的实现中，我们只需要在内核函数中交换快速线程索引和慢速线程索引。
 
-The fix to the non-coalesced memory access is to use the fast thread index for indexing the row of matrices that are stored in row-major order on memory instead so that the threads in the same warp read or overwrite the elements from the same row of the matrices are coalesced. In our implementation, we just need to swap the fast thread index and the slow thread index in the kernel function.
-
-The following code snippet shows the naive implementation with coalesced memory access.
+以下代码片段显示了具有合并内存访问的朴素实现。
 
 ```c++
 template <typename T>
@@ -113,18 +112,17 @@ void launch_gemm_kernel_v01(size_t m, size_t n, size_t k, T const* alpha,
     CHECK_LAST_CUDA_ERROR();
 }
 ```
+现在，由于这个修复，同一warp中的线程从以行主序存储在内存中的矩阵$B$的同一行读取元素，导致合并内存访问。当warp覆写矩阵$C$的元素时也会发生同样的情况。同一warp中的线程读取矩阵$A$的同一元素，导致广播内存访问。因此，这个实现应该比非合并内存访问的实现性能好得多。
 
-Now, because of the fix, the threads in the same warp read the elements from the same row of $B$ that is stored in row-major order on memory, resulting in a coalesced memory access. The same thing also happens when the warp overwrites the elements of $C$. The threads in the same warp read the same element of $A$, resulting in a broadcast memory access. Therefore, this implementation should perform much better than the one with non-coalesced memory access.
+这个FP32 GEMM实现的性能在NVIDIA GeForce RTX 3090 GPU上变成了1.72 TFLOPS，比之前的实现好得多。然而，考虑到GPU的理论峰值性能是35.58 TFLOPS，这个实现的性能仍然很差。
 
-The performance of this FP32 GEMM implementation becomes 1.72 TFLOPS on an NVIDIA GeForce RTX 3090 GPU, which is much better than the previous implementation. However, considering the theoretical peak performance of the GPU is 35.58 TFLOPS, the performance of this implementation is still very poor.
+## 具有2D块分块的实现
 
-## Implementation with 2D Block Tiling
+由于前面的实现频繁访问全局内存，GEMM实现变成了内存受限的。由于访问共享内存比访问全局内存快得多，为了提高性能，我们可以使用共享内存来缓存输入矩阵$A$和$B$以实现数据重用。
 
-Because the previous implementation accesses the global memory frequently, the GEMM implementation becomes memory-bound. Because accessing the shared memory is much faster than accessing the global memory, to improve the performance, we can use the shared memory to cache the input matrices $A$ and $B$ for data reuse.
+然而，由于共享内存大小有限，我们无法在共享内存中缓存整个输入矩阵$A$和$B$。相反，我们可以在共享内存中缓存$A$和$B$的2D分块，并使用2D分块来计算输出矩阵$D$的2D分块。然后，我们可以将$A$和$B$的下一个2D分块加载到共享内存中，并计算$D$的下一个2D分块。
 
-However, because the shared memory size is limited, we cannot cache the entire input matrices $A$ and $B$ in the shared memory. Instead, we can cache a 2D tile of $A$ and $B$ in the shared memory and use the 2D tile to compute a 2D tile of the output matrix $D$. Then, we can load the next 2D tile of $A$ and $B$ to the shared memory and compute the next 2D tile of $D$.
-
-Mathematically, given a GEMM operation $D = AB + C$, where $D \in \mathbb{R}^{m \times n}$, $A \in \mathbb{R}^{m \times k}$, $B \in \mathbb{R}^{k \times n}$, $C \in \mathbb{R}^{m \times n}$, the matrices could be divided into smaller matrices.
+数学上，给定一个GEMM运算$D = AB + C$，其中$D \in \mathbb{R}^{m \times n}$，$A \in \mathbb{R}^{m \times k}$，$B \in \mathbb{R}^{k \times n}$，$C \in \mathbb{R}^{m \times n}$，矩阵可以被分成更小的矩阵。
 
 $$A = \begin{bmatrix}
 A_{1,1}^{d_m \times d_{bk}} & A_{1,2}^{d_m \times d_{bk}} & \cdots & A_{1,k/d_{bk}}^{d_m \times d_{bk}} \\
@@ -154,13 +152,12 @@ D_{2,1}^{d_m \times d_n} & D_{2,2}^{d_m \times d_n} & \cdots & D_{2,n/d_n}^{d_m 
 D_{m/d_m,1}^{d_m \times d_n} & D_{m/d_m,2}^{d_m \times d_n} & \cdots & D_{m/d_m,n/d_n}^{d_m \times d_n}
 \end{bmatrix}$$
 
-Each small matrix in $D$ is computed as multiple small matrix multiplications and accumulations.
+每个$D$中的小矩阵都是通过多个小矩阵乘法和累加计算的。
 
 $$D_{b_m,b_n}^{d_m \times d_n} = \sum_{b_k=1}^{k/d_{bk}} A_{b_m,b_k}^{d_m \times d_{bk}} B_{b_k,b_n}^{d_{bk} \times d_n} + C_{b_m,b_n}^{d_m \times d_n}$$
+在这个实现中，每个具有块索引$(b_m, b_n)$的2D块，其中$b_m \in [1, m/d_{bm}]$和$b_n \in [1, n/d_{bn}]$，负责计算一个小矩阵$D_{b_m,b_n}^{d_m \times d_n}$。共享内存用于缓存大小分别为$d_{bm} \times d_{bk}$和$d_{bk} \times d_{bn}$的$A$和$B$的2D分块。$A$的2D分块由$(b_m, b_k)$索引，其中$b_m \in [1, m/d_{bm}]$和$b_k \in [1, k/d_{bk}]$。$B$的2D分块由$(b_k, b_n)$索引，其中$b_k \in [1, k/d_{bk}]$和$b_n \in [1, n/d_{bn}]$。缓存和小矩阵乘法计算过程重复$k/d_{bk}$次，直到整个小矩阵$D_{b_m,b_n}^{d_m \times d_n}$被累加完成。
 
-In this implementation, each 2D block with block index $(b_m, b_n)$, where $b_m \in [1, m/d_{bm}]$ and $b_n \in [1, n/d_{bn}]$, is responsible for computing one small matrix $D_{b_m,b_n}^{d_m \times d_n}$. The shared memory is used to cache a 2D tile of $A$ and $B$ with size $d_{bm} \times d_{bk}$ and $d_{bk} \times d_{bn}$, respectively. The 2D tile of $A$ is indexed by $(b_m, b_k)$, where $b_m \in [1, m/d_{bm}]$ and $b_k \in [1, k/d_{bk}]$. The 2D tile of $B$ is indexed by $(b_k, b_n)$, where $b_k \in [1, k/d_{bk}]$ and $b_n \in [1, n/d_{bn}]$. The cache and small matrix multiplication compute process is repeated for $k/d_{bk}$ times until the entire small matrix $D_{b_m,b_n}^{d_m \times d_n}$ is accumulated.
-
-Similar to the previous implementations, each block requires $d_{bm} \times d_{bn}$ threads to compute the small matrix $D_{b_m,b_n}^{d_m \times d_n}$ and each thread with block thread index $(t_m, t_n)$, where $t_m \in [1, d_{bm}]$ and $t_n \in [1, d_{bn}]$, is responsible for computing one element of the small matrix.
+与之前的实现类似，每个块需要$d_{bm} \times d_{bn}$个线程来计算小矩阵$D_{b_m,b_n}^{d_m \times d_n}$，每个具有块线程索引$(t_m, t_n)$的线程，其中$t_m \in [1, d_{bm}]$和$t_n \in [1, d_{bn}]$，负责计算小矩阵的一个元素。
 
 $$\left(D_{b_m,b_n}^{d_m \times d_n}\right)_{t_m,t_n} = \left(\sum_{b_k=1}^{k/d_{bk}} A_{b_m,b_k}^{d_m \times d_{bk}} B_{b_k,b_n}^{d_{bk} \times d_n} + C_{b_m,b_n}^{d_m \times d_n}\right)_{t_m,t_n}$$
 
@@ -168,7 +165,7 @@ $$= \sum_{b_k=1}^{k/d_{bk}} \left(A_{b_m,b_k}^{d_m \times d_{bk}} B_{b_k,b_n}^{d
 
 $$= \sum_{b_k=1}^{k/d_{bk}} \left(\sum_{t_k=1}^{d_{bk}} \left(A_{b_m,b_k}^{d_m \times d_{bk}}\right)_{t_m,t_k} \left(B_{b_k,b_n}^{d_{bk} \times d_n}\right)_{t_k,t_n}\right) + \left(C_{b_m,b_n}^{d_m \times d_n}\right)_{t_m,t_n}$$
 
-The following code snippet shows the implementation with 2D block tiling.
+下面的代码片段展示了使用2D块分块的实现。
 
 ```c++
 template <typename T, size_t BLOCK_TILE_SIZE_X, size_t BLOCK_TILE_SIZE_Y,
@@ -182,7 +179,7 @@ __device__ void load_data_to_shared_memory(T const* A, size_t lda,
                                            size_t m, size_t n,
                                            size_t k)
 {
-    // Load data from A on DRAM to A_thread_block_tile on shared memory.
+    // 将DRAM中的矩阵A数据加载到共享内存中的A_thread_block_tile
 #pragma unroll
     for (size_t load_idx{0U};
          load_idx <
@@ -190,28 +187,28 @@ __device__ void load_data_to_shared_memory(T const* A, size_t lda,
              NUM_THREADS;
          ++load_idx)
     {
+        // 计算在共享内存分块中的行列索引
         size_t const A_thread_block_tile_row_idx{
             (thread_linear_idx + load_idx * NUM_THREADS) /
             BLOCK_TILE_SIZE_K};
         size_t const A_thread_block_tile_col_idx{
             (thread_linear_idx + load_idx * NUM_THREADS) %
             BLOCK_TILE_SIZE_K};
+        // 计算在全局矩阵A中的行列索引
         size_t const A_row_idx{blockIdx.y * BLOCK_TILE_SIZE_Y +
                                A_thread_block_tile_row_idx};
         size_t const A_col_idx{thread_block_tile_idx * BLOCK_TILE_SIZE_K +
                                A_thread_block_tile_col_idx};
 
-        // These boundary checks might slow down the kernel to some extent.
-        // But they guarantee the correctness of the kernel for all
-        // different GEMM configurations.
+        // 边界检查可能会在一定程度上降低内核性能
+        // 但是能够保证内核对所有不同GEMM配置的正确性
         T val{static_cast<T>(0)};
         if (A_row_idx < m && A_col_idx < k)
         {
             val = A[A_row_idx * lda + A_col_idx];
         }
-        // This if will slow down the kernel.
-        // Add static asserts from the host code to guarantee this if is
-        // always true.
+        // 这个if语句会降低内核性能
+        // 在主机代码中添加静态断言来保证这个if条件总是为true
         static_assert(BLOCK_TILE_SIZE_K * BLOCK_TILE_SIZE_Y % NUM_THREADS ==
                       0U);
         // if (A_thread_block_tile_row_idx < BLOCK_TILE_SIZE_Y &&
@@ -223,7 +220,7 @@ __device__ void load_data_to_shared_memory(T const* A, size_t lda,
         A_thread_block_tile[A_thread_block_tile_row_idx]
                            [A_thread_block_tile_col_idx] = val;
     }
-// Load data from B on DRAM to B_thread_block_tile on shared memory.
+// 将DRAM中的矩阵B数据加载到共享内存中的B_thread_block_tile
 #pragma unroll
     for (size_t load_idx{0U};
          load_idx <
@@ -231,28 +228,28 @@ __device__ void load_data_to_shared_memory(T const* A, size_t lda,
              NUM_THREADS;
          ++load_idx)
     {
+        // 计算在共享内存分块中的行列索引
         size_t const B_thread_block_tile_row_idx{
             (thread_linear_idx + load_idx * NUM_THREADS) /
             BLOCK_TILE_SIZE_X};
         size_t const B_thread_block_tile_col_idx{
             (thread_linear_idx + load_idx * NUM_THREADS) %
             BLOCK_TILE_SIZE_X};
+        // 计算在全局矩阵B中的行列索引
         size_t const B_row_idx{thread_block_tile_idx * BLOCK_TILE_SIZE_K +
                                B_thread_block_tile_row_idx};
         size_t const B_col_idx{blockIdx.x * BLOCK_TILE_SIZE_X +
                                B_thread_block_tile_col_idx};
 
-        // These boundary checks might slow down the kernel to some extent.
-        // But they guarantee the correctness of the kernel for all
-        // different GEMM configurations.
+        // 边界检查可能会在一定程度上降低内核性能
+        // 但是能够保证内核对所有不同GEMM配置的正确性
         T val{static_cast<T>(0)};
         if (B_row_idx < k && B_col_idx < n)
         {
             val = B[B_row_idx * ldb + B_col_idx];
         }
-        // This if will slow down the kernel.
-        // Add static asserts from the host code to guarantee this if is
-        // always true.
+        // 这个if语句会降低内核性能
+        // 在主机代码中添加静态断言来保证这个if条件总是为true
         static_assert(BLOCK_TILE_SIZE_X * BLOCK_TILE_SIZE_K % NUM_THREADS ==
                       0U);
         // if (B_thread_block_tile_row_idx < BLOCK_TILE_SIZE_K &&
@@ -272,53 +269,55 @@ __global__ void gemm_v02(size_t m, size_t n, size_t k, T alpha, T const* A,
                          size_t lda, T const* B, size_t ldb, T beta, T* C,
                          size_t ldc)
 {
-    // Avoid using blockDim.x * blockDim.y as the number of threads per block.
-    // Because it is a runtime constant and the compiler cannot optimize the
-    // loop unrolling based on that.
-    // Use a compile time constant instead.
+    // 避免使用blockDim.x * blockDim.y作为每个块的线程数
+    // 因为它是一个运行时常数，编译器无法基于它优化循环展开
+    // 改为使用编译时常数
     constexpr size_t NUM_THREADS{BLOCK_TILE_SIZE_X * BLOCK_TILE_SIZE_Y};
     size_t const thread_linear_idx{threadIdx.y * blockDim.x + threadIdx.x};
 
-    // Compute the row and column of C that this thread is responsible for.
+    // 计算此线程负责的矩阵C的行列索引
     size_t const C_col_idx{blockIdx.x * blockDim.x + threadIdx.x};
     size_t const C_row_idx{blockIdx.y * blockDim.y + threadIdx.y};
 
-    // Cache a tile of A and B in shared memory for data reuse.
+    // 在共享内存中缓存A和B的分块以实现数据重用
     __shared__ T A_thread_block_tile[BLOCK_TILE_SIZE_Y][BLOCK_TILE_SIZE_K];
     __shared__ T B_thread_block_tile[BLOCK_TILE_SIZE_K][BLOCK_TILE_SIZE_X];
 
+    // 计算需要处理的线程块分块数量
     size_t const num_thread_block_tiles{(k + BLOCK_TILE_SIZE_K - 1) /
                                         BLOCK_TILE_SIZE_K};
 
+    // 累加和初始化为0
     T sum{static_cast<T>(0)};
+    // 遍历每个线程块分块
     for (size_t thread_block_tile_idx{0U};
          thread_block_tile_idx < num_thread_block_tiles;
          ++thread_block_tile_idx)
     {
+        // 加载当前分块的数据到共享内存
         load_data_to_shared_memory<T, BLOCK_TILE_SIZE_X, BLOCK_TILE_SIZE_Y,
                                    BLOCK_TILE_SIZE_K, NUM_THREADS>(
             A, lda, B, ldb, A_thread_block_tile, B_thread_block_tile,
             thread_block_tile_idx, thread_linear_idx, m, n, k);
         __syncthreads();
 
+        // 计算当前分块的矩阵乘法
 #pragma unroll
         for (size_t k_i{0U}; k_i < BLOCK_TILE_SIZE_K; ++k_i)
         {
-            // Doing this results in 2 TOPS.
-            // Suppose blockDim.x = blockDim.y = 32.
-            // Effectively, for a warp, in one iteration, we read the value from
-            // A_thread_block_tile at the same location on the shared memory
-            // resulting in a broadcast, we also read 32 values that have no
-            // bank conflicts from B_thread_block_tile. Even with that, all the
-            // values have to be read from the shared memory and consequence is
-            // the shared memory instruction runs very intensively just to
-            // compute a small number of values using simple arithmetic
-            // instructions, which is not efficient.
+            // 这样做会导致性能达到2 TOPS
+            // 假设blockDim.x = blockDim.y = 32
+            // 实际上，对于一个warp，在一次迭代中，我们从A_thread_block_tile的
+            // 共享内存同一位置读取值，导致广播，我们也从B_thread_block_tile
+            // 读取32个没有bank冲突的值。即使如此，所有值都必须从共享内存读取，
+            // 结果是共享内存指令运行得非常密集，只是为了使用简单的算术指令
+            // 计算少量值，这是不高效的
             sum += A_thread_block_tile[threadIdx.y][k_i] *
                    B_thread_block_tile[k_i][threadIdx.x];
         }
         __syncthreads();
     }
+    // 将最终结果写入输出矩阵C（边界检查）
     if (C_row_idx < m && C_col_idx < n)
     {
         C[C_row_idx * ldc + C_col_idx] =
@@ -332,18 +331,22 @@ void launch_gemm_kernel_v02(size_t m, size_t n, size_t k, T const* alpha,
                             T const* beta, T* C, size_t ldc,
                             cudaStream_t stream)
 {
-    // Feel free to play with the block tile sizes.
-    // The algorithm correctness should always be guaranteed.
+    // 可以随意调整块分块大小
+    // 算法正确性应该始终得到保证
     constexpr unsigned int BLOCK_TILE_SIZE_X{32U};
     constexpr unsigned int BLOCK_TILE_SIZE_Y{32U};
     constexpr unsigned int BLOCK_TILE_SIZE_K{32U};
     constexpr unsigned int NUM_THREADS{BLOCK_TILE_SIZE_X * BLOCK_TILE_SIZE_Y};
+    // 静态断言确保分块大小与线程数兼容
     static_assert(BLOCK_TILE_SIZE_K * BLOCK_TILE_SIZE_Y % NUM_THREADS == 0U);
     static_assert(BLOCK_TILE_SIZE_X * BLOCK_TILE_SIZE_K % NUM_THREADS == 0U);
+    // 设置块维度
     dim3 const block_dim{BLOCK_TILE_SIZE_X, BLOCK_TILE_SIZE_Y, 1U};
+    // 设置网格维度
     dim3 const grid_dim{
         (static_cast<unsigned int>(n) + block_dim.x - 1U) / block_dim.x,
         (static_cast<unsigned int>(m) + block_dim.y - 1U) / block_dim.y, 1U};
+    // 启动GEMM内核
     gemm_v02<T, BLOCK_TILE_SIZE_X, BLOCK_TILE_SIZE_Y, BLOCK_TILE_SIZE_K>
         <<<grid_dim, block_dim, 0U, stream>>>(m, n, k, *alpha, A, lda, B, ldb,
                                               *beta, C, ldc);
@@ -351,15 +354,15 @@ void launch_gemm_kernel_v02(size_t m, size_t n, size_t k, T const* alpha,
 }
 ```
 
-The performance of this FP32 GEMM implementation becomes 2.66 TFLOPS on an NVIDIA GeForce RTX 3090 GPU, which is much better than the previous implementation. However, it is still far from the theoretical peak performance of the GPU.
+这个FP32 GEMM实现的性能在NVIDIA GeForce RTX 3090 GPU上变成了2.66 TFLOPS，比之前的实现好得多。然而，它仍然远远低于GPU的理论峰值性能。
 
-The problem of this implementation is that the shared memory is accessed very frequently. Even if accessing the shared memory is much faster than accessing the global memory, the shared memory instruction runs very intensively just to compute a small number of values using simple arithmetic instructions, which is not efficient. Therefore, the performance of this implementation is still limited by the memory bandwidth, this time from the shared memory.
+这个实现的问题是共享内存被频繁访问。即使访问共享内存比访问全局内存快得多，共享内存指令运行得非常密集，只是为了使用简单的算术指令计算少量值，这是不高效的。因此，这个实现的性能仍然受限于内存带宽，这次来自共享内存。
 
-## Implementation with 2D Block Tiling and 1D Thread Tiling
+## 具有2D块分块和1D线程分块的实现
 
-To further improve the performance, we can alleviate the shared memory bandwidth problem by further caching some even smaller tiles of the input matrices $A$ and $B$ from the shared memory to the registers of the threads. This time, each thread is responsible for computing a small tile of the output matrix $D$ instead of one single element. Because the registers are the fastest to access, the performance of this implementation should be much better than the previous one.
+为了进一步提高性能，我们可以通过进一步缓存输入矩阵$A$和$B$的更小的分块到线程的寄存器中来缓解共享内存带宽问题。这次，每个线程负责计算输出矩阵$D$的一个小分块，而不是一个单个元素。因为寄存器是最快的访问方式，这个实现的性能应该比之前的实现好得多。
 
-We start with only caching the data of matrix $B$ from the shared memory to the registers. Each thread with block thread index $(t_m, t_n)$, where $t_m \in [1, d_{bm}/d_{tm}]$ and $t_n \in [1, d_{bn}]$, is now responsible for computing $d_{tm}$ elements of the small matrix, where $d_{tm}$ is the thread tile size.
+我们首先只缓存矩阵$B$的数据从共享内存到寄存器。每个具有块线程索引$(t_m, t_n)$的线程，其中$t_m \in [1, d_{bm}/d_{tm}]$和$t_n \in [1, d_{bn}]$，现在负责计算小矩阵的$d_{tm}$个元素，其中$d_{tm}$是线程分块大小。
 
 $$\left(D_{b_m,b_n}^{d_m \times d_n}\right)_{t_m:t_m+d_{tm},t_n} = \left(\sum_{b_k=1}^{k/d_{bk}} A_{b_m,b_k}^{d_m \times d_{bk}} B_{b_k,b_n}^{d_{bk} \times d_n} + C_{b_m,b_n}^{d_m \times d_n}\right)_{t_m:t_m+d_{tm},t_n}$$
 
@@ -367,13 +370,13 @@ $$= \sum_{b_k=1}^{k/d_{bk}} \left(A_{b_m,b_k}^{d_m \times d_{bk}} B_{b_k,b_n}^{d
 
 $$= \sum_{b_k=1}^{k/d_{bk}} \left(\sum_{t_k=1}^{d_{bk}} \left(A_{b_m,b_k}^{d_m \times d_{bk}}\right)_{t_m:t_m+d_{tm},t_k} \left(B_{b_k,b_n}^{d_{bk} \times d_n}\right)_{t_k,t_n}\right) + \left(C_{b_m,b_n}^{d_m \times d_n}\right)_{t_m:t_m+d_{tm},t_n}$$
 
-In our previous implementation without thread tiling, to compute one element of the small matrix, we need to read $d_{bk}$ values from the cached matrix $A$ in the shared memory and $d_{bk}$ values from the cached matrix $B$ in the shared memory. In total, we need to read $2d_k$ values from the shared memory.
+在我们之前的实现中没有线程分块，为了计算小矩阵的一个元素，我们需要从共享内存中缓存的矩阵$A$中读取$d_{bk}$个值，从共享内存中缓存的矩阵$B$中读取$d_{bk}$个值。总共需要从共享内存中读取$2d_k$个值。
 
-Now, with 1D thread tiling, to compute $d_{tm}$ elements of the small matrix, we only need to read $d_{bk} \times d_{tm}$ values from the cached matrix $A$ in the shared memory and $d_{bk}$ values from the cached matrix $B$ in the shared memory. Specifically, in each inner loop, $\left(B_{b_k,b_n}^{d_{bk} \times d_n}\right)_{t_k,t_n}$ is cached in the register to be reused for $d_{tm}$ times. In total, we need to read $d_{bk} \times d_{tm} + d_{bk}$ values from the shared memory. On average, to compute one element of the small matrix, we need to read $d_{bk} + d_{bk}/d_{tm}$ values from the shared memory.
+现在，有了1D线程分块，为了计算小矩阵的$d_{tm}$个元素，我们只需要从共享内存中缓存的矩阵$A$中读取$d_{bk} \times d_{tm}$个值，从共享内存中缓存的矩阵$B$中读取$d_{bk}$个值。具体来说，在每个内层循环中，$\left(B_{b_k,b_n}^{d_{bk} \times d_n}\right)_{t_k,t_n}$被缓存到寄存器中以被重复使用$d_{tm}$次。总共需要从共享内存中读取$d_{bk} \times d_{tm} + d_{bk}$个值。平均来说，为了计算小矩阵的一个元素，我们需要从共享内存中读取$d_{bk} + d_{bk}/d_{tm}$个值。
 
-Because $d_{bk} + d_{bk}/d_{tm} < 2d_k$, the shared memory is accessed less frequently and the shared memory bandwidth problem is alleviated.
+因为 $d_{bk} + d_{bk}/d_{tm} < 2d_k$，共享内存访问频率降低，共享内存带宽问题得到缓解。
 
-The following code snippet shows the implementation with 2D block tiling and 1D thread tiling.
+下面的代码片段展示了使用2D块分块和1D线程分块的实现。
 
 ```c++
 template <typename T, size_t BLOCK_TILE_SIZE_X, size_t BLOCK_TILE_SIZE_Y,
