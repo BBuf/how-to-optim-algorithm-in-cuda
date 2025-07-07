@@ -397,13 +397,3 @@ asm volatile(
 
 ## 参考资料
 - Device Memory Accesses - CUDA C Programming Guide(https://docs.nvidia.com/cuda/archive/12.6.3/cuda-c-programming-guide/index.html#device-memory-accesses)
-
----
-
-## 总结要点
-
-1. **本地内存的本质**：尽管名为"本地"，但实际位于设备内存中，访问速度与全局内存相同
-2. **编译器决策**：编译器根据数组索引的复杂性来决定将数组放置在寄存器还是本地内存中
-3. **性能影响**：寄存器访问比本地内存访问快得多，因此应该尽量避免复杂的数组索引
-4. **实用建议**：使用简单的、编译时可确定的数组索引，避免运行时才能确定的复杂索引表达式
-5. **验证方法**：通过查看PTX代码中的`.local`指令来确认变量的存储位置
