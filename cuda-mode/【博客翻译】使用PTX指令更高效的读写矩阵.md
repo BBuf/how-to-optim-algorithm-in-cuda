@@ -126,7 +126,7 @@ __global__ void ldmatrix(uint16_t *value) {
   // 获取当前线程ID
   auto tid = threadIdx.x;
 
-  // 计算行偏移量：每个线程负责8个元素，所以乘以8
+  // 计算行偏移量：，线程0-7需要对应于前8行的地址
   const uint32_t offset_rows = sizeof(uint16_t) * (tid % 8) * 8;
   // 计算最终地址：共享内存基址 + 行偏移
   const uint32_t address = __cvta_generic_to_shared(smem) + offset_rows;
