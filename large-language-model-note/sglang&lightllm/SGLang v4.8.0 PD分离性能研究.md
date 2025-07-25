@@ -2,6 +2,7 @@
 
 
 作者 : LEI WANG]https://github.com/yiakwy-xpu-ml-framework-team) (yiakwang@ust.hk), Yujie Pu (yujiepu@ust.hk), Andy Guo (guozhenhua@hkgai.org), Yi Chao (chao.yi@hkgai.org), Yiwen Wang (yepmanwong@hkgai.org), Xue Wei (weixue@ust.hk)
+编辑：GiantPandaCV
 
 
 ## 动机与背景
