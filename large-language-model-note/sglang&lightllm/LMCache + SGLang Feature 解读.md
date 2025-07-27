@@ -49,7 +49,7 @@ max_local_cpu_size: 60.0
 
 其中，`max_local_cpu_size` 用来控制本地最大的offload内存大小，单位为GB。注意这里的内存是锁页内存，LM Cache做KV Cache传输使用的就是基于锁页内存+cuda kernel的zero-copy transfer，即在kernel中直接访问锁页内存进行拷贝（cuda可以直接访问锁页内存，但无法直接访问普通cpu内存）。
 
-下一节在解析传输的cuda kernel实现中有一个`get_kernel_ptr`函数，这个函数获取的CPU内存必选是锁页内存：
+下一节在解析传输的cuda kernel实现中有一个`get_kernel_ptr`函数，这个函数获取的CPU内存必须是锁页内存：
 
 ```c++
 template <typename T, typename TENSOR_TYPE>
@@ -790,10 +790,10 @@ else:
     prefix_padding_len = 0
 ```
 
-- 构造嘈位映射，前缀填充部分用 -1 标记（表示不需要存储），后面是实际分配的内存索引
+- 构造槽位映射，前缀填充部分用 -1 标记（表示不需要存储），后面是实际分配的内存索引
 
 ```python
-slop_mapping = torch.cat([
+slot_mapping = torch.cat([
     torch.tensor([-1] * prefix_padding_len, dtype=torch.int64, device=self.device), 
     token_prealloc_indices.detach().clone().to(torch.int64).to(self.device)
 ])
@@ -804,7 +804,7 @@ slop_mapping = torch.cat([
 ```python
 num_retrieved_tokens = self.lmcache_connector.load_kv(
     key_tokens,
-    slop_mapping,
+    slot_mapping,
     offset=len(value) - prefix_padding_len,
 )
 ```
