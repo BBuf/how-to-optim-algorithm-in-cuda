@@ -5,12 +5,13 @@
 ​**​跨层级存储​**​：将高频使用的 KV Cache 缓存在 GPU 显存→CPU 内存→本地磁盘三级存储中，显存不足时自动下沉
 **​​跨请求复用​**​：不只是相同前缀可复用（如传统 Prefix Caching），​**​任意位置重复文本的 KV Cache 均可被提取重用​​**
 **​​分布式共享​​**：多个 vLL 实例可共享同一缓存池，避免重复计算
+**基于锁页内存+cuda kernel的zero-copy transfer**：即在cuda kernel中直接访问锁页内存进行拷贝，cuda可以直接访问锁页内存，但无法直接访问普通cpu内存
 
 在 32 K 上下文的多轮对话场景中，TTFT（首 Token 延迟）从 1.8 秒降至 0.4 秒，GPU 利用率下降 40%。
 
 ![](https://files.mdnice.com/user/59/f6685648-2763-4ba8-90f3-d1ffddf5937c.png)
 
-最近LMCache也支持了SGLang。虽然SGLang本身已经有HiCache这个拥有类似功能的组件了，LMCache对SGLang代码的修改部分也没有提交到SGLang仓库，但是了解这里的适配方式可以对LMCache的运行流程以及SGLang的KV Cache管理有更深入的理解。基于此，这篇博客将基于 https://github.com/LMCache/LMCache/pull/869 这个完整的端到端支持SGLang的PR 和 https://github.com/Oasis-Git/sglang/tree/lmcache/benchmark/benchmark_lmcache 这里对SGLang的改造来速览一下在LMCache中如何支持新的推理框架并让其拥有上面提到的跨层级存储、跨请求复用、分布式共享的feature。
+最近LMCache也支持了SGLang。虽然SGLang本身已经有HiCache这个拥有类似功能的组件了，LMCache对SGLang代码的修改部分也没有提交到SGLang仓库，但是了解这里的适配方式可以对LMCache的运行流程以及SGLang的KV Cache管理有更深入的理解。基于此，这篇博客将基于 https://github.com/LMCache/LMCache/pull/869 这个完整的端到端支持SGLang的PR 和 https://github.com/Oasis-Git/sglang/tree/lmcache/benchmark/benchmark_lmcache 这里对SGLang的改造来速览一下在LMCache中如何支持新的推理框架并让其拥有上面提到的跨层级存储、跨请求复用、分布式共享的feature。目前有个限制是LMCache适配的SGLang不支持Layer-by-Layer的KV Cache传输，而是把每一层的KV Cache concat到一个张量中进行传输。
 
 # 0x1. LMCache + SGLang 使用方式
 
@@ -46,7 +47,31 @@ local_cpu: true
 max_local_cpu_size: 60.0
 ```
 
-其中，`max_local_cpu_size` 用来控制本地最大的offload内存大小，单位为GB。
+其中，`max_local_cpu_size` 用来控制本地最大的offload内存大小，单位为GB。注意这里的内存是锁页内存，LM Cache做KV Cache传输使用的就是基于锁页内存+cuda kernel的zero-copy transfer，即在kernel中直接访问锁页内存进行拷贝（cuda可以直接访问锁页内存，但无法直接访问普通cpu内存）。
+
+下一节在解析传输的cuda kernel实现中有一个`get_kernel_ptr`函数，这个函数获取的CPU内存必选是锁页内存：
+
+```c++
+template <typename T, typename TENSOR_TYPE>
+T* get_kernel_ptr(TENSOR_TYPE& tensor) {
+  // Get the kernel-accessible pointer of the given type T
+  // Returns NULL if the tensor is on CPU and non-pinned
+  torch::Device device = tensor.device();
+  if (device.is_cuda()) {
+    return static_cast<T*>(tensor.data_ptr());
+  } else if (device.is_cpu() && tensor.is_pinned()) {
+    T* ptr;
+    cudaHostGetDevicePointer((void**)&ptr,
+                             static_cast<void*>(tensor.data_ptr()), 0);
+    return ptr;
+  } else if (device.is_cpu()) {
+    // return NULL;
+    TORCH_CHECK(false, "Invalid device. Device must be cuda or pinned cpu.");
+  } else {
+    TORCH_CHECK(false, "Invalid device. Device must be cuda or pinned cpu.");
+  }
+}
+```
 
 
 # 0x2. LMCache SGLangGPUConnector 实现
@@ -306,6 +331,18 @@ class SGLangGPUConnector(GPUConnectorInterface):
         for memory_obj, start, end in zip(memory_objs, starts, ends, strict=False):
             self.from_gpu(memory_obj, start, end, **kwargs)
 ```
+
+注意这里的`memory_obj`对象的来源是:
+
+```python
+kv_shape = self.gpu_connector.get_shape(num_tokens)
+kv_dtype = self.metadata.kv_dtype
+
+# TODO (Jiayi): should be batched in the future
+memory_obj = self.storage_manager.allocate(kv_shape, kv_dtype)
+```
+
+上面的`get_shape`函数返回的形状是`return torch.Size([2, self.num_layers, num_tokens, self.hidden_dim_size])`，也可以说明这里对一个token计算完之后再整体传输的。
 
 这个连接器里面的核心kernel是`lmc_ops.multi_layer_kv_transfer_unilateral`，下面解析一下这个kernel的实现。
 
@@ -837,6 +874,10 @@ def _lmcache_writer_worker(self):
 ```
 
 # 0x5. 总结
+
+LMCache通过解耦KV Cache的生成与使用，实现了跨层级存储、跨请求复用和分布式共享等核心功能。其与SGLang的集成主要通过SGLangGPUConnector连接器实现，该连接器利用基于锁页内存的zero-copy传输技术，通过CUDA kernel高效地在GPU显存与CPU内存间传输多层KV Cache数据。在SGLang的RadixCache中，通过LMCacheConnector封装类提供load_kv和store_kv接口，结合异步写入机制，可以显著提升了长文本/RAG等场景推理的性能。
+
+
 
 
 
