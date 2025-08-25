@@ -130,5 +130,7 @@
 ![](https://files.mdnice.com/user/59/f5ef40a9-9117-4a6d-9ff9-267200ebe493.png)
 
 
+![](https://files.mdnice.com/user/59/3e3ca180-f2cf-401f-8809-abb8f460706e.png)
 
+这张Slides介绍了一下NVIDIA Hopper架构中Tensor Core的基础概念和WGMMA（Warp Group Matrix Multiply Accumulate）指令的核心特性。首先，Hopper的Tensor Core采用128个线程（Warp Group级别）协作执行矩阵乘法运算；其次，指令形状为`64xNx256bit`格式，其中N可在`[8,256]`范围内以8为步长调整，4个Warp分布在M维度上，每个warp处理`16xNx256bit`的计算块，操作数B在共享内存（SMEM）中被所有warp共享，而操作数A可从寄存器文件（RF）或SMEM中获取；第三，系统使用SMEM描述符来定义共享内存中操作数的布局，支持多种swizzle模式（NO_SWIZZLE到SWIZZLE_128B），这些模式与TMA swizzle类型保持一致，简化了程序员在主循环中的编程复杂度；最后，该架构支持异步执行模式，通过`Group Commit & Wait`机制来跟踪Tensor Core的计算完成状态，这种设计类似于LDGSTS和TMA Store的执行模式。
 
