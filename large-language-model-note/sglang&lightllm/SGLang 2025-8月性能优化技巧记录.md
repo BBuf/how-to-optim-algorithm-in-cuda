@@ -8,6 +8,8 @@
 
 Benchmark结果可以参考：https://github.com/sgl-project/sglang/pull/8731#issuecomment-3173435636 & https://github.com/sgl-project/sglang/pull/7775#issue-3201868800 。例如对于bs=1来说，gpt-oss-120b b200 tp4部署时启用此优化可以端到端提升8%的输出吞吐，b200 tp8部署DeepSeek-V3/R1时可以提升14%的输出吞吐。
 
+后续在 https://github.com/sgl-project/sglang/pull/9339 中也可以在Hopper中开启这个优化。
+
 ## 2. Quant 和 RoPE kernel 支持 PDL
 
 PR见：https://github.com/sgl-project/sglang/pull/9106
@@ -652,4 +654,155 @@ Benchmark结果：
 相关PR：https://github.com/sgl-project/sglang/pull/8577
 
 性能提升：CUDA图捕获速度提升2.3x-3.7x。Llama4模型从25秒降至10秒，Qwen3-0.6B模型从6秒降至1秒。 
+
+## 24. MRoPE多模态旋转位置编码torch.compile优化
+
+为`MRotaryEmbedding.forward()`添加`torch.compile(dynamic=True)`，减少kernel启动开销，显著提升小型VLM模型的推理性能。
+
+相关PR：https://github.com/sgl-project/sglang/pull/9487
+
+性能提升：在Qwen2.5-VL-3B-Instruct上请求吞吐提升28%（2.53→3.25 req/s），MRoPE延迟减少8倍，ITL从5.86ms降至4.48ms。 
+
+## 25. 垃圾回收器冻结功能减少延迟抖动
+
+添加GC冻结功能，通过`freeze_gc` API将服务器预热后的长期对象排除在垃圾回收范围外，避免gen2 GC导致的100ms-300ms停顿，维持低延迟。
+
+相关PR：https://github.com/sgl-project/sglang/pull/9241
+
+实现特性：新增`/freeze_gc` HTTP端点、分布式GC管理、可配置GC警告阈值(`gc_warning_threshold_secs`)，有效解决P99延迟抖动问题。 这里的核心修改如下：
+
+```python
+def gc_object_counts():
+    """获取各代垃圾回收器中的对象数量统计
+    
+    Python的垃圾回收器使用分代机制:
+    - gen0: 新创建的对象，回收频率最高
+    - gen1: 从gen0中存活下来的对象  
+    - gen2: 从gen1中存活下来的长期对象，回收成本最高
+    """
+    import gc
+
+    g0 = len(gc.get_objects(0))  # 统计第0代对象数量
+    g1 = len(gc.get_objects(1))  # 统计第1代对象数量
+    g2 = len(gc.get_objects(2))  # 统计第2代对象数量（长期对象）
+    return g0, g1, g2
+
+
+def configure_gc_warning(warn_threshold_secs):
+    """配置垃圾回收警告机制
+    
+    当GC耗时超过指定阈值时，记录警告日志并提供优化建议。
+    这有助于识别可能导致延迟抖动的长时间GC操作。
+    
+    Args:
+        warn_threshold_secs: GC耗时警告阈值（秒）
+    """
+    import gc
+
+    gc_start_time = {}  # 记录各代GC开始时间
+
+    def gc_callback(phase, info):
+        """GC事件回调函数，监控GC执行时间"""
+        gen = info.get("generation", "?")  # 获取当前回收的代数
+        
+        if phase == "start":
+            # GC开始时记录时间戳
+            gc_start_time[gen] = time.time()
+        elif phase == "stop":
+            # GC结束时计算耗时并检查是否需要警告
+            duration = time.time() - gc_start_time.get(gen, time.time())
+            if duration > warn_threshold_secs:
+                g0, g1, g2 = gc_object_counts()
+                logger.warn(
+                    f"LONG GARBAGE COLLECTION DETECTED | Generation {gen} | Duration: {duration:.4f}s | # Objects: gen0={g0}, gen1={g1}, gen2={g2} | "
+                    f"This may cause latency jitter. Consider calling the freeze_gc API after sending a few warmup requests."
+                )
+
+    # 注册GC事件回调函数
+    gc.callbacks.append(gc_callback)
+
+
+def freeze_gc(context: str):
+    """冻结垃圾回收器，将当前对象移出GC管理范围
+    
+    调用gc.freeze()后，当前存在的所有对象将被移到"永久代"，
+    不再参与垃圾回收过程。这可以显著减少GC开销，特别是
+    gen2回收的成本，从而减少延迟抖动。
+    
+    适合在服务器预热完成后调用，将长期存在的对象（如模型参数、
+    缓存等）排除在GC范围外。
+    
+    Args:
+        context: 调用上下文描述，用于日志记录
+    """
+    import gc
+
+    # 冻结前记录各代对象数量
+    g0_before, g1_before, g2_before = gc_object_counts()
+    
+    # 执行GC冻结操作 - 核心函数调用
+    gc.freeze()
+    
+    # 冻结后记录各代对象数量变化
+    g0_after, g1_after, g2_after = gc_object_counts()
+    
+    # 记录冻结操作的效果，便于监控和调试
+    logger.info(
+        f"Freezing GC in {context} process. "
+        f"gen0: {g0_before}->{g0_after}, "
+        f"gen1: {g1_before}->{g1_after}, "
+        f"gen2: {g2_before}->{g2_after}"
+    )
+```
+
+## 26. FlashInfer GPU-CPU同步优化
+
+修复FlashInfer在page size=1时的不必要GPU-CPU同步问题，当page-size大小为1时直接构造`torch.ones`tensor替代GPU到CPU的数据传输。
+
+相关PR：https://github.com/sgl-project/sglang/pull/9409
+
+改动：
+
+![](https://files.mdnice.com/user/59/9e06e122-5374-4cf8-b1cb-71f9daba6521.png)
+
+Benchmark结果：
+
+![](https://files.mdnice.com/user/59/367728b5-38c5-4bd4-972f-f59a5e91c86a.png)
+
+在B200上以并发=1运行Qwen2.5-7B模型，总吞吐从425.01提升到437.64 tok/s，提升3.0%。 
+
+## 27. FlashInfer GQA Tensor Core解码阈值优化
+
+将FlashInfer中启用Tensor Core解码的GQA组大小阈值从`>4`降低到`>=4`，使Llama3-8B等具有4个GQA组的模型能够利用Tensor Core加速。
+
+相关PR：https://github.com/sgl-project/sglang/pull/8624
+
+性能提升：显著减少ITL（Inter-Token Latency），特别是对于GQA组大小为4的模型如Llama3-8B，因为FlashInfer将head group与token维度融合使得组大小为4就足以受益于Tensor Core。 
+
+![](https://files.mdnice.com/user/59/3f9df819-4a5a-49ce-aaa2-98b8ca63a015.png)
+
+
+## 28. CUTLASS 4.2升级与K-Major Scale Factor支持
+
+升级CUTLASS库至4.2版本，为SM90 FP8 Blockwise Group GEMM启用K-Major Scale Factor，统一与Blackwell的代码路径，消除`per_group_transpose`格式转换开销。
+
+相关PR：https://github.com/sgl-project/sglang/pull/9559
+
+优化改进：支持K-Major格式scale factors、通过矩阵交换优化小M场景(M<=2048)、使用ATen接口优化H20设备检测性能，避免`cudaGetDeviceProperties`调用开销。 
+
+优化提升见这个comment：https://github.com/sgl-project/sglang/pull/9559#issue-3349421711
+
+## 29. FlashInfer/FlashMLA后端支持 Chunked Prefill 缓存优化
+
+为FlashInfer和FlashMLA后端添加MHA Chunked Prefill 缓存支持，移除page size=1限制，支持更大的Page Size 以提升内存效率。
+
+相关PR：https://github.com/sgl-project/sglang/pull/8616
+
+功能扩展：支持page size>1的MHA Chunked Prefill 缓存、增强FlashInfer/FlashMLA后端兼容性，准确性测试显示不同page size配置下精度保持一致(GSM8K: 0.954-0.955)。 
+
+Benchmark结果中在降低TTFT上也有明显作用：
+
+https://github.com/sgl-project/sglang/pull/8616#issue-3280333135
+
+
 
