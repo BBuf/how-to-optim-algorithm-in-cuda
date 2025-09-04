@@ -2,7 +2,7 @@
 
 ![](https://files.mdnice.com/user/59/92ed783e-08ec-4688-9e5e-af81ee9a9fc4.png)
 
-这里展示了三个重要的技术分享主题：第一个由Petrick Liu和Jiang Shao主讲，聚焦于异步编程中计算吞吐量与延迟的平衡技术；第二个由Allard Hendriksen主讲，介绍最大化内存带宽利用和隐藏延迟的CUDA技术；第三个由Albert Di和Vincent Zhang主讲，探讨如何从CUTLASS C++到CUTLASS Python实现最大开发吞吐量。第二个演讲的笔记上篇文章已经记录了，当前这个课程是第一个演讲的内容。
+这里展示了三个重要的技术分享主题：第一个由Petrick Liu（刘冰）和Jiang Shao主讲，聚焦于异步编程中计算吞吐量与延迟的平衡技术；第二个由Allard Hendriksen主讲，介绍最大化内存带宽利用和隐藏延迟的CUDA技术；第三个由Albert Di和Vincent Zhang主讲，探讨如何从CUTLASS C++到CUTLASS Python实现最大开发吞吐量。第二个演讲的笔记上篇文章已经记录了，当前这个课程是第一个演讲的内容。
 
 
 ## GPU 计算与编程模型演进：异步计算编程中的吞吐与延迟平衡
@@ -133,4 +133,38 @@
 ![](https://files.mdnice.com/user/59/3e3ca180-f2cf-401f-8809-abb8f460706e.png)
 
 这张Slides介绍了一下NVIDIA Hopper架构中Tensor Core的基础概念和WGMMA（Warp Group Matrix Multiply Accumulate）指令的核心特性。首先，Hopper的Tensor Core采用128个线程（Warp Group级别）协作执行矩阵乘法运算；其次，指令形状为`64xNx256bit`格式，其中N可在`[8,256]`范围内以8为步长调整，4个Warp分布在M维度上，每个warp处理`16xNx256bit`的计算块，操作数B在共享内存（SMEM）中被所有warp共享，而操作数A可从寄存器文件（RF）或SMEM中获取；第三，系统使用SMEM描述符来定义共享内存中操作数的布局，支持多种swizzle模式（NO_SWIZZLE到SWIZZLE_128B），这些模式与TMA swizzle类型保持一致，简化了程序员在主循环中的编程复杂度；最后，该架构支持异步执行模式，通过`Group Commit & Wait`机制来跟踪Tensor Core的计算完成状态，这种设计类似于LDGSTS和TMA Store的执行模式。
+
+![](https://files.mdnice.com/user/59/9a2c1990-2c92-458d-8897-962ec978531d.png)
+
+这张Slides详细展示了NVIDIA Hopper架构中Tensor Core的基础概念和WGMMA（Warp Group Matrix Multiply Accumulate）指令的典型执行序列。左侧代码片段完整呈现了WGMMA指令的标准执行流程：首先通过`wgmma.fence.sync.aligned`建立同步屏障，确保所有线程的共享内存和寄存器文件准备就绪；随后连续执行四个`wgmma.mma_async.sync.aligned.m64n128k16.f32.f16.f16`异步矩阵乘累加指令，每个指令处理64×128×16维度的F16输入矩阵并累积到F32结果中；接着通过`wgmma.commit_group.sync.aligned`将上述WGMMA指令作为一组提交执行；最后使用`wgmma.wait_group.sync.aligned 0`等待该组指令完成。右侧的数据组织图展示了Warp级Tensor Core操作的复杂内存布局：上方描绘了16×8×256位的数据分布模式，其中32位和64位的网格分别包含T0到T31的线程标识，体现了128个线程的协作计算模式；中间定义了N维度范围为[8,256]且步长为8，K维度为256位，以及关联的SMEM_B共享内存块；下方展示了M=64维度的SMEM_A数据块被均匀分割为四个16单位的段，分别对应Warp 0到Warp 3的处理单元，每个Warp负责16×N×256位的计算任务，这种设计实现了数据的高效并行处理和内存访问优化，是Hopper架构实现高性能矩阵运算的核心机制。
+
+![](https://files.mdnice.com/user/59/f2bf0a6f-135a-4816-9380-a1700154943f.png)
+
+这张Slides展示了如何通过异步指令调度机制最大化NVIDIA Hopper架构中Tensor Core的吞吐量。核心观点强调Hopper Tensor Core的WGMMA（Warp Group Matrix Multiply Accumulate）指令是异步的，必须使用`wgmma.wait_group`来跟踪Tensor Core的完成状态，并且对于计算密集型工作负载，必须持续保持Tensor Core的忙碌状态以充分利用其计算能力。图表通过时间轴清晰展示了"Tensor Core Unit"和"Warp Scheduler"的协同工作流程：Tensor Core Unit时间轴显示了WGMMA指令的实际执行过程，初始阶段连续执行了四组"WGMMA Execution 64x128x16"操作，实现了高效计算，但在这些执行完成后出现了"Tensor Core is Idle"的空闲期，表明计算资源未被充分利用，随后又执行了两组WGMMA操作；Warp Scheduler时间轴则展示了指令调度和数据准备过程，首先执行"Wait Smem0"等待共享内存准备就绪，然后依次进行"WGMMA Arrv"（指令到达）、连续的"WGMMA Issue"（指令发出）以及"WGMMA Commit"（指令提交）操作，这些操作与Tensor Core Unit的前四次执行相对应，在提交之后进入较长的"WGMMA Wait<0>"状态，在此期间Warp等待之前提交的WGMMA组完成，这直接导致了Tensor Core Unit的空闲期，当等待结束后执行"Arrv Empty"并释放共享内存，允许TMA重新填充数据，随后执行"Wait Smem1"等待新的共享内存数据，并再次进行WGMMA相关操作驱动Tensor Core Unit执行后续任务。
+
+![](https://files.mdnice.com/user/59/0a6e214f-faa8-4003-8998-dd0acf700ec9.png)
+
+紧接着展示了一下如何把WGMMA指令流水线化来隐藏Latency。在第一次提交后，Warp Scheduler进入"Wait Smem1"状态，随后开始调度第二组WGMMA指令（Arrv, Issue x4, Commit），并在其后进入"WGMMA Wait<1>"状态等待该组指令完成。一个关键的优化点在于，当Warp Scheduler等待WGMMA指令完成时，共享内存（Smem0）可以被释放并由TMA（Tensor Memory Accelerator）重新填充数据，这在图中标注为"Arrv Smem0 Empty"，并由向上箭头指示，旨在通过流水线化数据加载和计算来隐藏延迟，确保Tensor Core持续忙碌，从而最大化吞吐量。
+
+![](https://files.mdnice.com/user/59/e73738fd-262a-4872-8318-2ea9125f2221.jpg)
+
+
+这张Slides展示了CUTLASS如何实现一个灵活的多阶段WGMMA（Warp Group Matrix Multiply Accumulate）流水线，以优化GPU上的矩阵乘累加操作。左侧的"MMA Multistage Prologue"代码片段展示了流水线的初始化和预热阶段：初始化阶段通过`PipelineState smem_pipe_release = smem_pipe_read;`表明在开始时，共享内存的获取和释放指针指向同一位置，意味着初始状态下没有已使用的smem缓冲区需要释放；预热循环通过嵌套循环持续执行等待数据（使用`pipeline.consumer_try_wait`和`pipeline.consumer_wait`等待共享内存缓冲区中的数据可用）、执行GMMA（获取`read_stage`索引，执行`warpgroup_arrive()`，然后通过`cute::gemm`执行实际的矩阵乘累加操作）、提交批次（`warpgroup_commit_batch()`提交当前批次的WGMMA操作）和推进读取指针（`++smem_pipe_read;`持续推进读取指针，为后续计算准备数据）等操作。右侧的"MMA Multistage Mainloop"代码片段展示了流水线的主循环，实现了计算和数据管理的并行化：主循环通过`CUTLASS_PRAGMA_NO_UNROLL`修饰的`k_tile_count`循环持续执行核心计算，在每次迭代开始时等待`smem_pipe_read`指向的共享内存数据可用，执行`cute::gemm`矩阵乘累加操作并提交，通过`warpgroup_wait<K_PIPE_MMAS>()`等待一定数量的WGMMA操作完成确保计算进度，最关键的是通过`pipeline.consumer_release(smem_pipe_release)`解锁并释放共享内存缓冲区，明确指出"只释放之前使用的smem，保持MMAs in-flight中"，这意味着只有当数据被消费后对应的缓冲区才会被释放，从而允许生产者继续填充新的数据，实现计算和数据加载的流水线化，最后通过`++smem_pipe_read;`和`++smem_pipe_release;`同时推进读取和释放指针，维持流水线的动态平衡。这种设计通过精细的共享内存缓冲区管理和异步操作，确保了WGMMA指令能够持续执行，最大化了Tensor Core的利用率，从而在CUTLASS中实现了高性能的矩阵运算。
+
+Slides左边是Prologue，用来启动流水，右边是Mainloop，用来进行最大化吞吐的计算。
+
+
+![](https://files.mdnice.com/user/59/a765093b-6410-4814-a6d3-3a09d2c27cfe.jpg)
+
+这里提了一个问题，为什么cutlass wgmma实现要把prologue分成两段？
+
+
+![](https://files.mdnice.com/user/59/3b9724a1-8e39-405b-92cc-d28c82afc8cd.jpg)
+
+这张Slides详细展示了如何利用`OrderedSequenceBarrier`机制来交错（stagger）执行两个Warp Group的计算任务，以优化GPU上的矩阵乘累加（MMA）操作。左侧代码片段主要描述了消费者（Consumer）角色在主循环（Mainloop）中的执行流程：通过`while (work_tile_info.is_valid())`循环确保持续处理有效的计算 tile  ，根据当前工作 tile  信息和全局矩阵形状计算出M、N、L维度以及块坐标，为MMA操作分配张量累加器，然后通过`math_wg_order_barrier.wait()`等待前一个Warp Group的MMA操作完成，从而实现两个Warp Group的MMA操作交错执行，这有助于隐藏Epilogue阶段的延迟，接着执行`collective_mainloop.mma(...)`核心的矩阵乘累加操作，完成后通过`math_wg_order_barrier.arrive()`通知屏障允许下一个Warp Group开始其MMA操作，随后执行`collective_mainloop.mma_tail(...)`确保数学指令完成并释放缓冲区，为进入Epilogue阶段做准备，最后通过`mainloop_pipe_consumer_state.advance(...)`更新主循环流水线的消费者状态。右侧代码片段则侧重于Epilogue阶段和调度器的逻辑：通过`math_wg_order_barrier.wait()`等待前一个Warp Group的Epilogue操作完成，以实现Epilogue阶段的交错执行，然后执行`collective_epilogue.store(...)`将累加器中的结果存储到全局内存，通过`epi_load_pipe_consumer_state.advance(...)`和`epi_store_pipe_producer_state.advance(...)`更新加载和存储流水线的状态，使用`epi_store_pipeline.producer_tail(...)`确保所有通过TMA进行的存储操作都已完成，通过`math_wg_order_barrier.arrive()`通知屏障允许下一个Warp Group开始其Epilogue操作，最后通过`scheduler.advance_to_next_work(...)`和`work_tile_info = scheduler.get_current_work()`从调度器获取下一个要处理的工作 tile  。这种设计通过`OrderedSequenceBarrier`这种同步机制，精细地控制和交错两个Warp Group的MMA计算和Epilogue存储阶段的执行，旨在通过流水线化处理隐藏不同阶段的延迟，确保GPU计算资源（特别是Tensor Core）能够持续忙碌，从而最大化整体吞吐量。
+
+
+
+
+
 
