@@ -271,6 +271,9 @@ cuda 相关的 paper 的阅读。
 <details>
 <summary>点击展开/收起 CUDA优质博客列表</summary>
 
+- [Writing my own communications library - a worklog of creating Penny part 1](https://szymonozog.github.io/posts/2025-09-21-Penny-worklog-1.html)
+- [CuteDSL-1: Introduction](https://mp.weixin.qq.com/s/j1jdgdY1NrmXNyWvjDwLnA)
+- [Enable Tensor Core Programming in Python with CUTLASS 4.0](https://www.nvidia.com/en-us/on-demand/session/gtc25-s74639/)
 - [一文读懂nvidia-smi topo的输出](https://zhuanlan.zhihu.com/p/692947173)
 - [如果你是一个C++面试官，你会问哪些问题？](https://www.zhihu.com/question/451327108/answer/3299498791)
 - [推理部署工程师面试题库](https://zhuanlan.zhihu.com/p/673046520)
