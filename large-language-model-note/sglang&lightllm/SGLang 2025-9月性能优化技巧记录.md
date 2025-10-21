@@ -2,7 +2,7 @@
 
 1. 时间线说明：记录9月份SGLang框架的关键性能优化改进。
 
-2. 内容范围：基于个人视角，选了部分熟悉/感兴趣的优化点进行核心原理说明。对各优化点仅做技术概要分析，具体实现细节请参考对应PR。
+2. 内容范围：基于个人视角，选了部分熟悉/感兴趣的优化点进行核心原理说明。对各优化点仅做技术概要分析，具体实现细节请参考对应PR。特别指出，关于Qwen3-Next模型，HiCache以及PD分离相关的优化被略掉了，因为这些比较复杂，笔者不熟悉也不懂。
 
 3. 特别声明：
    - 本笔记为知识传播用途，不代表官方观点
@@ -190,7 +190,7 @@ Motivation：MXFP4量化模型在推理时，激活tensor需要在多个位置�
 效果：
 
 1. Fused Quant-GEMM：在GEMM kernel中直接执行输入量化，避免预先量化的开销
-   ```python
+```python
    # 优化前：独立量化 + GEMM
    x_q, x_s = dynamic_mxfp4_quant(x)  # 独立量化kernel
    y = gemm_afp4wfp4(x_q, weight, x_s, weight_scale)
@@ -198,25 +198,25 @@ Motivation：MXFP4量化模型在推理时，激活tensor需要在多个位置�
    # 优化后：融合量化-GEMM
    # 当use_fused_quant_gemm=True时，在GEMM内部完成量化
    y = gemm_afp4wfp4_pre_quant(x, weight, weight_scale)
-   ```
+```
 
 2. BumpAllocator优化输出buffer分配：复用预分配的内存池减少动态分配开销
-   ```python
+```python
    # 使用BumpAllocator为GEMM输出预分配buffer
    if gemm_output_zero_allocator is not None and x.shape[0] <= 256:
        y = gemm_output_zero_allocator.allocate(
            x.shape[0] * output_size
        ).view(x.shape[0], output_size)
-   ```
+```
 
 3. MoE Gate的优化量化GEMM调用：在MoE gate计算和shared experts中应用融合优化
-   ```python
+```python
    # 在gate计算中传递gemm_output_zero_allocator
    router_logits = self.gate(hidden_states, gemm_output_zero_allocator)
    shared_output = self._forward_shared_experts(
        hidden_states, gemm_output_zero_allocator
    )
-   ```
+```
 
 如何使用以及限制：
 - AMD MI300X等支持MXFP4的GPU架构(`is_gfx95_supported`)
@@ -304,7 +304,7 @@ Motivation：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1
    - 简化Python接口调用逻辑
 
 2. 添加Fuse SiLU and Mul支持：在量化kernel中融合SiLU激活和乘法操作
-   ```cpp
+```cpp
    template <bool FUSE_SILU_AND_MUL>
    __device__ __forceinline__ int compute_input_group_start_offset(...) {
      return expert_idx * num_tokens_per_expert * hidden_size * (FUSE_SILU_AND_MUL ? 2 : 1) +
@@ -322,10 +322,10 @@ Motivation：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1
      return val / (1.0f + __expf(-val));
    #endif
    }
-   ```
+```
 
 3. 添加Masked Layout支持：为MoE EP场景添加`masked_m`参数支持
-   ```cpp
+```cpp
    template <bool FUSE_SILU_AND_MUL, int GROUP_SIZE, int THREADS_PER_SUBWARP, typename FUNC>
    __device__ __forceinline__ static void execute(
        const int subwarps_per_block,
@@ -337,10 +337,10 @@ Motivation：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1
      const int curr_expert_token_num = masked_m[expert_idx];
      // 根据masked_m跳过无效token的处理
    }
-   ```
+```
 
 4. 优化Group Reduce逻辑：参数化subwarp大小，支持更灵活的配置
-   ```cpp
+```cpp
    template <int THREADS_PER_SUBWARP>
    __device__ __forceinline__ float GroupReduceMax(float val, const int tid) {
      unsigned mask = 0xffff;
@@ -353,10 +353,10 @@ Motivation：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1
      }
      // ... 支持1/2/4/8/16个线程的subwarp配置
    }
-   ```
+```
 
 5. 添加DeepEP优化技巧：集成Fast Math函数和Scale计算优化
-   ```cpp
+```cpp
    // 快速2的幂次计算（避免expf）
    __forceinline__ __device__ float fast_pow2(int x) {
      uint32_t bits_x = (x + 127) << 23;
@@ -373,10 +373,10 @@ Motivation：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1
        scale_inv = fast_pow2(exp_scale_inv);
      }
    }
-   ```
+```
 
 6. 内存访问优化：使用PTX汇编指令优化全局内存访问
-   ```cpp
+```cpp
    // 使用st.global提升写入性能
    __device__ __forceinline__ void st_global(const int4* ptr, const int4& value) {
      asm volatile("st.global.v4.s32 [%0], {%1, %2, %3, %4};" 
@@ -391,7 +391,7 @@ Motivation：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1
                   : "l"(ptr));
      return ret;
    }
-   ```
+```
 
 Python接口简化：
 
@@ -425,7 +425,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 效果：
 
 1. Router GEMM输出类型优化：将`dsv3_router_gemm`输出从默认bfloat16改为float32
-   ```python
+```python
    # 优化前：默认使用bfloat16输出
    logits = dsv3_router_gemm(hidden_states, self.weight)
    
@@ -433,10 +433,10 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
    logits = dsv3_router_gemm(
        hidden_states, self.weight, out_dtype=torch.float32
    )
-   ```
+```
 
 2. FP4量化场景correction bias类型修正：在ModelOpt FP4量化模式下转换为bfloat16
-   ```python
+```python
    correction_bias = self.gate.e_score_correction_bias
    if _is_fp4_quantization_enabled():
        correction_bias = correction_bias.to(torch.bfloat16)
@@ -444,17 +444,17 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
        correction_bias=correction_bias,
        ...
    )
-   ```
+```
 
 3. TRTLLM_ENABLE_PDL环境变量灵活性增强：允许通过设置`TRTLLM_ENABLE_PDL=0`禁用PDL特性
-   ```python
+```python
    # 优化前：强制启用PDL
    os.environ["TRTLLM_ENABLE_PDL"] = "1"
    
    # 优化后：支持用户自定义禁用
    if os.environ.get("TRTLLM_ENABLE_PDL", "1") != "0":
        os.environ["TRTLLM_ENABLE_PDL"] = "1"
-   ```
+```
 
 如何使用以及限制：
 
@@ -473,7 +473,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 效果：
 
 1. 循环结构重构：从外层遍历token、内层遍历topk改为批量处理
-   ```python
+```python
    # 优化前：逐token串行处理
    for token_index in range(token_start, token_end):
        accumulator = tl.zeros((BLOCK_DIM,), dtype=tl.float32)
@@ -488,7 +488,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
        tile = tl.load(base_ptrs + i * input_stride_1, ...)
        accumulator += tile.to(tl.float32)
    # 批量写回多个token
-   ```
+```
 
 2. 2D Accumulator设计：使用`(BLOCK_M, BLOCK_DIM)`的2D accumulator替代1D
    - 支持多个token同时累加
@@ -496,13 +496,13 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
    - 更好的内存访问合并
 
 3. Warp数量调整：从8个warps增加到16个warps
-   ```python
+```python
    # num_warps从8增加到16，提高并行度
    num_warps = 16
-   ```
+```
 
 4. 统一Mask处理：使用2D mask简化边界条件处理
-   ```python
+```python
    # 优化前：每个token分别检查边界
    mask = offs_dim < dim_end
    
@@ -510,7 +510,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
    mask_token = offs_token < token_num
    mask_dim = offs_dim < hidden_dim
    mask = mask_token[:, None] & mask_dim[None, :]
-   ```
+```
 
 这个优化的知识点总结：通过2D tile批量处理替代串行逐token处理，显著提升MoE sum reduce操作的并行度和内存访问效率。使用2D accumulator和统一mask处理，提高GPU SIMD单元利用率和内存访问合并效果。
 
@@ -524,7 +524,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 效果：
 
 1. SM120专用Kernel实现：新增`launch_sm120_fp8_blockwise_scaled_mm`模板函数
-   ```cpp
+```cpp
    template <typename OutType, typename MmaTileShape, typename PerSmTileShape,
              typename EpilogueTileShape, typename ScalesPerTile, ...>
    void launch_sm120_fp8_blockwise_scaled_mm(
@@ -535,19 +535,19 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
      using ArchTag = cutlass::arch::Sm120;    // SM120架构标签
      ...
    }
-   ```
+```
 
 2. Tile配置优化：针对SM120架构的专门调优参数
-   ```cpp
+```cpp
    // SM120的最优tile配置
    using MmaTileShape = Shape<_128, _128, _128>;      // MMA tile大小
    using PerSmTileShape = Shape<_128, _128, _128>;    // 每个SM的tile大小
    using EpilogueTileShape = Shape<_128, _64>;        // Epilogue tile大小
    using ScalesPerTile = Shape<_128, _1, _1>;         // 每个tile的scale数量
-   ```
+```
 
 3. Blockwise Scale配置：精细化的scale粒度控制
-   ```cpp
+```cpp
    // Scale粒度计算
    constexpr int ScaleGranularityM = size<0>(MmaTileShape{}) / ScaleMsPerTile;  // 128/128=1
    constexpr int ScaleGranularityN = size<1>(MmaTileShape{}) / size<1>(ScalesPerTile{});  // 128/1=128
@@ -556,10 +556,10 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
    using ScaleConfig = cutlass::detail::Sm120BlockwiseScaleConfig<
        ScaleGranularityM, ScaleGranularityN, ScaleGranularityK,
        cute::UMMA::Major::MN, cute::UMMA::Major::K>;
-   ```
+```
 
 4. 双精度输出支持：同时支持BFloat16和Half输出类型
-   ```cpp
+```cpp
    if (out_dtype == torch::kBFloat16) {
        sm120_fp8_blockwise_dispatch_shape<cutlass::bfloat16_t>(
            out_padded, mat_a_padded, mat_b, scales_a_padded, scales_b);
@@ -567,10 +567,10 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
        sm120_fp8_blockwise_dispatch_shape<cutlass::half_t>(
            out_padded, mat_a_padded, mat_b, scales_a_padded, scales_b);
    }
-   ```
+```
 
 5. 版本依赖检查：确保编译环境支持SM120特性
-   ```cpp
+```cpp
    #if defined(CUTLASS_ARCH_MMA_SM120A_SUPPORTED) || defined(CUTLASS_ARCH_MMA_SM120_SUPPORTED)
    #if defined(CUDA_VERSION) && CUDA_VERSION >= 12080
      if (sm_version == 120) {
@@ -578,7 +578,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
      }
    #endif
    #endif
-   ```
+```
 
 如何使用以及限制：
 - CUDA版本 >= 12.8
@@ -599,7 +599,7 @@ Motivation：原CUTLASS nvfp4 block-scaled GEMM使用统一的性能配置，该
 效果：
 
 1. ClusterShape精细化调优：根据M大小动态调整ClusterShapeM
-   ```cpp
+```cpp
    // 小batch配置 (M <= 128) - 避免冗余计算
    struct KernelConfigM128 {
      using MmaTileShape = Shape<_128, _256, _256>;
@@ -620,7 +620,7 @@ Motivation：原CUTLASS nvfp4 block-scaled GEMM使用统一的性能配置，该
      const static dim3 preferred_cluster(4, 4, 1);  // ClusterShapeM=4
      using MainloopSchedule = KernelTmaWarpSpecialized2SmNvf4Sm100;  // 2SM策略
    };
-   ```
+```
 
 2. TMA Multicast优化策略：
    - 小M场景：设置ClusterShapeM=1避免冗余计算，但保持ClusterShapeN>1利用TMA multicast
@@ -630,24 +630,24 @@ Motivation：原CUTLASS nvfp4 block-scaled GEMM使用统一的性能配置，该
      - 2SM策略：`(MmaTileShapeM * ClusterShapeM/2, MmaTileShapeN * ClusterShapeN, MmaTileShapeK)`
 
 3. Epilogue Tile精确配置：避免寄存器溢出
-   ```cpp
+```cpp
    // 使用EpilogueTileAuto可能导致寄存器溢出
    // 改为精确分配：每个Epilogue Warp处理(128, 64)输出tile
    using EpilogueTile = Shape<_128, _64>;
    using EpilogueSchedule = cutlass::epilogue::TmaWarpSpecialized1Sm;  // 1SM
    using EpilogueSchedule = cutlass::epilogue::TmaWarpSpecialized2Sm;  // 2SM
-   ```
+```
 
 4. Dynamic Clusters机制：确保高SM占用率
-   ```cpp
+```cpp
    // Preferred cluster：性能最优配置
    arguments.hw_info.cluster_shape = KernelConfig::preferred_cluster;
    // Fallback cluster：资源受限时的保底配置
    arguments.hw_info.cluster_shape_fallback = KernelConfig::fallback_cluster;
-   ```
+```
 
 5. M维度自适应Dispatch：
-   ```cpp
+```cpp
    template <typename OutType>
    void cutlassFp4GemmDispatch(..., int64_t m, ...) {
      if (m <= 128) {
@@ -661,7 +661,7 @@ Motivation：原CUTLASS nvfp4 block-scaled GEMM使用统一的性能配置，该
        runGemm<Fp4GemmSm100<KernelConfigDefault<OutType>>>(...);
      }
    }
-   ```
+```
 
 配置策略详解：
 
@@ -707,7 +707,7 @@ Motivation：在使用paged attention且page_size > 1时，retract_decode过程�
 效果：
 
 1. 内存检查方法增强：为`new_page_count_next_decode`和`check_decode_mem`添加`selected_indices`参数
-   ```python
+```python
    def new_page_count_next_decode(self, selected_indices: Optional[List[int]] = None):
        page_size = self.token_to_kv_pool_allocator.page_size
        # 支持计算特定请求子集的page需求
@@ -724,10 +724,10 @@ Motivation：在使用paged attention且page_size > 1时，retract_decode过程�
            if self.enable_overlap
            else sum(1 for req in requests if (req.seqlen - 1) % page_size == 0)
        )
-   ```
+```
 
 2. 简化retract内存检查逻辑：移除冗余的辅助函数，统一使用`check_decode_mem`
-   ```python
+```python
    # 优化前：手动计算所需token数和可用内存
    def get_required_tokens(num_reqs: int):
        headroom_for_spec_decode = 0
@@ -747,10 +747,10 @@ Motivation：在使用paged attention且page_size > 1时，retract_decode过程�
    # 优化后：使用统一的check_decode_mem方法
    while first_iter or (not self.check_decode_mem(selected_indices=sorted_indices)):
        # retract逻辑
-   ```
+```
 
 3. 移除冗余的tree cache evict调用：删除循环内的`_evict_tree_cache_if_needed`
-   ```python
+```python
    # 优化前：在retract循环中手动触发evict
    self.tree_cache.dec_lock_ref(req.last_node)
    num_tokens = len(sorted_indices) * global_config.retract_decode_steps
@@ -759,7 +759,7 @@ Motivation：在使用paged attention且page_size > 1时，retract_decode过程�
    # 优化后：依赖check_decode_mem的自动evict机制
    self.tree_cache.dec_lock_ref(req.last_node)
    # check_decode_mem内部已处理evict逻辑
-   ```
+```
 
 4. Page对齐的精确内存计算：考虑page边界对齐的内存需求
    - page_size == 1：每个请求需要1个token
@@ -794,7 +794,7 @@ Motivation：在speculative decoding中，target_verify和draft_extend操作默�
 效果：
 
 1. 新增配置参数：添加`--speculative-attention-backend`参数
-   ```python
+```python
    parser.add_argument(
        "--speculative-attention-backend",
        type=str,
@@ -802,10 +802,10 @@ Motivation：在speculative decoding中，target_verify和draft_extend操作默�
        help="Attention backend for speculative decoding operations. 'prefill' (default) or 'decode'.",
        default="prefill",
    )
-   ```
+```
 
 2. Backend选择逻辑重构：在HybridAttnBackend中添加`_select_backend`方法
-   ```python
+```python
    def _select_backend(self, forward_mode: ForwardMode) -> AttentionBackend:
        """
        根据forward mode选择合适的attention backend
@@ -823,10 +823,10 @@ Motivation：在speculative decoding中，target_verify和draft_extend操作默�
            )
        else:
            return self.prefill_backend
-   ```
+```
 
 3. EAGLE Worker适配：draft extend backend根据配置动态选择
-   ```python
+```python
    def _create_draft_extend_backend(self):
        backend_name = (
            "decode_attention_backend"
@@ -838,10 +838,10 @@ Motivation：在speculative decoding中，target_verify和draft_extend操作默�
            backend_map,
            "EAGLE is not supported in attention backend {backend_type}",
        )
-   ```
+```
 
 4. CUDA Graph初始化优化：仅为实际使用的backend初始化CUDA graph
-   ```python
+```python
    def init_cuda_graph_state(self, max_bs: int, max_num_tokens: int):
        self.decode_backend.init_cuda_graph_state(max_bs, max_num_tokens)
        if (
@@ -850,10 +850,10 @@ Motivation：在speculative decoding中，target_verify和draft_extend操作默�
        ):
            # 只有使用prefill backend时才初始化prefill的CUDA graph
            self.prefill_backend.init_cuda_graph_state(max_bs, max_num_tokens)
-   ```
+```
 
 5. 统一metadata初始化：所有forward metadata操作通过`_select_backend`统一路由
-   ```python
+```python
    def init_forward_metadata(self, forward_batch: ForwardBatch):
        backend = self._select_backend(forward_batch.forward_mode)
        backend.init_forward_metadata(forward_batch)
@@ -865,7 +865,7 @@ Motivation：在speculative decoding中，target_verify和draft_extend操作默�
    def init_forward_metadata_replay_cuda_graph(...):
        backend = self._select_backend(forward_mode)
        backend.init_forward_metadata_replay_cuda_graph(...)
-   ```
+```
 
 使用方法：
 
@@ -905,7 +905,7 @@ Motivation：MLA架构中，K矩阵由两部分组成：k_nope（128维）和k_r
 效果：
 
 1. Warp级并行设计：每个warp处理一个head chunk（16个head）
-   ```cpp
+```cpp
    constexpr int NUM_LOCAL_HEADS = 128;
    constexpr int HEAD_CHUNK_SIZE = 16;
    constexpr int NUM_HEAD_CHUNKS = NUM_LOCAL_HEADS / HEAD_CHUNK_SIZE;  // 8 chunks
@@ -913,10 +913,10 @@ Motivation：MLA架构中，K矩阵由两部分组成：k_nope（128维）和k_r
    const int flat_warp_id = (blockIdx.x * blockDim.x + threadIdx.x) / 32;
    const int token_id = flat_warp_id / NUM_HEAD_CHUNKS;
    const int head_chunk_id = flat_warp_id % NUM_HEAD_CHUNKS;
-   ```
+```
 
 2. 向量化内存访问：使用int2和int类型进行128-bit和64-bit对齐读写
-   ```cpp
+```cpp
    // k_nope使用int2 (128-bit)，每个线程处理4个bfloat16元素
    using KNopeBufType = int2;
    static_assert(sizeof(KNopeBufType) == QK_NOPE_HEAD_DIM * sizeof(nv_bfloat16) / 32);
@@ -926,17 +926,17 @@ Motivation：MLA架构中，K矩阵由两部分组成：k_nope（128维）和k_r
    using KRopeBufType = int;
    static_assert(sizeof(KRopeBufType) == QK_ROPE_HEAD_DIM * sizeof(nv_bfloat16) / 32);
    KRopeBufType k_rope_buf;
-   ```
+```
 
 3. 共享k_rope数据：整个warp共享同一个k_rope数据，只读取一次
-   ```cpp
+```cpp
    // k_rope在所有head间共享，只读取一次
    const int* base_addr = reinterpret_cast<int*>(k_rope + token_id * k_rope_stride_0);
    k_rope_buf = *(base_addr + lane_id);
-   ```
+```
 
 4. 批量读写优化：使用循环展开处理16个head
-   ```cpp
+```cpp
    // 批量读取k_nope (16 heads)
    #pragma unroll
    for (int i = 0; i < HEAD_CHUNK_SIZE; ++i) {
@@ -960,7 +960,7 @@ Motivation：MLA架构中，K矩阵由两部分组成：k_nope（128维）和k_r
            k + token_id * k_stride_0 + head_id * k_stride_1 + QK_NOPE_HEAD_DIM);
        *(rope_addr + lane_id) = k_rope_buf;
    }
-   ```
+```
 
 内存访问模式：
 
@@ -1005,7 +1005,7 @@ Motivation：FlashAttention-3使用手写CUDA kernel，虽然性能优异但定�
 效果：
 
 1. 添加FA4 Python接口：封装CUTLASS Cute DSL的attention实现
-   ```python
+```python
    # _fa4_interface.py
    from flash_attn.cute.flash_fwd import FlashAttentionForwardSm90  # Hopper
    from flash_attn.cute.flash_fwd_sm100 import FlashAttentionForwardSm100  # Blackwell
@@ -1024,10 +1024,10 @@ Motivation：FlashAttention-3使用手写CUDA kernel，虽然性能优异但定�
        pack_gqa=None,
        ...
    ):
-   ```
+```
 
 2. 版本选择机制：在`flash_attn_varlen_func`中添加ver参数
-   ```python
+```python
    def flash_attn_varlen_func(..., ver=3):
        if ver == 4:
            # 使用FA4实现
@@ -1042,7 +1042,7 @@ Motivation：FlashAttention-3使用手写CUDA kernel，虽然性能优异但定�
                learnable_sink=sinks,
            )
        # 否则使用FA3实现
-   ```
+```
 
 如何使用以及限制：
 
@@ -1113,7 +1113,7 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
 效果：
 
 1. 添加父进程监控机制：调用`kill_itself_when_parent_died()`
-   ```python
+```python
    def run_data_parallel_controller_process(
        server_args: ServerArgs,
        port_args: PortArgs,
@@ -1122,10 +1122,10 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
        kill_itself_when_parent_died()  # 监控父进程，父进程退出时自动终止
        setproctitle.setproctitle("sglang::data_parallel_controller")
        ...
-   ```
+```
 
 2. 启用故障处理器：添加`faulthandler.enable()`
-   ```python
+```python
    import faulthandler
    
    def run_data_parallel_controller_process(...):
@@ -1134,7 +1134,7 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
        faulthandler.enable()  # 在崩溃时自动打印堆栈信息
        configure_logger(server_args)
        ...
-   ```
+```
 
 功能说明：
 
@@ -1166,7 +1166,7 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
 效果：
 
 1. 创建替代CUDA流：在模型初始化时创建独立的CUDA流用于并行计算
-   ```python
+```python
    # 初始化时创建alt_stream
    alt_stream = torch.cuda.Stream() if _is_cuda else None
    self.model = Qwen2MoeModel(
@@ -1174,10 +1174,10 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
        prefix=add_prefix("model", prefix),
        alt_stream=alt_stream,  # 传递给MoE层
    )
-   ```
+```
 
 2. Forward方法拆分：将原有的forward逻辑拆分为独立的子函数
-   ```python
+```python
    def _forward_shared_experts(self, hidden_states: torch.Tensor):
        """计算shared experts输出"""
        shared_output = None
@@ -1194,10 +1194,10 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
        router_logits, _ = self.gate(hidden_states)
        topk_output = self.topk(hidden_states, router_logits)
        return self.experts(hidden_states, topk_output)
-   ```
+```
 
 3. 双流并行执行：使用CUDA流并行计算两部分
-   ```python
+```python
    def forward_normal_dual_stream(self, hidden_states: torch.Tensor):
        current_stream = torch.cuda.current_stream()
        self.alt_stream.wait_stream(current_stream)
@@ -1213,10 +1213,10 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
        current_stream.wait_stream(self.alt_stream)
        
        return router_output, shared_output
-   ```
+```
 
 4. 自适应启用策略：仅在合适的batch size时启用双流优化
-   ```python
+```python
    DUAL_STREAM_TOKEN_THRESHOLD = 1024
    
    def forward(self, hidden_states, forward_batch=None, use_reduce_scatter=False):
@@ -1239,7 +1239,7 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
        if shared_output is not None:
            final_hidden_states = final_hidden_states + shared_output
        ...
-   ```
+```
 
 优化原理：
 
@@ -1264,7 +1264,7 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
 效果：
 
 1. 新增page_first_direct布局：定义page级别的内存组织方式
-   ```python
+```python
    # 原有布局
    # layer_first: (2, layer_num, size, head_num, head_dim)
    # page_first: (2, size, layer_num, head_num, head_dim)
@@ -1273,10 +1273,10 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
    # page_first_direct: (2, page_num, layer_num, page_size, head_num, head_dim)
    dims = (2, self.page_num, self.layer_num, self.page_size, 
            self.head_num, self.head_dim)
-   ```
+```
 
 2. 添加Direct IO kernel：实现layout间的高效转换
-   ```cpp
+```cpp
    // Page First到Layer First转换（单层）
    void transfer_kv_per_layer_direct_pf_lf(
        const std::vector<at::Tensor>& src_ptrs,
@@ -1293,10 +1293,10 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
        const at::Tensor& src_indices,
        const at::Tensor& dst_indices,
        int64_t page_size)
-   ```
+```
 
 3. 统一Direct IO接口：在host和device传输中支持新布局
-   ```python
+```python
    if io_backend == "direct":
        if self.layout == "page_first_direct":
            # 从host加载到device
@@ -1309,15 +1309,15 @@ Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终
                layer_id=layer_id,
                page_size=self.page_size,
            )
-   ```
+```
 
 4. 命令行参数支持：通过`--hicache-mem-layout`指定布局
-   ```bash
+```bash
    python -m sglang.launch_server \
        --model MODEL \
        --hicache-mem-layout page_first_direct \
        ...
-   ```
+```
 
 内存布局对比：
 
@@ -1354,7 +1354,7 @@ Motivation：
 效果：
 
 1. 独立Buffer分配：为每个LogitsMetadata创建私有buffer
-   ```python
+```python
    # 优化前：使用全局共享buffer
    hidden_states, local_hidden_states = (
        get_global_dp_buffer(),  # 全局共享，存在竞争
@@ -1366,10 +1366,10 @@ Motivation：
        logits_metadata.gathered_buffer,  # 每个metadata独立
        hidden_states,
    )
-   ```
+```
 
 2. 动态Buffer尺寸：根据实际需求分配大小
-   ```python
+```python
    if self.global_num_tokens_for_logprob_cpu is not None:
        # 需要logprob时：仅分配必要大小
        buffer_size = sum(self.global_num_tokens_for_logprob_cpu)
@@ -1382,10 +1382,10 @@ Motivation：
        dtype=dtype,
        device=device,
    )
-   ```
+```
 
 3. 添加Buffer属性获取接口：提供必要的参数信息
-   ```python
+```python
    # dp_attention.py中新增方法
    @classmethod
    def get_dp_hidden_size(cls) -> int:
@@ -1398,7 +1398,7 @@ Motivation：
    @classmethod
    def get_dp_device(cls) -> torch.device:
        return cls._device
-   ```
+```
 
 如何使用以及限制：
 
@@ -1421,7 +1421,7 @@ Motivation：
 效果：
 
 1. 强制Extend模式使用SUM_LEN：在extend场景下固定padding策略
-   ```python
+```python
    # 优化前：可能根据token分布选择不同mode
    dp_padding_mode = DpPaddingMode.get_dp_padding_mode(global_num_tokens)
    
@@ -1430,10 +1430,10 @@ Motivation：
        dp_padding_mode = DpPaddingMode.SUM_LEN
    else:
        dp_padding_mode = DpPaddingMode.get_dp_padding_mode(global_num_tokens)
-   ```
+```
 
 2. 统一Mode决策依据：使用全局一致的`is_extend_in_batch`标志
-   ```python
+```python
    # 优化前：基于local forward_mode判断
    def get_dp_padding_mode(cls, forward_mode, global_num_tokens):
        if forward_mode.is_extend():
@@ -1443,7 +1443,7 @@ Motivation：
    def get_dp_padding_mode(cls, is_extend_in_batch, global_num_tokens):
        if is_extend_in_batch:
            return DpPaddingMode.SUM_LEN
-   ```
+```
 
 优化原理：
 
@@ -1484,7 +1484,7 @@ Motivation：
 效果：
 
 1. 异步队列收集请求：使用asyncio.Queue收集待tokenize的请求
-   ```python
+```python
    class AsyncDynamicbatchTokenizer:
        def __init__(self, tokenizer, max_batch_size=32, batch_wait_timeout_s=0.002):
            self.tokenizer = tokenizer
@@ -1497,10 +1497,10 @@ Motivation：
            result_future = asyncio.get_running_loop().create_future()
            await self._queue.put((prompt, kwargs, result_future))
            return await result_future
-   ```
+```
 
 2. 动态批处理循环：后台任务持续收集请求并批量处理
-   ```python
+```python
    async def _dynamic_batch_loop(self):
        while True:
            # 获取第一个请求
@@ -1526,10 +1526,10 @@ Motivation：
                        break
            
            await self._process_dynamic_batch(prompts, kwargs_list, result_futures)
-   ```
+```
 
 3. 批量调用优化：kwargs相同时使用单次批量调用
-   ```python
+```python
    async def _process_dynamic_batch(self, prompts, kwargs_list, result_futures):
        # 检查所有kwargs是否相同
        can_batch = len(set(str(sorted(kw.items())) for kw in kwargs_list)) == 1
@@ -1545,10 +1545,10 @@ Motivation：
            results = [self.tokenizer(p, **kw) for p, kw in zip(prompts, kwargs_list)]
            for fut, res in zip(result_futures, results):
                fut.set_result(res)
-   ```
+```
 
 4. 集成到TokenizerManager：替换原有tokenizer调用
-   ```python
+```python
    # TokenizerManager初始化
    if server_args.enable_dynamic_batch_tokenizer:
        self.async_dynamic_batch_tokenizer = AsyncDynamicbatchTokenizer(
@@ -1567,7 +1567,7 @@ Motivation：
            # 批量文本直接使用原tokenizer（已经是批量）
            encoded = self.tokenizer(texts)
            return encoded["input_ids"], encoded.get("token_type_ids")
-   ```
+```
 
 使用方法：
 
@@ -1613,7 +1613,7 @@ Motivation：
 效果：
 
 1. 跳过输入Token Logprobs计算：添加`is_prefill_only`标志位识别评分请求
-   ```python
+```python
    # schedule_batch.py中的优化
    if (
        self.is_prefill_only
@@ -1627,10 +1627,10 @@ Motivation：
            req.extend_input_len,
            req.seqlen - 1,
        )
-   ```
+```
 
 2. 跳过Sampling步骤：新增`compute_logprobs_only()`方法仅计算logprobs
-   ```python
+```python
    # tp_worker.py中的条件判断
    if skip_sample:
        next_token_ids = None
@@ -1643,10 +1643,10 @@ Motivation：
            self.model_runner.compute_logprobs_only(
                logits_output, model_worker_batch
            )
-   ```
+```
 
 3. 批量向量化Logprobs提取：单次GPU kernel收集所有请求的token logprobs
-   ```python
+```python
    def get_token_ids_logprobs_batch_optimized(
        logprobs: torch.Tensor,
        token_ids_logprobs: List[List[int]],
@@ -1675,16 +1675,16 @@ Motivation：
            return batch_logprobs  # GPU tensor
        else:
            return batch_logprobs.tolist()  # 立即转CPU
-   ```
+```
 
 4. 延迟GPU→CPU拷贝优化：logprobs结果保留在GPU，推迟到输出处理阶段再转换
-   ```python
+```python
    # scheduler_output_processor_mixin.py中处理延迟拷贝
    logprobs_val = output.next_token_token_ids_logprobs_val[i]
    if isinstance(logprobs_val, torch.Tensor):
        logprobs_val = logprobs_val.tolist()  # 延迟转换
    req.output_token_ids_logprobs_val.append(logprobs_val)
-   ```
+```
 
 性能提升：
 
@@ -1727,7 +1727,7 @@ Motivation：
 效果：
 
 1. 添加split tile size参数：新增`--triton-attention-split-tile-size`参数控制每个split的固定大小
-   ```python
+```python
    # server_args.py
    parser.add_argument(
        "--triton-attention-split-tile-size",
@@ -1736,20 +1736,20 @@ Motivation：
        help="The size of split KV tile in flash decoding Triton kernel. "
             "Used for deterministic inference.",
    )
-   ```
+```
 
 2. 基于tile size计算split数量：根据序列长度和固定tile size动态计算split数量
-   ```python
+```python
    # triton_backend.py
    if self.split_tile_size is not None:
        # 初始化时根据最大上下文长度预计算max_kv_splits
        self.max_kv_splits = (
            self.max_context_len + self.split_tile_size - 1
        ) // self.split_tile_size
-   ```
+```
 
 3. 运行时动态调整split数量：根据实际序列长度计算精确的split数量
-   ```python
+```python
    def _prepare_decode_metadata(self, forward_batch: ForwardBatch):
        if self.split_tile_size is not None:
            # 每个请求根据其序列长度计算split数量
@@ -1757,7 +1757,7 @@ Motivation：
                seq_lens + self.split_tile_size - 1
            ) // self.split_tile_size
            return
-   ```
+```
 
 优化原理：
 
@@ -1824,16 +1824,16 @@ python -m sglang.launch_server \
 效果：
 
 1. 三层追踪上下文设计：构建请求级(SglangTraceReqContext)、线程级(SglangTraceThreadContext)、切片级(SglangTraceSliceContext)的层次化追踪架构
-   ```python
+```python
    SglangTraceReqContext (req_id="req-123")
    ├── SglangTraceThreadContext(thread_label="scheduler", tp_rank=0)
    │   └── SglangTraceSliceContext (name="prefill")
    └── SglangTraceThreadContext(thread_label="tokenizer", tp_rank=0)
        └── SglangTraceSliceContext (name="tokenize")
-   ```
+```
 
 2. 自动埋点关键路径：在tokenizer和scheduler中自动插入追踪点
-   ```python
+```python
    # Tokenizer Manager：请求开始和tokenize阶段
    trace_req_start(obj.rid, bootstrap_room, ts=int(created_time * 1e9))
    trace_slice_start("", obj.rid, anonymous=True)
@@ -1843,24 +1843,24 @@ python -m sglang.launch_server \
    trace_slice_start("", req.rid, anonymous=True)
    trace_slice_end("prefill", req.rid, auto_next_anon=True)
    trace_slice("decode loop", req.rid, thread_finish_flag=req.finished())
-   ```
+```
 
 3. 跨进程上下文传播：通过ZMQ传递trace context实现分布式追踪
-   ```python
+```python
    # 发送端
    trace_context = trace_get_proc_propagate_context(rid)
    req.trace_context = trace_context
    
    # 接收端
    trace_set_proc_propagate_context(rid, req.trace_context)
-   ```
+```
 
 4. 匿名切片优化：支持延迟命名和自动链接，减少埋点代码
-   ```python
+```python
    trace_slice_start("", rid, anonymous=True)  # 创建匿名切片
    trace_slice_end("tokenize", rid, auto_next_anon=True)  # 命名并自动创建下一个
    trace_slice_end("dispatch", rid, thread_finish_flag=True)  # 最后一个切片
-   ```
+```
 
 使用方法：
 
@@ -1899,7 +1899,7 @@ python -m sglang.launch_server \
 效果：
 
 1. CUTLASS版本更新：从版本`a49a78f`更新到`57e3cfb`
-   ```cmake
+```cmake
    # CMakeLists.txt
    FetchContent_Declare(
        repo-cutlass
@@ -1907,10 +1907,10 @@ python -m sglang.launch_server \
    -   GIT_TAG        a49a78ffefc86a87160dfe0ccc3a3a2d1622c918
    +   GIT_TAG        57e3cfb47a2d9e0d46eb6335c3dc411498efa198
    )
-   ```
+```
 
 2. 统一Kernel Schedule命名：将所有FP8 blockwise相关的kernel schedule统一改名
-   ```cpp
+```cpp
    // 单GEMM场景
    - using KernelSchedule = cutlass::gemm::KernelTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
    + using KernelSchedule = cutlass::gemm::KernelTmaWarpSpecializedCooperativeFP8Blockwise;
@@ -1922,7 +1922,7 @@ python -m sglang.launch_server \
    // Grouped GEMM场景（Cooperative调度）
    - using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
    + using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8Blockwise;
-   ```
+```
 
 技术背景：
 
@@ -1959,7 +1959,7 @@ Motivation：
 效果：
 
 1. 移除model_runner中的DP限制：删除针对Blackwell + DP场景强制禁用chunked prefix cache的代码
-   ```python
+```python
    # 删除的限制代码
    - elif (
    -     self.dp_size > 1
@@ -1971,10 +1971,10 @@ Motivation：
    -         "Disable chunked prefix cache when dp size > 1 and attention backend is not triton."
    -     )
    -     server_args.disable_chunked_prefix_cache = True
-   ```
+```
 
 2. 移除DeepSeek-V2的精度workaround：删除在attention backend选择时针对DP+Blackwell的特殊处理
-   ```python
+```python
    # 删除的workaround代码
    - original_mode = getattr(forward_batch, "_original_forward_mode", None)
    - # TODO: Flashinfer cutlass和trtllm_mla backend在Blackwell上DP场景有精度问题
@@ -1985,7 +1985,7 @@ Motivation：
    -     and is_sm100_supported()
    -     and self.current_attention_backend in ("cutlass_mla", "flashinfer")
    - )
-   ```
+```
 
 如何使用以及限制：
 
@@ -2004,17 +2004,17 @@ Motivation：
 效果：
 
 1. 基于torch.nn.attention.flex_attention：利用PyTorch 2.5+的FlexAttention API实现
-   ```python
+```python
    from torch.nn.attention.flex_attention import create_block_mask, flex_attention
    
    class TorchFlexAttnBackend(AttentionBackend):
        def __init__(self, model_runner: ModelRunner):
            self.flex_attention = torch.compile(flex_attention, dynamic=True)
            torch._dynamo.config.cache_size_limit = 1024
-   ```
+```
 
 2. 动态Block Mask生成：为每个序列动态创建block mask
-   ```python
+```python
    # Prefill阶段：causal mask
    def _causal_mask(self, b, h, q_idx, kv_idx):
        return q_idx >= kv_idx
@@ -2031,10 +2031,10 @@ Motivation：
            device=self.device, _compile=False
        )
    )
-   ```
+```
 
 3. Per-Sequence处理：逐序列执行attention计算，支持变长输入
-   ```python
+```python
    for seq_idx in range(seq_lens.shape[0]):
        per_req_query = query[:, start_q:end_q, :]
        per_req_key = k_cache[per_req_tokens].movedim(0, query.dim() - 2)
@@ -2047,12 +2047,12 @@ Motivation：
            block_mask=self.extend_block_masks[seq_idx],
            scale=scaling, enable_gqa=enable_gqa
        )
-   ```
+```
 
 4. 支持GQA：通过enable_gqa参数支持Grouped Query Attention
-   ```python
+```python
    use_gqa = layer.tp_q_head_num != layer.tp_k_head_num
-   ```
+```
 
 使用方法：
 
@@ -2088,7 +2088,7 @@ python -m sglang.launch_server \
 效果：
 
 1. BF16向量化Fast Path：针对大batch和对齐场景的高度优化路径
-   ```cpp
+```cpp
    // 使用16字节对齐的向量化加载
    constexpr int VEC = 16;
    Pack16B pack = {ldg_cg(reinterpret_cast<const uint4*>(x + offset))};
@@ -2102,26 +2102,26 @@ python -m sglang.launch_server \
            }
        }
    }
-   ```
+```
    - 触发条件：`token_num > 256 && hidden_dim % 8 == 0 && dtype == bfloat16`
    - 使用8个warps per block，高效利用SM资源
 
 2. Warp-Token模式：中等batch场景的优化策略
-   ```cpp
+```cpp
    // 每个warp处理一个token，所有维度
    template <typename scalar_t, int TOPK, int WARPS_PER_BLOCK>
    __global__ void moe_sum_reduce_kernel_warp_token_topk(...)
-   ```
+```
    - 触发条件：`token_num > 128`
    - 使用4个warps per block
    - 支持topk循环展开（2, 4, 8, 9）
 
 3. Small-Token模式：小batch场景的备用策略
-   ```cpp
+```cpp
    // 传统的block-level并行
    template <typename scalar_t, int TOPK>
    __global__ void moe_sum_reduce_kernel(...)
-   ```
+```
    - 触发条件：`token_num <= 128`
    - 256 threads per block
    - 更细粒度的并行
@@ -2171,23 +2171,23 @@ moe_sum_reduce(
 **效果：**
 
 1. 统一启用fast decode plan：移除确定性推理模式的限制
-   ```python
+```python
    # 优化前：仅在非确定性模式下启用
    if not self.deterministic:
        self.fast_decode_plan = True
    
    # 优化后：统一启用
    self.fast_decode_plan = True
-   ```
+```
 
 2. 环境变量配置split tile size：支持通过`SGLANG_FLASHINFER_SPLIT_TILE_SIZE`环境变量配置
-   ```python
+```python
    # 优化前：通过命令行参数配置
    parser.add_argument("--flashinfer-split-tile-size", type=int, default=128)
    
    # 优化后：通过环境变量配置
    split_tile_size = int(os.environ.get("SGLANG_FLASHINFER_SPLIT_TILE_SIZE", "128"))
-   ```
+```
 
 3. 移除命令行参数：删除`--flashinfer-split-tile-size`参数，简化配置
 
@@ -2210,7 +2210,7 @@ moe_sum_reduce(
 **效果：**
 
 1. 请求模型扩展：为所有请求类型添加`cache_salt`和`extra_key`字段
-   ```python
+```python
    class CompletionRequest(BaseModel):
        # 原有字段...
        rid: Optional[Union[List[str], str]] = None
@@ -2221,10 +2221,10 @@ moe_sum_reduce(
    
    class ChatCompletionRequest(BaseModel):
        # 同样添加extra_key和cache_salt字段
-   ```
+```
 
 2. Extra Key计算逻辑：实现`_compute_extra_key`方法组合cache_salt和extra_key
-   ```python
+```python
    def _compute_extra_key(self, request: OpenAIServingRequest) -> Optional[str]:
        """计算最终的extra_key，将cache_salt和extra_key连接"""
        keys = ["cache_salt", "extra_key"]
@@ -2235,10 +2235,10 @@ moe_sum_reduce(
            if value:
                ret = value if ret is None else ret + value
        return ret
-   ```
+```
 
 3. 请求处理集成：在所有serving类中集成extra_key
-   ```python
+```python
    # Chat Completion
    req = GenerateReqInput(
        # 原有参数...
@@ -2252,10 +2252,10 @@ moe_sum_reduce(
        extra_key=self._compute_extra_key(request),
        priority=request.priority,
    )
-   ```
+```
 
 4. 缓存隔离测试：验证不同cache_salt的缓存隔离效果
-   ```python
+```python
    def test_cache_salt_effectiveness(self):
        # 相同cache_salt的请求应该共享缓存
        response1 = client.chat.completions.create(
@@ -2274,7 +2274,7 @@ moe_sum_reduce(
            extra_body={"cache_salt": "salt2"}
        )
        # response3不应该有缓存命中
-   ```
+```
 
 技术要点：
 
@@ -2320,7 +2320,7 @@ response = client.chat.completions.create(
 **效果：**
 
 1. 创建通用工具函数：在`models/utils.py`中实现可复用的融合逻辑
-   ```python
+```python
    def enable_fused_set_kv_buffer(forward_batch: ForwardBatch):
        """仅在CUDA + bfloat16 KV cache时启用融合"""
        return _is_cuda and forward_batch.token_to_kv_pool.dtype == torch.bfloat16
@@ -2341,10 +2341,10 @@ response = client.chat.completions.create(
            v_scale=layer.v_scale,
            cache_loc=forward_batch.out_cache_loc,
        )
-   ```
+```
 
 2. Qwen3-MoE融合实现：在RoPE计算中融合KV buffer写入
-   ```python
+```python
    # 优化前：分离的RoPE和attention计算
    q, k = self.rotary_emb(positions, q, k)
    attn_output = self.attn(*inner_state)
@@ -2362,10 +2362,10 @@ response = client.chat.completions.create(
        *inner_state,
        save_kv_cache=not enable_fused_set_kv_buffer(forward_batch)
    )
-   ```
+```
 
 3. Bailing-MoE融合实现：类似的融合模式
-   ```python
+```python
    q, k = self.rotary_emb(
        positions, q, k,
        fused_set_kv_buffer_arg=(
@@ -2378,10 +2378,10 @@ response = client.chat.completions.create(
        q, k, v, forward_batch,
        save_kv_cache=not enable_fused_set_kv_buffer(forward_batch)
    )
-   ```
+```
 
 4. GPT-OSS代码重构：将原有内联函数移至通用工具模块
-   ```python
+```python
    # 优化前：在gpt_oss.py中定义内联函数
    def _enable_fused_set_kv_buffer(forward_batch):
        return _is_cuda and forward_batch.token_to_kv_pool.dtype == torch.bfloat16
@@ -2391,7 +2391,7 @@ response = client.chat.completions.create(
        create_fused_set_kv_buffer_arg,
        enable_fused_set_kv_buffer,
    )
-   ```
+```
 
 **如何使用以及限制：**
 - 仅支持CUDA + bfloat16 KV cache场景
@@ -2409,7 +2409,7 @@ response = client.chat.completions.create(
 **效果：**
 
 1. 多阶段向量化访问：使用int2和int类型实现128-bit和64-bit对齐读写
-   ```cpp
+```cpp
    // 优化前：逐个head处理
    for (int i = 0; i < HEAD_CHUNK_SIZE; ++i) {
        const int head_id = head_chunk_id * HEAD_CHUNK_SIZE + i;
@@ -2424,10 +2424,10 @@ response = client.chat.completions.create(
        reinterpret_cast<const int2*>(k_nope + token_id * k_nope_stride_0 + head_row0 * k_nope_stride_1) + lane_id;
    int2* __restrict__ nope_dst = 
        reinterpret_cast<int2*>(k + token_id * k_stride_0 + head_row0 * k_stride_1) + lane_id;
-   ```
+```
 
 2. 流水线预取优化：在计算当前数据时预取下一批数据
-   ```cpp
+```cpp
    #pragma unroll
    for (int i = 0; i < HEAD_CHUNK_SIZE; ++i) {
        NopeVec next;
@@ -2446,10 +2446,10 @@ response = client.chat.completions.create(
        rope_dst += rope_dst_stride_v;
        cur = next;
    }
-   ```
+```
 
 3. PTX汇编优化：使用专门的PTX指令优化内存访问
-   ```cpp
+```cpp
    // 新增utils.cuh工具函数
    __device__ __forceinline__ void st_na_global_v1(const int* ptr, int v) {
        asm volatile("st.global.L1::no_allocate.s32 [%0], %1;" ::"l"(ptr), "r"(v) : "memory");
@@ -2465,10 +2465,10 @@ response = client.chat.completions.create(
    __device__ __forceinline__ void prefetch_L2(const void* p) {
        asm volatile("prefetch.global.L2 [%0];" ::"l"(p));
    }
-   ```
+```
 
 4. 内存访问模式优化：减少stride计算和指针运算
-   ```cpp
+```cpp
    // 预计算stride，避免循环中重复计算
    const int nope_src_stride_v = (k_nope_stride_1 >> 2);  // int2 covers 4 bf16
    const int nope_dst_stride_v = (k_stride_1 >> 2);
@@ -2477,10 +2477,10 @@ response = client.chat.completions.create(
    // 共享k_rope数据，避免重复加载
    const int* rope_base = reinterpret_cast<const int*>(k_rope + token_id * k_rope_stride_0);
    const RopeVec rope_val = ld_na_global_v1(rope_base + lane_id);
-   ```
+```
 
 5. 性能基准测试：添加comprehensive benchmark验证优化效果
-   ```python
+```python
    # benchmark_concat_mla.py
    @triton.testing.perf_report(
        triton.testing.Benchmark(
@@ -2492,7 +2492,7 @@ response = client.chat.completions.create(
    )
    def benchmark(num_tokens, provider):
        # 对比不同实现方式的性能
-   ```
+```
 
 **如何使用以及限制：**
 - 适用于DeepSeek-V2/V3/R1等MLA架构模型
