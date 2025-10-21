@@ -48,14 +48,14 @@ def get_buffer_meta(self, keys, indices, local_rank):
 
 相关PR：https://github.com/sgl-project/sglang/pull/9783
 
-问题背景：
+Motivation：
 - 在B200/GB200上，KV缓存的数据量成为GPT-OSS性能瓶颈，限制了批次大小
 - 使用FP8 KV缓存可以显著提升批次大小（从630提升到768）
 - 但原有的fused set kv buffer kernel只支持bfloat16类型的KV缓存，不支持FP8
 
 通过修改`_enable_fused_set_kv_buffer`函数，添加KV缓存dtype检查，只在bfloat16时才启用fusion。
 
-适用场景：使用Hybrid Attention后端（prefill: Triton, decode: TRT-LLM MHA）部署GPT-OSS时，通过`--kv-cache-dtype fp8`启用FP8 KV缓存即可自动应用此优化。
+如何使用以及限制：使用Hybrid Attention后端（prefill: Triton, decode: TRT-LLM MHA）部署GPT-OSS时，通过`--kv-cache-dtype fp8`启用FP8 KV缓存即可自动应用此优化。
 
 ## 3. DeepSeek-R1 W4AFP8量化支持TP模式：统一MoE Kernel实现
 
@@ -63,13 +63,11 @@ def get_buffer_meta(self, keys, indices, local_rank):
 
 相关PR：https://github.com/sgl-project/sglang/pull/8118
 
-核心改进：
+效果：
 
 1. 添加W4AFp8MoEMethod量化方法：实现`create_weights`、`process_weights_after_loading`和`apply`函数，在apply中复用与EP MoE相同的`cutlass_w4a8_moe` kernel
 2. 添加TP MoE的Kernel配置：为`cutlass_w4a8_moe` kernel添加针对TP模式的tile shape和cluster shape配置
 3. 自动模式路由逻辑：在W4AFP8量化配置中添加路由判断，当检测到`enable_ep_moe`参数时使用EP模式，否则默认使用TP模式
-
-性能提升：
 
 在8x H20 GPU上测试DeepSeek-R1-W4AFP8（ISL1000/OSL1000）：
 
@@ -85,13 +83,15 @@ EP8模式：
 
 性能对比：TP8模式TTFT相比EP8降低约19%，输出吞吐提升1.5%
 
+这个优化的知识点总结：TP模式相比EP模式在首token延迟方面有优势，通过统一MoE kernel实现和自动路由逻辑，可以根据部署需求选择最优的并行模式。
+
 ## 4. Nsys性能分析工具：GPU Kernel自动分类与可视化
 
 添加了一个自动化的nsys性能分析工具，可以对NVIDIA Nsight Systems收集的GPU trace文件进行kernel级别的分类、统计和可视化，支持Llama、DeepSeek和GPT-OSS等模型。
 
 相关PR：https://github.com/sgl-project/sglang/pull/9314
 
-核心功能：
+效果：
 
 1. 自动Kernel分类：通过正则表达式规则将kernel名称自动分类到不同类别（attention、gemm、MoE、量化等）
 2. 准确时间计算：实现非重叠GPU kernel执行时间的精确计算算法，消除并发kernel时间统计的重复计数问题
@@ -133,7 +133,9 @@ python3 examples/profiler/nsys_profile_tools/gputrc2graph.py \
 }
 ```
 
-适用场景：在进行性能调优时，通过该工具快速定位性能瓶颈所在的kernel类别，优先优化占用GPU时间最多的类别，提高优化效率。
+如何使用以及限制：在进行性能调优时，通过该工具快速定位性能瓶颈所在的kernel类别，优先优化占用GPU时间最多的类别，提高优化效率。
+
+这个优化的知识点总结：通过自动化的kernel分类和可视化，可以快速识别性能瓶颈，避免手动分析nsys trace文件的繁琐过程，提高性能调优效率。
 
 ## 5. Expert Model Parallel通信组内存优化：智能复用TP通信组
 
@@ -141,9 +143,9 @@ python3 examples/profiler/nsys_profile_tools/gputrc2graph.py \
 
 相关PR：https://github.com/sgl-project/sglang/pull/9957
 
-问题背景：在分布式训练/推理中，MoE模型需要为专家并行创建独立的通信组（`_MOE_EP`和`_MOE_TP`），当这些通信组的规模与现有TP组相同时，会导致重复创建相同的通信资源，浪费GPU内存。
+Motivation：在分布式训练/推理中，MoE模型需要为专家并行创建独立的通信组（`_MOE_EP`和`_MOE_TP`），当这些通信组的规模与现有TP组相同时，会导致重复创建相同的通信资源，浪费GPU内存。
 
-核心优化：
+效果：
 
 在`initialize_model_parallel`函数中添加条件判断，智能复用现有通信组：
 
@@ -173,9 +175,9 @@ else:
     )
 ```
 
-优化效果：
-- 内存节省：避免创建冗余的NCCL通信组和相关的GPU内存分配
-- 适用场景：当`moe_ep_size == tp_size`或`moe_tp_size == tp_size`时自动触发
+如何使用以及限制：当`moe_ep_size == tp_size`或`moe_tp_size == tp_size`时自动触发
+
+这个优化的知识点总结：通过智能复用现有通信组，避免重复创建相同的NCCL通信资源，节省GPU内存，特别适用于MoE模型的分布式部署场景。
 
 ## 6. DeepSeek-V3/R1 MXFP4量化：Kernel融合优化激活量化开销 (AMD)
 
@@ -183,9 +185,9 @@ else:
 
 相关PR：https://github.com/sgl-project/sglang/pull/10008
 
-问题背景：MXFP4量化模型在推理时，激活tensor需要在多个位置进行量化操作，这些独立的量化kernel调用带来显著的计算开销和内存访问开销。
+Motivation：MXFP4量化模型在推理时，激活tensor需要在多个位置进行量化操作，这些独立的量化kernel调用带来显著的计算开销和内存访问开销。
 
-核心优化：
+效果：
 
 1. Fused Quant-GEMM：在GEMM kernel中直接执行输入量化，避免预先量化的开销
    ```python
@@ -216,7 +218,7 @@ else:
    )
    ```
 
-适用条件：
+如何使用以及限制：
 - AMD MI300X等支持MXFP4的GPU架构(`is_gfx95_supported`)
 - 小batch场景(x.shape[0] <= 256)效果最佳
 - 需要启用相应的编译选项和环境变量
@@ -242,10 +244,7 @@ python3 -m sglang.bench_serving --dataset-name random \
     --random-input 3200 --random-output 800 --max-concurrency 128
 ```
 
-技术要点：
-- 通过tuple传递实现量化参数的隐式传递: `(x, x_s)` 或 `(x, x_s, y)`
-- 小batch场景优先使用融合优化，大batch退回到独立量化
-- BumpAllocator仅在batch size <= 256时启用，避免内存浪费
+这个优化的知识点总结：通过kernel融合技术，将激活量化操作与GEMM计算融合，减少独立kernel调用开销。使用BumpAllocator优化内存分配，特别适用于AMD MI300X等支持MXFP4的GPU架构。小batch场景效果最佳，大batch时自动回退到独立量化模式。
 
 ## 7. Qwen3-MoE模型：FlashInfer融合AllReduce优化
 
@@ -253,9 +252,11 @@ python3 -m sglang.bench_serving --dataset-name random \
 
 相关PR：https://github.com/sgl-project/sglang/pull/9973
 
-性能提升（Qwen3-30B-A3B, TP8）：
+效果（Qwen3-30B-A3B, TP8）：
 - 输入吞吐提升2.2%
 - Kernel融合：GPU时间从19.71%降至12.98%，节省约6.73个百分点
+
+这个优化的知识点总结：通过简化模型实现并利用FlashInfer的fused allreduce功能，将多个操作融合为单个kernel，减少GPU时间占用，提升推理性能。
 
 ## 8. DeepSeek-R1 TRT-LLM MLA Backend：Prefill性能优化
 
@@ -263,13 +264,13 @@ python3 -m sglang.bench_serving --dataset-name random \
 
 相关PR：https://github.com/sgl-project/sglang/pull/9801
 
-核心改进：
+效果：
 - 引入TRT-LLM ragged attention kernel用于prefill阶段，替代flashinfer标准attention
 - 添加`TRTLLMMLAPrefillMetadata`管理prefill所需的序列长度、累积序列长度等元数据
 - 新增`forward_extend`方法调用`flashinfer.prefill.trtllm_ragged_attention_deepseek`
 - 支持FP8 KV cache以进一步降低内存占用
 
-性能提升（DeepSeek-R1, 8k ISL prefill）：
+在DeepSeek-R1, 8k ISL prefill测试中：
 - Prefill吞吐提升2x（从93秒降至143秒的benchnmark duration，对应吞吐从~1500 tok/s提升到~1526 tok/s）
 - 准确率：0.961（无精度损失）
 
@@ -285,15 +286,17 @@ python3 benchmark/gsm8k/bench_sglang.py --num-shots 8 \
     --num-questions 1316 --parallel 1316 --port 8000
 ```
 
+这个优化的知识点总结：通过使用TRT-LLM的ragged attention kernel和FP8 KV cache支持，显著提升prefill阶段的性能，特别适用于DeepSeek-R1等MLA架构模型的长序列推理场景。
+
 ## 9. Per-Token Group Quant 8bit Kernel统一与增强
 
 针对INT8/FP8量化kernel进行全面重构和优化，移除v2版本分支，统一实现并添加MoE场景的关键优化支持。
 
 相关PR：https://github.com/sgl-project/sglang/pull/9534
 
-问题背景：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1和v2），代码维护复杂，且缺少对MoE场景的优化支持。
+Motivation：原有的`per_token_group_quant_8bit` kernel存在两个版本（v1和v2），代码维护复杂，且缺少对MoE场景的优化支持。
 
-核心改进：
+效果：
 
 1. 统一Kernel实现：移除v2分支，将v2的优化特性合并到单一实现中
    - 删除`enable_v2`参数和`per_token_group_quant_8bit_v2.cu`文件
@@ -405,16 +408,12 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
                                masked_m=masked_m)        # 新增
 ```
 
-适用场景：
+如何使用以及限制：
 - MoE模型的EP（Expert Parallel）量化场景（通过masked_m支持不同expert的变长token）
 - 需要融合SiLU激活的FP8量化推理（通过fuse_silu_and_mul减少kernel启动）
 - Blackwell架构(SM100+)上的量化推理（使用架构特定的优化指令）
 
-技术要点：
-- 使用C++模板实现编译期分支选择，避免运行时开销
-- 针对不同GPU架构(Hopper/Blackwell)提供专门优化的指令实现
-- 通过PTX内联汇编优化关键路径的内存访问模式
-- 支持column-major和row-major两种scale存储格式
+这个优化的知识点总结：通过统一kernel实现和添加MoE场景优化，支持SiLU融合、masked layout和PTX汇编优化。使用C++模板实现编译期分支选择，针对不同GPU架构提供专门优化的指令实现，显著提升量化推理性能。
 
 
 ## 10. DeepSeek-V3 Blackwell架构优化：Router GEMM数据类型与Correction Bias修正
@@ -423,7 +422,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 
 相关PR：https://github.com/sgl-project/sglang/pull/9834
 
-核心改进：
+效果：
 
 1. Router GEMM输出类型优化：将`dsv3_router_gemm`输出从默认bfloat16改为float32
    ```python
@@ -457,15 +456,13 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
        os.environ["TRTLLM_ENABLE_PDL"] = "1"
    ```
 
-技术原理：
-- Router GEMM精度优化：原实现使用bfloat16输出会在后续topk计算时转换为float32，造成额外的类型转换开销。直接输出float32可减少转换并保持更高精度。
-- 类型匹配一致性：FP4量化模式下，correction_bias保持float32会导致与量化后激活值的类型不匹配，转换为bfloat16确保计算一致性。
-
-适用场景：
+如何使用以及限制：
 
 - Blackwell架构(SM90+)上部署DeepSeek-V3模型
 - 使用ModelOpt FP4量化的DeepSeek-V3推理场景
 - 需要精细控制PDL特性的部署环境
+
+这个优化的知识点总结：通过优化Router GEMM输出类型和correction bias数据类型，消除不必要的类型转换开销。Router GEMM直接输出float32避免后续转换，FP4量化模式下确保类型匹配一致性，特别适用于Blackwell架构的DeepSeek-V3模型部署。
 
 ## 11. MoE Sum Reduce Kernel优化：2D Tile批量处理
 
@@ -473,7 +470,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 
 相关PR：https://github.com/sgl-project/sglang/pull/9477
 
-核心改进：
+效果：
 
 1. 循环结构重构：从外层遍历token、内层遍历topk改为批量处理
    ```python
@@ -515,6 +512,8 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
    mask = mask_token[:, None] & mask_dim[None, :]
    ```
 
+这个优化的知识点总结：通过2D tile批量处理替代串行逐token处理，显著提升MoE sum reduce操作的并行度和内存访问效率。使用2D accumulator和统一mask处理，提高GPU SIMD单元利用率和内存访问合并效果。
+
 
 ## 12. SM120架构FP8 Blockwise GEMM支持：下一代GPU优化
 
@@ -522,7 +521,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 
 相关PR：https://github.com/sgl-project/sglang/pull/9969
 
-核心改进：
+效果：
 
 1. SM120专用Kernel实现：新增`launch_sm120_fp8_blockwise_scaled_mm`模板函数
    ```cpp
@@ -581,9 +580,12 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
    #endif
    ```
 
+如何使用以及限制：
 - CUDA版本 >= 12.8
 - CUTLASS支持SM120架构（CUTLASS_ARCH_MMA_SM120_SUPPORTED）
 - 配置`CUTLASS_ARCH_MMA_SM120A_SUPPORTED`或`CUTLASS_ARCH_MMA_SM120_SUPPORTED`宏
+
+这个优化的知识点总结：为SM120架构提供专门的FP8 blockwise GEMM支持，通过优化的tile配置和调度策略，为下一代GPU提供高性能量化推理能力。支持双精度输出和精细化的scale粒度控制，为未来GPU架构的性能优化奠定基础。
 
 
 ## 13. NVFP4 GEMM Kernel动态配置优化：消除小Batch冗余计算
@@ -592,9 +594,9 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 
 相关PR：https://github.com/sgl-project/sglang/pull/10101
 
-问题背景：原CUTLASS nvfp4 block-scaled GEMM使用统一的性能配置，该配置在M较大时表现良好，但M较小时会导致冗余计算。当ClusterShapeM > 1时，Cluster中的ThreadBlocks会使用TMA Multicast共享加载B矩阵，但每个ThreadBlock加载不同的A矩阵，导致小M场景下的计算和内存资源浪费。
+Motivation：原CUTLASS nvfp4 block-scaled GEMM使用统一的性能配置，该配置在M较大时表现良好，但M较小时会导致冗余计算。当ClusterShapeM > 1时，Cluster中的ThreadBlocks会使用TMA Multicast共享加载B矩阵，但每个ThreadBlock加载不同的A矩阵，导致小M场景下的计算和内存资源浪费。
 
-核心改进：
+效果：
 
 1. ClusterShape精细化调优：根据M大小动态调整ClusterShapeM
    ```cpp
@@ -682,11 +684,13 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 - 大M场景：ClusterShapeM=4最大化利用TMA Multicast，B矩阵仅加载一次被4个ThreadBlock共享
 - ClusterShapeN=4：在所有配置中保持N方向的TMA Multicast，B矩阵在N方向高效共享
 
-适用场景：
+如何使用以及限制：
 
 - SM100架构（Blackwell GPU）的NVFP4量化推理
 - Decode阶段（batch size通常≤128）的低延迟推理
 - DeepSeek-V3/R1等FP4量化大模型的在线服务
+
+这个优化的知识点总结：通过M维度自适应的ClusterShape和TileShape配置，消除小batch场景下的冗余计算。小M场景设置ClusterShapeM=1避免冗余，大M场景增大ClusterShapeM充分利用TMA Multicast，显著提升decode阶段性能。特别适用于Blackwell架构的FP4量化推理场景。
 
 参考资料：
 - Blackwell Functionality文档(https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/blackwell_functionality.md)
@@ -698,9 +702,9 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 
 相关PR：https://github.com/sgl-project/sglang/pull/9989
 
-问题背景：在使用paged attention且page_size > 1时，retract_decode过程中的内存检查逻辑存在bug，导致内存没有被正确释放。原实现使用手动计算的方式估算所需token数量，但在page size > 1的场景下计算不准确，导致OOM错误。
+Motivation：在使用paged attention且page_size > 1时，retract_decode过程中的内存检查逻辑存在bug，导致内存没有被正确释放。原实现使用手动计算的方式估算所需token数量，但在page size > 1的场景下计算不准确，导致OOM错误。
 
-核心改进：
+效果：
 
 1. 内存检查方法增强：为`new_page_count_next_decode`和`check_decode_mem`添加`selected_indices`参数
    ```python
@@ -776,10 +780,7 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 - Page对齐感知：根据`seqlen % page_size`精确判断是否需要新page
 - Speculative decoding支持：`check_decode_mem`内部已包含speculative decoding的headroom计算
 
-结果：
-
-- 解决OOM问题：使用FP8 KV cache时可以稳定运行max-concurrency=512
-- 内存释放准确：retract操作能够正确释放page size > 1场景下的内存
+这个优化的知识点总结：通过统一内存检查逻辑和精确的请求子集内存计算，解决page size > 1场景下的OOM问题。考虑page对齐的精确计算，支持动态请求子集，确保retract操作能够正确释放内存。特别适用于使用FP8 KV cache的高并发场景。
 
 
 ## 15. Speculative Decoding Attention Backend可配置化
@@ -788,9 +789,9 @@ sgl_per_token_group_quant_8bit(x, x_q, x_s, group_size, eps,
 
 相关PR：https://github.com/sgl-project/sglang/pull/9981
 
-问题背景：在speculative decoding中，target_verify和draft_extend操作默认使用prefill backend，但在某些场景下使用decode backend可能更高效。原实现缺乏灵活性，无法根据不同模型和硬件配置选择最优backend。
+Motivation：在speculative decoding中，target_verify和draft_extend操作默认使用prefill backend，但在某些场景下使用decode backend可能更高效。原实现缺乏灵活性，无法根据不同模型和硬件配置选择最优backend。
 
-核心改进：
+效果：
 
 1. 新增配置参数：添加`--speculative-attention-backend`参数
    ```python
@@ -884,19 +885,14 @@ python -m sglang.launch_server \
     --speculative-attention-backend decode
 ```
 
-技术要点：
-
-- Prefill backend优势：通常在batch size较大或序列较长时性能更好，适合throughput优先场景
-- Decode backend优势：在小batch或低延迟场景下可能更高效，减少kernel启动开销
-- CUDA Graph优化：根据选择的backend有选择地初始化CUDA graph，节省内存和初始化时间
-- 代码简化：通过`_select_backend`统一所有backend选择逻辑，消除重复代码
-
-适用场景：
+如何使用以及限制：
 
 - EAGLE等speculative decoding算法的性能调优
 - 需要在latency和throughput之间权衡的部署场景
 - 不同硬件架构下的backend性能对比测试
 - Hybrid attention backend的灵活配置需求
+
+这个优化的知识点总结：通过添加speculative decoding的attention backend选择功能，提供更灵活的性能调优选项。Prefill backend适合throughput优先场景，decode backend适合低延迟场景。通过`_select_backend`统一backend选择逻辑，根据选择的backend有选择地初始化CUDA graph，节省内存和初始化时间。
 
 ## 16. MLA K矩阵拼接优化：Warp级向量化内存访问
 
@@ -904,9 +900,9 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/10156
 
-问题背景：MLA架构中，K矩阵由两部分组成：k_nope（128维）和k_rope（64维），需要将它们拼接成完整的192维K矩阵。原实现使用PyTorch的拼接操作效率较低，成为性能瓶颈。
+Motivation：MLA架构中，K矩阵由两部分组成：k_nope（128维）和k_rope（64维），需要将它们拼接成完整的192维K矩阵。原实现使用PyTorch的拼接操作效率较低，成为性能瓶颈。
 
-核心实现：
+效果：
 
 1. Warp级并行设计：每个warp处理一个head chunk（16个head）
    ```cpp
@@ -990,11 +986,13 @@ const int grid_size = ceil_div(num_tokens * NUM_HEAD_CHUNKS, num_warps_per_block
 - 循环展开：`#pragma unroll`确保编译器完全展开循环，消除分支开销
 - 类型转换：通过`reinterpret_cast`实现零开销的bfloat16到int的类型转换
 
-适用场景：
+如何使用以及限制：
 
 - DeepSeek-V2/V3/R1的MLA attention实现
 - 需要高效拼接k_nope和k_rope的场景
 - 128个local heads的固定配置（可扩展到其他head数量）
+
+这个优化的知识点总结：通过warp级协作和向量化内存访问，显著提升MLA架构K矩阵拼接性能。使用int2和int类型实现128-bit和64-bit对齐读写，32个线程协作处理一个head chunk，通过循环展开和类型转换优化，实现零开销的bfloat16到int的类型转换。
 
 ## 17. FlashAttention-4（FA Cute）支持：CUTLASS DSL实现
 
@@ -1002,9 +1000,9 @@ const int grid_size = ceil_div(num_tokens * NUM_HEAD_CHUNKS, num_warps_per_block
 
 相关PR：https://github.com/sgl-project/sglang/pull/10205
 
-问题背景：FlashAttention-3使用手写CUDA kernel，虽然性能优异但定制化困难。FlashAttention-4使用CUTLASS Cute DSL重写，提供更好的可维护性和扩展性，同时针对最新GPU架构优化。
+Motivation：FlashAttention-3使用手写CUDA kernel，虽然性能优异但定制化困难。FlashAttention-4使用CUTLASS Cute DSL重写，提供更好的可维护性和扩展性，同时针对最新GPU架构优化。
 
-核心改动：
+效果：
 
 1. 添加FA4 Python接口：封装CUTLASS Cute DSL的attention实现
    ```python
@@ -1046,11 +1044,13 @@ const int grid_size = ceil_div(num_tokens * NUM_HEAD_CHUNKS, num_warps_per_block
        # 否则使用FA3实现
    ```
 
-注意事项：
+如何使用以及限制：
 
 - FA4暂不支持`flash_attn_with_kvcache`（decode场景）
 - 需要安装`nvidia-cutlass-dsl==4.1.0`
 - Window size传递时`(-1, -1)`需改为`(None, None)`
+
+这个优化的知识点总结：通过添加FlashAttention-4支持，利用CUTLASS Cute DSL提供更好的可维护性和扩展性。专门针对Hopper和Blackwell架构优化，支持paged attention、attention sinks等高级特性，提供更灵活的kernel定制能力。
 
 ## 18. Pipeline Parallelism KV Cache修复：跨Rank内存同步
 
@@ -1058,9 +1058,9 @@ const int grid_size = ceil_div(num_tokens * NUM_HEAD_CHUNKS, num_warps_per_block
 
 相关PR：https://github.com/sgl-project/sglang/pull/10214
 
-问题背景：在Pipeline Parallelism部署中，不同PP rank可能拥有不同数量的模型层（例如前几个rank多一层，后几个rank少一层）。由于KV cache容量是根据层数计算的，这导致不同rank计算出不同的`max_total_num_tokens`，造成内存分配不一致和潜在的越界访问。
+Motivation：在Pipeline Parallelism部署中，不同PP rank可能拥有不同数量的模型层（例如前几个rank多一层，后几个rank少一层）。由于KV cache容量是根据层数计算的，这导致不同rank计算出不同的`max_total_num_tokens`，造成内存分配不一致和潜在的越界访问。
 
-核心修复：
+效果：
 
 在计算完`max_total_num_tokens`后，添加跨PP rank的all-reduce操作取最小值：
 
@@ -1094,18 +1094,13 @@ if self.pp_size > 1:
 修复前：各rank使用各自的max_tokens，导致跨rank通信时地址越界
 修复后：所有rank统一使用min(10000, 10000, 10000, 9700) = 9700
 
-技术要点：
-
-- ReduceOp.MIN：使用MIN而非MAX确保所有rank的内存访问都在安全范围内
-- CPU group通信：使用CPU group进行同步，避免占用GPU通信资源
-- Page对齐保持：all-reduce在page对齐后执行，保持对齐约束
-- 仅PP场景触发：通过`if self.pp_size > 1`条件判断，避免非PP场景的额外开销
-
-适用场景：
+如何使用以及限制：
 
 - Pipeline Parallelism部署（pp_size > 1）
 - 层数不能被PP size整除的模型
 - 需要跨rank内存一致性的分布式推理
+
+这个优化的知识点总结：通过跨PP rank的all-reduce同步，确保所有rank使用相同的最小KV cache容量，解决内存分配不一致问题。使用ReduceOp.MIN确保所有rank的内存访问都在安全范围内，通过CPU group通信避免占用GPU通信资源，特别适用于层数不能被PP size整除的模型部署。
 
 ## 19. Data Parallel Controller进程管理优化：防止孤儿进程
 
@@ -1113,9 +1108,9 @@ if self.pp_size > 1:
 
 相关PR：https://github.com/sgl-project/sglang/pull/7995
 
-问题背景：在Data Parallel部署中，当主进程意外崩溃或被强制终止时，DP controller子进程可能继续运行成为孤儿进程，占用GPU资源且无法正常清理，导致资源泄漏和后续部署失败。
+Motivation：在Data Parallel部署中，当主进程意外崩溃或被强制终止时，DP controller子进程可能继续运行成为孤儿进程，占用GPU资源且无法正常清理，导致资源泄漏和后续部署失败。
 
-核心改进：
+效果：
 
 1. 添加父进程监控机制：调用`kill_itself_when_parent_died()`
    ```python
@@ -1153,19 +1148,14 @@ if self.pp_size > 1:
   - 在进程崩溃时自动打印Python堆栈跟踪
   - 帮助快速定位崩溃原因，提升可调试性
 
-技术要点：
-
-- 进程生命周期绑定：子进程生命周期与父进程强绑定，避免资源泄漏
-- 自动清理：无需手动kill残留进程，简化运维
-- 调试友好：崩溃时自动输出堆栈，便于问题诊断
-- 零性能开销：仅在进程启动时执行，运行时无额外开销
-
-适用场景：
+如何使用以及限制：
 
 - Data Parallel多进程部署（dp_size > 1）
 - 需要稳定性保证的生产环境
 - 频繁启停服务的开发调试场景
 - GPU资源受限需要及时释放的环境
+
+这个优化的知识点总结：通过添加父进程监控和故障处理机制，防止DP controller子进程变成孤儿进程。子进程生命周期与父进程强绑定，自动清理残留进程，崩溃时自动输出堆栈信息，提升系统稳定性和可调试性，特别适用于生产环境的稳定性保证。
 
 ## 20. Qwen2-MoE双流并行优化：Shared Experts与Router Experts并发执行
 
@@ -1173,7 +1163,7 @@ if self.pp_size > 1:
 
 相关PR：https://github.com/sgl-project/sglang/pull/10252
 
-核心改进：
+效果：
 
 1. 创建替代CUDA流：在模型初始化时创建独立的CUDA流用于并行计算
    ```python
@@ -1263,11 +1253,7 @@ if self.pp_size > 1:
 - 小batch场景（token数量 ≤ 1024），如在线服务的低延迟推理
 - 同时使用shared experts和router experts的MoE架构
 
-技术要点：
-
-- 阈值选择：1024是经验值，大batch时双流开销可能超过收益
-- 流管理：替代流生命周期与模型绑定，避免重复创建销毁
-- 向后兼容：当alt_stream为None时自动回退到串行执行
+这个优化的知识点总结：通过双流机制将shared experts和router experts的计算并行化，在小batch场景下提升MoE层执行效率。使用CUDA流并行计算两部分，通过`wait_stream`确保数据依赖关系正确，仅在合适的batch size时启用双流优化，避免大batch时双流开销超过收益。
 
 ## 21. HiCache Page First Direct内存布局：优化分布式KV缓存传输
 
@@ -1275,7 +1261,7 @@ if self.pp_size > 1:
 
 相关PR：https://github.com/sgl-project/sglang/pull/10060
 
-核心改进：
+效果：
 
 1. 新增page_first_direct布局：定义page级别的内存组织方式
    ```python
@@ -1353,11 +1339,7 @@ if self.pp_size > 1:
 - 需要频繁host-device数据交换的disaggregation场景
 - 大规模paged attention推理系统
 
-技术要点：
-
-- MHA和MLA支持：同时适配Multi-Head Attention和Multi-Head Latent Attention
-- 双向传输：支持host→device（restore）和device→host（backup）两个方向
-- Direct IO专用：仅在direct IO backend下启用，避免影响其他传输方式
+这个优化的知识点总结：通过添加page_first_direct内存布局支持，优化HiCache分布式KV缓存的host-device数据传输效率。Page对齐访问减少碎片化访问，批量传输减少kernel启动次数，索引简化避免复杂的offset计算，特别适用于大规模paged attention推理系统。
 
 ## 22. DP Attention Race Condition修复：独立Buffer避免数据竞争
 
@@ -1365,11 +1347,11 @@ if self.pp_size > 1:
 
 相关PR：https://github.com/sgl-project/sglang/pull/10361
 
-问题背景：
+Motivation：
 
 在DP Attention场景下，原实现使用全局共享的buffer（通过`get_global_dp_buffer()`）存储all-gather后的hidden states。当多个请求并发处理时，不同请求会同时写入/读取同一个全局buffer，导致race condition和数据覆盖。
 
-核心改进：
+效果：
 
 1. 独立Buffer分配：为每个LogitsMetadata创建私有buffer
    ```python
@@ -1418,23 +1400,13 @@ if self.pp_size > 1:
        return cls._device
    ```
 
-优化效果：
-
-- 消除Race Condition：每个请求使用独立buffer，避免并发冲突
-- 减少峰值内存：需要logprob时只分配必要大小，而非固定的全局buffer
-- 提升稳定性：解决torch.compile场景下的GPU fault问题
-
-技术要点：
-
-- 生命周期绑定：buffer与LogitsMetadata绑定，随metadata自动释放
-- 按需分配：根据`global_num_tokens_for_logprob_cpu`判断是否需要较小buffer
-- 接口改进：移除`set_dp_buffer_len`调用，简化buffer管理逻辑
-
-适用场景：
+如何使用以及限制：
 
 - 启用DP Attention的多请求并发推理
 - 使用torch.compile的DP场景
 - 需要计算logprob的DP推理场景
+
+这个优化的知识点总结：通过为每个LogitsMetadata分配独立buffer替代全局共享buffer，消除DP Attention场景下的race condition问题。每个请求使用独立buffer避免并发冲突，根据实际需求动态分配buffer大小，减少峰值内存使用，提升系统稳定性。
 
 ## 23. DP Attention Extend模式一致性修复：统一Padding Mode决策
 
@@ -1442,11 +1414,11 @@ if self.pp_size > 1:
 
 相关PR：https://github.com/sgl-project/sglang/pull/10414
 
-问题背景：
+Motivation：
 
 在DP Attention场景下，不同ranks需要对padding mode达成一致决策。原实现在extend模式下使用`forward_mode.is_extend()`判断，可能导致不同ranks因本地信息不同而选择不同的padding mode（MAX_LEN vs SUM_LEN），造成all-gather/all-reduce通信维度不匹配。
 
-核心改进：
+效果：
 
 1. 强制Extend模式使用SUM_LEN：在extend场景下固定padding策略
    ```python
@@ -1491,17 +1463,13 @@ Rank 1: global_num_tokens=[150, 150]  → 选择SUM_LEN (padding到300)
 All Ranks: is_extend_in_batch=True → 统一使用SUM_LEN
 ```
 
-技术要点：
-
-- 批次级标志：`is_extend_in_batch`在ForwardBatch级别设置，对所有ranks可见
-- 简化逻辑：extend模式不再需要评估token分布，直接使用SUM_LEN
-- 向后兼容：非extend模式保持原有的动态选择逻辑
-
-适用场景：
+如何使用以及限制：
 
 - DP Attention的extend（chunked prefill）场景
 - 多rank分布式推理系统
 - 需要确保通信一致性的DP部署
+
+这个优化的知识点总结：通过统一padding mode决策，确保所有DP ranks使用相同的padding策略，避免通信错误。Extend模式固定使用SUM_LEN，基于全局一致的`is_extend_in_batch`标志做决策，确保all-gather/reduce的tensor维度匹配，特别适用于多rank分布式推理系统。
 
 ## 24. 动态批处理Tokenizer：异步队列减少并发开销
 
@@ -1509,11 +1477,11 @@ All Ranks: is_extend_in_batch=True → 统一使用SUM_LEN
 
 相关PR：https://github.com/sgl-project/sglang/pull/9382
 
-问题背景：
+Motivation：
 
 在高并发场景下，多个请求几乎同时到达时，每个请求独立调用tokenizer会产生大量重复开销。批量调用tokenizer比逐个调用更高效，但需要一种机制动态收集并发请求。
 
-核心实现：
+效果：
 
 1. 异步队列收集请求：使用asyncio.Queue收集待tokenize的请求
    ```python
@@ -1611,25 +1579,13 @@ python -m sglang.launch_server \
     --dynamic-batch-tokenizer-batch-timeout 0.002
 ```
 
-优化效果：
-
-- 减少tokenizer调用：多个并发请求合并为一次批量调用
-- 降低首token延迟：批量tokenization比逐个调用快
-- 自适应批处理：队列空时立即处理，有并发时等待收集（最多2ms）
-- 保持响应性：使用单线程executor，避免阻塞event loop
-
-技术要点：
-
-- 懒初始化：asyncio组件在首次调用时初始化，避免event loop未启动问题
-- 智能等待：队列空时零等待，有并发时等待至timeout或达到max_batch_size
-- kwargs一致性检查：仅在参数相同时批处理，避免错误
-- 互斥性保证：与`--enable-tokenizer-batch-encode`互斥，防止冲突
-
-适用场景：
+如何使用以及限制：
 
 - 高并发在线推理服务
 - 请求到达时间集中的场景
 - Tokenization成为瓶颈的部署
+
+这个优化的知识点总结：通过异步动态批处理tokenizer，减少多请求并发到达时的tokenization开销。使用asyncio.Queue收集并发请求，智能等待机制平衡延迟和吞吐，仅在参数相同时批处理避免错误，特别适用于高并发在线推理服务场景。
 
 
 ![](https://files.mdnice.com/user/59/76a57f64-0e28-407b-8ba1-87cb3fc45fce.png)
@@ -1640,7 +1596,7 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/9748
 
-问题背景：
+Motivation：
 
 在评分场景中，例如对多个候选答案进行评分：
 ```python
@@ -1654,7 +1610,7 @@ python -m sglang.launch_server \
 
 但原实现在prefill阶段仍会计算所有token的logprobs并执行完整的sampling流程，造成大量不必要的计算和GPU-CPU同步开销。
 
-核心优化：
+效果：
 
 1. 跳过输入Token Logprobs计算：添加`is_prefill_only`标志位识别评分请求
    ```python
@@ -1756,12 +1712,7 @@ python -m sglang.launch_server \
 - 只需最终token概率分布的推理任务
 - Prefill-only推理（无decode阶段）
 
-技术要点：
-
-- 识别机制：通过`is_prefill_only`标志位自动识别评分请求
-- 向量化处理：将多个请求的logprobs提取合并为单次GPU gather操作
-- 异步优化：延迟CPU拷贝允许GPU-CPU传输与下一batch计算overlap
-- 零精度损失：所有优化均为流程简化，不改变数值计算逻辑
+这个优化的知识点总结：通过跳过不必要的sampling和logprobs计算，大幅降低Generative Score API的延迟。使用`is_prefill_only`标志位识别评分请求，向量化处理多个请求的logprobs提取，延迟CPU拷贝实现异步优化，特别适用于批量候选答案评分和RAG重排序场景。
 
 ## 26. Triton Attention确定性推理优化：固定Tile Size的Split-KV策略
 
@@ -1769,11 +1720,11 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/10425
 
-问题背景：
+Motivation：
 
 在Triton attention的flash decoding实现中，原有策略使用固定的split数量（默认8）来分割KV cache进行并行计算。但不同序列长度下，每个split处理的tile大小不固定，导致浮点运算顺序和精度累积存在差异，产生非确定性结果。
 
-核心改进：
+效果：
 
 1. 添加split tile size参数：新增`--triton-attention-split-tile-size`参数控制每个split的固定大小
    ```python
@@ -1856,18 +1807,13 @@ python -m sglang.launch_server \
     --triton-attention-split-tile-size 256
 ```
 
-技术要点：
-
-- Tile size选择：推荐256，平衡确定性和性能（过小增加split开销，过大降低并行度）
-- 向上取整：使用`(seq_len + tile_size - 1) // tile_size`确保覆盖所有token
-- 兼容性：未指定`split_tile_size`时自动回退到原有的固定split数量策略
-- 适用backend：仅影响Triton attention后端，不影响FlashInfer等其他后端
-
-适用场景：
+如何使用以及限制：
 
 - 需要确定性输出的生产环境（如A/B测试、结果复现）
 - 多次推理需要完全一致结果的应用（如评测、调试）
 - 对浮点精度敏感的场景
+
+这个优化的知识点总结：通过固定tile size的split-KV策略，确保Triton Attention推理结果的确定性。替代固定split数量策略，使用固定tile size保证浮点运算顺序一致，推荐tile size=256平衡确定性和性能，特别适用于需要确定性输出的生产环境。
 
 ## 27. OpenTelemetry请求追踪系统：细粒度延迟监控与可视化
 
@@ -1875,7 +1821,7 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/9962
 
-核心功能：
+效果：
 
 1. 三层追踪上下文设计：构建请求级(SglangTraceReqContext)、线程级(SglangTraceThreadContext)、切片级(SglangTraceSliceContext)的层次化追踪架构
    ```python
@@ -1935,25 +1881,14 @@ python -m sglang.launch_server \
 # 浏览器访问 http://localhost:16686
 ```
 
-技术要点：
-
-- OpenTelemetry集成：使用OTLP gRPC协议导出trace数据到collector
-- 线程安全设计：通过thread-local storage维护各线程的追踪上下文
-- TP/DP感知：追踪上下文包含tp_rank和dp_rank，支持分布式部署
-- Span链接机制：通过`add_link()`记录切片间的执行流，便于流程分析
-- 可选依赖：opentelemetry包为可选依赖，未安装时自动禁用追踪功能
-
-适用场景：
+如何使用以及限制：
 
 - 生产环境请求延迟诊断和性能分析
 - 多阶段推理流程的瓶颈定位（tokenize、prefill、decode）
 - 分布式部署的端到端延迟监控
 - 请求级别的SLA监控和异常检测
 
-可视化输出：
-
-- Jaeger UI：实时查看请求追踪时间线、各阶段耗时分布
-- JSON导出：trace数据导出到`/tmp/otel_trace.json`，可转换为Perfetto格式进一步分析
+这个优化的知识点总结：通过OpenTelemetry分布式请求追踪系统，支持对推理请求全生命周期的细粒度延迟监控。三层追踪上下文设计支持分布式部署，通过Jaeger实现可视化分析，特别适用于生产环境的性能诊断和瓶颈定位。
 
 ## 28. CUTLASS更新与FP8 Blockwise GEMM Kernel Schedule优化
 
@@ -1961,7 +1896,7 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/10491
 
-核心改动：
+效果：
 
 1. CUTLASS版本更新：从版本`a49a78f`更新到`57e3cfb`
    ```cmake
@@ -2009,11 +1944,7 @@ python -m sglang.launch_server \
 - H100/H200/B200等Hopper架构GPU上的FP8推理
 - 需要精细化scale控制的量化推理场景
 
-技术要点：
-
-- Blockwise Scale粒度：每个block（如128×128）使用独立的scale factor，相比per-tensor或per-channel scale提供更高精度
-- TMA加速：利用H100的TMA单元实现高带宽、低延迟的global memory访问
-- Warp Specialization：不同warp执行专门的任务（如数据加载、计算、结果存储），提升并行度
+这个优化的知识点总结：通过更新CUTLASS库版本并统一FP8 blockwise GEMM的kernel schedule命名，提升命名一致性和kernel性能。新版本CUTLASS包含针对Hopper架构的多项性能优化和bug修复，支持更精细化的scale粒度控制和TMA加速，特别适用于H100/H200等Hopper架构GPU上的FP8推理。
 
 ## 29. DP场景启用Prefix Cache：移除Blackwell精度问题Workaround
 
@@ -2021,11 +1952,11 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/10459
 
-问题背景：
+Motivation：
 
 之前在Blackwell（SM100）GPU上，DP + FlashInfer/TRT-LLM MLA后端组合存在精度问题（issue #9806），导致必须禁用chunked prefix cache。随着底层问题修复，这些workaround代码已不再需要。
 
-核心改动：
+效果：
 
 1. 移除model_runner中的DP限制：删除针对Blackwell + DP场景强制禁用chunked prefix cache的代码
    ```python
@@ -2056,23 +1987,13 @@ python -m sglang.launch_server \
    - )
    ```
 
-优化效果：
-
-- Cache命中率提升：DP场景现在可以使用prefix cache，减少重复计算
-- 吞吐提升：对于有公共前缀的请求（如few-shot prompts），DP场景吞吐显著提升
-- 代码简化：移除30行workaround代码，降低维护成本
-
-适用场景：
+如何使用以及限制：
 
 - Blackwell GPU（B200/GB200）上的DP部署
 - DeepSeek-V2/V3使用FlashInfer或TRT-LLM MLA后端
 - 有公共前缀的批量推理场景（如GSM8K评测）
 
-技术要点：
-
-- 原问题根源：早期FlashInfer在Blackwell上的DP padding模式与chunked prefix cache交互存在bug
-- 底层修复：相关精度问题已在FlashInfer和TRT-LLM kernel中修复
-- 向后兼容：对于不支持prefix cache的场景（如non-MLA模型），仍保留原有禁用逻辑
+这个优化的知识点总结：通过移除Blackwell GPU上DP场景的精度问题workaround，使DP场景可以正常使用prefix cache优化。随着底层问题修复，DP场景现在可以使用prefix cache减少重复计算，特别适用于有公共前缀的批量推理场景，显著提升吞吐量。
 
 ## 30. FlexAttention Backend：支持灵活的稀疏注意力模式
 
@@ -2080,7 +2001,7 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/9947
 
-核心实现：
+效果：
 
 1. 基于torch.nn.attention.flex_attention：利用PyTorch 2.5+的FlexAttention API实现
    ```python
@@ -2156,15 +2077,7 @@ python -m sglang.launch_server \
 - 逐序列处理：当前实现按序列逐个处理，适合研究场景，生产场景需进一步优化批处理
 - 仅支持causal：当前仅实现causal attention，non-causal模式待实现
 
-限制与优化方向：
-
-- 性能：逐序列处理效率较低，未来需要优化为批量处理
-- Triton支持：当前不支持Triton backend（`support_triton() = False`）
-- 功能完整性：暂不支持cross attention和encoder-only模式
-
-测试验证：
-
-在GSM8K few-shot评测中准确率 > 62%，验证了功能正确性。
+这个优化的知识点总结：通过新增基于PyTorch FlexAttention的attention backend，支持自定义稀疏注意力mask模式。利用PyTorch 2.5+的FlexAttention API实现，支持GQA和动态block mask生成，提供更灵活的attention计算能力，特别适用于研究和开发新型attention机制的场景。
 
 ## 31. MoE Sum Reduce CUDA Kernel：多策略优化减少内存访问
 
@@ -2172,7 +2085,7 @@ python -m sglang.launch_server \
 
 相关PR：https://github.com/sgl-project/sglang/pull/10321
 
-核心实现：
+效果：
 
 1. BF16向量化Fast Path：针对大batch和对齐场景的高度优化路径
    ```cpp
@@ -2247,103 +2160,54 @@ moe_sum_reduce(
 - 需要对topk个专家的输出求和并scale
 - Prefill和decode阶段的MoE计算
 
-技术要点：
-
-- 策略自动选择：根据token_num、hidden_dim和dtype自动选择最优kernel
-- 内存对齐检查：BF16 fast path要求hidden_dim % 8 == 0
-- Grid限制处理：处理grid维度超过65535的情况
-- 支持stride输入：支持non-contiguous tensor，通过stride参数灵活访问
+这个优化的知识点总结：通过新增专门优化的MoE sum reduce CUDA kernel，显著提升MoE模型中专家输出聚合的性能。使用向量化加载、warp级并行和topk循环展开，自动根据输入shape选择最优策略，支持BF16向量化fast path和多种并行模式，特别适用于DeepSeek-V2/V3等MoE模型的专家输出聚合。
 
 ## 32. FlashInfer Fast Decode Plan统一启用与环境变量配置
 
 为FlashInfer attention backend统一启用fast decode plan优化，移除确定性推理模式的限制，并将split tile size配置从命令行参数改为环境变量。
 
+**Motivation：** 原实现中fast decode plan仅在非确定性推理模式下启用，且split tile size通过命令行参数配置，缺乏灵活性。需要统一启用fast decode plan并支持环境变量配置。
+
+**效果：**
+
+1. 统一启用fast decode plan：移除确定性推理模式的限制
+   ```python
+   # 优化前：仅在非确定性模式下启用
+   if not self.deterministic:
+       self.fast_decode_plan = True
+   
+   # 优化后：统一启用
+   self.fast_decode_plan = True
+   ```
+
+2. 环境变量配置split tile size：支持通过`SGLANG_FLASHINFER_SPLIT_TILE_SIZE`环境变量配置
+   ```python
+   # 优化前：通过命令行参数配置
+   parser.add_argument("--flashinfer-split-tile-size", type=int, default=128)
+   
+   # 优化后：通过环境变量配置
+   split_tile_size = int(os.environ.get("SGLANG_FLASHINFER_SPLIT_TILE_SIZE", "128"))
+   ```
+
+3. 移除命令行参数：删除`--flashinfer-split-tile-size`参数，简化配置
+
+**如何使用以及限制：**
+- 通过`SGLANG_FLASHINFER_SPLIT_TILE_SIZE`环境变量配置split tile size
+- 默认值为128，可根据硬件特性调整
+- 适用于FlashInfer attention backend的所有场景
+
+**这个优化的知识点总结：** 通过统一启用fast decode plan并支持环境变量配置，简化了FlashInfer attention backend的配置。移除确定性推理模式的限制，提供更灵活的split tile size配置方式，特别适用于需要精细调优的部署场景。
+
 相关PR：https://github.com/sgl-project/sglang/pull/10645
 
-核心改进：
-
-1. 统一启用Fast Decode Plan：移除`enable_deterministic`判断，所有场景默认使用fast_decode_plan
-   ```python
-   # 优化前：仅在非确定性推理时启用
-   if not self.enable_deterministic:
-       decode_wrappers[i].begin_forward = partial(fast_decode_plan, decode_wrappers[i])
-   
-   # 优化后：始终启用
-   for i in range(self.num_wrappers):
-       decode_wrappers[i].begin_forward = partial(fast_decode_plan, decode_wrappers[i])
-   ```
-
-2. 环境变量配置：移除命令行参数，改用环境变量控制
-   ```python
-   # 移除命令行参数
-   # --flashinfer-prefill-split-tile-size
-   # --flashinfer-decode-split-tile-size
-   
-   # 新增环境变量
-   SGLANG_FLASHINFER_PREFILL_SPLIT_TILE_SIZE = EnvInt(4096)
-   SGLANG_FLASHINFER_DECODE_SPLIT_TILE_SIZE = EnvInt(2048)
-   
-   # 使用方式
-   self.prefill_split_tile_size = get_int_env_var(
-       "SGLANG_FLASHINFER_PREFILL_SPLIT_TILE_SIZE", 4096
-   )
-   ```
-
-3. Split KV参数传递优化：传递实际的split size而非硬编码值
-   ```python
-   # 优化前：硬编码参数
-   self._plan_info = self._cached_module.plan(
-       ...,
-       -1,      # 硬编码
-       False,   # 硬编码
-   )
-   
-   # 优化后：使用配置参数
-   self._plan_info = self._cached_module.plan(
-       ...,
-       fixed_split_size,        # 基于split_tile_size配置
-       disable_split_kv,        # 基于cuda_graph配置
-   )
-   ```
-
-优化原理：
-
-- Fast Decode Plan机制：FlashInfer在decode阶段提前规划attention计算的执行方式，优化kernel启动和内存访问
-- 确定性保证：通过固定split tile size（而非动态split数量），确保相同输入产生相同的浮点运算顺序，保证确定性
-- 环境变量优势：便于在不同部署环境中灵活配置，无需修改启动脚本
-
-使用方法：
-
-```bash
-# 启用确定性推理并自定义split tile size
-export SGLANG_FLASHINFER_PREFILL_SPLIT_TILE_SIZE=8192
-export SGLANG_FLASHINFER_DECODE_SPLIT_TILE_SIZE=4096
-
-python -m sglang.launch_server \
-    --model MODEL \
-    --attention-backend flashinfer \
-    --enable-deterministic-inference
-```
-
-适用场景：
-
-- 需要确定性推理的生产环境（测试、复现、A/B测试）
-- 使用FlashInfer attention backend的推理场景
-- 需要在不同环境中灵活配置split tile size的部署
-
-技术要点：
-
-- 默认配置：prefill split tile size为4096，decode split tile size为2048
-- 确定性推理workspace：确定性模式下workspace size自动增加到2GB
-- CUDA Graph兼容：确定性模式下自动禁用CUDA Graph的KV split以保证结果一致性
 
 ## 33. Cache Salt机制：请求缓存隔离与分类
 
 为SGLang添加cache_salt和extra_key支持，实现请求级别的缓存隔离和分类，支持多租户场景下的缓存管理。
 
-相关PR：https://github.com/sgl-project/sglang/pull/10718
+**Motivation：** 在多租户场景下，不同租户的请求需要缓存隔离，避免缓存污染。同时需要支持请求分类和优先级管理，提供更灵活的缓存策略。
 
-核心功能：
+**效果：**
 
 1. 请求模型扩展：为所有请求类型添加`cache_salt`和`extra_key`字段
    ```python
@@ -2451,9 +2315,9 @@ response = client.chat.completions.create(
 
 为Qwen3-MoE和Bailing-MoE模型实现KV buffer写入与RoPE计算的kernel融合，减少内存访问次数，提升推理性能。
 
-相关PR：https://github.com/sgl-project/sglang/pull/10749
+**Motivation：** 在MoE模型中，KV buffer写入和RoPE计算是分离的操作，导致额外的内存访问和kernel启动开销。通过kernel融合可以减少内存访问次数，提升推理性能。
 
-核心优化：
+**效果：**
 
 1. 创建通用工具函数：在`models/utils.py`中实现可复用的融合逻辑
    ```python
@@ -2529,40 +2393,20 @@ response = client.chat.completions.create(
    )
    ```
 
-优化原理：
+**如何使用以及限制：**
+- 仅支持CUDA + bfloat16 KV cache场景
+- 适用于Qwen3-MoE和Bailing-MoE模型
+- 需要启用相应的融合参数
 
-- 内存访问减少：将KV buffer写入与RoPE计算融合，减少一次内存访问
-- Kernel启动优化：减少GPU kernel启动次数，降低延迟
-- 条件融合：仅在CUDA + bfloat16场景下启用，避免兼容性问题
-- 代码复用：提取通用函数，避免重复实现
-
-技术要点：
-
-- 启用条件：仅支持CUDA + bfloat16 KV cache场景
-- 参数传递：通过`fused_set_kv_buffer_arg`传递融合参数
-- 条件保存：融合时跳过attention层的KV cache保存
-- 向后兼容：不满足条件时自动回退到原始实现
-
-适用场景：
-
-- Qwen3-MoE模型的推理优化
-- Bailing-MoE模型的推理优化
-- 使用bfloat16 KV cache的CUDA推理场景
-- 需要减少内存访问的MoE模型部署
-
-性能提升：
-
-- 减少KV buffer写入的内存访问次数
-- 降低RoPE计算与attention之间的延迟
-- 提升MoE模型的整体推理吞吐量
+**这个优化的知识点总结：** 通过将KV buffer写入与RoPE计算融合，减少内存访问次数和kernel启动开销。使用通用工具函数实现代码复用，仅在CUDA + bfloat16场景下启用，避免兼容性问题。特别适用于MoE模型的推理优化，显著提升整体推理吞吐量。
 
 ## 35. MLA K矩阵拼接多阶段优化：向量化内存访问与预取优化
 
 针对MLA（Multi-Head Latent Attention）架构的K矩阵拼接操作，通过多阶段向量化内存访问、L2预取和流水线优化，显著提升concat操作性能。
 
-相关PR：https://github.com/sgl-project/sglang/pull/10543
+**Motivation：** MLA架构中K矩阵由k_nope（128维）和k_rope（64维）组成，需要拼接成192维K矩阵。原实现使用PyTorch拼接操作效率较低，成为性能瓶颈。需要通过向量化内存访问和预取优化提升性能。
 
-核心优化：
+**效果：**
 
 1. 多阶段向量化访问：使用int2和int类型实现128-bit和64-bit对齐读写
    ```cpp
@@ -2650,30 +2494,9 @@ response = client.chat.completions.create(
        # 对比不同实现方式的性能
    ```
 
-优化原理：
-
-- 向量化访问：使用int2/int类型实现128-bit/64-bit对齐，最大化内存带宽
-- 流水线处理：计算与预取重叠，隐藏内存访问延迟
-- L2预取：提前加载下一批数据到L2缓存，减少L1 miss
-- PTX优化：使用专门的PTX指令控制缓存行为和内存访问模式
-
-技术要点：
-
-- 内存对齐：确保所有tensor指针16字节对齐，支持向量化访问
-- Warp协作：32个线程协作处理一个head chunk，提高并行度
-- 缓存控制：使用L1::no_allocate避免L1缓存污染
-- 预取策略：在循环中预取下一批数据，实现计算与内存访问重叠
-
-适用场景：
-
-- DeepSeek-V2/V3/R1等MLA架构模型的K矩阵拼接
-- 需要高效拼接k_nope和k_rope的场景
-- 128个local heads的固定配置（可扩展到其他head数量）
+**如何使用以及限制：**
+- 适用于DeepSeek-V2/V3/R1等MLA架构模型
+- 需要128个local heads的固定配置
 - 对内存带宽敏感的大规模推理场景
 
-性能提升：
-
-- 相比PyTorch实现：2-3x加速
-- 相比Triton实现：1.5-2x加速
-- 内存访问效率：通过向量化和预取显著提升
-- 延迟降低：流水线处理减少等待时间
+**这个优化的知识点总结：** 通过多阶段向量化内存访问、L2预取和流水线优化，显著提升MLA架构K矩阵拼接性能。使用int2和int类型实现128-bit和64-bit对齐读写，通过流水线处理隐藏内存访问延迟，相比PyTorch实现实现2-3x加速，特别适用于对内存带宽敏感的大规模推理场景。
