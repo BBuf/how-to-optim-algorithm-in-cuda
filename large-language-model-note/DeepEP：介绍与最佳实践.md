@@ -84,15 +84,16 @@
 
 ![](https://files.mdnice.com/user/59/7d04d985-ba06-42a5-aae3-3e9fa1bab6fb.png)
 
-这张Slides阐述了DeepEP针对PCIe GPU环境的设计原则和限制条件，重点说明了在没有NVLink高速互联的PCIe GPU环境中DeepEP的运行约束和缓冲区分配策略。图中明确指出DeepEP公共Normal模式无法在缺乏NVLink的环境中运行，同时Normal模式由于缓冲区分配机制的限制无法重用Low Latency的设计，这表明两种模式在内存管理上存在根本性差异。针对缓冲区分配，图中详细列出了不同模式下的内存计算公式：在Normal模式中，RDMA缓冲区大小约等于通道数乘以RDMA ranks数量乘以最大RDMA分块接收token数量乘以隐藏层字节数再乘以2，而NVLink缓冲区则不需要最后的乘2操作；在Low Latency模式中，RDMA缓冲区的计算更加复杂，约等于专家数量乘以每个rank的最大dispatch token数量乘以每个dispatch消息的字节数再乘以4（两个2相乘），这些精确的内存分配公式反映了DeepEP在不同硬件环境和工作模式下对内存资源的精细化管理，确保在PCIe GPU这种相对受限的硬件环境中仍能实现高效的MoE模型推理性能。
+这张Slides阐述了DeepEP针对PCIe GPU环境的设计原则和限制条件，重点说明了在没有NVLink高速互联的PCIe GPU环境中DeepEP的运行约束和缓冲区分配策略。图中明确指出DeepEP Normal模式无法在缺乏NVLink的环境中运行，同时Normal模式由于缓冲区分配机制的限制无法重用Low Latency的设计，这表明两种模式在内存管理上存在根本性差异。针对缓冲区分配，图中详细列出了不同模式下的内存计算公式：在Normal模式中，RDMA缓冲区大小约等于通道数乘以RDMA ranks数量乘以最大RDMA分块接收token数量乘以隐藏层字节数再乘以2，而NVLink缓冲区则不需要最后的乘2操作；在Low Latency模式中，RDMA缓冲区的计算更加复杂，约等于专家数量乘以每个rank的最大dispatch token数量乘以每个dispatch消息的字节数再乘以4（两个2相乘），这些精确的内存分配公式反映了DeepEP在不同硬件环境和工作模式下对内存资源的精细化管理，确保在PCIe GPU这种相对受限的硬件环境中仍能实现高效的MoE模型推理性能。
 
-对于Decoding阶段，token数为128的时候这个buffer占用就大概个GB了，因此我们没办法直接沿用Low Latency Kernel的设计，因为Prefill时token数可能会很大，例如8K，16K这样buffer的内存就爆了。
+对于Decoding阶段，token数为128的时候这个buffer占用就大概2个GB了，因此我们没办法直接沿用Low Latency Kernel的设计，因为Prefill时token数可能会很大，例如8K，16K这样buffer的内存就爆了。
 
 ![](https://files.mdnice.com/user/59/3b413af2-2eda-4a2c-815e-b54854197678.png)
 
 
 这张Slides展示了DeepEP针对PCIe GPU环境的优化设计原则，特别是在没有NVLink高速互联的情况下如何实现高效通信。该设计巧妙地结合了Low Latency模式的拓扑结构和Normal模式的缓冲区分配策略，确保除了自身和相邻ranks之外的所有通信流量都通过网络接口卡（NIC）进行传输，从而最大化利用可用的网络带宽。左侧的架构图显示了NodeA和NodeB之间通过RDMA进行数据块传输的连接方式，其中GPU0作为主要的通信枢纽负责处理跨节点的数据交换，而右侧的Rank 0缓冲区布局详细说明了内存组织结构，包括发送缓冲区（Send Buffer）和接收缓冲区（Recv Buffer），以及多个通道（Channel 0到Channel N）的划分，每个通道下又细分为多个RDMA ranks（从Rank 0到Rank M），底部的公式num_max_chunked_recv_tokens * token_size表明了缓冲区大小的计算方法。最重要的是，这种设计无需修改任何代码就能直接在现有框架（如sglang）中运行，并保持所有功能特性（如TBO），这使得DeepEP能够在PCIe GPU环境中实现即插即用的高性能MoE模型推理，为那些无法配置NVLink但仍需要高效专家并行计算的用户提供了实用的解决方案。
 
+![](https://files.mdnice.com/user/59/eb2dddb1-623f-414c-b894-4e43d30a14b2.png)
 
 ![](https://files.mdnice.com/user/59/1663a3ed-e21b-4f28-b43c-7108e7a163c8.png)
 
