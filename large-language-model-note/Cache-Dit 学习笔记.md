@@ -1,4 +1,4 @@
-# Cache-Dit 深度学习笔记
+> 原始的markdown见：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/large-language-model-note/Cache-Dit%20%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0.md
 
 ## 前言
 
@@ -7,6 +7,8 @@
 这篇笔记会详细记录Cache-Dit的核心技术要点,包括它的缓存策略、并行化方案、以及各种优化选项的使用。我会以FLUX.1-dev和Wan 2.2这两个典型模型为例,讲解Cache-Dit在实际应用中的优化效果。此外,我还会重点介绍Cache-Dit最近实现的Ulysses Anything Attention特性,以及Async Ulysses QKV Projection这个通信和计算overlap的优化。
 
 仓库的作者在知乎发了不少技术细节特别是Cache相关的和模型支持的帖子，大家感兴趣可以去看：https://www.zhihu.com/people/qyjdef/posts
+
+![](https://files.mdnice.com/user/59/38114839-dc24-4a03-b000-a7047caf2819.png)
 
 ## Cache-Dit的核心设计理念
 
@@ -713,6 +715,8 @@ Timeline:
 2. **K projection完成后立即启动K all-to-all**,同时开始V projection
 3. **V projection完成后立即启动V all-to-all**,同时等待Q和K的通信完成
 4. 所有通信完成后,进行attention计算
+
+![](https://files.mdnice.com/user/59/4549e7b3-c4f7-4a69-a6ea-5f3447dcfe92.png)
 
 #### 实现细节
 
