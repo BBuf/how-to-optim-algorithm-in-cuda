@@ -675,13 +675,6 @@ cache_dit.enable_cache(
 )
 ```
 
-### Attention Backend的选择建议
-
-- 默认使用`_native_cudnn`,最稳定
-- 如果安装了flash-attn,推荐使用`flash`,性能最好
-- 长序列场景可以尝试`sage`
-- `native`在某些情况下可能有兼容性问题,需要diffusers的修复
-
 ## Context Parallelism支持
 
 Context Parallelism(CP)是Cache-Dit支持的一个重要并行化方案。CP通过在序列维度上切分输入,让多个GPU并行处理不同的序列片段,从而实现加速。
