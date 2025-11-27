@@ -4,9 +4,15 @@
 
 最近在研究DiT(Diffusion Transformer)推理优化的时候接触到了Cache-Dit这个项目，也正在参与建设这个项目，发现这是一个比较有意思但是知名度看起来还不大的工作，这里写一篇学习笔记也算是宣传下。Cache-Dit是唯品会开源的一个PyTorch原生的DiT推理加速引擎（https://github.com/vipshop/cache-dit）,它通过混合缓存加速和并行化技术来加速DiT模型的推理。这个项目最吸引我的地方在于它不仅实现了各种缓存算法,还支持Context Parallelism和Tensor Parallelism,并且做到了和torch.compile、量化方法的集成，最关键的是支持新模型比较快。
 
+![](https://files.mdnice.com/user/59/27497ea6-b6a9-4a34-ad51-273b52408560.png)
+
+欢迎感兴趣的伙伴来点star或者做贡献。
+
 这篇笔记会详细记录Cache-Dit的核心技术要点,包括它的缓存策略、并行化方案、以及各种优化选项的使用。我会以FLUX.1-dev和Wan 2.2这两个典型模型为例,讲解Cache-Dit在实际应用中的优化效果。此外,我还会重点介绍Cache-Dit最近实现的Ulysses Anything Attention特性,以及Async Ulysses QKV Projection这个通信和计算overlap的优化。
 
 仓库的作者在知乎发了不少技术细节特别是Cache相关的和模型支持的帖子，大家感兴趣可以去看：https://www.zhihu.com/people/qyjdef/posts
+
+模型支持列表
 
 ![](https://files.mdnice.com/user/59/38114839-dc24-4a03-b000-a7047caf2819.png)
 
