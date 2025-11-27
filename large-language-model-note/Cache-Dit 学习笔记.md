@@ -254,14 +254,14 @@ cache_dit.enable_cache(
 )
 ```
 
-不同的FnBn配置会带来不同的性能和精度trade-off:
+不同的FnBn配置会带来不同的性能和精度trade-off。根据仓库的benchmark数据(https://github.com/vipshop/cache-dit/tree/main/bench),在FLUX.1-dev上:
 
-- **F1B0**: 最激进的缓存策略,只有第一个block始终计算,速度最快但精度可能下降
-- **F8B0**: 平衡的配置,前8个blocks计算,既保证精度又有不错的加速
-- **F8B8**: 保守的配置,前8个和后8个blocks都计算,精度最高但加速效果相对较弱
-- **F16B16**: 更保守,适合对精度要求极高的场景
+- F8B0_W4MC0_R0.08: 1.80x加速, Clip Score: 32.99, ImageReward: 1.04
+- F8B0_W4MC2_R0.12: 1.93x加速, Clip Score: 32.95, ImageReward: 1.02
+- F4B0_W4MC3_R0.12: 2.47x加速, Clip Score: 32.90, ImageReward: 1.01
+- F4B0_W4MC4_R0.12: 2.66x加速, Clip Score: 32.84, ImageReward: 1.01
 
-在FLUX.1-dev上的benchmark显示,F8B0配置可以达到1.8x的加速,同时保持很高的图像质量(Clip Score: 32.99, ImageReward: 1.04)。
+可以看到,Fn越小、max_continuous_cached_steps(MC)越大,加速效果越好,但精度会略有下降。
 
 ### residual_diff_threshold的选择
 
@@ -279,6 +279,8 @@ residual_diff_threshold是DBCache中最关键的超参数。它决定了什么�
 
 除了DBCache,Cache-Dit还实现了DBPrune(Dynamic Block Prune)算法。DBPrune和DBCache的思路类似,但它不是缓存residual,而是直接跳过(prune)某些blocks的计算。
 
+![](https://files.mdnice.com/user/59/0b1a012d-b455-4d97-b2ca-a56d0f600953.png)
+
 ```python
 from cache_dit import DBPruneConfig
 
@@ -295,7 +297,74 @@ cache_dit.enable_cache(
 )
 ```
 
-DBPrune可以实现更激进的加速,但需要更仔细地调整参数。在FLUX.1上,DBPrune可以prune掉35%-60%的blocks,实现1.5x-2.3x的加速。
+DBPrune可以实现更激进的加速,但需要更仔细地调整参数。根据仓库的User Guide,在FLUX.1上使用L20 GPU,DBPrune可以prune掉不同比例的blocks,实现不同程度的加速(详见: https://github.com/vipshop/cache-dit/blob/main/docs/User_Guide.md#dbprune)。
+
+![](https://files.mdnice.com/user/59/1877c4a4-c36e-4889-a1eb-6b106e82c62e.png)
+
+## Hybrid Cache CFG
+
+Cache-Dit支持对CFG(Classifier-Free Guidance)进行混合缓存。不同的DiT模型在处理CFG时有不同的方式:
+
+### 两种CFG模式
+
+1. Separate CFG: CFG和non-CFG是分开的两次forward
+   - 典型模型: Wan 2.1/2.2, Qwen-Image, CogView4, Cosmos, SkyReelsV2等
+   - 需要设置`enable_separate_cfg=True`
+
+2. Fused CFG: CFG和non-CFG融合在一次forward中
+   - 典型模型: FLUX.1, HunyuanVideo, CogVideoX, Mochi, LTXVideo, Allegro, CogView3Plus, SD3等
+   - 需要设置`enable_separate_cfg=False`(默认)
+
+### 配置参数
+
+```python
+from cache_dit import DBCacheConfig
+
+cache_dit.enable_cache(
+    pipe_or_adapter, 
+    cache_config=DBCacheConfig(
+        Fn_compute_blocks=8,
+        Bn_compute_blocks=0,
+        residual_diff_threshold=0.12,
+        # CFG相关配置
+        enable_separate_cfg=True,  # Wan 2.1, Qwen-Image等需要设为True
+        cfg_compute_first=False,   # False表示: 0,2,4,...是non-CFG; 1,3,5,...是CFG
+        cfg_diff_compute_separate=True,  # 是否为CFG和non-CFG分别计算diff
+    ),
+)
+```
+
+### 参数说明
+
+- `enable_separate_cfg`: 是否启用separate CFG模式
+  - `True`: 适用于Wan、Qwen-Image等模型,CFG和non-CFG是两次独立的forward
+  - `False`或`None`: 适用于FLUX、HunyuanVideo等模型,CFG融合在单次forward中
+  
+- `cfg_compute_first`: CFG forward的执行顺序
+  - `False`(默认): transformer step 0,2,4,...是non-CFG step; 1,3,5,...是CFG step
+  - `True`: transformer step 0,2,4,...是CFG step; 1,3,5,...是non-CFG step
+
+- `cfg_diff_compute_separate`: 是否为CFG和non-CFG分别计算residual diff
+  - `True`(默认): CFG和non-CFG各自维护独立的residual diff统计
+  - `False`: CFG step复用non-CFG step计算的diff值
+
+### 实现原理
+
+在源码中,Cache-Dit会根据`enable_separate_cfg`自动调整step计数逻辑:
+
+```python
+# 来自cache_context.py
+if not self.cache_config.enable_separate_cfg:
+    self.executed_steps += 1  # 每次transformer forward都算一步
+else:
+    # Separate CFG模式: 两次transformer forward才算一步
+    if not self.cache_config.cfg_compute_first:
+        if not self.is_separate_cfg_step():
+            # 只在non-CFG step时增加executed_steps
+            self.executed_steps += 1
+```
+
+这种设计让Cache-Dit可以正确处理不同模型的CFG实现方式,确保缓存策略在各种情况下都能正常工作。
 
 ## TaylorSeer Calibrator
 
@@ -311,37 +380,54 @@ $$\mathcal{F}_{\text{pred}, m}(x_{t-k}^l) = \mathcal{F}(x_t^l) + \sum_{i=1}^m \f
 from cache_dit import DBCacheConfig, TaylorSeerCalibratorConfig
 
 cache_dit.enable_cache(
-    pipe,
+    pipe_or_adapter,
+    # Basic DBCache w/ FnBn configurations
     cache_config=DBCacheConfig(
-        Fn_compute_blocks=8,
-        Bn_compute_blocks=0,  # 使用TaylorSeer时,Bn可以设为0
+        max_warmup_steps=8,  # steps do not cache
+        max_cached_steps=-1, # -1 means no limit
+        Fn_compute_blocks=8, # Fn, F8, etc.
+        Bn_compute_blocks=8, # Bn, B8, etc.
         residual_diff_threshold=0.12,
     ),
+    # Then, you can use the TaylorSeer Calibrator to approximate 
+    # the values in cached steps, taylorseer_order default is 1.
     calibrator_config=TaylorSeerCalibratorConfig(
-        taylorseer_order=1,  # 一阶泰勒展开
+        taylorseer_order=1,
     ),
 )
 ```
 
-实验表明,DBCache F1B0 + TaylorSeer的组合可以在保持精度的同时实现更好的加速效果。
+更详细的细节可以直接看DefTruth作者的这篇博客：https://zhuanlan.zhihu.com/p/1937477466475197176
+
+![](https://files.mdnice.com/user/59/e4d3d4b9-ee7f-482c-ae10-faa706210d43.png)
 
 ## SCM: Steps Computation Masking
 
 SCM(Steps Computation Masking)是受LeMiCa和EasyCache启发的一个优化策略。它的核心观察是:早期的caching会引入放大的下游误差,而后期的caching影响较小。因此,应该采用非均匀的cached steps分布。
 
+![](https://files.mdnice.com/user/59/9702df01-959c-4bbb-9d08-3f97732228ea.jpg)
+
 ```python
+from cache_dit import DBCacheConfig, TaylorSeerCalibratorConfig
+
+# Scheme: Hybrid DBCache + LeMiCa/EasyCache + TaylorSeer
 cache_dit.enable_cache(
-    pipe,
+    pipe_or_adapter,
     cache_config=DBCacheConfig(
+        # Basic DBCache configs
         Fn_compute_blocks=8,
         Bn_compute_blocks=0,
-        max_warmup_steps=6,
+        # keep is the same as first compute bin
+        max_warmup_steps=6,  
         residual_diff_threshold=0.12,
+        # LeMiCa or EasyCache style Mask for 28 steps, e.g, 
+        # SCM=111111010010000010000100001, 1: compute, 0: cache.
         steps_computation_mask=cache_dit.steps_mask(
-            compute_bins=[6, 1, 1, 1, 1],  # 10个compute steps
-            cache_bins=[1, 2, 5, 5, 5],     # 18个cache steps
+            compute_bins=[6, 1, 1, 1, 1], # 10
+            cache_bins=[1, 2, 5, 5, 5], # 18
         ),
-        steps_computation_policy="dynamic",  # 使用dynamic cache
+        # The policy for cache steps can be 'dynamic' or 'static'
+        steps_computation_policy="dynamic",
     ),
     calibrator_config=TaylorSeerCalibratorConfig(
         taylorseer_order=1,
@@ -351,7 +437,6 @@ cache_dit.enable_cache(
 
 `steps_computation_mask`是一个长度为num_inference_steps的列表,1表示必须计算,0表示使用缓存。通过`cache_dit.steps_mask()`可以方便地生成这个mask。
 
-SCM配合dynamic cache可以实现更好的效果。在FLUX.1上,SCM Ultra Fast + TaylorSeer + compile的组合可以实现7.1x的加速,同时保持很好的图像质量。
 
 ## 量化支持
 
