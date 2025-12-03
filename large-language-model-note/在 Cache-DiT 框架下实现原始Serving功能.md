@@ -236,15 +236,125 @@ cache-dit-serve --model-path FLUX.1-dev --cache --compile
 
 首次推理会进行编译（比较慢），但后续推理会快很多。
 
+贴一个FLUX.1.dev的例子。
+
+- server端log
+
+
+```markdown
+cache-dit-serve --model-path /nas/bbuf/FLUX.1-dev/ --cache --compile
+WARNING 12-03 06:50:00 [_attention_dispatch.py:303] Re-registered NATIVE attention backend to enable context parallelism with attn mask. You can disable this behavior by export env: export CACHE_DIT_ENABLE_CUSTOM_CP_NATIVE_ATTN_DISPATCH=0.
+INFO 12-03 06:50:00 [_attention_dispatch.py:416] Registered new attention backend: _SDPA_CUDNN, to enable context parallelism with attn mask. You can disable it by: export CACHE_DIT_ENABLE_CUSTOM_CP_NATIVE_ATTN_DISPATCH=0.
+INFO 12-03 06:50:01 [serve.py:107] Initializing model manager...
+INFO 12-03 06:50:01 [model_manager.py:68] Initializing ModelManager: model_path=/nas/bbuf/FLUX.1-dev/, device=cuda
+INFO 12-03 06:50:01 [serve.py:119] Loading model...
+INFO 12-03 06:50:01 [model_manager.py:72] Loading model: /nas/bbuf/FLUX.1-dev/
+Loading pipeline components...:   0%|                                                                       | 0/7 [00:00<?, ?it/s]`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards: 100%|████████████████████████████████████████████████████████████████████| 2/2 [00:01<00:00,  1.05it/s]
+Loading pipeline components...:  29%|██████████████████                                             | 2/7 [00:02<00:05,  1.08s/it]You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+Loading checkpoint shards: 100%|████████████████████████████████████████████████████████████████████| 3/3 [00:04<00:00,  1.49s/it]
+Loading pipeline components...: 100%|███████████████████████████████████████████████████████████████| 7/7 [00:08<00:00,  1.28s/it]
+INFO 12-03 06:50:10 [model_manager.py:81] Enabling DBCache acceleration
+INFO 12-03 06:50:10 [cache_adapter.py:49] FluxPipeline is officially supported by cache-dit. Use it's pre-defined BlockAdapter directly!
+INFO 12-03 06:50:10 [functor_flux.py:61] Applied FluxPatchFunctor for FluxTransformer2DModel, Patch: False.
+INFO 12-03 06:50:10 [block_adapters.py:147] Found transformer from diffusers: diffusers.models.transformers.transformer_flux enable check_forward_pattern by default.
+INFO 12-03 06:50:10 [block_adapters.py:494] Match Block Forward Pattern: ['FluxSingleTransformerBlock', 'FluxTransformerBlock'], ForwardPattern.Pattern_1
+INFO 12-03 06:50:10 [block_adapters.py:494] IN:('hidden_states', 'encoder_hidden_states'), OUT:('encoder_hidden_states', 'hidden_states'))
+INFO 12-03 06:50:10 [cache_adapter.py:148] Use custom 'enable_separate_cfg' from cache context kwargs: True. Pipeline: FluxPipeline.
+INFO 12-03 06:50:10 [cache_adapter.py:307] Collected Context Config: DBCache_F8B0_W8I1M0MC0_R0.08, Calibrator Config: None
+INFO 12-03 06:50:10 [pattern_base.py:70] Match Blocks: CachedBlocks_Pattern_0_1_2, for transformer_blocks, cache_context: transformer_blocks_139774198646688, context_manager: FluxPipeline_139774199622368.
+INFO 12-03 06:50:10 [model_manager.py:100] Moving pipeline to CUDA
+INFO 12-03 06:52:33 [model_manager.py:108] Enabling torch.compile
+INFO 12-03 06:52:33 [model_manager.py:112] Model loaded successfully
+INFO 12-03 06:52:33 [serve.py:121] Model loaded successfully!
+INFO 12-03 06:52:33 [serve.py:125] Starting server at http://0.0.0.0:8000
+INFO 12-03 06:52:33 [serve.py:126] API docs at http://0.0.0.0:8000/docs
+INFO:     Started server process [1928284]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO 12-03 06:52:45 [model_manager.py:117] Warming up for shape 1024x1024...
+  0%|                                                                                                       | 0/4 [00:00<?, ?it/s]/usr/local/lib/python3.12/dist-packages/torch/_dynamo/variables/functions.py:1547: UserWarning: Dynamo detected a call to a `functools.lru_cache` wrapped function.Dynamo currently ignores `functools.lru_cache` and directly traces the wrapped function.`functools.lru_cache` wrapped functions that read outside state may not be traced soundly.
+  warnings.warn(
+/usr/local/lib/python3.12/dist-packages/torch/_dynamo/variables/functions.py:1547: UserWarning: Dynamo detected a call to a `functools.lru_cache` wrapped function.Dynamo currently ignores `functools.lru_cache` and directly traces the wrapped function.`functools.lru_cache` wrapped functions that read outside state may not be traced soundly.
+  warnings.warn(
+/usr/local/lib/python3.12/dist-packages/torch/_dynamo/variables/functions.py:1547: UserWarning: Dynamo detected a call to a `functools.lru_cache` wrapped function.Dynamo currently ignores `functools.lru_cache` and directly traces the wrapped function.`functools.lru_cache` wrapped functions that read outside state may not be traced soundly.
+  warnings.warn(
+/usr/local/lib/python3.12/dist-packages/torch/_dynamo/variables/functions.py:1547: UserWarning: Dynamo detected a call to a `functools.lru_cache` wrapped function.Dynamo currently ignores `functools.lru_cache` and directly traces the wrapped function.`functools.lru_cache` wrapped functions that read outside state may not be traced soundly.
+  warnings.warn(
+/usr/local/lib/python3.12/dist-packages/torch/_dynamo/variables/functions.py:1547: UserWarning: Dynamo detected a call to a `functools.lru_cache` wrapped function.Dynamo currently ignores `functools.lru_cache` and directly traces the wrapped function.`functools.lru_cache` wrapped functions that read outside state may not be traced soundly.
+  warnings.warn(
+100%|███████████████████████████████████████████████████████████████████████████████████████████████| 4/4 [00:06<00:00,  1.51s/it]
+INFO 12-03 06:52:53 [model_manager.py:127] Warmup completed for 1024x1024
+INFO 12-03 06:52:53 [model_manager.py:137] Generating image: prompt='A beautiful sunset over the ocean...'
+100%|█████████████████████████████████████████████████████████████████████████████████████████████| 50/50 [00:06<00:00,  7.98it/s]
+WARNING 12-03 06:53:00 [summary.py:275] Can't find Context Options for: FluxSingleTransformerBlock
+WARNING 12-03 06:53:00 [summary.py:284] Can't find Parallelism Config for: FluxSingleTransformerBlock
+WARNING 12-03 06:53:00 [summary.py:275] Can't find Context Options for: FluxTransformerBlock
+WARNING 12-03 06:53:00 [summary.py:284] Can't find Parallelism Config for: FluxTransformerBlock
+
+🤗Context Options: OptimizedModule
+
+{'cache_config': DBCacheConfig(cache_type=<CacheType.DBCache: 'DBCache'>, Fn_compute_blocks=8, Bn_compute_blocks=0, residual_diff_threshold=0.08, max_accumulated_residual_diff_threshold=None, max_warmup_steps=8, warmup_interval=1, max_cached_steps=-1, max_continuous_cached_steps=-1, enable_separate_cfg=True, cfg_compute_first=False, cfg_diff_compute_separate=True, num_inference_steps=None, steps_computation_mask=None, steps_computation_policy='dynamic'), 'name': 'transformer_blocks_139774198646688'}
+WARNING 12-03 06:53:00 [summary.py:284] Can't find Parallelism Config for: OptimizedModule
+
+⚡️Cache Steps and Residual Diffs Statistics: OptimizedModule
+
+| Cache Steps | Diffs P00 | Diffs P25 | Diffs P50 | Diffs P75 | Diffs P95 | Diffs Min | Diffs Max |
+|-------------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
+| 6           | 0.043     | 0.06      | 0.089     | 0.135     | 0.217     | 0.043     | 0.285     |
+
+
+⚡️CFG Cache Steps and Residual Diffs Statistics: OptimizedModule
+
+| CFG Cache Steps | Diffs P00 | Diffs P25 | Diffs P50 | Diffs P75 | Diffs P95 | Diffs Min | Diffs Max |
+|-----------------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
+| 6               | 0.043     | 0.055     | 0.097     | 0.144     | 0.266     | 0.043     | 0.373     |
+
+INFO 12-03 06:53:00 [model_manager.py:183] Image generation completed in 6.55s
+INFO:     127.0.0.1:55144 - "POST /generate HTTP/1.1" 200 OK
+```
+
+- client端log
+
+
+
+```markdwon
+ python -m cache_dit.serve.client \
+    --prompt "A beautiful sunset over the ocean" \
+    --width 1024 \
+    --height 1024 \
+    --steps 50 \
+    --output output.png
+WARNING 12-03 06:48:43 [_attention_dispatch.py:303] Re-registered NATIVE attention backend to enable context parallelism with attn mask. You can disable this behavior by export env: export CACHE_DIT_ENABLE_CUSTOM_CP_NATIVE_ATTN_DISPATCH=0.
+INFO 12-03 06:48:43 [_attention_dispatch.py:416] Registered new attention backend: _SDPA_CUDNN, to enable context parallelism with attn mask. You can disable it by: export CACHE_DIT_ENABLE_CUSTOM_CP_NATIVE_ATTN_DISPATCH=0.
+Generating image: A beautiful sunset over the ocean
+Image saved to output.png
+Cache stats: {'cache_stats': [{'cache_options': "{'cache_config': DBCacheConfig(cache_type=<CacheType.DBCache: 'DBCache'>, Fn_compute_blocks=8, Bn_compute_blocks=0, residual_diff_threshold=0.08, max_accumulated_residual_diff_threshold=None, max_warmup_steps=8, warmup_interval=1, max_cached_steps=-1, max_continuous_cached_steps=-1, enable_separate_cfg=True, cfg_compute_first=False, cfg_diff_compute_separate=True, num_inference_steps=None, steps_computation_mask=None, steps_computation_policy='dynamic'), 'name': 'transformer_blocks_140121591103456'}", 'cached_steps': [8, 10, 12, 14, 16, 18], 'parallelism_config': None}]}
+Time cost: 9.22s
+root@264a63f2d86e:/nas/bbuf/cache-dit# curl -X POST http://localhost:8000/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A beautiful sunset over the ocean",
+    "width": 1024,
+    "height": 1024,
+    "num_inference_steps": 50
+  }' | jq -r '.images[0]' | base64 -d > output.png
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 1666k  100 1666k  100   125   173k     13  0:00:09  0:00:09 --:--:--  379k
+```
+
+- 结果
+
+![](https://files.mdnice.com/user/59/3b471855-3c19-406b-9ae7-52fa7c141cdc.jpg)
+
 ## 0x7. 总结
 
-Cache-DiT Serving 的实现目标很简单：让用户可以像使用 SGLang 一样方便地部署 DiT 模型。通过借鉴 SGLang 的设计，并针对 DiT 模型的特点进行简化，我们现了一个轻量级但功能还算完整的推理服务。
-
-整个实现的核心在于分布式推理的同步机制。通过使用 NCCL broadcast 来同步请求，我们避免了复杂的多进程架构，同时保证了 TP 和 CP 模式下的正确性。在实现过程中踩了不少坑，特别是随机数生成和 device 放置的问题，最终都花时间搞定了。
-
-然后目前这个功能已经可以正常工作了，支持单卡、TP 和 CP 三种模式。后续会做更多测试和推进merge进主分支。
+Cache-DiT Serving 的实现目标很简单：让用户可以像使用 SGLang 一样方便地部署 DiT 模型。通过借鉴 SGLang 的设计，并针对 DiT 模型的特点进行简化，努力实现了一个轻量级但功能还算完整的推理服务。整个实现的核心在于分布式推理的同步机制。通过使用 NCCL broadcast 来同步请求，避免了复杂的多进程架构，同时保证了 TP 和 CP 模式下的正确性。我在实现过程中踩了不少坑，特别是随机数生成和 device 放置的问题，最终都花时间搞定了。然后目前这个功能已经可以正常工作了，支持单卡、TP 和 CP 三种模式。后续会做更多测试和推进merge进主分支。server端的profiler等以后也会花时间搞定。
 
 欢迎大家试用并提供反馈！
+
 
 ## 参考资料
 
