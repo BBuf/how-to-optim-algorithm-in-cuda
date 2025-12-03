@@ -133,13 +133,16 @@ Rank 0 (HTTP Server)              Rank 1, 2, ... (Workers)
 
 使用起来非常简单，和 SGLang 的体验基本一致。
 
-首先安装 Cache-DiT：
+首先克隆 Cache-DiT ，然后切换到 https://github.com/vipshop/cache-dit/pull/522 这个pr对应的分支：
 
 ```bash
-git clone https://github.com/vipshop/cache-dit.git
+git clone git@github.com:BBuf/cache-dit.git
 cd cache-dit
-pip install -e .
+git checkout try_to_support_serving
+pip install -e ".[serving]"
 ```
+
+这个很快也会并入主线，应该吧
 
 然后启动服务。单卡模式：
 
@@ -202,7 +205,7 @@ image.save("output.png")
 print(f"Time cost: {result['time_cost']:.2f}s")
 ```
 
-也可以用 cURL：
+也可以用 cURL 和 jq：
 
 ```bash
 curl -X POST http://localhost:8000/generate \
@@ -211,15 +214,13 @@ curl -X POST http://localhost:8000/generate \
     "prompt": "A beautiful sunset over the ocean",
     "width": 1024,
     "height": 1024,
-    "num_inference_steps": 28,
-    "guidance_scale": 3.5,
-    "seed": 42
-  }'
+    "num_inference_steps": 50
+  }' | jq -r '.images[0]' | base64 -d > output.png
 ```
 
 启动服务后，访问 `http://localhost:8000/docs` 可以看到完整的 API 文档（Swagger UI）。
 
-完整的命令行参数可以查看 [get_args 函数](https://github.com/vipshop/cache-dit/pull/522/files#diff-8d807db087ac7dc3923b8b6c6c4af29c87f8f29882f19ca5a9bf33f9b3d608b6R17)，这里列举几个常用的：
+完整的命令行参数可以查看 get_args 函数(https://github.com/vipshop/cache-dit/pull/522/files#diff-8d807db087ac7dc3923b8b6c6c4af29c87f8f29882f19ca5a9bf33f9b3d608b6R17)，这里列举几个常用的：
 
 - `--model-path`: 模型路径或 HuggingFace model ID
 - `--cache`: 启用缓存加速
@@ -228,7 +229,7 @@ curl -X POST http://localhost:8000/generate \
 - `--host`: 服务器地址 (默认 0.0.0.0)
 - `--port`: 服务器端口 (默认 8000)
 
-如果想要更快的推理速度，可以启用 torch.compile：
+如果想要更快的推理速度，可以启用 torch.compile，更多优化选项请详细了解cache-dit框架：
 
 ```bash
 cache-dit-serve --model-path FLUX.1-dev --cache --compile
