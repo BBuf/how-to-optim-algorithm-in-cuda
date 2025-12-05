@@ -911,7 +911,7 @@ sglang generate --model-path black-forest-labs/FLUX.1-dev \
 
 ## 0x8. 总结
 
-这篇文章记录了我对 SGLang Diffusion 源码的一些理解。SGLang Diffusion 通过 ComposedPipelineBase + PipelineStage 的模块化设计，提供了一个比较灵活的扩散模型推理框架。它支持丰富的并行策略（TP、Ulysses SP、USP、CFG Parallel）和多种 Attention Backend（FlashAttention、Sage Attention 等），可以高效地部署各类扩散模型。添加新模型的流程也比较清晰，只需要实现配置类、Transformer 模型、Pipeline 类并注册就行，通过 ReplicatedLinear 和 UlyssesAttention 等组件可以轻松支持并行。总的来说，SGLang Diffusion 的设计还是挺优雅的，性能也不错。
+这篇文章记录了我对 SGLang Diffusion 源码的一些理解。SGLang Diffusion 通过 ComposedPipelineBase + PipelineStage 的模块化设计，提供了一个比较灵活的扩散模型推理框架。它支持丰富的并行策略（TP、Ulysses SP、USP、CFG Parallel）和多种 Attention Backend（FlashAttention、Sage Attention 等），可以高效地部署各类扩散模型。添加新模型的流程也比较清晰，只需要实现配置类、Transformer 模型、Pipeline 类并注册就行，通过 ReplicatedLinear 和 UlyssesAttention 等组件可以轻松支持并行。
 
 ## 参考资料
 
