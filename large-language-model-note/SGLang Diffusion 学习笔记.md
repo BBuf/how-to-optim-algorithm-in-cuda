@@ -597,21 +597,14 @@ for stage, duration in data['stages'].items():
 
 如果需要更详细的性能分析，可以用 torch profiler（实现在 `DenoisingStage` 的 `start_profile`/`stop_profile` 方法中）。torch profiler 可以记录 CPU 和 GPU 的详细执行信息，包括算子耗时、内存使用、kernel 调用等。
 
-启用 torch profiler 的方式：
+启用 torch profiler 的方式很简单，直接在 `sglang generate` 命令中加 `--profile` 参数就行：
 
-```python
-from sglang import Engine
-
-# 创建请求时设置 profile=True
-engine = Engine(model_path="black-forest-labs/FLUX.1-dev")
-
-response = engine.generate(
-    prompt="A cute baby sea otter",
-    sampling_params={
-        "profile": True,  # 启用 profiler
-        "num_profiled_timesteps": 8,  # 记录前 8 个 denoising step
-    }
-)
+```bash
+# 使用 --profile 启用 profiler
+sglang generate --model-path black-forest-labs/FLUX.1-dev \
+    --prompt "A cute baby sea otter" \
+    --profile \
+    --num-profiled-timesteps 8  # 可选：指定记录前 8 个 denoising step
 ```
 
 Profiler 配置参数：
