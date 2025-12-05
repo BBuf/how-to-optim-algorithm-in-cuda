@@ -649,13 +649,16 @@ Profiler 的好处是可以看到每个 CUDA kernel 的执行时间，分析 CPU
 ### 7.1 安装
 
 ```bash
-# 使用 pip 安装
-pip install 'sglang[diffusion]' --prerelease=allow
-
-# 或从源码安装
+# Use the latest release branch
 git clone https://github.com/sgl-project/sglang.git
 cd sglang
-pip install -e "python[diffusion]" --prerelease=allow
+
+# Install the Python packages
+pip install --upgrade pip
+pip install -e "python[diffusion]"
+
+# With uv
+uv pip install -e "python[diffusion]" --prerelease=allow
 ```
 
 ### 7.2 启动服务
@@ -663,6 +666,11 @@ pip install -e "python[diffusion]" --prerelease=allow
 ```bash
 # 单卡推理
 sglang serve --model-path black-forest-labs/FLUX.1-dev --port 3000
+
+或者
+
+sglang generate --model-path black-forest-labs/FLUX.1-dev \
+    --prompt "A logo With Bold Large text: SGL Diffusion"
 
 # 多卡 TP
 sglang serve --model-path black-forest-labs/FLUX.1-dev \
@@ -701,6 +709,195 @@ image = Image.open(BytesIO(image_data))
 image.save("output.png")
 ```
 
+贴一个log：
+
+```shell
+sglang serve --model-path black-forest-labs/FLUX.1-dev --port 3000
+
+[12-05 09:17:00] Downloaded model to /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21
+[12-05 09:17:00] Model path: /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21
+[12-05 09:17:00] Diffusers version: 0.30.0.dev0
+[12-05 09:17:00] Loading pipeline modules from config: {'_class_name': 'FluxPipeline', '_diffusers_version': '0.30.0.dev0', 'scheduler': ['diffusers', 'FlowMatchEulerDiscreteScheduler'], 'text_encoder': ['transformers', 'CLIPTextModel'], 'text_encoder_2': ['transformers', 'T5EncoderModel'], 'tokenizer': ['transformers', 'CLIPTokenizer'], 'tokenizer_2': ['transformers', 'T5TokenizerFast'], 'transformer': ['diffusers', 'FluxTransformer2DModel'], 'vae': ['diffusers', 'AutoencoderKL']}
+[12-05 09:17:00] Loading required components: ['text_encoder', 'text_encoder_2', 'tokenizer', 'tokenizer_2', 'vae', 'transformer', 'scheduler']
+Loading required modules:   0%|                                                                                                                                                       | 0/7 [00:00<?, ?it/s][12-05 09:17:00] Loading text_encoder using transformers from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/text_encoder
+[12-05 09:17:00] Loading text_encoder from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/text_encoder
+[12-05 09:17:00] HF model config: {'architectures': ['CLIPTextModel'], 'attention_dropout': 0.0, 'bos_token_id': 0, 'dropout': 0.0, 'eos_token_id': 2, 'hidden_act': 'quick_gelu', 'hidden_size': 768, 'initializer_factor': 1.0, 'initializer_range': 0.02, 'intermediate_size': 3072, 'layer_norm_eps': 1e-05, 'max_position_embeddings': 77, 'num_attention_heads': 12, 'num_hidden_layers': 12, 'pad_token_id': 1, 'projection_dim': 768, 'vocab_size': 49408}
+[12-05 09:17:00] Using FlashAttention (FA3 for hopper, FA4 for blackwell) backend
+[12-05 09:17:00] [RunAI Streamer] Overall time to stream 234.7 MiB of all files to cpu: 0.56s, 420.2 MiB/s
+[12-05 09:17:00] Loading weights took 0.57 seconds
+[12-05 09:17:01] Loaded text_encoder: FSDPCLIPTextModel from: customized
+[12-05 09:17:01] Loaded module text_encoder from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/text_encoder
+Loading required modules:  14%|████████████████████▍                                                                                                                          | 1/7 [00:01<00:10,  1.68s/it][12-05 09:17:01] Loading text_encoder_2 using transformers from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/text_encoder_2
+[12-05 09:17:01] Loading text_encoder_2 from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/text_encoder_2
+[12-05 09:17:01] HF model config: {'architectures': ['T5EncoderModel'], 'classifier_dropout': 0.0, 'd_ff': 10240, 'd_kv': 64, 'd_model': 4096, 'decoder_start_token_id': 0, 'dense_act_fn': 'gelu_new', 'dropout_rate': 0.1, 'eos_token_id': 1, 'feed_forward_proj': 'gated-gelu', 'initializer_factor': 1.0, 'is_encoder_decoder': True, 'is_gated_act': True, 'layer_norm_epsilon': 1e-06, 'num_decoder_layers': 24, 'num_heads': 64, 'num_layers': 24, 'output_past': True, 'pad_token_id': 0, 'relative_attention_max_distance': 128, 'relative_attention_num_buckets': 32, 'tie_word_embeddings': False, 'use_cache': True, 'vocab_size': 32128}
+[12-05 09:17:07] [RunAI Streamer] Overall time to stream 8.9 GiB of all files to cpu: 5.4s, 1.6 GiB/s
+[12-05 09:17:07] Loading weights took 5.45 seconds
+[12-05 09:17:27] Loaded text_encoder_2: FSDPT5EncoderModel from: customized
+[12-05 09:17:27] Loaded module text_encoder_2 from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/text_encoder_2
+Loading required modules:  29%|████████████████████████████████████████▊                                                                                                      | 2/7 [00:27<01:19, 15.89s/it][12-05 09:17:27] Loading tokenizer using transformers from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/tokenizer
+[12-05 09:17:27] Loading tokenizer from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/tokenizer
+[12-05 09:17:27] Loaded tokenizer: CLIPTokenizerFast from: customized
+[12-05 09:17:27] Loaded module tokenizer from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/tokenizer
+[12-05 09:17:27] Loading tokenizer_2 using transformers from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/tokenizer_2
+[12-05 09:17:27] Loading tokenizer_2 from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/tokenizer_2
+You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+[12-05 09:17:27] Loaded tokenizer_2: T5TokenizerFast from: customized
+[12-05 09:17:27] Loaded module tokenizer_2 from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/tokenizer_2
+Loading required modules:  57%|█████████████████████████████████████████████████████████████████████████████████▋                                                             | 4/7 [00:27<00:18,  6.01s/it][12-05 09:17:27] Loading vae using diffusers from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/vae
+[12-05 09:17:27] Loading vae from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/vae
+[12-05 09:17:27] HF model config: {'_name_or_path': '../checkpoints/flux-dev', 'act_fn': 'silu', 'block_out_channels': [128, 256, 512, 512], 'down_block_types': ['DownEncoderBlock2D', 'DownEncoderBlock2D', 'DownEncoderBlock2D', 'DownEncoderBlock2D'], 'force_upcast': True, 'in_channels': 3, 'latent_channels': 16, 'latents_mean': None, 'latents_std': None, 'layers_per_block': 2, 'mid_block_add_attention': True, 'norm_num_groups': 32, 'out_channels': 3, 'sample_size': 1024, 'scaling_factor': 0.3611, 'shift_factor': 0.1159, 'up_block_types': ['UpDecoderBlock2D', 'UpDecoderBlock2D', 'UpDecoderBlock2D', 'UpDecoderBlock2D'], 'use_post_quant_conv': False, 'use_quant_conv': False}
+[12-05 09:17:28] Loaded vae: AutoencoderKL from: customized
+[12-05 09:17:28] Loaded module vae from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/vae
+Loading required modules:  71%|██████████████████████████████████████████████████████████████████████████████████████████████████████▏                                        | 5/7 [00:28<00:08,  4.34s/it][12-05 09:17:28] Loading transformer using diffusers from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/transformer
+[12-05 09:17:28] Loading transformer from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/transformer
+[12-05 09:17:28] transformer cls_name: FluxTransformer2DModel
+[12-05 09:17:28] Loading model from 3 safetensors files: ['/root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/transformer/diffusion_pytorch_model-00001-of-00003.safetensors', '/root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/transformer/diffusion_pytorch_model-00002-of-00003.safetensors', '/root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/transformer/diffusion_pytorch_model-00003-of-00003.safetensors']
+[12-05 09:17:28] Loading FluxTransformer2DModel, default_dtype: torch.bfloat16
+[12-05 09:17:28] Using FlashAttention (FA3 for hopper, FA4 for blackwell) backend
+[12-05 09:17:39] [RunAI Streamer] Overall time to stream 22.2 GiB of all files to cpu: 11.36s, 2.0 GiB/s
+[12-05 09:17:46] Loaded model with 11.90B parameters
+[12-05 09:17:46] Loaded transformer: FluxTransformer2DModel from: customized
+[12-05 09:17:46] Loaded module transformer from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/transformer
+Loading required modules:  86%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▌                    | 6/7 [00:46<00:08,  8.42s/it][12-05 09:17:46] Loading scheduler using diffusers from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/scheduler
+[12-05 09:17:46] Loading scheduler from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/scheduler
+[12-05 09:17:46] Loaded scheduler: FlowMatchEulerDiscreteScheduler from: customized
+[12-05 09:17:46] Loaded module scheduler from /root/.cache/huggingface/hub/models--black-forest-labs--FLUX.1-dev/snapshots/3de623fc3c33e44ffbe2bad470d0f45bccf2eb21/scheduler
+Loading required modules: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 7/7 [00:46<00:00,  6.58s/it]
+[12-05 09:17:46] Pipelines instantiated
+[12-05 09:17:46] Worker 0: Initialized device, model, and distributed environment.
+[12-05 09:17:46] Worker 0: Scheduler loop started.
+[12-05 09:17:46] Rank 0 scheduler listening on tcp://*:5592
+[12-05 09:17:46] Starting FastAPI server.
+[12-05 09:17:46] Started server process [37013]
+[12-05 09:17:46] Waiting for application startup.
+[12-05 09:17:46] Scheduler client connected to backend scheduler at tcp://localhost:5592
+[12-05 09:17:46] ZMQ Broker is listening for offline jobs on tcp://*:3001
+[12-05 09:17:46] Application startup complete.
+[12-05 09:17:46] Uvicorn running on http://localhost:3000 (Press CTRL+C to quit)
+[12-05 09:19:06] 127.0.0.1:51806 - "GET /metrics HTTP/1.1" 404
+[12-05 09:21:32] Sampling params:
+                       width: 1024
+                      height: 1024
+                  num_frames: 1
+                      prompt: A cute baby sea otter
+                  neg_prompt: None
+                        seed: 1024
+                 infer_steps: 50
+      num_outputs_per_prompt: 1
+              guidance_scale: 1.0
+     embedded_guidance_scale: 3.5
+                    n_tokens: 16384
+                  flow_shift: None
+                  image_path: None
+                 save_output: True
+            output_file_path: outputs/8c8083c6-870e-4f30-b682-15fdc2f58910.jpg
+        
+[12-05 09:21:32] Processing prompt: A cute baby sea otter
+[12-05 09:21:32] Creating pipeline stages...
+[12-05 09:21:32] Using FlashAttention (FA3 for hopper, FA4 for blackwell) backend
+[12-05 09:21:32] Running pipeline stages: ['input_validation_stage', 'prompt_encoding_stage_primary', 'conditioning_stage', 'timestep_preparation_stage', 'latent_preparation_stage', 'denoising_stage', 'decoding_stage']
+[12-05 09:21:32] [InputValidationStage] started...
+[12-05 09:21:32] [InputValidationStage] finished in 0.0003 seconds
+[12-05 09:21:32] [TextEncodingStage] started...
+[12-05 09:21:33] Running FA4 warmup (global/causal/local, LSE on/off, optional GQA pack)...
+[12-05 09:21:51] [TextEncodingStage] finished in 19.1504 seconds
+[12-05 09:21:51] [ConditioningStage] started...
+[12-05 09:21:51] [ConditioningStage] finished in 0.0001 seconds
+[12-05 09:21:51] [TimestepPreparationStage] started...
+[12-05 09:21:51] [TimestepPreparationStage] finished in 0.0924 seconds
+[12-05 09:21:51] [LatentPreparationStage] started...
+[12-05 09:21:51] [LatentPreparationStage] finished in 0.0005 seconds
+[12-05 09:21:51] [DenoisingStage] started...
+100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 50/50 [00:09<00:00,  5.55it/s]
+[12-05 09:22:01] [DenoisingStage] average time per step: 0.1804 seconds
+[12-05 09:22:01] [DenoisingStage] finished in 9.0389 seconds
+[12-05 09:22:01] [DecodingStage] started...
+[12-05 09:22:02] [DecodingStage] finished in 1.8255 seconds
+[12-05 09:22:03] Saved output to outputs/8c8083c6-870e-4f30-b682-15fdc2f58910.jpg
+[12-05 09:22:03] Pixel data generated successfully in 30.35 seconds
+[12-05 09:22:03] Completed batch processing. Generated 1 outputs in 30.35 seconds.
+[12-05 09:22:03] 127.0.0.1:46656 - "POST /v1/images/generations HTTP/1.1" 200
+```
+
+这个日志展示了 FLUX.1-dev 模型从启动到生成一张图片的完整过程，我结合源码来解释一下各个阶段：
+
+**1. 服务启动和初始化（09:14:31 - 09:14:38）**
+
+首先打印了 `server_args`，可以看到关键配置：
+- `num_gpus=1, tp_size=1`：单卡推理，没有开启 TP
+- `ulysses_degree=1, ring_degree=1`：没有开启序列并行
+- `dit_cpu_offload=true, text_encoder_cpu_offload=true, vae_cpu_offload=true`：DiT、Text Encoder 和 VAE 都开启了 CPU offload，这是为了节省显存
+
+然后初始化分布式环境，虽然只有一张卡，但 SGLang 内部还是会初始化 Gloo 通信组（为了代码统一）。
+
+**2. 模型加载阶段（09:14:41 - 09:17:46）**
+
+这部分对应 `ComposedPipelineBase.load_modules` 方法的执行：
+
+```python
+# 读取 model_index.json，识别出这是 FluxPipeline
+[12-05 09:14:41] Downloaded model_index.json for black-forest-labs/FLUX.1-dev, pipeline: FluxPipeline
+```
+
+然后按顺序加载 7 个组件（对应 `FluxPipelineConfig._required_config_modules`）：
+
+- **text_encoder (CLIP)**：加载耗时 1.68s，234.7 MiB，使用 FlashAttention backend
+- **text_encoder_2 (T5)**：加载耗时 15.89s，8.9 GiB，这是最大的组件
+- **tokenizer & tokenizer_2**：加载很快，只是配置文件
+- **vae**：加载耗时 1s，168 MiB
+- **transformer (DiT)**：加载耗时 18s，22.2 GiB，11.90B 参数，这是核心模型
+- **scheduler**：加载配置
+
+整个加载过程用了约 3 分钟，主要时间花在下载和加载 transformer 和 text_encoder_2 上。
+
+**3. Pipeline 创建（09:17:46）**
+
+```python
+[12-05 09:17:46] Pipelines instantiated
+[12-05 09:17:46] Worker 0: Initialized device, model, and distributed environment.
+```
+
+这里调用了 `FluxPipeline.create_pipeline_stages`，创建了 7 个 stage：InputValidationStage、TextEncodingStage、ConditioningStage、TimestepPreparationStage、LatentPreparationStage、DenoisingStage、DecodingStage。
+
+**4. 推理阶段（09:21:32 - 09:22:03）**
+
+收到请求后，依次执行各个 stage：
+
+```python
+# 采样参数
+width=1024, height=1024, infer_steps=50, guidance_scale=1.0
+
+# 各个 stage 的耗时
+[InputValidationStage] 0.0003s        # 验证输入参数
+[TextEncodingStage] 19.1504s          # CLIP + T5 编码，包含 FA4 warmup
+[ConditioningStage] 0.0001s           # 准备条件
+[TimestepPreparationStage] 0.0924s    # 准备时间步
+[LatentPreparationStage] 0.0005s      # 初始化 latent
+[DenoisingStage] 9.0389s              # 50 步去噪，平均每步 0.1804s
+[DecodingStage] 1.8255s               # VAE 解码
+```
+
+可以看到 TextEncodingStage 耗时最长（19.15s），这是因为：
+1. 第一次运行需要 warmup FlashAttention 4（`Running FA4 warmup`）
+2. T5 模型很大（8.9 GiB），编码比较慢
+3. 开启了 CPU offload，需要在 CPU 和 GPU 之间搬运数据
+
+DenoisingStage 是第二耗时的（9.04s），这是核心的去噪循环，执行了 50 步 transformer 前向传播。
+
+**5. 总耗时分析**
+
+```python
+[12-05 09:22:03] Pixel data generated successfully in 30.35 seconds
+```
+
+总共 30.35 秒，其中：
+- TextEncodingStage: 19.15s (63%)
+- DenoisingStage: 9.04s (30%)
+- DecodingStage: 1.83s (6%)
+- 其他 stage: < 0.1s
+
+如果关闭 CPU offload 或者使用多卡 TP/SP，性能会有明显提升。这个日志很好地展示了 SGLang Diffusion 的模块化设计，每个 stage 的耗时都被清晰地记录下来，方便性能分析和优化。
+
 ### 7.4 命令行生成
 
 ```bash
@@ -709,6 +906,8 @@ sglang generate --model-path black-forest-labs/FLUX.1-dev \
     --prompt "A Logo With Bold Large Text: SGL Diffusion" \
     --save-output
 ```
+
+
 
 ## 0x8. 总结
 
