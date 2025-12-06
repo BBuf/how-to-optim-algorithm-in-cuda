@@ -211,6 +211,186 @@ def load_modules(self, server_args: ServerArgs) -> dict[str, Any]:
 
 加载过程比较清晰：读取 `model_index.json` 获取组件信息，根据配置加载每个组件（transformer, vae, text_encoder 等），应用 TP/SP 等并行策略，最后返回组件字典供 pipeline 使用。
 
+### 2.5 模型权重加载机制
+
+SGLang Diffusion 的权重加载机制设计得比较巧妙，针对不同类型的组件采用了不同的加载策略。我详细说一下这块的实现。
+
+**加载器工厂模式**
+
+SGLang 为每种组件类型都实现了专门的 Loader（`runtime/loader/component_loader.py`）：
+
+```python
+class ComponentLoader:
+    def load(self, component_model_path, server_args, module_name, transformers_or_diffusers):
+        # 优先尝试加载定制化版本
+        try:
+            component = self.load_customized(component_model_path, server_args, module_name)
+            source = "customized"
+        except Exception:
+            # 降级到原生版本（transformers/diffusers）
+            component = self.load_native(component_model_path, server_args, transformers_or_diffusers)
+            source = "native"
+        return component
+```
+
+这种设计的好处是优先使用 SGLang 优化过的实现，如果加载失败再降级到原生的 transformers/diffusers 实现，保证了兼容性。
+
+**Transformer 权重加载（FSDP 方式）**
+
+对于 Transformer（DiT）这种大模型，SGLang 使用 FSDP（Fully Sharded Data Parallel）来加载权重：
+
+```python
+class TransformerLoader(ComponentLoader):
+    def load_customized(self, component_model_path, server_args, *args):
+        # 1. 读取配置
+        config = get_diffusers_component_config(model_path=component_model_path)
+        dit_config = server_args.pipeline_config.dit_config
+        dit_config.update_model_arch(config)
+        
+        # 2. 找到所有 safetensors 文件
+        safetensors_list = _list_safetensors_files(component_model_path)
+        
+        # 3. 使用 FSDP 加载模型
+        model = maybe_load_fsdp_model(
+            model_cls=model_cls,
+            init_params={"config": dit_config, "hf_config": hf_config},
+            weight_dir_list=safetensors_list,
+            device=get_local_torch_device(),
+            hsdp_shard_dim=server_args.hsdp_shard_dim,
+            cpu_offload=server_args.dit_cpu_offload,
+            default_dtype=torch.bfloat16,
+        )
+        return model.eval()
+```
+
+FSDP 的优势是可以将模型参数分片到多个 GPU 上，支持 CPU offload，这样即使是 23.8GB 的 FLUX transformer 也能在显存有限的 GPU 上加载。
+
+**Text Encoder 权重加载（流式加载）**
+
+对于 Text Encoder，SGLang 使用了更精细的流式加载方式：
+
+```python
+class TextEncoderLoader(ComponentLoader):
+    def load_model(self, model_path, model_config, server_args, dtype="fp16"):
+        # 1. 跳过初始化创建空模型
+        with skip_init_modules():
+            model_cls, _ = ModelRegistry.resolve_model_cls(architectures)
+            model = model_cls(model_config)
+        
+        # 2. 流式加载权重
+        weights_to_load = {name for name, _ in model.named_parameters()}
+        loaded_weights = model.load_weights(
+            self._get_all_weights(model, model_path, to_cpu=should_offload)
+        )
+        
+        # 3. 移动到目标设备
+        model = model.to(local_torch_device)
+        
+        # 4. 如果需要 CPU offload，使用 FSDP
+        if should_offload:
+            shard_model(
+                model,
+                cpu_offload=True,
+                reshard_after_forward=True,
+                mesh=mesh["offload"],
+            )
+        return model.eval()
+```
+
+这里的关键是 `skip_init_modules` 上下文管理器，它会跳过 PyTorch 的默认参数初始化，避免浪费时间和内存。然后通过 `_get_all_weights` 获取权重迭代器，流式地加载权重。
+
+**权重迭代器实现**
+
+`_get_all_weights` 返回一个生成器，逐个读取 safetensors 文件中的权重：
+
+```python
+def _get_weights_iterator(self, source, to_cpu):
+    hf_folder, hf_weights_files, use_safetensors = self._prepare_weights(
+        source.model_or_path, source.fall_back_to_pt, source.allow_patterns_overrides
+    )
+    
+    if use_safetensors:
+        weights_iterator = safetensors_weights_iterator(hf_weights_files, to_cpu=to_cpu)
+    else:
+        weights_iterator = pt_weights_iterator(hf_weights_files, to_cpu=to_cpu)
+    
+    # 应用前缀
+    return ((source.prefix + name, tensor) for (name, tensor) in weights_iterator)
+```
+
+这种流式加载的好处是不需要一次性把所有权重加载到内存，可以边加载边处理，节省内存。
+
+**自定义权重加载逻辑**
+
+每个模型都实现了自己的 `load_weights` 方法来处理权重映射，比如 CLIP 的实现：
+
+```python
+def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
+    # QKV 融合映射
+    stacked_params_mapping = [
+        ("qkv_proj", "q_proj", "q"),
+        ("qkv_proj", "k_proj", "k"),
+        ("qkv_proj", "v_proj", "v"),
+    ]
+    
+    params_dict = dict(self.named_parameters())
+    loaded_params = set()
+    
+    for name, loaded_weight in weights:
+        # 处理 q_proj, k_proj, v_proj -> qkv_proj 的映射
+        for param_name, weight_name, shard_id in stacked_params_mapping:
+            if weight_name in name:
+                model_param_name = name.replace(weight_name, param_name)
+                if model_param_name in params_dict:
+                    param = params_dict[model_param_name]
+                    weight_loader = param.weight_loader
+                    weight_loader(param, loaded_weight, shard_id)
+                    loaded_params.add(model_param_name)
+                break
+        else:
+            # 默认加载逻辑
+            if name in params_dict:
+                param = params_dict[name]
+                weight_loader = getattr(param, "weight_loader", default_weight_loader)
+                weight_loader(param, loaded_weight)
+                loaded_params.add(name)
+    
+    return loaded_params
+```
+
+这里的 `weight_loader` 是一个可定制的函数，可以处理各种特殊情况，比如 QKV 融合、权重切分、数据类型转换等。
+
+**VAE 权重加载（简单直接）**
+
+VAE 相对简单，直接使用 `load_state_dict`：
+
+```python
+class VAELoader(ComponentLoader):
+    def load_customized(self, component_model_path, server_args, *args):
+        # 1. 创建模型
+        vae_cls, _ = ModelRegistry.resolve_model_cls(class_name)
+        vae = vae_cls(vae_config).to(target_device)
+        
+        # 2. 加载权重
+        safetensors_list = _list_safetensors_files(component_model_path)
+        loaded = safetensors_load_file(safetensors_list[0])
+        vae.load_state_dict(loaded, strict=False)
+        
+        return vae.eval()
+```
+
+VAE 比较小（168 MiB），所以可以直接一次性加载所有权重。
+
+**总结一下权重加载的特点**：
+
+1. **分层设计**：不同组件用不同的 Loader，每个 Loader 有定制化和原生两种加载方式
+2. **流式加载**：对于大模型（Text Encoder、Transformer），使用生成器流式加载，节省内存
+3. **FSDP 支持**：大模型支持 FSDP 分片和 CPU offload，可以在有限显存下加载超大模型
+4. **权重映射**：每个模型可以自定义 `load_weights` 方法，处理各种权重映射和融合
+5. **跳过初始化**：使用 `skip_init_modules` 避免浪费时间初始化参数
+
+这套机制让 SGLang Diffusion 可以高效地加载各种规模的模型，同时保持了很好的灵活性和扩展性。
+
 ## 0x3. 并行策略详解
 
 接下来聊聊 SGLang Diffusion 的并行策略，这块是它高性能的关键。它支持多种并行方式，我一个个来看。
