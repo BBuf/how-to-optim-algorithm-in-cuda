@@ -1683,25 +1683,356 @@ void cutlass_scaled_mxfp4_mm_sm120(...) {
 
 ---
 
-# 0x4. 性能优化技巧
+# 0x4. LightX2V 项目中的实际使用
 
-## 0x4.1 内存访问优化
+## 0x4.1 集成方式
 
-1. **向量化加载**：使用 `PackedVec` 一次加载 16 字节（8 个元素）
-2. **对齐要求**：确保数据对齐到 128 位边界
-3. **Coalesced 访问**：连续的线程访问连续的内存地址
+LightX2V 项目通过 `MMWeight` 类体系来集成 lightx2v_kernel,实现了模型权重的量化和推理加速。
 
-## 0x4.2 计算优化
+### 导入量化算子
 
-1. **PTX 指令**：使用专用的 `cvt.rn.satfinite.e2m1x2.f32` 指令
-2. **快速倒数**：使用 `rcp.approx.ftz.f32` 而不是除法
-3. **Warp 规约**：使用 `__shfl_xor_sync` 进行高效的 warp 内通信
+```python
+# lightx2v/common/ops/mm/mm_weight.py
+try:
+    from lightx2v_kernel.gemm import (
+        cutlass_scaled_mxfp4_mm,
+        cutlass_scaled_mxfp6_mxfp8_mm,
+        cutlass_scaled_mxfp8_mm,
+        cutlass_scaled_nvfp4_mm,
+        scaled_mxfp4_quant,
+        scaled_mxfp6_quant,
+        scaled_mxfp8_quant,
+        scaled_nvfp4_quant,
+    )
+except ImportError:
+    # 如果没有安装 lightx2v_kernel,使用 None
+    scaled_nvfp4_quant, cutlass_scaled_nvfp4_mm = None, None
+    scaled_mxfp4_quant, cutlass_scaled_mxfp4_mm = None, None
+    scaled_mxfp6_quant, cutlass_scaled_mxfp6_mxfp8_mm = None, None
+    scaled_mxfp8_quant, cutlass_scaled_mxfp8_mm = None, None
+```
 
-## 0x4.3 Tensor Core 优化
+## 0x4.2 NVFP4 量化权重类
 
-1. **Block Scaled GEMM**：利用 Blackwell 的 Block Scaled Tensor Core
-2. **Swizzled Layout**：使用特殊的 scale factor 布局优化访问模式
-3. **Epilogue Fusion**：将 bias 添加融合到 GEMM 中
+LightX2V 实现了 `MMWeightNvfp4` 类来管理 NVFP4 量化的权重。
+
+### 类定义
+
+```python
+@MM_WEIGHT_REGISTER("nvfp4")
+class MMWeightNvfp4(MMWeightQuantNvfp4Template):
+    """
+    NVFP4 量化权重类
+    - Weight: NVFP4 格式
+    - Act: NVFP4 动态量化
+    - Kernel: lightx2v_kernel
+    """
+    
+    def __init__(
+        self,
+        weight_name,
+        bias_name,
+        create_cuda_buffer=False,
+        create_cpu_buffer=False,
+        lazy_load=False,
+        lazy_load_file=None,
+        is_post_adapter=False,
+    ):
+        super().__init__(
+            weight_name,
+            bias_name,
+            create_cuda_buffer,
+            create_cpu_buffer,
+            lazy_load,
+            lazy_load_file,
+            is_post_adapter,
+        )
+        # 设置量化函数
+        self.load_func = self.load_nvfp4
+        self.weight_need_transpose = True
+        self.act_quant_func = self.act_quant_nvfp4
+```
+
+### 权重加载
+
+权重加载时需要加载以下数据:
+
+```python
+def _get_cuda_tensor_pair(self, source, is_lazy):
+    # 1. 加载量化后的权重
+    weight = source.get_tensor(self.weight_name).to(AI_DEVICE)
+    
+    # 2. 加载权重的 scale factors
+    scale = source.get_tensor(self.weight_scale_name).to(AI_DEVICE)
+    
+    # 3. 计算或加载 input_global_scale
+    if self.input_absmax_name in source:
+        # 从校准数据计算
+        input_absmax = source.get_tensor(self.input_absmax_name)
+        input_global_scale = (2688.0 / input_absmax).to(torch.float32)
+        weight_global_scale = source.get_tensor(self.weight_global_scale_name)
+        alpha = 1.0 / (input_global_scale * weight_global_scale)
+    else:
+        # 直接加载
+        input_global_scale = source.get_tensor(self.input_global_scale_name)
+        alpha = source.get_tensor(self.alpha_name)
+    
+    return weight, scale, input_global_scale, alpha
+```
+
+关键参数说明:
+- `weight`: 量化后的权重,shape 为 `(out_features, in_features//2)`,dtype 为 `uint8`
+- `scale`: 权重的 scale factors,dtype 为 `float8_e4m3fn`
+- `input_global_scale`: 输入的全局缩放因子,用于量化激活
+- `alpha`: 输出缩放因子,`alpha = 1.0 / (input_global_scale * weight_global_scale)`
+
+### 推理过程
+
+```python
+def apply(self, input_tensor):
+    # 1. 量化输入激活
+    # input_tensor: (batch_size, in_features), dtype=bfloat16
+    input_tensor_quant, input_tensor_scale = self.act_quant_func(input_tensor)
+    # input_tensor_quant: (batch_size, in_features//2), dtype=uint8
+    # input_tensor_scale: (batch_size, in_features//16), dtype=float8_e4m3fn
+    
+    # 2. 执行量化矩阵乘法
+    output_tensor = cutlass_scaled_nvfp4_mm(
+        input_tensor_quant,      # 量化后的输入
+        self.weight,             # 量化后的权重
+        input_tensor_scale,      # 输入的 scale factors
+        self.weight_scale,       # 权重的 scale factors
+        alpha=self.alpha,        # 输出缩放因子
+        bias=self.bias,          # 可选的 bias
+    )
+    # output_tensor: (batch_size, out_features), dtype=bfloat16
+    
+    return output_tensor
+```
+
+### 激活量化函数
+
+```python
+def act_quant_nvfp4(self, x):
+    """
+    对输入激活进行 NVFP4 量化
+    
+    Args:
+        x: 输入张量,shape=(batch_size, in_features), dtype=bfloat16
+    
+    Returns:
+        input_tensor_quant: 量化后的张量,shape=(batch_size, in_features//2)
+        input_tensor_scale: scale factors,shape=(batch_size, in_features//16)
+    """
+    input_tensor_quant, input_tensor_scale = scaled_nvfp4_quant(
+        x, 
+        self.input_global_scale
+    )
+    return input_tensor_quant, input_tensor_scale
+```
+
+## 0x4.3 完整的推理流程
+
+下面是一个完整的推理流程示例:
+
+```python
+# 1. 创建量化权重对象
+mm_weight = MMWeightNvfp4(
+    weight_name="transformer.blocks.0.attn.qkv.weight",
+    bias_name="transformer.blocks.0.attn.qkv.bias",
+    lazy_load=True,
+    lazy_load_file="/path/to/quantized_model",
+)
+
+# 2. 加载量化权重
+mm_weight.load(weight_dict)
+
+# 3. 将权重加载到 GPU
+mm_weight.to_cuda()
+
+# 4. 推理
+input_tensor = torch.randn(1024, 4096, dtype=torch.bfloat16, device="cuda")
+output_tensor = mm_weight.apply(input_tensor)
+# 输出: (1024, 12288), dtype=bfloat16
+
+# 5. 推理完成后可以卸载到 CPU
+mm_weight.to_cpu()
+```
+
+## 0x4.4 量化模型转换
+
+LightX2V 提供了模型量化转换工具,可以将 FP16/BF16 模型转换为 NVFP4 量化模型。
+
+### 权重量化
+
+```python
+# tools/convert/quant/quant.py
+def quantize_weight_nvfp4(weight, calib_data):
+    """
+    将权重量化为 NVFP4 格式
+    
+    Args:
+        weight: 原始权重,shape=(out_features, in_features), dtype=bfloat16
+        calib_data: 校准数据,用于计算 input_global_scale
+    
+    Returns:
+        quantized_weight: 量化后的权重
+        weight_scale: 权重的 scale factors
+        input_global_scale: 输入的全局缩放因子
+        weight_global_scale: 权重的全局缩放因子
+    """
+    # 1. 计算 input_global_scale
+    input_absmax = calib_data.abs().max()
+    input_global_scale = 2688.0 / input_absmax
+    
+    # 2. 量化权重
+    weight = weight.to("cuda").to(torch.bfloat16)
+    quantized_weight, weight_scale = scaled_nvfp4_quant(
+        weight, 
+        torch.tensor(input_global_scale, device="cuda")
+    )
+    
+    # 3. 计算 weight_global_scale
+    weight_absmax = weight.abs().max()
+    weight_global_scale = 2688.0 / weight_absmax
+    
+    return quantized_weight, weight_scale, input_global_scale, weight_global_scale
+```
+
+### 保存量化模型
+
+```python
+def save_quantized_model(model, output_path):
+    """保存量化后的模型"""
+    state_dict = {}
+    
+    for name, module in model.named_modules():
+        if hasattr(module, 'mm_weight') and isinstance(module.mm_weight, MMWeightNvfp4):
+            # 保存量化权重
+            state_dict[f"{name}.weight"] = module.mm_weight.weight
+            state_dict[f"{name}.weight_scale"] = module.mm_weight.weight_scale
+            state_dict[f"{name}.input_global_scale"] = module.mm_weight.input_global_scale
+            state_dict[f"{name}.weight_global_scale"] = module.mm_weight.weight_global_scale
+            
+            if module.mm_weight.bias is not None:
+                state_dict[f"{name}.bias"] = module.mm_weight.bias
+    
+    # 使用 safetensors 保存
+    from safetensors.torch import save_file
+    save_file(state_dict, output_path)
+```
+
+## 0x4.5 性能优化技巧
+
+### CPU Offload 支持
+
+LightX2V 支持将量化权重放在 CPU 上,推理时动态加载到 GPU:
+
+```python
+# 创建 CPU pin memory buffer
+mm_weight = MMWeightNvfp4(
+    weight_name="...",
+    bias_name="...",
+    create_cpu_buffer=True,  # 使用 CPU pin memory
+    lazy_load=True,
+)
+
+# 推理时异步加载到 GPU
+mm_weight.to_cuda(non_blocking=True)
+output = mm_weight.apply(input_tensor)
+
+# 推理完成后卸载回 CPU
+mm_weight.to_cpu(non_blocking=True)
+```
+
+### Lazy Load 支持
+
+对于大模型,可以使用 lazy load 按需加载权重:
+
+```python
+mm_weight = MMWeightNvfp4(
+    weight_name="transformer.blocks.0.attn.qkv.weight",
+    bias_name="transformer.blocks.0.attn.qkv.bias",
+    lazy_load=True,
+    lazy_load_file="/path/to/model/block_0.safetensors",
+)
+
+# 权重会在第一次使用时才从磁盘加载
+```
+
+### 多层权重管理
+
+LightX2V 使用 `load_state_dict` 机制管理多层权重:
+
+```python
+# 预先创建 CUDA buffer
+for layer_idx in range(num_layers):
+    mm_weight = MMWeightNvfp4(
+        weight_name=f"transformer.blocks.{layer_idx}.attn.qkv.weight",
+        bias_name=f"transformer.blocks.{layer_idx}.attn.qkv.bias",
+        create_cuda_buffer=True,  # 预分配 GPU 显存
+    )
+
+# 推理时动态加载不同层的权重
+for layer_idx in range(num_layers):
+    mm_weight.load_state_dict(weight_dict, layer_idx)
+    output = mm_weight.apply(input_tensor)
+```
+
+## 0x4.6 实际应用场景
+
+### 视频生成模型加速
+
+LightX2V 项目主要用于视频生成模型(如 Wan2.2, HunyuanVideo)的推理加速:
+
+```python
+# 示例: Wan2.2 模型的 Transformer block
+class TransformerBlock:
+    def __init__(self):
+        # QKV projection 使用 NVFP4 量化
+        self.qkv = MMWeightNvfp4(
+            weight_name="transformer.blocks.0.attn.qkv.weight",
+            bias_name="transformer.blocks.0.attn.qkv.bias",
+        )
+        
+        # MLP 使用 NVFP4 量化
+        self.mlp_fc1 = MMWeightNvfp4(
+            weight_name="transformer.blocks.0.mlp.fc1.weight",
+            bias_name="transformer.blocks.0.mlp.fc1.bias",
+        )
+        self.mlp_fc2 = MMWeightNvfp4(
+            weight_name="transformer.blocks.0.mlp.fc2.weight",
+            bias_name="transformer.blocks.0.mlp.fc2.bias",
+        )
+    
+    def forward(self, x):
+        # 1. QKV projection (量化加速)
+        qkv = self.qkv.apply(x)  # (B, L, 3*D)
+        
+        # 2. Attention (FP16/BF16)
+        attn_out = self.attention(qkv)
+        
+        # 3. MLP (量化加速)
+        mlp_out = self.mlp_fc2.apply(
+            F.gelu(self.mlp_fc1.apply(attn_out))
+        )
+        
+        return mlp_out
+```
+
+### 性能提升
+
+在 Blackwell GPU (如 B200) 上,使用 NVFP4 量化可以获得:
+- **2-3x** 的推理加速(相比 BF16)
+- **4x** 的显存节省(权重从 BF16 压缩到 FP4)
+- **接近 BF16** 的精度(通过 per-group 量化和校准)
+
+### 适用模型
+
+LightX2V 的量化方案特别适合:
+- **DiT (Diffusion Transformer)** 模型: Wan2.2, HunyuanVideo
+- **大规模 Transformer**: 参数量 > 10B
+- **推理密集型应用**: 视频生成、图像生成
 
 ---
 
