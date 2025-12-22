@@ -1456,6 +1456,16 @@ typename Fp4GemmSm120::Gemm::Arguments args_from_options_nvfp4_nvfp4(
 }
 ```
 
+关键点:
+- 计算 stride 和 scale factor layout
+- 构建 CUTLASS Arguments 结构
+- 支持带 bias 和不带 bias 两种情况
+- 使用 epilogue fusion 将 bias 添加融合到 GEMM 中
+
+### GEMM 执行函数
+
+```cpp
+void runGemmNvfp4Sm120(
     at::Tensor& D, at::Tensor const& A, at::Tensor const& B,
     at::Tensor const& A_sf, at::Tensor const& B_sf,
     at::Tensor const& alpha, c10::optional<torch::Tensor> const& bias,
