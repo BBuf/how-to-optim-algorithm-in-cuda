@@ -1375,84 +1375,153 @@ CompileFlags:
 
 ## 0x5.2 添加新Kernel
 
-### 步骤1:创建CUDA源文件
+这里用一个完整的`add_constant` kernel示例来演示如何添加新kernel。这个kernel将一个常量值加到输入tensor的每个元素上。
 
-在`csrc/`创建`my_kernel.cuh`:
+概念上的Python接口:
+```python
+def add_constant(src: torch.Tensor, c: int):
+    return src + c
+```
+
+### 步骤1:编写C++ Kernel
+
+在`csrc/`创建`add_constant.cuh`:
 
 ```cpp
-#include <sgl_kernel/tensor.h>
-#include <sgl_kernel/utils.cuh>
-#include <sgl_kernel/utils.h>
+#include <sgl_kernel/tensor.h>   // For TensorMatcher, SymbolicSize, SymbolicDevice
+#include <sgl_kernel/utils.cuh>  // For LaunchKernel
+#include <sgl_kernel/utils.h>    // For div_ceil, RuntimeCheck
+
+#include <dlpack/dlpack.h>
+#include <tvm/ffi/container/tensor.h>
+
+#include <cstddef>
+#include <cstdint>
 
 namespace {
 
-__global__ void my_kernel_impl(float* output, const float* input, int size) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < size) {
-    output[idx] = input[idx] * 2.0f;
+template <int32_t kConstant>
+__global__ void add_constant_kernel(int32_t* dst, const int32_t* src, size_t length) {
+  size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < length) {
+    dst[idx] = src[idx] + kConstant;
   }
 }
 
-template <int kBlockSize>
-struct MyKernel {
-  static void run(tvm::ffi::TensorView output, tvm::ffi::TensorView input) {
-    using namespace host;
-    
-    auto N = SymbolicSize{"N"};
-    auto device = SymbolicDevice{};
-    
-    TensorMatcher({N})
-        .with_dtype<float>()
-        .with_device<kDLCUDA>(device)
-        .verify(input)
-        .verify(output);
-    
-    const int size = N.unwrap();
-    const int num_blocks = div_ceil(size, kBlockSize);
-    
-    auto* out_ptr = static_cast<float*>(output.data_ptr());
-    auto* in_ptr = static_cast<const float*>(input.data_ptr());
-    
-    LaunchKernel(num_blocks, kBlockSize, device.unwrap())(
-        my_kernel_impl, out_ptr, in_ptr, size
-    );
-  }
-};
+constexpr size_t kBlockSize = 256;
+
+// 也可以用struct + static method的方式
+template <int32_t kConstant>
+void add_constant(tvm::ffi::TensorView dst, tvm::ffi::TensorView src) {
+  using namespace host;
+
+  // 1. 验证输入tensor
+  SymbolicSize N = {"num_elements"};
+  SymbolicDevice device_;
+  TensorMatcher({N})                  // 1D tensor, 必须连续
+      .with_dtype<int32_t>()          // 必须是int32
+      .with_device<kDLCUDA>(device_)  // 必须在CUDA设备上
+      .verify(dst)                    // 检查dst tensor
+      .verify(src);                   // 检查src tensor
+
+  // 2. 提取参数,准备启动kernel
+  const size_t num_elements = N.unwrap();
+  const size_t grid_size = div_ceil(num_elements, kBlockSize);
+  const DLDevice device = device_.unwrap();
+  // 额外的运行时检查
+  RuntimeCheck(num_elements > 0, 
+               "We only support non-empty tensors, got num_elements = ", num_elements);
+
+  // 3. 启动kernel,错误码会自动检查
+  LaunchKernel(grid_size, kBlockSize, device)(
+      // kernel函数
+      add_constant_kernel<kConstant>,
+      // kernel参数
+      static_cast<int32_t*>(dst.data_ptr()),
+      static_cast<int32_t*>(src.data_ptr()),
+      num_elements);
+}
 
 }  // namespace
 ```
 
+**代码要点**:
+
+1. **模板参数**: `kConstant`作为编译期常量,可以被编译器优化
+2. **Tensor验证**: 使用`TensorMatcher`确保输入合法
+3. **符号变量**: `SymbolicSize`和`SymbolicDevice`记录并验证tensor属性
+4. **自动错误检查**: `LaunchKernel`会自动检查CUDA错误
+
 ### 步骤2:创建Python接口
 
-在`jit_kernel/`创建`my_kernel.py`:
+在`jit_kernel/`创建`add_constant.py`:
 
 ```python
-from functools import lru_cache
+from __future__ import annotations
+
+import functools
+from typing import TYPE_CHECKING
+
 import torch
+
 from sglang.jit_kernel.utils import load_jit, make_cpp_args
 
-@lru_cache(maxsize=None)
-def _jit_my_kernel_module(block_size: int):
-    args = make_cpp_args(block_size)
+if TYPE_CHECKING:
+    from tvm_ffi.module import Module
+
+
+@functools.cache
+def _jit_add_constant_module(constant: int) -> Module:
+    args = make_cpp_args(constant)  # 传递所有模板参数
     return load_jit(
-        "my_kernel",
+        "add_constant",
         *args,
-        cuda_files=["my_kernel.cuh"],
-        cuda_wrappers=[("run", f"MyKernel<{args}>::run")],
+        cuda_files=["add_constant.cuh"],
+        cuda_wrappers=[("add_constant", f"add_constant<{args}>")],
     )
 
-def my_kernel(output: torch.Tensor, input: torch.Tensor, block_size: int = 256):
-    module = _jit_my_kernel_module(block_size)
-    module.run(output, input)
+
+def add_constant(src: torch.Tensor, constant: int) -> torch.Tensor:
+    dst = torch.empty_like(src)
+    module = _jit_add_constant_module(constant)
+    module.add_constant(dst, src)
+    return dst
 ```
 
-### 步骤3:使用
+**关键点**:
+
+1. **`@functools.cache`**: 缓存编译结果,相同`constant`只编译一次
+2. **`make_cpp_args`**: 生成C++模板参数字符串
+3. **`cuda_wrappers`**: 导出C++函数到Python
+
+### 步骤3:使用Kernel
 
 ```python
-input = torch.randn(1000, device='cuda')
-output = torch.empty_like(input)
-my_kernel(output, input, block_size=256)
+from sglang.jit_kernel.add_constant import add_constant
+
+# 创建输入tensor
+src = torch.tensor([1, 2, 3, 4, 5], device='cuda', dtype=torch.int32)
+
+# 调用kernel
+result = add_constant(src, constant=10)
+
+# 结果: tensor([11, 12, 13, 14, 15], device='cuda:0', dtype=torch.int32)
+print(result)
 ```
+
+**编译缓存机制**:
+
+第一次调用`add_constant(src, 10)`:
+- 触发JIT编译,生成`add_constant<10>`的kernel
+- 耗时约1-2秒
+
+后续调用`add_constant(src, 10)`:
+- 直接使用缓存的module
+- 几乎零开销
+
+调用`add_constant(src, 20)`:
+- 重新编译,生成`add_constant<20>`的kernel
+- 不同的`constant`值会生成不同的kernel实例
 
 # 0x6. PR #14570改进总结
 
