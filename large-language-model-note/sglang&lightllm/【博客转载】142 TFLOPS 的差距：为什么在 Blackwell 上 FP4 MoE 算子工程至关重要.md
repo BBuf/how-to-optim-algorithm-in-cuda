@@ -2,7 +2,7 @@
 
 # 142 TFLOPS 的差距：为什么在 **Blackwell** 上 **FP4 MoE** 算子工程至关重要
 
-如何通过 **kernel 融合**、面向 **Blackwell** 的优化与**专家感知（expert-aware）**计算，在小 batch 推理上相对 `vLLM` 获得 **1.84×** 加速
+如何通过 **kernel 融合**、面向 **Blackwell** 的优化与**专家感知（expert-aware）** 计算，在小 batch 推理上相对 `vLLM` 获得 **1.84×** 加速
 
 作者：advpropx（X）
 
@@ -395,7 +395,7 @@ Intermediate: 8960 (scaled from 18432)
 
 当 experts 数达到 **256** 时，系统天然并行度更高。即便 launch heuristic 不够理想，`vLLM` 在大 batch 下也更容易把 GPU 吃满；此时 **kernel 融合** 与面向 **Blackwell** 的优化优势，在更偏 **compute-bound** 的区间里会变得不那么显著。
 
-但在小 batch 下，`SGLang` 的**自适应 grid sizing** 依旧更占优。因为 experts 更多时路由更不可预测，专家负载不均更明显，而 `SGLang` 的**专家感知量化**（expert-aware quantization）对这种情况处理得更好。
+但在小 batch 下，`SGLang` 的**自适应 grid sizing** 依旧更占优。因为 experts 更多时路由更不可预测，专家负载不均更明显，而 `SGLang` 的**按专家量化**（`expert-aware quantization`）对这种情况处理得更好。
 
 ### DeepEP：多节点专家并行
 
