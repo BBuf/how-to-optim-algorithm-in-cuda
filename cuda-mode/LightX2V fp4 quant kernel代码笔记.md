@@ -184,6 +184,8 @@ print(f"Output shape: {output.shape}")
 
 # 0x2. 量化原理
 
+量化原理部分主要从 https://github.com/ModelTC/LightX2V/tree/main/lightx2v_kernel 的文档里修改而来。
+
 ## 0x2.1 NVFP4 量化原理
 
 #### 3.1.1 数据格式
