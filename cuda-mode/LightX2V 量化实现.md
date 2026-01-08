@@ -1,13 +1,11 @@
 # 0x0. 前言
 
-这篇东西本质上是我为了搞清楚 LightX2V 里 `lightx2v_kernel` 怎么做 FP4 量化 GEMM 写的读码笔记。
+这篇博客是我为了搞清楚 LightX2V 里 `lightx2v_kernel` 怎么做 FP4 量化 GEMM 写的读码笔记。
 我主要关心两件事：
 - **接口和约束**：哪些 shape / 对齐是强约束，scale factor 的张量到底是什么 layout。
 - **kernel 关键路径**：量化 kernel 怎么把 `fp16/bf16 -> fp4 + fp8 sf`，以及 GEMM 怎么喂给 CUTLASS 的 Block Scaled Tensor Core。
 
-这篇笔记**不做性能结论**（比如“提升几倍/达到峰值多少”这种），因为这些数字强依赖：矩阵形状、batch/token、是否被其他 kernel 覆盖、以及你跑的 GPU/驱动/clock。文末我留了一个我自己会用的验证方法。
-
-项目地址: https://github.com/LightX2V/LightX2V
+项目地址: https://github.com/ModelTC/LightX2V/blob/main/lightx2v_kernel
 
 # 0x1. 接口使用
 
@@ -98,7 +96,7 @@ torch.ops.lightx2v_kernel.scaled_nvfp4_quant_sm120.default(output, input, output
 - 写一份 `fp8` 的 sf（swizzled）
 - 把数据缩放后转成 `fp4` 并打包
 
-（我这里不再逐行复述 Python wrapper 里每一行 `torch.empty/torch.zeros/view` 的解释了，那种写法太像“教科书式展开”，对定位关键点帮助不大。）
+（Python wrapper 里那些 `torch.empty/torch.zeros/view` 的细节我就不在文里硬展开了：真要对照的时候直接看源码更快。）
 
 ## 0x1.3 使用示例
 
@@ -396,7 +394,9 @@ inline __device__ float reciprocal_approximate_ftz(float a) {
 
 **优势**：
 - 比标准的 `1.0f / a` 快得多
-- `ftz`（flush-to-zero）：将非规格化数刷新为零，提高性能
+
+参考：CUDA PTX ISA 文档里对 `rcp.approx` 以及修饰符（包括 `ftz`）有定义
+https://docs.nvidia.com/cuda/parallel-thread-execution/
 
 ### 量化因子布局计算
 
@@ -758,15 +758,6 @@ constexpr int CVT_FP4_NUM_THREADS_PER_SF = 32 / 8 = 4;  // 4 个线程/SF
    - 相同的 coalesced 读取模式
    - 不同的 SF 写入模式（更稀疏）
 
-### 性能分析
-
-我这里更倾向于把量化 kernel 当成一个“典型的 streaming kernel”去看：
-
-- **大概率会偏带宽敏感**：输入是连续读，输出是连续写（再加一份 sf 的写入）。
-- **关键不是拍数字**，而是你用工具确认它到底卡在哪：
-  - 用 Nsight Compute 看 `dram__throughput` / `smsp__sass_average_branch_targets_threads_uniform.pct` / `smsp__inst_executed` 之类指标，确认是带宽/指令/分支哪一类。
-  - 用 `torch.profiler` 或 Nsight Systems 看它在整条推理链路里占比到底是多少（很多时候它并不是 top hotspot）。
-
 ---
 
 ## 0x3.3 NVFP4 矩阵乘法实现
@@ -846,201 +837,6 @@ struct Fp4GemmSm120 {
 - **ThreadBlockShape**：128×128×128 的 tile 大小，平衡寄存器使用和共享内存
 - **OpClassBlockScaledTensorOp**：使用 Block Scaled Tensor Core 操作
 - **EVTOp**：支持 per-column bias 的 epilogue 融合操作
-
-### GEMM Kernel 线程模型
-
-CUTLASS 3.x 的 GEMM kernel 使用了层次化的线程模型,下面看看它是怎么工作的。
-
-#### Tile 层次结构
-
-```
-问题规模: M × N × K
-
-CTA (Cooperative Thread Array) Tile: 128 × 128 × 128
-  └─ Warp Tile: 根据 warp 数量自动划分
-      └─ Thread Tile: 每个线程处理的数据块
-          └─ Instruction Tile: Tensor Core 指令处理的最小单元
-```
-
-层次详解:
-
-1. **CTA Tile (ThreadBlockShape)**：
-   - 大小：`128 × 128 × 128` (M × N × K)
-   - 含义：一个 thread block 处理的矩阵块
-   - 选择原因：
-     - 128×128 的输出 tile 适合 Tensor Core
-     - K=128 提供足够的数据重用
-     - 平衡寄存器和共享内存使用
-
-2. **Cluster (ClusterShape)**：
-   - 大小：`1 × 1 × 1`
-   - 含义：不使用 thread block cluster（Hopper+ 特性）
-   - Blackwell 可以使用，但这里选择单 CTA 模式
-
-3. **Warp 分配**：
-   - 每个 CTA 有多个 warp（通常 4-8 个）
-   - 每个 warp 负责 CTA tile 的一部分
-   - 使用 CUTLASS 的 warp 专门化（warp specialization）
-
-#### 线程组织
-
-假设一个典型的配置：
-
-```cpp
-// CTA 配置
-ThreadBlockShape = 128 × 128 × 128
-每个 CTA 的线程数 = 128 或 256（由 CUTLASS 自动确定）
-Warp 数量 = 线程数 / 32 = 4 或 8 个 warp
-
-// Warp 到输出 tile 的映射（示例：4 个 warp）
-Warp 0: 处理输出 tile [0:64, 0:64]
-Warp 1: 处理输出 tile [0:64, 64:128]
-Warp 2: 处理输出 tile [64:128, 0:64]
-Warp 3: 处理输出 tile [64:128, 64:128]
-```
-
-#### Mainloop 执行流程
-
-```cpp
-// 伪代码展示 GEMM mainloop
-for (int k_tile = 0; k_tile < K; k_tile += 128) {
-  // 1. 从全局内存加载 A 和 B tile 到共享内存
-  // 使用 cp.async 异步加载
-  load_A_tile_to_smem(A, k_tile);  // 128×128 的 A tile
-  load_B_tile_to_smem(B, k_tile);  // 128×128 的 B tile
-  load_SFA_to_smem(SFA, k_tile);   // Scale factors for A
-  load_SFB_to_smem(SFB, k_tile);   // Scale factors for B
-  
-  // 2. 同步等待数据加载完成
-  cp.async.wait_group<0>();
-  __syncthreads();
-  
-  // 3. 从共享内存加载到寄存器，执行 Tensor Core 运算
-  for (int k_frag = 0; k_frag < 128; k_frag += 16) {
-    // 加载 A 和 B 的 fragment 到寄存器
-    load_A_fragment(A_frag, k_frag);
-    load_B_fragment(B_frag, k_frag);
-    
-    // 加载对应的 scale factors
-    load_SFA_fragment(SFA_frag, k_frag);
-    load_SFB_fragment(SFB_frag, k_frag);
-    
-    // 执行 Block Scaled MMA (Matrix Multiply-Accumulate)
-    // 使用 Tensor Core 指令：mma.sync.aligned.m16n8k32.row.col.f32.e2m1.e2m1.f32
-    mma_with_scaling(C_frag, A_frag, B_frag, SFA_frag, SFB_frag);
-  }
-  
-  __syncthreads();
-}
-```
-
-**关键点**：
-
-1. **异步加载（cp.async）**：
-   - 使用 CUDA 的异步拷贝指令
-   - 隐藏全局内存访问延迟
-   - 支持 software pipelining
-
-2. **共享内存布局**：
-   - A tile: `128 × 128` 的 FP4 数据（打包存储）
-   - B tile: `128 × 128` 的 FP4 数据（打包存储）
-   - Scale factors: swizzled layout，优化 bank conflict
-   - 总共享内存占用与 tile/stage 等配置相关
-
-3. **Tensor Core 指令**：
-   - `mma.sync.aligned.m16n8k32.row.col.f32.e2m1.e2m1.f32`
-   - 输入：E2M1 (FP4)
-   - 输出：FP32 累加器
-   - 形状：16×8×32 (M×N×K)
-
-#### Epilogue 执行流程
-
-```cpp
-// Epilogue: 将累加器写回全局内存
-// 支持融合操作：D = alpha * C + bias
-
-// 1. 从寄存器读取累加器
-for each thread's output elements {
-  // 2. 应用 scaling (alpha)
-  output = accumulator * alpha;
-  
-  // 3. 添加 bias（如果有）
-  if (bias) {
-    output += bias[col];  // per-column bias
-  }
-  
-  // 4. 类型转换（FP32 → BF16）
-  output_bf16 = convert_to_bf16(output);
-  
-  // 5. 写回全局内存
-  D[row][col] = output_bf16;
-}
-```
-
-Epilogue 优化:
-- **向量化写入**：一次写入多个元素
-- **Coalesced 访问**：warp 内的线程访问连续地址
-- **寄存器重用**：累加器直接用于 epilogue，无需额外共享内存
-
-#### 内存访问模式
-
-全局内存 → 共享内存(Mainloop):
-```
-A 矩阵加载（每个 k_tile）：
-  - 形状：128 × 128（FP4 打包存储）
-  - 模式：Coalesced，使用 cp.async
-  - 带宽利用：取决于对齐、stride、以及实际的访存合并情况
-
-B 矩阵加载（每个 k_tile）：
-  - 形状：128 × 128（FP4 打包存储）
-  - 模式：Coalesced，转置访问优化
-  
-Scale Factors 加载：
-  - A_SF: 每个 group 对应的 FP8 sf（swizzled layout）
-  - B_SF: 同上
-  - 模式：Swizzled layout，避免 bank conflict
-```
-
-共享内存 → 寄存器(Tensor Core):
-```
-每个 warp 每次迭代：
-  - 加载 A fragment
-  - 加载 B fragment
-  - 加载 SF: 少量 FP8 值
-  
-使用 ldmatrix 指令：
-  - 高效的矩阵加载指令
-  - 直接从共享内存加载到 Tensor Core 寄存器
-```
-
-寄存器 → 全局内存(Epilogue):
-```
-每个线程写入：
-  - 写回多个 BF16 值
-  - 向量化写入（具体 vector width 以 CUTLASS 生成代码为准）
-  - Coalesced 模式
-```
-
-#### 性能特征
-
-这一块我不写“峰值多少/能跑到多少”这种结论了。
-
-读代码视角下比较重要的是：
-
-- **它走的是 CUTLASS 3.x 的 Block Scaled GEMM**，所以真正决定性能的通常是 tile/pipe/stage/寄存器压力，以及你给它的 shape 是否落在“好跑”的区域。
-- **scale factor 的 layout/对齐是硬约束**：你如果 scale tensor 做错（shape 不对、没 swizzle、没 round-up），host 侧会直接 `TORCH_CHECK` 报错。
-- **是否 compute-bound 需要你自己测**：在你的目标 shape 上，看 Tensor Core pipe 利用率、sm occupancy、以及 dram 吞吐，别靠假设。
-
-#### 与量化 Kernel 的对比
-
-| 特性 | 量化 Kernel | GEMM Kernel |
-|------|-------------|-------------|
-| **瓶颈** | 内存带宽 | 计算（Tensor Core） |
-| **共享内存** | 很少/没有 | 较多（取决于 tile 与 stage 配置） |
-| **寄存器压力** | 相对低 | 相对高 |
-| **占用率** | 通常更高 | 通常更容易受寄存器/共享内存限制 |
-| **主要优化** | Coalesced 访问 | Tile 大小、Pipeline |
-| **执行时间** | 通常更短 | 通常更长（取决于矩阵规模） |
 
 ### 参数构建函数
 
