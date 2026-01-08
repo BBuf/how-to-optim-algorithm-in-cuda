@@ -1,7 +1,8 @@
 # 0x0. 前言
 
-这篇博客是我为了搞清楚 LightX2V 里 `lightx2v_kernel` 怎么做 FP4 量化 GEMM 写的读码笔记。
-我主要关心两件事：
+这篇笔记是之前为了搞清楚 LightX2V 里 `lightx2v_kernel` 怎么做 FP4 量化 GEMM 写的读码笔记。
+
+主要解释2个问题：
 - **接口和约束**：哪些 shape / 对齐是强约束，scale factor 的张量到底是什么 layout。
 - **kernel 关键路径**：量化 kernel 怎么把 `fp16/bf16 -> fp4 + fp8 sf`，以及 GEMM 怎么喂给 CUTLASS 的 Block Scaled Tensor Core。
 
@@ -1371,64 +1372,8 @@ def save_quantized_model(model, output_path):
     save_file(state_dict, output_path)
 ```
 
-## 0x4.5 性能优化技巧
 
-### CPU Offload 支持
-
-LightX2V 支持将量化权重放在 CPU 上,推理时动态加载到 GPU:
-
-```python
-# 创建 CPU pin memory buffer
-mm_weight = MMWeightNvfp4(
-    weight_name="...",
-    bias_name="...",
-    create_cpu_buffer=True,  # 使用 CPU pin memory
-    lazy_load=True,
-)
-
-# 推理时异步加载到 GPU
-mm_weight.to_cuda(non_blocking=True)
-output = mm_weight.apply(input_tensor)
-
-# 推理完成后卸载回 CPU
-mm_weight.to_cpu(non_blocking=True)
-```
-
-### Lazy Load 支持
-
-对于大模型,可以使用 lazy load 按需加载权重:
-
-```python
-mm_weight = MMWeightNvfp4(
-    weight_name="transformer.blocks.0.attn.qkv.weight",
-    bias_name="transformer.blocks.0.attn.qkv.bias",
-    lazy_load=True,
-    lazy_load_file="/path/to/model/block_0.safetensors",
-)
-
-# 权重会在第一次使用时才从磁盘加载
-```
-
-### 多层权重管理
-
-LightX2V 使用 `load_state_dict` 机制管理多层权重:
-
-```python
-# 预先创建 CUDA buffer
-for layer_idx in range(num_layers):
-    mm_weight = MMWeightNvfp4(
-        weight_name=f"transformer.blocks.{layer_idx}.attn.qkv.weight",
-        bias_name=f"transformer.blocks.{layer_idx}.attn.qkv.bias",
-        create_cuda_buffer=True,  # 预分配 GPU 显存
-    )
-
-# 推理时动态加载不同层的权重
-for layer_idx in range(num_layers):
-    mm_weight.load_state_dict(weight_dict, layer_idx)
-    output = mm_weight.apply(input_tensor)
-```
-
-## 0x4.6 实际应用场景
+## 0x4.5 实际应用场景
 
 ### 视频生成模型加速
 
@@ -1469,41 +1414,7 @@ class TransformerBlock:
         return mlp_out
 ```
 
-### 性能提升
-
-我更愿意把这里写成“预期方向”，而不是写死倍率：
-
-- **显存占用**：权重量化后通常会显著下降（但总显存还取决于 KV cache、激活、临时 buffer、以及你是否把更多层换成 FP4）。
-- **吞吐/时延**：如果你的热点确实在 GEMM 且能被 FP4 kernel 覆盖，通常会看到收益；但如果瓶颈在 attention、IO、调度、或者 shape 太碎，收益可能不明显。
-- **精度**：取决于量化策略（group size、校准、是否只量化部分层）。建议用你自己的模型/数据集做 sanity check。
-
-### 适用模型
-
-LightX2V 的量化方案特别适合:
-- **DiT (Diffusion Transformer)** 模型: Wan2.2, HunyuanVideo
-- **大规模 Transformer**: 参数量 > 10B
-- **推理密集型应用**: 视频生成、图像生成
-
----
-
-## 0x4.7 我怎么验证（建议）
-
-我一般会分两步：
-
-1. **功能正确性**
-   - 对同一组输入，跑 `bf16/fp16` baseline 和 `nvfp4/mxfp4`，检查输出的统计量（max/mean）、以及任务层面的指标。
-
-2. **确认收益来自哪里**
-   - `torch.profiler`：先看是不是 GEMM 真的是 top hotspot（别一上来就盯 kernel）。
-   - Nsight Compute：只在确认 GEMM/quant 是热点后，再去看 Tensor Core pipe、dram、occupancy。
-   - 如果你要对比“开/关量化”，尽量保持：输入 shape、batch/token、graph/cudagraph、以及 clock/功耗设置一致。
-
 # 0x5. 总结
 
-LightX2V kernel 是一个高性能的低精度量化 GEMM 库,主要特点:
+That's all.
 
-**核心特性**: 支持 NVFP4 和 MXFP4/6/8 多种格式; 充分利用 Blackwell 架构的 Block Scaled Tensor Core 和 PTX 指令; Python 接口简洁易用; 通过向量化、warp 规约、epilogue fusion 等技术优化性能。
-
-**适用场景**: 大模型推理加速; 视频生成模型(如 LightX2V); 需要极致性能的低精度计算场景。
-
-**注意事项**: 需要 Blackwell 架构(SM120)支持; 输入维度需要满足对齐要求; 需要校准数据集来确定合适的 global_scale。
