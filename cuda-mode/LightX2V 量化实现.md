@@ -1,8 +1,11 @@
 # 0x0. 前言
 
-最近在研究 LightX2V 项目时,发现它的 lightx2v_kernel 是一个专门为 Blackwell 架构(SM120)优化的低精度量化 GEMM 库。这个库支持 NVFP4(NVIDIA 自定义的 4-bit 浮点格式 E2M1)和 MXFP4/6/8(基于 MX-Formats 标准)等多种低精度格式,底层基于 CUTLASS 3.x 实现,充分利用了 Blackwell 的 Block Scaled Tensor Core 和 PTX 指令。
+这篇东西本质上是我为了搞清楚 LightX2V 里 `lightx2v_kernel` 怎么做 FP4 量化 GEMM 写的读码笔记。
+我主要关心两件事：
+- **接口和约束**：哪些 shape / 对齐是强约束，scale factor 的张量到底是什么 layout。
+- **kernel 关键路径**：量化 kernel 怎么把 `fp16/bf16 -> fp4 + fp8 sf`，以及 GEMM 怎么喂给 CUTLASS 的 Block Scaled Tensor Core。
 
-本文会从接口使用、量化原理、到底层 CUDA 实现进行详细解读,特别是量化和 GEMM kernel 的线程模型部分。代码实现部分会添加详细的注释和讲解,帮助理解这个高性能 kernel 是如何工作的。
+这篇笔记**不做性能结论**（比如“提升几倍/达到峰值多少”这种），因为这些数字强依赖：矩阵形状、batch/token、是否被其他 kernel 覆盖、以及你跑的 GPU/驱动/clock。文末我留了一个我自己会用的验证方法。
 
 项目地址: https://github.com/LightX2V/LightX2V
 
@@ -76,276 +79,26 @@ def cutlass_scaled_mxfp4_mm(mat_a, mat_b, scales_a, scales_b, alpha, bias=None):
 
 ## 0x1.2 `scaled_nvfp4_quant` 函数解析
 
-这是 NVFP4 量化的核心 Python 接口，下面逐行看看它是怎么实现的：
+这个函数我读下来，比较值得记住的就几条（剩下的细节去看代码更靠谱）：
+
+- **量化粒度**：沿着最后一维做 per-group，NVFP4 默认是 `16`。
+- **输出形式**：FP4 两个值打包成一个 `uint8`，所以最后一维会变成 `n//2`。
+- **scale factor**：每个 group 对应一个 scale，scale 自己会被量化（NVFP4 是 `float8_e4m3fn`），并且用 swizzled layout 存（这是为了后续 Block Scaled Tensor Core 读起来顺）。
+- **padding/对齐**：scale tensor 的 shape 不是朴素的 `(m, n/16)`，而是带 round-up 的版本（后面 GEMM 会做严格校验）。
+
+如果你只是想确认调用链：
 
 ```python
-def scaled_nvfp4_quant(input: torch.Tensor, input_global_scale: torch.Tensor):
-    """
-    Quantize input tensor to FP4 and return quantized tensor and scale.
-
-    This function quantizes the last dimension of the given tensor `input`. For
-    every 16 consecutive elements, a single dynamically computed scaling factor
-    is shared. This scaling factor is quantized using the `input_global_scale`
-    and is stored in a swizzled layout (see
-    https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-mma-scale-factor-b-layout-4x).
-
-    Args:
-        input: The input tensor to be quantized to FP4
-        input_global_scale: A scalar scaling factor for the entire tensor.
-
-    Returns:
-        Tuple[torch.Tensor, torch.Tensor]: The output tensor in FP4 but every
-            two values are packed into a uint8 and float8_e4m3 scaling factors
-            in a sizzled layout.
-    """
+torch.ops.lightx2v_kernel.scaled_nvfp4_quant_sm120.default(output, input, output_scale, input_global_scale)
 ```
 
-### 函数签名和参数
+这一步做的事情可以概括成：
+- 读 `fp16/bf16` 输入
+- group 内做 absmax
+- 写一份 `fp8` 的 sf（swizzled）
+- 把数据缩放后转成 `fp4` 并打包
 
-先看参数：
-- `input`：待量化的输入张量
-  - 形状：`(m, n)`，其中 m 是行数，n 是列数
-  - 数据类型：`torch.float16` 或 `torch.bfloat16`
-  - 约束：n 必须是 16 的倍数（因为每 16 个元素共享一个 scale factor）
-
-- `input_global_scale`：全局缩放因子
-  - 形状：标量张量 `(1,)` 或 `()`
-  - 数据类型：`torch.float32`
-  - 作用：用于将 per-group 的 scale factor 缩放到 FP8(E4M3) 的范围
-  - 计算公式：`global_scale = 2688.0 / max(abs(input))`，其中 2688.0 = 6.0 × 448.0
-
-返回值：
-- `output`：量化后的数据
-  - 形状：`(m, n//2)`
-  - 数据类型：`torch.uint8`
-  - 原因：两个 FP4 值（每个 4 bits）打包成一个 uint8（8 bits）
-
-- `output_scale`：量化因子
-  - 形状：`(rounded_m, rounded_k)`
-  - 数据类型：`torch.float8_e4m3fn`
-  - 布局：swizzled layout（优化 Tensor Core 访问）
-
-### 获取输入维度
-
-```python
-    m, n = input.shape
-    block_size = 16
-    device = input.device
-```
-
-**代码解析**：
-- `m, n = input.shape`：解包输入张量的形状
-  - `m`：行数（batch size 或 sequence length）
-  - `n`：列数（hidden dimension 或 feature dimension）
-  
-- `block_size = 16`：定义量化粒度
-  - NVFP4 使用 per-group 量化，每 16 个元素共享一个 scale factor
-  - 这是硬件优化的结果，与 Tensor Core 的数据处理单元对齐
-  
-- `device = input.device`：获取输入张量所在的设备
-  - 确保输出张量在同一设备上创建
-  - 避免不必要的设备间数据传输
-
-### 注释掉的断言检查
-
-```python
-    # assert n % block_size == 0, f"last dim has to be multiple of 16, but got {n}."
-    # assert input.dtype in (
-    #     torch.float16,
-    #     torch.bfloat16,
-    # ), f"input.dtype needs to be fp16 or bf16 but got {input.dtype}."
-```
-
-为什么注释掉？
-- 这些检查在 CUDA kernel 内部已经有了
-- Python 层面的检查会增加额外的开销
-- 在生产环境中，通常假设输入已经经过验证
-
-实际使用建议：
-- 在开发和调试阶段，建议取消注释这些断言
-- 在生产环境中，可以保持注释以提高性能
-
-### 创建量化数据输出张量
-
-```python
-    # Two fp4 values will be packed into an uint8.
-    output = torch.empty((m, n // 2), device=device, dtype=torch.uint8)
-```
-
-**代码解析**：
-- `torch.empty`：创建未初始化的张量（比 `torch.zeros` 更快）
-  - 数据会被 CUDA kernel 完全覆盖，无需初始化
-  
-- `(m, n // 2)`：输出形状
-  - 行数保持不变：`m`
-  - 列数减半：`n // 2`
-  - 原因：每两个 FP4 值（4 bits × 2 = 8 bits）打包成一个 uint8
-  
-- `dtype=torch.uint8`：使用无符号 8 位整数
-  - 每个 uint8 存储两个 FP4 值
-  - 低 4 位存储第一个 FP4 值
-  - 高 4 位存储第二个 FP4 值
-
-内存布局：
-```
-原始数据 (FP16): [v0, v1, v2, v3, v4, v5, ...]  # n 个元素
-量化数据 (uint8): [v0|v1, v2|v3, v4|v5, ...]    # n/2 个元素
-                   └─┬─┘  └─┬─┘  └─┬─┘
-                   1 byte 1 byte 1 byte
-```
-
-### 创建量化因子输出张量
-
-```python
-    # We use the rounded values to store the swizzled values. Then, the scaling
-    # factors in float8_e4m3fn are packed into an int32 for every 4 values.
-    # rounded_m = ((m + 128 - 1) // 128) * 128
-    # scale_n = n // block_size
-    # rounded_n = ((scale_n + 4 - 1) // 4) * 4
-    output_scale = torch.zeros(
-        (((m + 128 - 1) // 128) * 128, (n // block_size + 4 - 1) // 4), 
-        device=device, 
-        dtype=torch.int32
-    )
-```
-
-为什么用 `torch.zeros` 而不是 `torch.empty`？
-- Swizzled layout 可能需要 padding
-- Padding 区域需要初始化为 0，避免未定义行为
-
-第一维度 `((m + 128 - 1) // 128) * 128`：
-- 目的：将 m 向上舍入到 128 的倍数
-- 原因：Tensor Core 的 M 维度 tile 大小是 128
-- 示例：
-  - `m = 100` → `rounded_m = 128`
-  - `m = 200` → `rounded_m = 256`
-  - `m = 1000` → `rounded_m = 1024`
-
-第二维度 `(n // block_size + 4 - 1) // 4`：
-- `n // block_size`：scale factor 的数量
-  - 每 16 个元素一个 scale factor
-  - 例如：`n = 4096` → `4096 // 16 = 256` 个 scale factors
-  
-- `(... + 4 - 1) // 4`：向上舍入到 4 的倍数
-  - 原因：4 个 FP8(E4M3) 值（每个 8 bits）打包成一个 int32（32 bits）
-  - 这是 swizzled layout 的要求
-  
-- 示例：
-  - `n = 4096` → `scale_n = 256` → `rounded_k = 64`
-  - `n = 5120` → `scale_n = 320` → `rounded_k = 80`
-
-为什么用 `dtype=torch.int32`？
-- 4 个 FP8 值打包成 1 个 int32
-- 这是 CUDA kernel 的输出格式
-- 后续会通过 `view` 操作转换为 `float8_e4m3fn`
-
-Swizzled Layout 的作用：
-```
-常规布局：
-[SF_0, SF_1, SF_2, SF_3, SF_4, SF_5, ...]  # 线性排列
-
-Swizzled 布局：
-[SF_0, SF_32, SF_64, SF_96,   # 第一组
- SF_1, SF_33, SF_65, SF_97,   # 第二组
- ...]                          # 优化 Tensor Core 访问模式
-```
-
-### 调用 CUDA Kernel
-
-```python
-    torch.ops.lightx2v_kernel.scaled_nvfp4_quant_sm120.default(
-        output, input, output_scale, input_global_scale
-    )
-```
-
-调用路径：
-- `torch.ops`：PyTorch 的自定义算子命名空间
-- `lightx2v_kernel`：库名称（在 `common_extension.cc` 中注册）
-- `scaled_nvfp4_quant_sm120`：算子名称
-- `.default`：默认的调度版本（对应 CUDA 实现）
-
-参数传递：
-1. `output`：输出张量（in-place 修改）
-   - 形状：`(m, n//2)`
-   - 类型：`torch.uint8`
-   
-2. `input`：输入张量（只读）
-   - 形状：`(m, n)`
-   - 类型：`torch.float16` 或 `torch.bfloat16`
-   
-3. `output_scale`：量化因子输出（in-place 修改）
-   - 形状：`(rounded_m, rounded_k)`
-   - 类型：`torch.int32`
-   
-4. `input_global_scale`：全局缩放因子（只读）
-   - 形状：标量
-   - 类型：`torch.float32`
-
-CUDA Kernel 内部做了什么：
-1. 每个线程处理 8 个元素
-2. 每 2 个线程（16 个元素）计算一个 scale factor
-3. Scale factor 量化到 FP8(E4M3)
-4. 数据缩放并量化到 FP4(E2M1)
-5. 两个 FP4 值打包成一个 uint8
-6. Scale factors 写入 swizzled layout
-
-### 转换量化因子数据类型
-
-```python
-    output_scale = output_scale.view(torch.float8_e4m3fn)
-    return output, output_scale
-```
-
-`view(torch.float8_e4m3fn)` 的作用：
-- 将 `int32` 张量重新解释为 `float8_e4m3fn` 张量
-- **不进行数据拷贝**，只改变类型解释
-- 形状保持不变：`(rounded_m, rounded_k)`
-
-为什么先用 int32 再转换？
-1. CUDA kernel 输出时，4 个 FP8 值打包成 1 个 int32
-2. PyTorch 的 `float8_e4m3fn` 类型在 Python 层面更易用
-3. `view` 操作是零开销的，只改变元数据
-
-内存布局：
-```
-int32 视图:
-[0xAABBCCDD, 0xEEFF0011, ...]
- └─┬──┬──┬──┬┘
-   4个FP8值
-
-float8_e4m3fn 视图:
-[0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11, ...]
- └─┬┘  └─┬┘  └─┬┘  └─┬┘  └─┬┘  └─┬┘  └─┬┘  └─┬┘
-  SF0   SF1   SF2   SF3   SF4   SF5   SF6   SF7
-```
-
-返回值：
-- `output`：量化后的数据，`(m, n//2)` 的 uint8 张量
-- `output_scale`：量化因子，`(rounded_m, rounded_k)` 的 float8_e4m3fn 张量
-
-### 完整数据流示例
-
-假设输入：
-- `input.shape = (1024, 4096)`
-- `input.dtype = torch.bfloat16`
-- `input_global_scale = 2688.0 / max(abs(input))`
-
-处理过程：
-1. **输入维度**：`m=1024, n=4096`
-2. **量化数据**：`output.shape = (1024, 2048)`，`dtype=uint8`
-3. **Scale factor 数量**：`4096 // 16 = 256` 个
-4. **Rounded 维度**：
-   - `rounded_m = 1024`（已经是 128 的倍数）
-   - `rounded_k = 256 // 4 = 64`
-5. **量化因子**：`output_scale.shape = (1024, 64)`，`dtype=float8_e4m3fn`
-
-内存占用对比：
-- **原始数据**：`1024 × 4096 × 2 bytes = 8 MB`（bfloat16）
-- **量化数据**：`1024 × 2048 × 1 byte = 2 MB`（uint8）
-- **量化因子**：`1024 × 64 × 1 byte = 64 KB`（float8_e4m3fn）
-- **总计**：`2.06 MB`（压缩比约 3.88×）
-
----
+（我这里不再逐行复述 Python wrapper 里每一行 `torch.empty/torch.zeros/view` 的解释了，那种写法太像“教科书式展开”，对定位关键点帮助不大。）
 
 ## 0x1.3 使用示例
 
@@ -400,8 +153,9 @@ class MMWeightFp4:
     def calibrate_x_absmax(self):
         """校准输入激活值的最大值"""
         # 这个值需要通过校准数据集来确定
+        x_absmax = ...
         self.x_absmax = torch.tensor(
-            5.0, dtype=torch.float32, device=self.weight.device
+            x_absmax, dtype=torch.float32, device=self.weight.device
         )
         # 计算输入的全局缩放因子
         self.input_global_scale = (
@@ -413,9 +167,10 @@ class MMWeightFp4:
         )
 
 # 使用示例
-m, k, n = 1024, 4096, 4096
-input_tensor = torch.randn(m, k, dtype=torch.bfloat16).cuda()
-weight = torch.randn(n, k, dtype=torch.bfloat16).cuda()
+input_tensor = ...
+weight = ...
+m, k = input_tensor.shape
+n = weight.shape[0]
 bias = None
 
 # 创建量化矩阵乘法对象
@@ -423,7 +178,7 @@ mm = MMWeightFp4(weight, bias)
 
 # 执行推理
 output = mm.apply(input_tensor)
-print(f"Output shape: {output.shape}")  # (1024, 4096)
+print(f"Output shape: {output.shape}")
 ```
 
 ---
@@ -898,25 +653,15 @@ dim3 grid(std::min(int(m), multiProcessorCount * numBlocksPerSM));
    - `block.x = min(n / 8, 256)`
    - 每个线程处理 8 个元素，所以需要 `n / 8` 个线程
    - 最多 256 个线程/block（受 `__launch_bounds__(256, 6)` 限制）
-   - 示例：
-     - `n = 4096` → `block.x = min(512, 256) = 256`
-     - `n = 1024` → `block.x = min(128, 256) = 128`
 
 2. **每个 SM 的 Block 数量**：
    - `numBlocksPerSM = 1536 / block.x`
-   - 1536 是每个 SM 的最大线程数（Blackwell 架构）
-   - 目的：充分利用 SM 资源
-   - 示例：
-     - `block.x = 256` → `numBlocksPerSM = 6`
-     - `block.x = 128` → `numBlocksPerSM = 12`
+   - 这里的目的就是：配合 `__launch_bounds__`，尽量把 SM 填满、减少因为并行度不够导致的空转。
 
 3. **Grid 大小**：
    - `grid.x = min(m, multiProcessorCount * numBlocksPerSM)`
    - 每个 block 处理一行数据
    - 使用 grid-stride loop 处理所有行
-   - 示例（假设 144 个 SM）：
-     - `m = 1024, block.x = 256` → `grid.x = min(1024, 144 × 6) = 864`
-     - `m = 100, block.x = 256` → `grid.x = min(100, 864) = 100`
 
 #### Kernel 执行模型
 
@@ -952,48 +697,24 @@ cvt_fp16_to_fp4(...) {
    - 使用 `__shfl_xor_sync` 进行 warp 内规约
    - 32 个线程（一个 warp）处理 256 个元素，生成 16 个 scale factors
 
-#### 线程到数据的映射
-
-假设 `m=1024, n=4096, block.x=256, grid.x=864`：
-
-```
-Block 0:
-  Thread 0:  处理 row 0, cols [0-7], [2048-2055], ...
-  Thread 1:  处理 row 0, cols [8-15], [2056-2063], ...
-  ...
-  Thread 255: 处理 row 0, cols [2040-2047], [4088-4095]
-
-Block 1:
-  Thread 0:  处理 row 1, cols [0-7], [2048-2055], ...
-  ...
-
-Block 863:
-  Thread 0:  处理 row 863, cols [0-7], [2048-2055], ...
-  ...
-
-Block 0 (第二轮):
-  Thread 0:  处理 row 864, cols [0-7], [2048-2055], ...
-  ...
-```
-
 #### 内存访问模式
 
 全局内存读取(Coalesced):
 ```
 Warp 0 (Threads 0-31):
-  Thread 0:  读取 input[row][0:8]     → 16 bytes
-  Thread 1:  读取 input[row][8:16]    → 16 bytes
+  Thread 0:  读取 input[row][0:8]
+  Thread 1:  读取 input[row][8:16]
   ...
-  Thread 31: 读取 input[row][248:256] → 16 bytes
-  
-总计：32 个线程，32 × 16 = 512 bytes，完美 coalesced
+  Thread 31: 读取 input[row][248:256]
+
+（这里的访问模式是典型的连续地址读取，目标是让内存事务尽量合并；最终是不是“完美”，以你实际的 stride/对齐为准。）
 ```
 
 全局内存写入:
 ```
 量化数据（每 2 个 FP4 打包成 1 个 uint8）：
-  Thread 0:  写入 output[row][0]     → 4 bytes (8个FP4)
-  Thread 1:  写入 output[row][1]     → 4 bytes
+  Thread 0:  写入 output[row][0]
+  Thread 1:  写入 output[row][1]
   ...
 
 Scale factors（swizzled layout）：
@@ -1039,62 +760,12 @@ constexpr int CVT_FP4_NUM_THREADS_PER_SF = 32 / 8 = 4;  // 4 个线程/SF
 
 ### 性能分析
 
-#### 占用率(Occupancy)
+我这里更倾向于把量化 kernel 当成一个“典型的 streaming kernel”去看：
 
-NVFP4/MXFP4 量化 Kernel:
-```
-__launch_bounds__(256, 6)
-- 每个 block：256 个线程
-- 每个 SM：最多 6 个 block
-- 理论占用率：(256 × 6) / 1536 = 100%
-```
-
-资源使用:
-- **寄存器**：每个线程约 40-50 个寄存器
-- **共享内存**：0 bytes（不使用共享内存）
-- **Warp 数量**：256 / 32 = 8 个 warp/block
-
-#### 吞吐量估算
-
-假设输入：`m=1024, n=4096, dtype=bfloat16`
-
-NVFP4:
-```
-数据量：1024 × 4096 × 2 bytes = 8 MB
-
-每个线程处理：8 个元素 = 16 bytes
-每个 block 处理：256 × 16 = 4 KB（一行的一半）
-需要 2 轮才能处理完一行
-
-总 block 数：1024 行 × 2 轮 = 2048 block-iterations
-实际 block 数：min(1024, 144 × 6) = 864 blocks
-Grid-stride 轮数：⌈1024 / 864⌉ = 2 轮
-
-内存带宽需求：
-- 读取：8 MB
-- 写入：2 MB (量化数据) + 64 KB (SF) ≈ 2.06 MB
-- 总计：≈ 10 MB
-
-假设带宽 2 TB/s，理论时间：10 MB / 2000 GB/s ≈ 5 μs
-实际时间（考虑计算）：约 10-20 μs
-```
-
-#### 性能瓶颈
-
-1. **内存带宽受限**：
-   - 量化操作相对简单
-   - 主要时间花在内存读写上
-   - Coalesced 访问模式优化了带宽利用
-
-2. **计算开销**：
-   - PTX 指令 `cvt.rn.satfinite.e2m1x2.f32` 非常快
-   - Warp 规约开销很小
-   - FP8 转换（查表或内置指令）
-
-3. **优化空间**：
-   - 已经接近最优（100% 占用率）
-   - Coalesced 内存访问
-   - 向量化加载（16 bytes/线程）
+- **大概率会偏带宽敏感**：输入是连续读，输出是连续写（再加一份 sf 的写入）。
+- **关键不是拍数字**，而是你用工具确认它到底卡在哪：
+  - 用 Nsight Compute 看 `dram__throughput` / `smsp__sass_average_branch_targets_threads_uniform.pct` / `smsp__inst_executed` 之类指标，确认是带宽/指令/分支哪一类。
+  - 用 `torch.profiler` 或 Nsight Systems 看它在整条推理链路里占比到底是多少（很多时候它并不是 top hotspot）。
 
 ---
 
@@ -1271,10 +942,10 @@ for (int k_tile = 0; k_tile < K; k_tile += 128) {
    - 支持 software pipelining
 
 2. **共享内存布局**：
-   - A tile: `128 × 128` 的 FP4 数据（打包后 8 KB）
-   - B tile: `128 × 128` 的 FP4 数据（打包后 8 KB）
+   - A tile: `128 × 128` 的 FP4 数据（打包存储）
+   - B tile: `128 × 128` 的 FP4 数据（打包存储）
    - Scale factors: swizzled layout，优化 bank conflict
-   - 总共约 16-20 KB 共享内存/CTA
+   - 总共享内存占用与 tile/stage 等配置相关
 
 3. **Tensor Core 指令**：
    - `mma.sync.aligned.m16n8k32.row.col.f32.e2m1.e2m1.f32`
@@ -1316,16 +987,16 @@ Epilogue 优化:
 全局内存 → 共享内存(Mainloop):
 ```
 A 矩阵加载（每个 k_tile）：
-  - 大小：128 × 128 × 0.5 bytes = 8 KB (FP4 打包)
+  - 形状：128 × 128（FP4 打包存储）
   - 模式：Coalesced，使用 cp.async
-  - 带宽利用：接近峰值
+  - 带宽利用：取决于对齐、stride、以及实际的访存合并情况
 
 B 矩阵加载（每个 k_tile）：
-  - 大小：128 × 128 × 0.5 bytes = 8 KB
+  - 形状：128 × 128（FP4 打包存储）
   - 模式：Coalesced，转置访问优化
   
 Scale Factors 加载：
-  - A_SF: (128/16) × (128/16) = 8 × 8 = 64 个 FP8 = 64 bytes
+  - A_SF: 每个 group 对应的 FP8 sf（swizzled layout）
   - B_SF: 同上
   - 模式：Swizzled layout，避免 bank conflict
 ```
@@ -1333,8 +1004,8 @@ Scale Factors 加载：
 共享内存 → 寄存器(Tensor Core):
 ```
 每个 warp 每次迭代：
-  - 加载 A fragment: 16 × 32 × 0.5 bytes = 256 bits
-  - 加载 B fragment: 8 × 32 × 0.5 bytes = 128 bits
+  - 加载 A fragment
+  - 加载 B fragment
   - 加载 SF: 少量 FP8 值
   
 使用 ldmatrix 指令：
@@ -1345,49 +1016,31 @@ Scale Factors 加载：
 寄存器 → 全局内存(Epilogue):
 ```
 每个线程写入：
-  - 通常 4-8 个 BF16 值
-  - 向量化写入：128-bit store
+  - 写回多个 BF16 值
+  - 向量化写入（具体 vector width 以 CUTLASS 生成代码为准）
   - Coalesced 模式
 ```
 
 #### 性能特征
 
-计算吞吐量:
-```
-Tensor Core 峰值性能（Blackwell）：
-  - FP4 × FP4 → FP32: ~2000 TFLOPS
+这一块我不写“峰值多少/能跑到多少”这种结论了。
 
-实际性能（GEMM）：
-  - 取决于矩阵大小和 K 维度
-  - 大矩阵（M, N, K > 1024）：可达 80-90% 峰值
-  - 小矩阵：受限于启动开销和占用率
-```
+读代码视角下比较重要的是：
 
-内存带宽需求:
-```
-假设 M=N=K=4096：
-  - A 矩阵：4096 × 4096 × 0.5 bytes = 8 MB
-  - B 矩阵：4096 × 4096 × 0.5 bytes = 8 MB
-  - Scale factors：约 128 KB
-  - 输出 D：4096 × 4096 × 2 bytes = 32 MB
-  - 总计：≈ 48 MB
-
-计算量：2 × 4096³ ≈ 137 GFLOPS
-计算强度：137 GFLOPS / 48 MB ≈ 2854 FLOPS/byte
-
-结论：计算密集型（compute-bound），内存带宽不是瓶颈
-```
+- **它走的是 CUTLASS 3.x 的 Block Scaled GEMM**，所以真正决定性能的通常是 tile/pipe/stage/寄存器压力，以及你给它的 shape 是否落在“好跑”的区域。
+- **scale factor 的 layout/对齐是硬约束**：你如果 scale tensor 做错（shape 不对、没 swizzle、没 round-up），host 侧会直接 `TORCH_CHECK` 报错。
+- **是否 compute-bound 需要你自己测**：在你的目标 shape 上，看 Tensor Core pipe 利用率、sm occupancy、以及 dram 吞吐，别靠假设。
 
 #### 与量化 Kernel 的对比
 
 | 特性 | 量化 Kernel | GEMM Kernel |
 |------|-------------|-------------|
 | **瓶颈** | 内存带宽 | 计算（Tensor Core） |
-| **共享内存** | 0 bytes | 16-20 KB/CTA |
-| **寄存器压力** | 低（40-50/线程） | 高（100+/线程） |
-| **占用率** | 100% | 50-75%（受寄存器限制） |
+| **共享内存** | 很少/没有 | 较多（取决于 tile 与 stage 配置） |
+| **寄存器压力** | 相对低 | 相对高 |
+| **占用率** | 通常更高 | 通常更容易受寄存器/共享内存限制 |
 | **主要优化** | Coalesced 访问 | Tile 大小、Pipeline |
-| **执行时间** | 微秒级 | 毫秒级（大矩阵） |
+| **执行时间** | 通常更短 | 通常更长（取决于矩阵规模） |
 
 ### 参数构建函数
 
@@ -1851,9 +1504,9 @@ mm_weight.load(weight_dict)
 mm_weight.to_cuda()
 
 # 4. 推理
-input_tensor = torch.randn(1024, 4096, dtype=torch.bfloat16, device="cuda")
+input_tensor = torch.randn(batch_size, in_features, dtype=torch.bfloat16, device="cuda")
 output_tensor = mm_weight.apply(input_tensor)
-# 输出: (1024, 12288), dtype=bfloat16
+# 输出 shape 取决于对应 Linear 的 out_features
 
 # 5. 推理完成后可以卸载到 CPU
 mm_weight.to_cpu()
@@ -2022,10 +1675,11 @@ class TransformerBlock:
 
 ### 性能提升
 
-在 Blackwell GPU (如 B200) 上,使用 NVFP4 量化可以获得:
-- **2-3x** 的推理加速(相比 BF16)
-- **4x** 的显存节省(权重从 BF16 压缩到 FP4)
-- **接近 BF16** 的精度(通过 per-group 量化和校准)
+我更愿意把这里写成“预期方向”，而不是写死倍率：
+
+- **显存占用**：权重量化后通常会显著下降（但总显存还取决于 KV cache、激活、临时 buffer、以及你是否把更多层换成 FP4）。
+- **吞吐/时延**：如果你的热点确实在 GEMM 且能被 FP4 kernel 覆盖，通常会看到收益；但如果瓶颈在 attention、IO、调度、或者 shape 太碎，收益可能不明显。
+- **精度**：取决于量化策略（group size、校准、是否只量化部分层）。建议用你自己的模型/数据集做 sanity check。
 
 ### 适用模型
 
@@ -2035,6 +1689,18 @@ LightX2V 的量化方案特别适合:
 - **推理密集型应用**: 视频生成、图像生成
 
 ---
+
+## 0x4.7 我怎么验证（建议）
+
+我一般会分两步：
+
+1. **功能正确性**
+   - 对同一组输入，跑 `bf16/fp16` baseline 和 `nvfp4/mxfp4`，检查输出的统计量（max/mean）、以及任务层面的指标。
+
+2. **确认收益来自哪里**
+   - `torch.profiler`：先看是不是 GEMM 真的是 top hotspot（别一上来就盯 kernel）。
+   - Nsight Compute：只在确认 GEMM/quant 是热点后，再去看 Tensor Core pipe、dram、occupancy。
+   - 如果你要对比“开/关量化”，尽量保持：输入 shape、batch/token、graph/cudagraph、以及 clock/功耗设置一致。
 
 # 0x5. 总结
 
