@@ -2,7 +2,6 @@
 
 - `LightX2V/lightx2v/common/ops/attn/ulysses_attn.py`
 - `LightX2V/lightx2v/common/ops/attn/utils/all2all.py`（`all2all_head2seq` / `all2all_seq2head`）
-- `LightX2V/lightx2v/common/ops/attn/flash_attn.py`（FlashAttention wrapper 的输出形状约定）
 
 性能相关内容只讨论实现机制层面的影响因素，我没具体测过所以不做什么确定性的描述。写这个的原因是对Ulysses Attention的实现有点忘了，周末自己再推一下。代码仓库为：https://github.com/ModelTC/LightX2V
 
