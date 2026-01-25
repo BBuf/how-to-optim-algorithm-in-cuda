@@ -15,7 +15,7 @@
 - 长序列下的并行切分方式（按序列切分、按 head 切分，或二者组合）
 - 由切分方式带来的通信（collective）与数据重排开销
 
-Ulysses 在 LightX2V 的实现，可概括为一种 layout 变换闭环：
+Ulysses 在 LightX2V 的实现，可概括为一种 layout 变换：
 
 - 输入侧：图像 token 采用 **sequence shard + full heads** 的布局
 - Attention 侧：通过一次 all-to-all 变换为 **full sequence + head shard**，以便每个 rank 计算其负责的 head 子集
@@ -26,19 +26,19 @@ Ulysses 在 LightX2V 的实现，可概括为一种 layout 变换闭环：
 
 # 0x1. 符号与形状约定
 
-记：
+记（使用代码符号表示）：
 
-- \(P\)：`world_size = dist.get_world_size(seq_p_group)`（并行组大小）
-- \(H\)：attention head 数（代码变量 `heads`）
-- \(D\)：每个 head 的维度（代码变量 `hidden_dims`）
-- \(\text{shardH} = H/P\)：每个 rank 负责的 head 数（要求 \(H\) 能被 \(P\) 整除）
+- `P`: `world_size = dist.get_world_size(seq_p_group)`（并行组大小）
+- `H`: attention head 数（代码变量 `heads`）
+- `D`: 每个 head 的维度（代码变量 `hidden_dims`）
+- `shardH = H // P`: 每个 rank 负责的 head 数（要求 `H % P == 0`）
 
 序列长度区分图像与文本（对应 `ulysses_attn.py` 中的分段逻辑）：
 
-- \(\text{imgShardS}\)：当前 rank 上图像 token 的长度（`img_qkv_len`，分片后）
-- \(\text{imgS} = \text{imgShardS}\cdot P\)：全局图像 token 长度（`global_img_seqlen`）
-- \(\text{txtS}\)：文本 token 长度（`txt_qkv_len`）
-- \(\text{S} = \text{imgS} + \text{txtS}\)：拼接后的总长度（此处先忽略 `txt_mask_len` 分支）
+- `imgShardS`: 当前 rank 上图像 token 的长度（`img_qkv_len`，分片后）
+- `imgS = imgShardS * P`: 全局图像 token 长度（`global_img_seqlen`）
+- `txtS`: 文本 token 长度（`txt_qkv_len`）
+- `S = imgS + txtS`: 拼接后的总长度（此处先忽略 `txt_mask_len` 分支）
 
 FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops/attn/flash_attn.py`）：
 
@@ -63,12 +63,48 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 实现中还支持 4D 输入，进入后会 reshape 到 3D：
 
 - 4D：`[B, S, H, D]`
-- 3D：`[T, H, D]`，其中 \(T=B\cdot S\)
+- 3D：`[T, H, D]`，其中 `T = B * S`
+
+对应代码（4D -> 3D reshape）：
+
+```47:50:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        if len(q.shape) == 4:
+            q = q.reshape(-1, q.shape[-2], q.shape[-1])
+            k = k.reshape(-1, k.shape[-2], k.shape[-1])
+            v = v.reshape(-1, v.shape[-2], v.shape[-1])
+```
 
 当 `img_first=True` 时，按图像与文本长度拆分：
 
 - `img_q/img_k/img_v`: `[imgShardS, H, D]`
 - `txt_q/txt_k/txt_v`: `[txtS, H, D]`
+
+对应代码（img/text 分段与 `.contiguous()`）：
+
+```56:96:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        # 获取序列长度和文本相关的长度
+        if img_first:
+            img_qkv_len = slice_qkv_len
+            if len(cu_seqlens_qkv) == 3:
+                txt_qkv_len = cu_seqlens_qkv[1] - slice_qkv_len  # 文本查询、键和值的长度
+                txt_mask_len = cu_seqlens_qkv[2] - slice_qkv_len  # 文本掩码长度
+            elif len(cu_seqlens_qkv) == 2:
+                txt_qkv_len = cu_seqlens_qkv[1] - slice_qkv_len  # 文本查询、键和值的长度
+                txt_mask_len = None
+        else:
+            # assert len(cu_seqlens_qkv) == 2
+            txt_qkv_len = slice_qkv_len
+            img_qkv_len = cu_seqlens_qkv[1] - slice_qkv_len
+            txt_mask_len = None
+ 
+        # 分割图像和文本的查询、键和值
+        if img_first:
+            img_q, img_k, img_v = q[:img_qkv_len, :, :].contiguous(), k[:img_qkv_len, :, :].contiguous(), v[:img_qkv_len, :, :].contiguous()
+            txt_q, txt_k, txt_v = q[img_qkv_len:, :, :].contiguous(), k[img_qkv_len:, :, :].contiguous(), v[img_qkv_len:, :, :].contiguous()
+        else:
+            txt_q, txt_k, txt_v = q[:txt_qkv_len, :, :].contiguous(), k[:txt_qkv_len, :, :].contiguous(), v[:txt_qkv_len, :, :].contiguous()
+            img_q, img_k, img_v = q[txt_qkv_len:, :, :].contiguous(), k[txt_qkv_len:, :, :].contiguous(), v[txt_qkv_len:, :, :].contiguous()
+```
 
 ## 0x2.2 图像 QKV 的 layout 变换（seq shard -> head shard）
 
@@ -76,7 +112,7 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 
 - `img_qkv = stack([img_q, img_k, img_v], dim=0)`：`[3, imgShardS, H, D]`
 
-将 head 维 \(H\) 拆为 `[P, shardH]`：
+将 head 维 `H` 拆为 `[P, shardH]`：
 
 - `reshape(3, imgShardS, P, shardH, D)`：`[3, imgShardS, P, shardH, D]`
 
@@ -94,6 +130,130 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 - `output_qkv.reshape(imgS, 3, shardH, D).transpose(0, 1)`：`[3, imgS, shardH, D]`
 - 得到 `shard_img_q/k/v`：`[imgS, shardH, D]`
 
+对应代码（stack + reshape；以及两条分支的 permute/all_to_all/reshape）：
+
+```97:177:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        img_qkv = torch.stack([img_q, img_k, img_v], dim=0).reshape(3, img_qkv_len, world_size, shard_heads, hidden_dims)
+        original_dtype = img_qkv.dtype
+ 
+        if enable_head_parallel:
+            img_qkv = img_qkv.permute(3, 2, 1, 0, 4).contiguous()  # (shard_heads, world_size, img_qkv_len, 3, hidden_dims)
+            output_qkv = torch.empty_like(img_qkv)
+            # ... per-head all_to_all_single + reshape ...
+            qkv = output_qkv[h].reshape(global_img_seqlen, 3, single_head, hidden_dims).transpose(0, 1)
+            shard_img_q = qkv[0]  # (global_img_seqlen, single_head, hidden_dims)
+            shard_img_k = qkv[1]
+            shard_img_v = qkv[2]
+        else:
+            img_qkv = img_qkv.permute(2, 1, 0, 3, 4).contiguous()  # (world_size, img_qkv_len, 3, shard_heads, hidden_dims)
+            # ... all_to_all_single ...
+            qkv = output_qkv.reshape(global_img_seqlen, 3, shard_heads, hidden_dims).transpose(0, 1)
+            shard_img_q = qkv[0]  # (global_img_seqlen, shard_head, hidden_dims)
+            shard_img_k = qkv[1]
+            shard_img_v = qkv[2]
+```
+
+对应代码（enable_head_parallel=True：逐 head all_to_all + reshape 到 `[global_img_seqlen, 3, 1, hidden_dims]`）：
+
+```100:156:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        if enable_head_parallel:
+            img_qkv = img_qkv.permute(3, 2, 1, 0, 4).contiguous()  # (shard_heads, world_size, img_qkv_len, 3, hidden_dims)
+            output_qkv = torch.empty_like(img_qkv)
+ 
+            # 通信图像的查询、键和值
+            if use_fp8_comm:
+                img_qkv_fp8, img_qkv_scale = quant_fp8_vllm(img_qkv.reshape(-1, hidden_dims))
+                img_qkv_fp8 = img_qkv_fp8.reshape(shard_heads, world_size, img_qkv_len, 3, hidden_dims)
+                img_qkv_scale = img_qkv_scale.reshape(shard_heads, world_size, img_qkv_len, 3, 1)
+                output_qkv_fp8 = torch.empty_like(img_qkv_fp8)
+                output_qkv_scale = torch.empty_like(img_qkv_scale)
+                comm_fp8_works = []
+                comm_scale_works = []
+                for h in range(shard_heads):
+                    work_fp8 = dist.all_to_all_single(output_qkv_fp8[h], img_qkv_fp8[h], group=seq_p_group, async_op=True)
+                    work_scale = dist.all_to_all_single(output_qkv_scale[h], img_qkv_scale[h], group=seq_p_group, async_op=True)
+                    comm_fp8_works.append(work_fp8)
+                    comm_scale_works.append(work_scale)
+            else:
+                comm_works = []
+                for h in range(shard_heads):
+                    work = dist.all_to_all_single(output_qkv[h], img_qkv[h], group=seq_p_group, async_op=True)
+                    comm_works.append(work)
+ 
+            # 逐个head完成Attention计算
+            single_head = 1
+            head_attns = []
+            for h in range(shard_heads):
+                if use_fp8_comm:
+                    comm_fp8_works[h].wait()
+                    comm_scale_works[h].wait()
+                    output_qkv[h] = dequant_fp8_vllm(output_qkv_fp8[h], output_qkv_scale[h], original_dtype)
+                else:
+                    comm_works[h].wait()
+ 
+                qkv = output_qkv[h].reshape(global_img_seqlen, 3, single_head, hidden_dims).transpose(0, 1)
+                shard_img_q = qkv[0]  # (global_img_seqlen, single_head, hidden_dims)
+                shard_img_k = qkv[1]
+                shard_img_v = qkv[2]
+ 
+                # 处理文本的查询、键和值，选择当前进程的当前头
+                shard_txt_q = txt_q[:, (cur_rank * shard_heads + h) : (cur_rank * shard_heads + h + 1), :]
+                shard_txt_k = txt_k[:, (cur_rank * shard_heads + h) : (cur_rank * shard_heads + h + 1), :]
+                shard_txt_v = txt_v[:, (cur_rank * shard_heads + h) : (cur_rank * shard_heads + h + 1), :]
+ 
+                # 合并图像和文本的查询、键和值
+                q = torch.cat((shard_img_q, shard_txt_q), dim=0)
+                k = torch.cat((shard_img_k, shard_txt_k), dim=0)
+                v = torch.cat((shard_img_v, shard_txt_v), dim=0)
+ 
+                # 调用注意力函数计算注意力结果
+                head_attn = attention_module.apply(q=q, k=k, v=v, cu_seqlens_q=cu_seqlens_qkv, cu_seqlens_kv=cu_seqlens_qkv, max_seqlen_q=max_seqlen_qkv, max_seqlen_kv=max_seqlen_qkv, **kwargs)
+                head_attns.append(head_attn)
+ 
+            # 合并当前进程的所有head的attn
+            attn = torch.cat(head_attns, dim=1)
+```
+
+对应代码（enable_head_parallel=False：一次 all_to_all + reshape 到 `[global_img_seqlen, 3, shard_heads, hidden_dims]`）：
+
+```157:192:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        else:
+            img_qkv = img_qkv.permute(2, 1, 0, 3, 4).contiguous()  # (world_size, img_qkv_len, 3, shard_heads, hidden_dims)
+ 
+            # 通信图像的查询、键和值
+            if use_fp8_comm:
+                img_qkv_fp8, img_qkv_scale = quant_fp8_vllm(img_qkv.reshape(-1, hidden_dims))
+                img_qkv_fp8 = img_qkv_fp8.reshape(world_size, img_qkv_len, shard_heads, 3, hidden_dims)
+                img_qkv_scale = img_qkv_scale.reshape(world_size, img_qkv_len, shard_heads, 3, 1)
+                output_qkv_fp8 = torch.empty_like(img_qkv_fp8)
+                output_qkv_scale = torch.empty_like(img_qkv_scale)
+                dist.all_to_all_single(output_qkv_fp8, img_qkv_fp8, group=seq_p_group)
+                dist.all_to_all_single(output_qkv_scale, img_qkv_scale, group=seq_p_group)
+                output_qkv = dequant_fp8_vllm(output_qkv_fp8, output_qkv_scale, original_dtype)
+            else:
+                output_qkv = torch.empty_like(img_qkv)
+                dist.all_to_all_single(output_qkv, img_qkv, group=seq_p_group)
+ 
+            # 完成Attention计算
+            qkv = output_qkv.reshape(global_img_seqlen, 3, shard_heads, hidden_dims).transpose(0, 1)
+            shard_img_q = qkv[0]  # (global_img_seqlen, shard_head, hidden_dims)
+            shard_img_k = qkv[1]
+            shard_img_v = qkv[2]
+ 
+            # 处理文本的查询、键和值，选择当前进程的当前头
+            shard_txt_q = txt_q[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+            shard_txt_k = txt_k[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+            shard_txt_v = txt_v[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+ 
+            # 合并图像和文本的查询、键和值
+            q = torch.cat((shard_img_q, shard_txt_q), dim=0)
+            k = torch.cat((shard_img_k, shard_txt_k), dim=0)
+            v = torch.cat((shard_img_v, shard_txt_v), dim=0)
+ 
+            # 调用注意力函数计算注意力结果
+            attn = attention_module.apply(q=q, k=k, v=v, cu_seqlens_q=cu_seqlens_qkv, cu_seqlens_kv=cu_seqlens_qkv, max_seqlen_q=max_seqlen_qkv, max_seqlen_kv=max_seqlen_qkv, **kwargs)
+```
+
 该步骤的结果是：每个 rank 拥有全量图像序列（长度 `imgS`）与其负责的 head 子集（`shardH`）。
 
 ## 0x2.3 文本分支：按 head slice
@@ -101,6 +261,20 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 文本 QKV 不做 seq 维 all-to-all，仅按 head 维选择本 rank 的 head 子集：
 
 - `shard_txt_q/k/v`：`[txtS, shardH, D]`
+
+对应代码（两条分支对文本做 head slice）：
+
+```140:183:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+                # 处理文本的查询、键和值，选择当前进程的当前头
+                shard_txt_q = txt_q[:, (cur_rank * shard_heads + h) : (cur_rank * shard_heads + h + 1), :]
+                shard_txt_k = txt_k[:, (cur_rank * shard_heads + h) : (cur_rank * shard_heads + h + 1), :]
+                shard_txt_v = txt_v[:, (cur_rank * shard_heads + h) : (cur_rank * shard_heads + h + 1), :]
+...
+            # 处理文本的查询、键和值，选择当前进程的当前头
+            shard_txt_q = txt_q[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+            shard_txt_k = txt_k[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+            shard_txt_v = txt_v[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+```
 
 ## 0x2.4 拼接并计算 attention（注意输出flatten）
 
@@ -112,6 +286,26 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 
 - `attn`：`[imgS + txtS, shardH * D]`
 
+对应代码（拼接 q/k/v 并调用 attention_module.apply）：
+
+```145:191:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+                # 合并图像和文本的查询、键和值
+                q = torch.cat((shard_img_q, shard_txt_q), dim=0)
+                k = torch.cat((shard_img_k, shard_txt_k), dim=0)
+                v = torch.cat((shard_img_v, shard_txt_v), dim=0)
+ 
+                # 调用注意力函数计算注意力结果
+                head_attn = attention_module.apply(q=q, k=k, v=v, cu_seqlens_q=cu_seqlens_qkv, cu_seqlens_kv=cu_seqlens_qkv, max_seqlen_q=max_seqlen_qkv, max_seqlen_kv=max_seqlen_qkv, **kwargs)
+...
+            # 合并图像和文本的查询、键和值
+            q = torch.cat((shard_img_q, shard_txt_q), dim=0)
+            k = torch.cat((shard_img_k, shard_txt_k), dim=0)
+            v = torch.cat((shard_img_v, shard_txt_v), dim=0)
+ 
+            # 调用注意力函数计算注意力结果
+            attn = attention_module.apply(q=q, k=k, v=v, cu_seqlens_q=cu_seqlens_qkv, cu_seqlens_kv=cu_seqlens_qkv, max_seqlen_q=max_seqlen_qkv, max_seqlen_kv=max_seqlen_qkv, **kwargs)
+```
+
 实现中会重建 `cu_seqlens_qkv` 与 `max_seqlen_qkv` 以适配 varlen 接口；该部分不改变张量形状推导结论。
 
 ## 0x2.5 输出拆分与回传 layout（head shard -> seq shard）
@@ -121,12 +315,31 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 - `img_attn`：`[imgS, shardH*D]`
 - `txt_attn`：`[txtS, shardH*D]`
 
+对应代码（从 attn 中切出 img/text 输出）：
+
+```193:197:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        # 分割图像和文本的注意力结果
+        if img_first:
+            img_attn, txt_attn = attn[:global_img_seqlen, :], attn[global_img_seqlen:]
+        else:
+            txt_attn, img_attn = attn[:txt_qkv_len, :], attn[txt_qkv_len:]
+```
+
 ### 0x2.5.1 文本：`all_gather` 拼回 full heads
 
 对 `txt_attn` 做 `all_gather` 并在 dim=1 拼接：
 
 - 每 rank：`[txtS, shardH*D]`
 - 拼接后：`[txtS, P*shardH*D] = [txtS, H*D]`
+
+对应代码（all_gather + cat）：
+
+```202:206:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        # 收集所有进程的文本注意力结果
+        gathered_txt_attn = [torch.empty_like(txt_attn) for _ in range(world_size)]
+        dist.all_gather(gathered_txt_attn, txt_attn, group=seq_p_group)
+        txt_attn = torch.cat(gathered_txt_attn, dim=1)  # 合并所有进程的文本注意力结果
+```
 
 ### 0x2.5.2 图像：`_reshape_img_attn()` + `all2all_head2seq()`
 
@@ -145,6 +358,40 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 
 至此，图像输出回到 **sequence shard + full heads** 的布局。
 
+对应代码（img_attn reshape -> all2all_head2seq -> reshape flatten）：
+
+```215:231:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+    @torch.compiler.disable
+    def _reshape_img_attn(self, img_attn, world_size, shard_seqlen, shard_heads, hidden_dims, seq_p_group, use_fp8_comm):
+        img_attn = img_attn.reshape(world_size * shard_seqlen, shard_heads, hidden_dims)  # 重塑图像注意力结果
+ 
+        # 将头的格式转换回序列格式
+        if use_fp8_comm:
+            original_dtype = img_attn.dtype
+            original_shape = img_attn.shape
+            img_attn_fp8, attn_scale = quant_fp8_vllm(img_attn.reshape(-1, original_shape[-1]))
+            img_attn_fp8 = all2all_head2seq(img_attn_fp8.reshape(original_shape), group=seq_p_group)
+            attn_scale = all2all_head2seq(attn_scale.reshape(original_shape[0], original_shape[1], 1), group=seq_p_group)
+            img_attn = dequant_fp8_vllm(img_attn_fp8, attn_scale, original_dtype)
+        else:
+            img_attn = all2all_head2seq(img_attn, group=seq_p_group)
+ 
+        img_attn = img_attn.reshape(shard_seqlen, -1)  # 重塑为 [shard_seqlen, -1] 形状
+        return img_attn
+```
+
+对应代码（最终拼接输出 attn，按 img_first 决定拼接顺序）：
+
+```207:213:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        # 合并图像和文本的注意力结果
+        if img_first:
+            attn = torch.cat([img_attn, txt_attn], dim=0)
+        else:
+            attn = torch.cat([txt_attn, img_attn], dim=0)
+ 
+        return attn  # 返回最终的注意力结果
+```
+
 
 # 0x3. `all2all_head2seq` 维度推导（逐步对应实现）
 
@@ -155,24 +402,24 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 - 输入：`[seq_len, heads/P, D]`
 - 输出：`[seq_len/P, heads, D]`
 
-令输入张量 \(X\)：
+令输入张量 `X`：
 
-- \(X \in \mathbb{R}^{S \times (H/P) \times D}\)
-- \(\text{shardS} = S/P\)
+- `X`: `[S, H//P, D]`
+- `shardS = S // P`（要求 `S % P == 0`）
 
 ## 0x3.1 reshape：按 seq 切分为 P 份
 
 代码等价于：
 
 - `reshape(P, shardS, shardH, D)`
-- 得到 \(X_1 \in \mathbb{R}^{P \times \text{shardS} \times \text{shardH} \times D}\)
+- 得到 `X1`: `[P, shardS, shardH, D]`
 
 ## 0x3.2 transpose：重排维度以便合并 head
 
 代码：
 
 - `transpose(1, 2)`
-- 得到 \(X_2 \in \mathbb{R}^{P \times \text{shardH} \times \text{shardS} \times D}\)
+- 得到 `X2`: `[P, shardH, shardS, D]`
 
 ## 0x3.3 all-to-all：交换 dim0 上的 P 份数据
 
@@ -226,19 +473,91 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 - 可用性：依赖 `vllm._custom_ops` 的实现与运行环境
 - 数值误差：由 FP8 量化引入，是否可接受取决于模型与任务
 
+对应代码（默认实现：FP8 量化/scale reshape 与 dequant，分别位于两条分支）：
+
+```105:117:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+            if use_fp8_comm:
+                img_qkv_fp8, img_qkv_scale = quant_fp8_vllm(img_qkv.reshape(-1, hidden_dims))
+                img_qkv_fp8 = img_qkv_fp8.reshape(shard_heads, world_size, img_qkv_len, 3, hidden_dims)
+                img_qkv_scale = img_qkv_scale.reshape(shard_heads, world_size, img_qkv_len, 3, 1)
+                output_qkv_fp8 = torch.empty_like(img_qkv_fp8)
+                output_qkv_scale = torch.empty_like(img_qkv_scale)
+                comm_fp8_works = []
+                comm_scale_works = []
+                for h in range(shard_heads):
+                    work_fp8 = dist.all_to_all_single(output_qkv_fp8[h], img_qkv_fp8[h], group=seq_p_group, async_op=True)
+                    work_scale = dist.all_to_all_single(output_qkv_scale[h], img_qkv_scale[h], group=seq_p_group, async_op=True)
+                    comm_fp8_works.append(work_fp8)
+                    comm_scale_works.append(work_scale)
+```
+
+```161:169:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+            if use_fp8_comm:
+                img_qkv_fp8, img_qkv_scale = quant_fp8_vllm(img_qkv.reshape(-1, hidden_dims))
+                img_qkv_fp8 = img_qkv_fp8.reshape(world_size, img_qkv_len, shard_heads, 3, hidden_dims)
+                img_qkv_scale = img_qkv_scale.reshape(world_size, img_qkv_len, shard_heads, 3, 1)
+                output_qkv_fp8 = torch.empty_like(img_qkv_fp8)
+                output_qkv_scale = torch.empty_like(img_qkv_scale)
+                dist.all_to_all_single(output_qkv_fp8, img_qkv_fp8, group=seq_p_group)
+                dist.all_to_all_single(output_qkv_scale, img_qkv_scale, group=seq_p_group)
+                output_qkv = dequant_fp8_vllm(output_qkv_fp8, output_qkv_scale, original_dtype)
+```
+
 
 
 # 0x6. `Ulysses4090AttnWeight`：点对点轮转通信实现
 
 `Ulysses4090AttnWeight` 使用“循环赛配对”的点对点 `isend/irecv` 轮转实现来模拟 all-to-all：
 
-- `generate_round_robin_pairs()`：生成 \(P-1\) 轮配对（要求 `world_size` 为偶数）
+- `generate_round_robin_pairs()`：生成 `P-1` 轮配对（要求 `world_size` 为偶数）
 - `load_balanced_all_to_all()`：每轮每个 rank 与一个 partner 交换一次，轮转结束后得到全对全交换结果
 
 在张量布局效果上，与默认实现保持一致：
 
-- 图像 QKV：按 head 切分为 \(P\) 份，轮转交换后在 seq 维拼接得到 `[imgS, shardH, D]`
-- 图像输出：按 seq 切分为 \(P\) 份，轮转交换后在 head 维拼接得到 `[imgShardS, H, D]`
+- 图像 QKV：按 head 切分为 `P` 份，轮转交换后在 seq 维拼接得到 `[imgS, shardH, D]`
+- 图像输出：按 seq 切分为 `P` 份，轮转交换后在 head 维拼接得到 `[imgShardS, H, D]`
+
+对应代码（4090：按 head 切分 qkv_shards、拼接 seq；以及输出侧按 seq 切分、拼接 head）：
+
+```400:456:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        # 将 image QKV 拼接后，按头维度切分成 N 份,每份大小为 D/N
+        img_qkv = torch.stack([img_q, img_k, img_v], dim=0)
+        qkv_shards = [img_qkv[:, :, i * shard_heads : (i + 1) * shard_heads, :].contiguous() for i in range(world_size)]
+        qkv_dtype = img_qkv.dtype
+        # ... load_balanced_all_to_all + dequant/reshape ...
+        # 拼接所有分片 (在序列维度上)
+        img_q = torch.cat(gathered_q_shards, dim=0)
+        img_k = torch.cat(gathered_k_shards, dim=0)
+        img_v = torch.cat(gathered_v_shards, dim=0)
+ 
+        # 处理文本的查询、键和值，选择当前进程的头
+        txt_q = txt_q[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+        txt_k = txt_k[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+        txt_v = txt_v[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
+```
+
+```510:546:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        img_attn = img_attn.reshape(world_size * shard_seqlen, shard_heads, hidden_dims)  # 重塑图像注意力结果
+        attn_dtype = img_attn.dtype
+ 
+        # 按序列维度切分成 N 份
+        attn_shards = [img_attn[i * shard_seqlen : (i + 1) * shard_seqlen, :, :].contiguous() for i in range(world_size)]
+        # ... load_balanced_all_to_all (+ optional fp8 pack/unpack) ...
+        # 拼接所有分片 (在头维度上)
+        img_attn = torch.cat(gathered_attn_shards, dim=1)
+        img_attn = img_attn.reshape(shard_seqlen, -1)  # 重塑为 [shard_seqlen, -1] 形状
+ 
+        return img_attn
+```
+
+对应代码（4090：4D -> 3D reshape）：
+
+```357:360:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
+        if len(q.shape) == 4:
+            q = q.reshape(-1, q.shape[-2], q.shape[-1])
+            k = k.reshape(-1, k.shape[-2], k.shape[-1])
+            v = v.reshape(-1, v.shape[-2], v.shape[-1])
+```
 
 在 `use_fp8_comm=True` 时，该实现将 FP8 数据与 scale 打包为字节缓冲区进行单次收发，减少消息数量。
 
@@ -246,7 +565,7 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 
 # 0x7. 总结
 
-LightX2V 的 Ulysses Attention 实现通过两次图像 all-to-all（输入侧与输出侧）完成 layout 变换闭环，使 attention 计算在 **full sequence + head shard** 的布局上进行；文本部分通过 `all_gather` 拼回 full heads。实现同时提供了：
+LightX2V 的 Ulysses Attention 实现通过两次图像 all-to-all（输入侧与输出侧）完成 layout 变换，使 attention 计算在 **full sequence + head shard** 的布局上进行；文本部分通过 `all_gather` 拼回 full heads。实现同时提供了：
 
 - `enable_head_parallel`：更细粒度的 head 级处理
 - `use_fp8_comm`：FP8 通信量化
