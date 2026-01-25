@@ -4,8 +4,9 @@
 - `LightX2V/lightx2v/common/ops/attn/utils/all2all.py`（`all2all_head2seq` / `all2all_seq2head`）
 - `LightX2V/lightx2v/common/ops/attn/flash_attn.py`（FlashAttention wrapper 的输出形状约定）
 
-性能相关内容只讨论实现机制层面的影响因素，我没具体测过所以不做什么确定性的描述。写这个的原因是对Ulysses Attention的实现有点忘了，周末自己再推一下。
+性能相关内容只讨论实现机制层面的影响因素，我没具体测过所以不做什么确定性的描述。写这个的原因是对Ulysses Attention的实现有点忘了，周末自己再推一下。代码仓库为：https://github.com/ModelTC/LightX2V
 
+> 笔者注：下面的代码片段笔者没有加注释，里面的注释是从LightX2V拷贝代码片段时就已经自带的。基于这个commit号设置了下行号：bef76dc298983053df2506d8eaaa97d1895ec077
 
 
 # 0x0. 背景
@@ -393,57 +394,9 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 ```
 
 
-# 0x3. `all2all_head2seq` 维度推导（逐步对应实现）
+# 0x3. `all2all_head2seq` 维度推导（简述）
 
-目标文件：`LightX2V/lightx2v/common/ops/attn/utils/all2all.py`
-
-函数注释描述：
-
-- 输入：`[seq_len, heads/P, D]`
-- 输出：`[seq_len/P, heads, D]`
-
-令输入张量 `X`：
-
-- `X`: `[S, H//P, D]`
-- `shardS = S // P`（要求 `S % P == 0`）
-
-## 0x3.1 reshape：按 seq 切分为 P 份
-
-代码等价于：
-
-- `reshape(P, shardS, shardH, D)`
-- 得到 `X1`: `[P, shardS, shardH, D]`
-
-## 0x3.2 transpose：重排维度以便合并 head
-
-代码：
-
-- `transpose(1, 2)`
-- 得到 `X2`: `[P, shardH, shardS, D]`
-
-## 0x3.3 all-to-all：交换 dim0 上的 P 份数据
-
-代码：
-
-- `dist.all_to_all_single(output, input_t, group=group)`
-
-形状保持为：
-
-- `[P, shardH, shardS, D]`
-
-## 0x3.4 合并 head 并转回目标布局
-
-合并前两维：
-
-- `[P, shardH, shardS, D] -> [H, shardS, D]`
-
-再转置得到：
-
-- `[shardS, H, D]`
-
-因此 `all2all_head2seq` 将 **full sequence + head shard** 映射为 **sequence shard + full heads**。
-
-对应地，`all2all_seq2head` 完成相反方向的映射，可视为其逆过程。
+`all2all_head2seq` 的目标是把输入 `X: [S, H//P, D]`（要求 `S % P == 0`、`H % P == 0`）转换为输出 `[S//P, H, D]`。实现等价于：先把 `S` 切为 `P` 份并 reshape 为 `[P, shardS, shardH, D]`（`shardS = S//P`、`shardH = H//P`），再 transpose 得到 `[P, shardH, shardS, D]`，执行 `dist.all_to_all_single` 后形状保持不变，最后合并前两维得到 `[H, shardS, D]`，再 transpose 得到 `[shardS, H, D]`。`all2all_seq2head` 完成相反方向的映射。
 
 
 
@@ -505,71 +458,12 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 
 
 
-# 0x6. `Ulysses4090AttnWeight`：点对点轮转通信实现
-
-`Ulysses4090AttnWeight` 使用“循环赛配对”的点对点 `isend/irecv` 轮转实现来模拟 all-to-all：
-
-- `generate_round_robin_pairs()`：生成 `P-1` 轮配对（要求 `world_size` 为偶数）
-- `load_balanced_all_to_all()`：每轮每个 rank 与一个 partner 交换一次，轮转结束后得到全对全交换结果
-
-在张量布局效果上，与默认实现保持一致：
-
-- 图像 QKV：按 head 切分为 `P` 份，轮转交换后在 seq 维拼接得到 `[imgS, shardH, D]`
-- 图像输出：按 seq 切分为 `P` 份，轮转交换后在 head 维拼接得到 `[imgShardS, H, D]`
-
-对应代码（4090：按 head 切分 qkv_shards、拼接 seq；以及输出侧按 seq 切分、拼接 head）：
-
-```400:456:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
-        # 将 image QKV 拼接后，按头维度切分成 N 份,每份大小为 D/N
-        img_qkv = torch.stack([img_q, img_k, img_v], dim=0)
-        qkv_shards = [img_qkv[:, :, i * shard_heads : (i + 1) * shard_heads, :].contiguous() for i in range(world_size)]
-        qkv_dtype = img_qkv.dtype
-        # ... load_balanced_all_to_all + dequant/reshape ...
-        # 拼接所有分片 (在序列维度上)
-        img_q = torch.cat(gathered_q_shards, dim=0)
-        img_k = torch.cat(gathered_k_shards, dim=0)
-        img_v = torch.cat(gathered_v_shards, dim=0)
- 
-        # 处理文本的查询、键和值，选择当前进程的头
-        txt_q = txt_q[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
-        txt_k = txt_k[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
-        txt_v = txt_v[:, cur_rank * shard_heads : (cur_rank + 1) * shard_heads, :]
-```
-
-```510:546:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
-        img_attn = img_attn.reshape(world_size * shard_seqlen, shard_heads, hidden_dims)  # 重塑图像注意力结果
-        attn_dtype = img_attn.dtype
- 
-        # 按序列维度切分成 N 份
-        attn_shards = [img_attn[i * shard_seqlen : (i + 1) * shard_seqlen, :, :].contiguous() for i in range(world_size)]
-        # ... load_balanced_all_to_all (+ optional fp8 pack/unpack) ...
-        # 拼接所有分片 (在头维度上)
-        img_attn = torch.cat(gathered_attn_shards, dim=1)
-        img_attn = img_attn.reshape(shard_seqlen, -1)  # 重塑为 [shard_seqlen, -1] 形状
- 
-        return img_attn
-```
-
-对应代码（4090：4D -> 3D reshape）：
-
-```357:360:LightX2V/lightx2v/common/ops/attn/ulysses_attn.py
-        if len(q.shape) == 4:
-            q = q.reshape(-1, q.shape[-2], q.shape[-1])
-            k = k.reshape(-1, k.shape[-2], k.shape[-1])
-            v = v.reshape(-1, v.shape[-2], v.shape[-1])
-```
-
-在 `use_fp8_comm=True` 时，该实现将 FP8 数据与 scale 打包为字节缓冲区进行单次收发，减少消息数量。
-
-
-
-# 0x7. 总结
+# 0x6. 总结
 
 LightX2V 的 Ulysses Attention 实现通过两次图像 all-to-all（输入侧与输出侧）完成 layout 变换，使 attention 计算在 **full sequence + head shard** 的布局上进行；文本部分通过 `all_gather` 拼回 full heads。实现同时提供了：
 
 - `enable_head_parallel`：更细粒度的 head 级处理
 - `use_fp8_comm`：FP8 通信量化
-- `Ulysses4090AttnWeight`：点对点轮转模拟 all-to-all
 
 这些选项的效果受运行环境、通信后端与数据规模影响，需要结合实际配置进行评估。我自己看着好像是给视频模型用的，这里只是记录一下Ulysses Attention的形状推导和流程，不做更多猜测。
 
