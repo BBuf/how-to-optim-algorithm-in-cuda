@@ -393,10 +393,9 @@ FlashAttention wrapper 的输出形状约定（见 `LightX2V/lightx2v/common/ops
 ```
 
 
-# 0x3. `all2all_head2seq` 维度推导（简述）
+# 0x3. `all2all_head2seq` 维度推导
 
-`all2all_head2seq` 的目标是把输入 `X: [S, H//P, D]`（要求 `S % P == 0`、`H % P == 0`）转换为输出 `[S//P, H, D]`。实现等价于：先把 `S` 切为 `P` 份并 reshape 为 `[P, shardS, shardH, D]`（`shardS = S//P`、`shardH = H//P`），再 transpose 得到 `[P, shardH, shardS, D]`，执行 `dist.all_to_all_single` 后形状保持不变，最后合并前两维得到 `[H, shardS, D]`，再 transpose 得到 `[shardS, H, D]`。`all2all_seq2head` 完成相反方向的映射。
-
+`all2all_head2seq` 的目标是把输入 `X: [S, H//P, D]`（要求 `S % P == 0`、`H % P == 0`）转换为输出 `[S//P, H, D]`。也就是说先把 `S` 切为 `P` 份并 reshape 为 `[P, shardS, shardH, D]`（`shardS = S//P`、`shardH = H//P`），再 transpose 得到 `[P, shardH, shardS, D]`，执行 `dist.all_to_all_single` 后形状保持不变，最后合并前两维得到 `[H, shardS, D]`，再 transpose 得到 `[shardS, H, D]`。`all2all_seq2head` 完成相反方向的映射。
 
 
 # 0x4. `enable_head_parallel` 分支的结构性差异
