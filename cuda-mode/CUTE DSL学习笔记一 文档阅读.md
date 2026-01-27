@@ -1,223 +1,223 @@
 # CuTe DSL 4.3.5 文档
 
 
-# Overview
+# 概览
 
-CUTLASS 4.x bridges the gap between productivity and performance for CUDA kernel development. By providing Python-based DSLs to the powerful CUTLASS C++ template library, it enables faster iteration, easier prototyping, and a gentler learning curve for high-performance linear algebra on NVIDIA GPUs.
+CUTLASS 4.x 旨在弥合 CUDA Kernel 开发中“生产力”和“性能”之间的鸿沟。它通过为强大的 CUTLASS C++ 模板库提供基于 Python 的 DSL，使得在 NVIDIA GPU 上进行高性能线性代数开发时能够更快迭代、更容易做原型验证，并显著降低学习门槛。
 
-Overall we envision CUTLASS DSLs as a family of domain-specific languages (DSLs). With the release of 4.0, we are releasing the first of these in CuTe DSL. This is a low level programming model that is fully consistent with CuTe C++ abstractions — exposing core concepts such as layouts, tensors, hardware atoms, and full control over the hardware thread and data hierarchy.
+总体而言，我们将 CUTLASS DSLs 设想为一套领域特定语言（DSL）家族。在 4.0 版本中，我们首先发布其中的 CuTe DSL。它是一种低层次（low-level）的编程模型，与 CuTe 的 C++ 抽象保持完全一致——对外暴露了诸如布局（layout）、张量（tensor）、硬件原子操作（hardware atoms）等核心概念，并允许对硬件线程与数据层次结构进行完全控制。
 
-# Why CUTLASS DSLs?
+# 为什么需要 CUTLASS DSLs？
 
-While CUTLASS offers exceptional performance through its C++ template abstractions, the complexity can present challenges for many developers. CUTLASS 4.x addresses this by:
+尽管 CUTLASS 通过 C++ 模板抽象提供了卓越的性能，但其复杂性也会给许多开发者带来挑战。CUTLASS 4.x 通过以下方式来解决这一问题：
 
-- **Simplifying metaprogramming**: Metaprogramming in Python is a lot more intuitive than with C++
+- **简化元编程**：用 Python 进行元编程相比 C++ 更直观
 
-- **Accelerating Iteration**: Rapid prototyping with familiar Python syntax and blazing fast compile times
+- **加速迭代**：使用熟悉的 Python 语法快速原型开发，并具备极快的编译速度
 
-- **Lowering Barriers**: Reduced learning curve for GPU programming concepts and consistency between CuTe C++ and DSL
+- **降低门槛**：降低 GPU 编程概念的学习曲线，并保持 CuTe C++ 与 DSL 在概念上的一致性
 
-- **Maintaining Performance**: Generated code leverages optimized CUTLASS primitives
+- **保持性能**：生成的代码会复用经过优化的 CUTLASS 基元（primitives）
 
-Students can learn GPU programming concepts without the complexity of C++ templates. Researchers and performance engineers can rapidly explore algorithms, prototype, and tune kernels before moving to production implementations.
+学生可以在不被 C++ 模板复杂性困扰的情况下学习 GPU 编程概念。研究人员和性能工程师则可以在进入生产级实现之前，快速探索算法、做原型验证，并对 kernel 进行调参与优化。
 
-# Key Concepts and Approach
+# 关键概念与方法
 
-CUTLASS DSLs translate Python code into a custom intermediate representation (IR), which is then Just-In-Time (JIT) compiled into optimized CUDA kernels using MLIR and ptxas.
+CUTLASS DSLs 会将 Python 代码翻译为自定义的中间表示（IR），然后借助 MLIR 与 ptxas 在运行时进行即时编译（JIT），生成优化后的 CUDA kernels。
 
-## Core CuTe DSL Abstractions
+## CuTe DSL 的核心抽象
 
-- **Layouts** – Describe how data is organized in memory and across threads.
+- **Layouts（布局）** – 描述数据在内存中以及在线程之间是如何组织的。
 
-- **Tensors** – Combine data pointers or iterators with layout metadata.
+- **Tensors（张量）** – 将数据指针或迭代器与布局元数据结合起来。
 
-- **Atoms** – Represent fundamental hardware operations like matrix multiply-accumulate (MMA) or memory copy.
+- **Atoms（原子）** – 表示基础硬件操作，例如矩阵乘加（MMA）或内存拷贝。
 
-- **Tiled Operations** – Define how atoms are applied across thread blocks and warps (e.g., `TiledMma`, `TiledCopy`).
+- **Tiled Operations（分块操作）** – 定义 atoms 如何在 thread block 与 warp 范围内应用（例如：`TiledMma`、`TiledCopy`）。
 
-For more on CuTe abstractions, refer to the CuTe C++ library documentation(https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/cute/00_quickstart.md).
+关于 CuTe 抽象的更多内容，请参考 CuTe C++ 库文档(https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/cute/00_quickstart.md)。
 
-**Pythonic Kernel Expression**
+**Python 风格的 Kernel 表达**
 
-Developers express kernel logic, data movement, and computation using familiar Python syntax and control flow.
+开发者可以使用熟悉的 Python 语法与控制流来表达 kernel 的逻辑、数据搬运以及计算过程。
 
-The DSLs simplify expressing loop tiling, threading strategies, and data transformations using concise Python code.
+这些 DSL 让你能用简洁的 Python 代码更容易地表达循环分块（tiling）、线程策略以及数据变换。
 
-**JIT Compilation**
+**JIT 编译**
 
-Python kernels are compiled at runtime into CUDA device code using MLIR infrastructure and NVIDIA’s `ptxas` toolchain, enabling rapid iteration and interactive debugging.
+Python 编写的 kernels 会在运行时通过 MLIR 基础设施与 NVIDIA 的 `ptxas` 工具链编译为 CUDA 设备端代码，从而支持快速迭代与交互式调试。
 
-# Relationship to CUTLASS C++
+# 与 CUTLASS C++ 的关系
 
-CUTLASS DSLs are not a replacement for the CUTLASS C++ library or its 2.x and 3.x APIs. Instead, it aims to be a high-productivity kernel authoring framework that shares all concepts with CUTLASS 3.x C++ API such as CuTe, pipelines, schedulers etc.
+CUTLASS DSLs 并不是 CUTLASS C++ 库或其 2.x / 3.x API 的替代品。相反，它的目标是成为一个高生产力的 kernel 编写框架，并与 CUTLASS 3.x C++ API（例如 CuTe、流水线（pipelines）、调度器（schedulers）等）共享同一套概念体系。
 
-- **Performance**: Generated kernels aim to match CUTLASS C++ kernels in performance; however, some performance gaps may exist due to missing optimizations that have been added over the years to CUTLASS C++ and may be missing in the DSLs examples.
+- **性能**：生成的 kernels 目标是在性能上对齐 CUTLASS C++ kernels；但由于 CUTLASS C++ 多年来积累的一些优化可能尚未体现在 DSL 示例中，因此仍可能存在一定的性能差距。
 
-- **Library**: The CUTLASS DSLs do not currently ship with a full GEMM/Conv autotuning profiler or library interface akin to CUTLASS C++. Instead, it focuses on generating and autotuning individual kernel instances (for example: via tile size exploration) and via native integration DL frameworks that support auto-tuning.
+- **库形态**：CUTLASS DSLs 目前并未提供像 CUTLASS C++ 那样完整的 GEMM/Conv 自动调优 profiler 或库接口。它更聚焦于生成并自动调优单个 kernel 实例（例如通过探索 tile size），以及与支持自动调优的深度学习框架进行原生集成。
 
-# Getting Started
+# 快速开始
 
-- Quick Start Guide(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/quick_start.html)- Initial setup and installation.
+- 快速开始指南(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/quick_start.html)- 初始配置与安装。
 
-- CuTe DSL(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl.html) – Overview of the typical development and workflow using CuTe DSL.
+- CuTe DSL(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl.html) – 概述使用 CuTe DSL 的典型开发流程与工作流。
 
-- CuTe DSL API(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_api.html) – Refer to the full API documentation.
+- CuTe DSL API(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_api.html) – 参考完整的 API 文档。
 
-- Limitations(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/limitations.html) – Understand current CuTe DSL constraints and differences from C++.
+- 限制(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/limitations.html) – 了解当前 CuTe DSL 的约束以及与 C++ 的差异。
 
-- FAQs(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/faqs.html) – Common questions and known issues.
+- 常见问题(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/faqs.html) – 常见问题与已知问题。
 
-# Current Status & Roadmap
-CuTe DSL is in public beta and actively evolving. Interfaces and features are subject to change as we improve the system.
+# 当前状态与路线图
+CuTe DSL 目前处于公开 Beta 阶段，并在积极迭代中。随着系统的持续改进，接口与功能可能会发生变化。
 
-# Upcoming Milestones
+# 即将到来的里程碑
 
-- Public release targeted for **Summer 2025**
-- Expanded support for additional data types and kernel types
-- Usability improvements: better error messages, debugging tools, and streamlined APIs
-- Broader integration of CUTLASS primitives and features
+- 计划于 **2025 年夏季**公开发布
+- 扩展对更多数据类型与更多 kernel 类型的支持
+- 可用性改进：更好的错误信息、调试工具以及更精简的 API
+- 更广泛地集成 CUTLASS 的基元与特性
 
-For known issues and workarounds, please consult the Limitations and FAQs.
+有关已知问题与解决方法，请参考 Limitations 与 FAQs。
 
-# Community & Feedback
+# 社区与反馈
 
-We welcome contributions and feedback from the developer community!
+我们欢迎开发者社区的贡献与反馈！
 
-You can:
+你可以：
 
-- Submit bug reports or feature requests via our GitHub Issues page(https://github.com/NVIDIA/cutlass/issues)
-- Join the CUTLASS community on Discord(https://discord.com/channels/1019361803752456192/1150868614921064590) to ask questions and share ideas
-- Contribute examples, tutorials, or enhancements to the DSLs
-- Report unclear or missing documentation
-- Propose support for additional data types or kernel variants
-- Help prioritize roadmap features by upvoting GitHub issues
+- 通过 GitHub Issues 页面提交 bug 报告或功能需求(https://github.com/NVIDIA/cutlass/issues)
+- 加入 Discord 上的 CUTLASS 社区提问并分享想法(https://discord.com/channels/1019361803752456192/1150868614921064590)
+- 为 DSLs 贡献示例、教程或增强改进
+- 报告不清晰或缺失的文档
+- 提议支持更多数据类型或 kernel 变体
+- 通过给 GitHub issue 点赞，帮助我们对路线图功能进行优先级排序
 
-Thank you for helping shape the future of CUTLASS DSLs!
+感谢你帮助塑造 CUTLASS DSLs 的未来！
 
-# Functionality
+# 功能支持
 
-The CUTLASS DSL 4.0 release supports **Python 3.12** only. It shares the same driver requirements as the CUDA Toolkit 12.9(https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html). Specifically, the driver version must be 575.51.03 or later.
+CUTLASS DSL 4.0 版本仅支持 **Python 3.12**。它与 CUDA Toolkit 12.9(https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html) 具有相同的驱动要求。具体来说，驱动版本必须为 575.51.03 或更高。
 
-Currently, only Linux x86_64 is supported. Additional platform support will be added in future releases.
+目前仅支持 Linux x86_64。未来版本会增加对更多平台的支持。
 
-# Supported MMA Operations
+# 支持的 MMA 操作
 
-**NVIDIA Ampere Architecture:**
+**NVIDIA Ampere 架构：**
 
-- FP16 / BF16 tensor core instructions
+- FP16 / BF16 Tensor Core 指令
 
-**NVIDIA Hopper Architecture:**
+**NVIDIA Hopper 架构：**
 
 - FP16 / BF16
 - FP8
 
-**NVIDIA Blackwell Architecture:**
+**NVIDIA Blackwell 架构：**
 
 - FP16 / BF16
 - TF32
 - I8
 - F8
 
-# Notable Limitations
+# 主要限制
 
-For current constraints and unsupported features, refer to the Limitations(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/limitations.html) section.
+关于当前的约束与不支持的特性，请参考 Limitations(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/limitations.html) 小节。
 
-# Quick Start Guide
+# 快速开始指南
 
-The CUTLASS DSL 4.0 release currently supports Linux and **Python 3.12** only. To install CUTLASS DSLs (limited to CuTe DSL for now), use the following command
+CUTLASS DSL 4.0 版本目前仅支持 Linux 与 **Python 3.12**。要安装 CUTLASS DSLs（目前仅包含 CuTe DSL），请使用以下命令。
 
-## Installation
+## 安装
 
-To ensure compatibility with the examples and code on GitHub, use the requirements.txt file from the corresponding commit in the repository.
+为确保与 GitHub 上的示例与代码保持兼容，请使用仓库中对应 commit 的 requirements.txt 文件。
 
 ```shell
 git clone https://github.com/NVIDIA/cutlass.git
 pip install -r cutlass/python/CuTeDSL/requirements.txt
 ```
 
-If you just want to try out the last known stable release of the CUTLASS DSL (may not compatible with the latest examples and code), run:
+如果你只是想试用“已知的最近稳定版本”的 CUTLASS DSL（可能与最新示例/代码不兼容），请运行：
 
 ```shell
 pip install nvidia-cutlass-dsl
 ```
 
-The `nvidia-cutlass-dsl` wheel includes everything needed to generate GPU kernels. It requires the same NVIDIA driver version as the CUDA Toolkit 12.9.
+`nvidia-cutlass-dsl` 的 wheel 包含生成 GPU kernels 所需的一切组件。它要求的 NVIDIA 驱动版本与 CUDA Toolkit 12.9 一致。
 
-# Recommended Dependencies
+# 推荐依赖
 
-To run examples and begin development, we recommend installing:
+为了运行示例并开始开发，我们建议安装：
 ```shell
 pip install torch jupyter
 ```
 
-# Recommended Python environment variables for jupyter notebooks
+# Jupyter Notebook 推荐的 Python 环境变量
 
-We recommend setting the following environment variable when running jupyter notebooks.
+我们建议在运行 jupyter notebook 时设置以下环境变量。
 
 ```shell
 export PYTHONUNBUFFERED=1
 ```
 
-# CuTe DSL > Introduction
+# CuTe DSL > 介绍
 
-## Overview
+## 概览
 
-CuTe DSL is a Python-based domain-specific language (DSL) designed for dynamic compilation of numeric and GPU-oriented code. Its primary goals are:
+CuTe DSL 是一种基于 Python 的领域特定语言（DSL），用于对数值计算与面向 GPU 的代码进行动态编译。其主要目标包括：
 
-- **Consistent with CuTe C++**, allowing users to express GPU kernels with full control of the hardware.
-- **JIT compilation** for both host and GPU execution.
-- **DLPack integration**, enabling seamless interop with frameworks (e.g., PyTorch, JAX).
-- **JIT caching**, so that repeated calls to the same function benefit from cached IR modules.
-- **Native types and type inference** to reduce boilerplate and improve performance.
-- **Optional lower-level control**, offering direct access to GPU backends or specialized IR dialects.
+- **与 CuTe C++ 保持一致**，允许用户在完全控制硬件的前提下表达 GPU kernels。
+- **JIT 编译**，同时支持 host 与 GPU 端执行。
+- **DLPack 集成**，实现与框架（如 PyTorch、JAX）的无缝互操作。
+- **JIT 缓存**，使得对同一函数的重复调用可以复用缓存的 IR 模块。
+- **原生类型与类型推断**，减少样板代码并提升性能。
+- **可选的更低层控制**，提供对 GPU 后端或专用 IR dialect 的直接访问。
 
-## Decorators
+## 装饰器
 
-CuTe DSL provides two main Python decorators for generating optimized code via dynamic compilation:
+CuTe DSL 提供了两个主要的 Python 装饰器，用于通过动态编译生成优化代码：
 
-1. `@jit` — Host-side JIT-compiled functions
-2. `@kernel` — GPU kernel functions
+1. `@jit` — Host 侧 JIT 编译函数
+2. `@kernel` — GPU kernel 函数
 
-Both decorators can optionally use a `preprocessor` that automatically expands Python control flow (loops, conditionals) into operations consumable by the underlying IR.
+这两个装饰器都可以选择启用 `preprocessor`，它会自动将 Python 控制流（循环、条件分支）展开为底层 IR 可消费的操作。
 
 ### `@jit`
 
-Declares JIT-compiled functions that can be invoked from Python or from other CuTe DSL functions.
+声明 JIT 编译函数，可从 Python 调用，也可从其他 CuTe DSL 函数中调用。
 
-#### Decorator Parameters
+#### 装饰器参数
 
 - `preprocessor`:
-  - `True` (default) — Automatically translate Python flow control (e.g., loops, if-statements) into IR operations.
-  - `False` — No automatic expansion; Python flow control must be handled manually or avoided.
+  - `True`（默认）— 自动将 Python 控制流（例如循环、if 语句）翻译为 IR 操作。
+  - `False` — 不进行自动展开；Python 控制流需要手动处理或避免使用。
 
-#### Call-site Parameters
+#### 调用端参数
 
 - `no_cache`:
-  - `True` — Disables JIT caching, forcing a fresh compilation each call.
-  - `False` (default) — Enables caching for faster subsequent calls.
+  - `True` — 禁用 JIT 缓存，每次调用都强制重新编译。
+  - `False`（默认）— 启用缓存，使后续调用更快。
 
 
 ### `@kernel`
 
-Defines GPU kernel functions, compiled as specialized GPU symbols through dynamic compilation.
+定义 GPU kernel 函数，通过动态编译生成专用的 GPU 符号。
 
-#### Decorator Parameters:
+#### 装饰器参数：
 
 - `preprocessor`:
-    - `True` (default) — Automatically expands Python loops/ifs into GPU-compatible IR operations.
-    - `False` — Expects manual or simplified kernel implementations.
+    - `True`（默认）— 自动将 Python 循环/if 展开为 GPU 兼容的 IR 操作。
+    - `False` — 期望手动实现或更简化的 kernel 实现。
 
 
-#### Kernel Launch Parameters
+#### Kernel 启动参数
 
-- `grid`: Specifies the grid size as a list of integers.
-- `block`: Specifies the block size as a list of integers.
-- `cluster`: Specifies the cluster size as a list of integers.
-- `smem`: Specifies the size of shared memory in bytes (integer).
+- `grid`：以整数列表指定 grid 大小。
+- `block`：以整数列表指定 block 大小。
+- `cluster`：以整数列表指定 cluster 大小。
+- `smem`：以字节数（整数）指定 shared memory 大小。
 
-## Calling Conventions
+## 调用约定
 
-| Caller | Callee | Allowed | Compilation/Runtime |
+| 调用方 | 被调用方 | 是否允许 | 编译/运行时 |
 | --- | --- | --- | --- |
 | Python function | `@jit` | Yes | DSL runtime |
 | Python function | `@kernel` | No | N/A (error raised) |
@@ -230,134 +230,133 @@ Defines GPU kernel functions, compiled as specialized GPU symbols through dynami
  
  
 
-# End-to-End Code Generation
+# 端到端代码生成
 
-## 1. Techniques for Turning Python into intermediate representation (IR)
+## 1. 将 Python 转换为中间表示（IR）的技术
 
-### 1.1 AST rewrite
+### 1.1 AST 重写
 
-The function’s abstract-syntax tree is analysed **before execution**. Python control-flow (`for`/`while`, `if`/`else`) and built-ins are converted to structured intermediate representation (IR) constructs. Computation inside each region is left untouched at this stage.
+函数的抽象语法树（AST）会在**执行之前**被分析。Python 控制流（`for`/`while`、`if`/`else`）以及内置函数会被转换为结构化的中间表示（IR）构造。而每个区域内部的计算在此阶段保持不变。
 
-**Advantages**
+**优点**
 
-- Sees the entire program, so every branch and loop is preserved.
-- Keeps loop structure intact for optimization such as tiling, vectorisation or GPU thread mapping.
+- 能看到整个程序，因此可以保留每一个分支与循环。
+- 保持循环结构完整，有利于做分块（tiling）、向量化（vectorisation）或 GPU 线程映射等优化。
 
-**Disadvantages**
+**缺点**
 
-- Requires a well-defined Python subset that the rewriter understands.
+- 需要一个重写器能够理解的、定义良好的 Python 子集。
 
-### 1.2 Tracing
+### 1.2 Tracing（跟踪）
 
-The decorated function is executed once with proxy arguments; overloaded operators record every tensor operation that actually runs and produce a flat trace that is lowered to intermediate representation (IR).
+被装饰的函数会使用代理参数执行一次；重载的运算符会记录实际运行的每一个张量操作，并生成一份扁平的 trace，随后被 lower 为中间表示（IR）。
 
-**Advantages**
+**优点**
 
-- Near-zero compile latency, ideal for straight-line arithmetic.
-- No need to parse Python source, so it supports many dynamic Python features, and Python has many features.
+- 编译延迟几乎为零，非常适合直线型（straight-line）的算术计算。
+- 无需解析 Python 源码，因此支持许多动态 Python 特性（而 Python 的动态特性非常多）。
 
-**Disadvantages**
+**缺点**
 
-- Untaken branches vanish, so the generated kernel may be wrong for other inputs.
-- Loops are flattened to the iteration count observed during tracing.
-- Data-dependent control-flow freezes to a single execution path.
+- 未被执行到的分支会“消失”，因此生成的 kernel 对其他输入可能是不正确的。
+- 循环会被扁平化为 tracing 时观察到的迭代次数。
+- 依赖数据的控制流会被固定为 trace 时的单一路径。
 
-## 2. CuTe DSL Code-Generation Modes
+## 2. CuTe DSL 的代码生成模式
+CuTe 的 Python 前端将上述技术组合为两种互斥模式，可通过 `@jit` 装饰器的 `preprocessor` 标志进行选择：
 
-CuTe’s Python front-end combines the techniques above into two mutually exclusive modes, selectable with the `preprocessor` flag of the `@jit` decorator:
-
-1. Tracing mode `@jit(preprocess=False)` — tracing only. This results in the fastest compilation path and is recommended only for kernels that are guaranteed to be straight-line arithmetic. It suffers from all tracing limitations listed in the previous section.
-2. Preprocessor mode (**default**) `@jit(preprocess=True)` — **AST rewrite + tracing**. The AST pass captures every loop and branch, eliminating the correctness and optimisation problems of pure tracing; tracing then fills in the arithmetic. This hybrid “preprocessor” pipeline is unique to CuTe DSL and was designed specifically to overcome the disadvantages identified above.
-
-
-![](https://files.mdnice.com/user/59/680a3096-98f3-4989-b144-29443a86de27.jpg)
-
-Figure 1: Left: tracing mode records only the path that executed. Right: preprocessor mode emits structured intermediate representation (IR) for every branch and loop before tracing the arithmetic.
-
-## Why Tracing-Only Is Insufficient for Control-Flow
-
-- **Branch loss** — The untaken side of an `if`/`else` is never lowered.
- - **Loop unrolling** — Loops are flattened to the iteration count observed, destroying structure needed for parallel mapping and tiling.
- - **Data-dependent paths** — Control-flow that depends on tensor values freezes to a single execution path at trace time.
- 
- The preprocessor mode fixes all of these by lowering control-flow first and delegating only the arithmetic to the tracer.
+1. Tracing 模式 `@jit(preprocess=False)` — 仅 tracing。这是编译路径最快的一种方式，仅推荐用于能够保证为“直线型算术”的 kernel。它会受到上一节列出的 tracing 局限性影响。
+2. 预处理器模式（**默认**）`@jit(preprocess=True)` — **AST 重写 + tracing**。AST 阶段会捕获每一个循环与分支，避免纯 tracing 带来的正确性与优化问题；随后 tracing 再补齐算术计算。这条混合的“预处理器（preprocessor）”流水线是 CuTe DSL 独有的，专门用于克服上述缺点。
  
  
+ ![](https://files.mdnice.com/user/59/680a3096-98f3-4989-b144-29443a86de27.jpg)
+ 
+ 图 1：左：tracing 模式只记录实际执行到的路径。右：预处理器模式会在 tracing 算术之前，为每一个分支与循环生成结构化的中间表示（IR）。
+ 
+ ## 为什么仅 Tracing 不足以处理控制流
+ 
+- **分支丢失** — `if`/`else` 中未被执行到的一侧不会被 lower。
+ - **循环被“展开/扁平化”** — 循环会被压平成 tracing 时观察到的迭代次数，从而破坏并行映射与分块（tiling）所需的结构。
+ - **数据依赖路径被冻结** — 依赖张量数值的控制流会在 tracing 时被冻结为单一路径。
+ 
+ 预处理器模式通过“先 lower 控制流，再把算术交给 tracer”来修复上述问题。
+ 
+ 
 
-# Control Flow
+# 控制流
 
-## Overview
+## 概览
 
-CuTe DSL walks Python’s AST and converts each control-flow construct it finds into structured intermediate representation (IR). You can therefore write ordinary Python loops and branches while the compiler decides—statement by statement—whether to:
+CuTe DSL 会遍历 Python 的 AST，并将其中的每一种控制流结构转换为结构化的中间表示（IR）。因此你可以像写普通 Python 一样写循环与分支，而编译器会逐条语句决定：
 
-- **evaluate at compile time** if it’s a native Python control flow, or
-- **emit intermediate representation (IR)** when the control flow is marked as dynamic.
+- 如果它是原生 Python 控制流，则**在编译期求值（evaluate at compile time）**；或
+- 当控制流被标记为动态时，**生成中间表示（IR）（emit intermediate representation）**。
 
-Passing intermediate representation (IR) values to a native Python control flow will result in an error.
+将中间表示（IR）的值传给原生 Python 控制流会导致错误。
 
-For a high-level discussion of the overall pipeline, see the code-generation overview(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/dsl_code_generation.html).
+关于整体流水线的高层讨论，请参阅 code-generation overview(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/dsl_code_generation.html)。
 
-## For Loops
+## for 循环
 
-CuTe DSL recognises three kinds of ranges for `for` loops:
+CuTe DSL 能识别 `for` 循环中三类 range：
 
-- `range` — the Python built-in, always lowered to intermediate representation (IR)
-- `cutlass.range` — Same as Python built-in `range`, but supports advanced unrolling and pipelining control
-- `cutlass.range_constexpr` — unrolled at compile time
+- `range` — Python 内置函数，总是会被 lower 为中间表示（IR）
+- `cutlass.range` — 与 Python 内置 `range` 类似，但支持更高级的展开（unrolling）与流水线（pipelining）控制
+- `cutlass.range_constexpr` — 在编译期展开（unrolled at compile time）
 
 ### `range(...)` / `cutlass.range(...)`
 
-Use when you always want a loop in the generated intermediate representation (IR), even if the inputs are Python values.
+当你希望无论输入是否为 Python 值，都在生成的中间表示（IR）中保留循环结构时使用。
 
 ### `cutlass.range_constexpr(...)`
 
-Runs in the Python interpreter and is fully unrolled before code generation. All loop indices must be `Constexpr` (compile-time Python value).
+在 Python 解释器中运行，并在代码生成前完全展开。所有循环索引都必须是 `Constexpr`（编译期的 Python 值）。
 
-Example:
+示例：
 
 ```python
 @cute.jit
 def control_flow_examples(bound: cutlass.Int32):
     n = 10
 
-    # ✅ This loop is Python loop, evaluated at compile time.
+    # ✅ 这是 Python 循环，在编译期求值。
     for i in cutlass.range_constexpr(n):
         cute.printf("%d\\n", i)
 
-    # ✅ This loop is dynamic, even when bound is Python value.
+    # ✅ 这是动态循环，即使 bound 是 Python 值也是如此。
     for i in range(n):
         cute.printf("%d\\n", i)
 
-    # ❌ This loop bound is a dynamic value, not allowed in Python loop.
-    # Should use `range` instead.
+    # ❌ 循环上界是动态值，不能用于 Python 循环。
+    # 应该改用 `range`。
     for i in cutlass.range_constexpr(bound):
         cute.printf("%d\\n", i)
 
-    # ✅ This loop is dynamic, emitted IR loop.
+    # ✅ 这是动态循环，会生成 IR 循环。
     for i in range(bound):
         cute.printf("%d\\n", i)
 
-    # ✅ This loop is dynamic, emitted IR loop with unrolling
+    # ✅ 这是动态循环，会生成带展开（unrolling）的 IR 循环
     for i in cutlass.range(bound, unroll=2):
         cute.printf("%d\\n", i)
 ```
 
-## Software Pipelining
+## 软件流水线（Software Pipelining）
 
-Software pipelining is a technique used to optimize loops. Typically, this involves writing a prefetch loop and a main loop.
+软件流水线是一种用于优化循环的技术。通常需要编写一个预取（prefetch）循环和一个主循环。
 
 ```python
 @cute.jit
 def example():
     ...
-    # build a circular buffer
+    # 构建一个环形缓冲区
     buffer = ...
 
-    # prefetch loop
+    # 预取循环
     for i in range(prefetch_stages):
         cute.copy(atom, gmem[i], buffer[i], ...)
 
-    # main loop
+    # 主循环
     for i in range(bound):
         if i + prefetch_stages < bound:
             cute.copy(atom, gmem[i + prefetch_stages], buffer[(i + prefetch_stages) % total_stages], ...)
@@ -367,171 +366,171 @@ def example():
     ...
 ```
 
-This can be tedious to write and tune. CuTe DSL provides a loop attribute to ask the compiler to do this.
+这段代码写起来和调参都会比较繁琐。CuTe DSL 提供了循环属性来让编译器帮你完成这一点。
 
 ```python
 @cute.jit
 def example():
     ...
-    # build a circular buffer
+    # 构建一个环形缓冲区
     buffer = ...
 
     for i in cutlass.range(bound, prefetch_stages=prefetch_stages):
-        # Compiler automatically handles the pipelining:
-        # - Generates prefetch loop for initial stages
-        # - In main loop, prefetches future data while using current data
+        # 编译器会自动处理流水线：
+        # - 为初始阶段生成预取循环
+        # - 在主循环中，一边使用当前数据，一边预取未来数据
         cute.copy(atom, gmem[i], buffer[i % total_stages], ...)
-        use(buffer[i % total_stages])  # Uses data from previous iterations
+        use(buffer[i % total_stages])  # 使用的是前几次迭代预取的数据
 
     ...
 ```
 
-Compiler will automatically generate the prefetch loop with `prefetch_stages` iterations and a corresponding main loop.
+编译器会自动生成一个迭代次数为 `prefetch_stages` 的预取循环，以及与之对应的主循环。
 
-This feature is experimental and only supported on sm90 and above.
+该特性仍处于实验阶段，仅支持 sm90 及以上架构。
 
-## If-Else Statements
+## If-Else 语句
 
-Standard Python `if`/`elif`/`else` is supported.
+支持标准 Python 的 `if`/`elif`/`else`。
 
-- **Predicate without annotation** → lowered to intermediate representation (IR).
-- **Predicate annotated with `cutlass.const_expr`** → evaluated at compile time.
+- **未加注解的谓词（predicate）** → 会被 lower 为中间表示（IR）。
+- **用 `cutlass.const_expr` 注解的谓词** → 在编译期求值。
 
-Example:
+示例：
 
 ```python
 @cute.jit
 def main(const_var: cutlass.Constexpr, dynamic_var: cutlass.Int32):
-    # ✅ This branch is Python branch, evaluated at compile time.
+    # ✅ 这是 Python 分支，在编译期求值。
     if cutlass.const_expr(const_var):
         cute.printf("Const branch\n")
     else:
         cute.printf("Const else\n")
 
-    # ✅ This branch is dynamic branch, emitted IR branch.
+    # ✅ 这是动态分支，会生成 IR 分支。
     if dynamic_var == 10:
         cute.printf("Dynamic True\n")
     else:
         cute.printf("Dynamic False\n")
 
-    # ❌ Using a dynamic value with `cutlass.const_expr` is not allowed.
+    # ❌ 不允许把动态值用于 `cutlass.const_expr`。
     if cutlass.const_expr(dynamic_var == 10):
         cute.printf("Bound is 10\n")
 ```
 
-## While Loops
+## While 循环
 
-Standard Python `while` is supported.
+支持标准 Python 的 `while`。
 
-- **Condition without annotation** → lowered to intermediate representation (IR).
-- **Condition annotated with `cutlass.const_expr`** → evaluated at compile time.
+- **未加注解的条件（condition）** → 会被 lower 为中间表示（IR）。
+- **用 `cutlass.const_expr` 注解的条件** → 在编译期求值。
 
-Example:
+示例：
 
 ```python
 @cute.jit
 def main(dynamic_var: cutlass.Int32):
     n = 0
 
-    # ✅ This is Python while loop, evaluated at compile time.
+    # ✅ 这是 Python while 循环，在编译期求值。
     while cutlass.const_expr(n < 10):
         cute.printf("Const branch\n")
         n += 1
 
-    # ✅ This is dynamic while loop, emitted IR while loop.
+    # ✅ 这是动态 while 循环，会生成 IR while 循环。
     while dynamic_var == 10:
         cute.printf("Dynamic True\n")
         n += 1
 
-    # ❌ Using a dynamic value with `cutlass.const_expr` is not allowed.
+    # ❌ 不允许把动态值用于 `cutlass.const_expr`。
     while cutlass.const_expr(n < dynamic_var):
         n += 1
 ```
 
-## Compile-Time Metaprogramming
+## 编译期元编程（Compile-Time Metaprogramming）
 
-Mix compile-time constructs with normal CuTe DSL code to generate specialised kernels without runtime overhead. A compile-time flag can, for example, toggle an optional ReLU epilogue:
+将编译期构造与普通 CuTe DSL 代码混合使用，可以在不引入运行时开销的前提下生成特化（specialised）的 kernel。例如，可以通过编译期 flag 来启用/禁用可选的 ReLU epilogue：
 
 ```python
 @cute.kernel
 def gemm(..., do_relu: cutlass.Constexpr):
-    # main GEMM work
+    # GEMM 主体计算
     ...
 
-    if cutlass.const_expr(do_relu):  # compile-time guard
-        # ReLU code is emitted only when do_relu is True
+    if cutlass.const_expr(do_relu):  # 编译期 guard
+        # 只有当 do_relu 为 True 时才会生成 ReLU 代码
         ...
 ```
 
 ```python
-gemm(..., False)  # ReLU is omitted from the generated |IR|
-gemm(..., True)   # ReLU is included
+gemm(..., False)  # 生成的 |IR| 中会省略 ReLU
+gemm(..., True)   # 生成的 |IR| 中会包含 ReLU
 ```
 
-## Limitations of Dynamic Control Flow
+## 动态控制流的限制
 
-- Early-exit `break`, `continue`, `pass` or raising exception from control flow body are not yet supported.
-- Operations in the control flow body are traced only when tracing is active in that region.
-- Values originating in control flow body are not available outside the control flow.
-- Changing type of a variable in control flow body is not allowed.
+- 目前尚不支持在控制流体内提前退出：`break`、`continue`、`pass`，或从控制流体内抛出异常。
+- 控制流体内的操作只有在该区域启用 tracing 时才会被 trace。
+- 控制流体内产生的值不能在控制流之外使用。
+- 不允许在控制流体内改变变量类型。
 
-**Example**:
+**示例**：
 
 ```python
 @cute.jit
 def control_flow_negative_examples(predicate: cutlass.Boolean):
     n = 10
 
-    # ❌ This loop is dynamic, early-exit isn't allowed.
+    # ❌ 该循环是动态的，不允许提前退出。
     for i in range(n):
         if i == 5:
-            break  # Early-exit
+            break  # 提前退出
 
     if predicate:
         val = 10
 
-    # ❌ return from control flow body is not allowed.
+    # ❌ 不允许从控制流体内 return。
     return
 
-    # ❌ Raising exception from control flow body is not allowed.
+    # ❌ 不允许从控制流体内抛异常。
     raise ValueError("This is not allowed")
 
-    # ❌ Using pass in control flow body is not allowed.
+    # ❌ 不允许在控制流体内使用 pass。
     pass
 
-    # ❌ val is not available outside the dynamic if
+    # ❌ val 在动态 if 之外不可用
     cute.printf("%d\n", val)
 
     if predicate:
-        # ❌ Changing type of a variable in control flow body is not allowed.
+        # ❌ 不允许在控制流体内改变变量类型。
         n = 10.0
 ```
 
-# JIT Function Argument Generation
+# JIT 函数参数生成
 
-## In a nutshell
+## 概述
 
-When using the `@jit` or `@kernel` decorators to define a JIT-compiled function, the arguments to the function are traced to determine the JIT function’s signature. CuTe DSL provides a Pythonic way to write the arguments for JIT function as one normally would in Python, and the CuTe DSL will take care of the rest for you.
+当你使用 `@jit` 或 `@kernel` 装饰器来定义一个 JIT 编译函数时，函数的参数会被 trace，用来确定该 JIT 函数的签名（signature）。CuTe DSL 提供了一种更 Pythonic 的方式，让你像写普通 Python 一样书写 JIT 函数的参数声明，其余工作由 CuTe DSL 自动完成。
 
-Specifically, CuTe DSL honors the following when generating the JIT function’s arguments:
+具体而言，CuTe DSL 在生成 JIT 函数参数时遵循以下规则：
 
-- JIT function arguments are assumed to be **dynamic arguments** by default.
-- If an argument is explicitly type annotated with `cutlass.Constexpr`, it is treated as a **compile-time constant**.
-- If type annotation is provided, CuTe DSL validates the argument type at compile time for **type safety**.
-- CuTe DSL provides runtime checkable protocols (`JitArgument` and `DynamicExpression`) for generating JIT function arguments for customized types.
+- 默认情况下，JIT 函数参数会被认为是 **动态参数（dynamic arguments）**。
+- 如果某个参数显式用 `cutlass.Constexpr` 进行类型标注，则会被视为 **编译期常量（compile-time constant）**。
+- 如果提供了类型标注，CuTe DSL 会在编译期对参数类型进行校验，以保证 **类型安全（type safety）**。
+- CuTe DSL 提供了可在运行时检查的协议（`JitArgument` 与 `DynamicExpression`），用于为自定义类型生成 JIT 函数参数。
 
-More details below for each of the above.
+下文将分别对以上各点进行更详细的说明。
 
-## Static argument vs. Dynamic argument
+## 静态参数 vs. 动态参数
 
-CuTe DSL supports both static and dynamic arguments for JIT functions.
+CuTe DSL 支持 JIT 函数的静态参数与动态参数。
 
-1. **Static arguments** hold values that are known at compile time. It is not included in the generated JIT function signature.
-2. **Dynamic arguments** hold values that are only known at runtime.
+1. **静态参数** 保存编译期就已知的值。它不会被包含在生成的 JIT 函数签名中。
+2. **动态参数** 保存只在运行期才知道的值。
 
-By default, CuTe DSL assumes dynamic arguments and tries to infer the argument types from the call-site argument types. An explicit type annotation `cutlass.Constexpr` can be used to specify a static argument.
+默认情况下，CuTe DSL 会假设参数是动态参数，并尝试根据调用点（call-site）的实参类型推断形参类型。你也可以显式使用类型标注 `cutlass.Constexpr` 来指定某个参数为静态参数。
 
-Example:
+示例：
 
 ```python
 import cutlass
@@ -540,18 +539,18 @@ import cutlass.cute as cute
 
 @cute.jit
 def foo(x: cutlass.Int32, y: cutlass.Constexpr):
-    print("x = ", x)      # Prints x = ?
-    print("y = ", y)      # Prints y = 2
-    cute.printf("x: {}", x)  # Prints x: 2
-    cute.printf("y: {}", y)  # Prints y: 2
+    print("x = ", x)      # 输出 x = ?
+    print("y = ", y)      # 输出 y = 2
+    cute.printf("x: {}", x)  # 输出 x: 2
+    cute.printf("y: {}", y)  # 输出 y: 2
 
 
 foo(2, 2)
 ```
 
-In the example above, `x` is a dynamic argument with type `cutlass.Int32` and `y` is a static argument.
+在上面的示例中，`x` 是一个类型为 `cutlass.Int32` 的动态参数，而 `y` 是一个静态参数。
 
-With the `cutlass.Constexpr` annotation, a more sophisticated use case of static argument in the JIT kernels can be something like:
+借助 `cutlass.Constexpr` 标注，在 JIT kernel 中使用静态参数的一个更复杂的用法如下所示：
 
 ```python
 import cutlass
@@ -576,20 +575,20 @@ def kernel(
     epilogue_op: cutlass.Constexpr,
 ):
     ...
-    # Perform epilogue op on accumulator and convert to C type
+    # 对累加器执行 epilogue 操作，并转换为 C 的数据类型
     acc_vec = tTR_rAcc.load()
     acc_vec = epilogue_op(acc_vec.to(self.c_dtype))
     tTR_rC.store(acc_vec)
 ```
 
-In this example, `epilogue_op` is a static argument in the JIT kernel where the argument is used for the epilogue fusion. Upon calling the kernel, an elementwise lambda function can be passed in as the `epilogue_op` argument. For example, a ReLU can be applied for epilogue fusion by simply setting the `epilogue_op` to `lambda x: cute.where(x > 0, x, cute.full_like(x, 0))`
+在这个示例中，`epilogue_op` 是 JIT kernel 的一个静态参数，用于进行 epilogue 融合（fusion）。在调用 kernel 时，可以把一个逐元素（elementwise）的 lambda 函数作为 `epilogue_op` 传入。例如，如果你想在 epilogue 融合中应用 ReLU，只需要把 `epilogue_op` 设置为 `lambda x: cute.where(x > 0, x, cute.full_like(x, 0))`。
 
-Refer to the Blackwell dense GEMM example(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/blackwell/dense_gemm_persistent.py
-) for a complete example.
+完整示例可参考 Blackwell dense GEMM 示例(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/blackwell/dense_gemm_persistent.py
+)。
 
-## Type safety
+## 类型安全
 
-CuTe DSL makes good use of type annotation in JIT function signature and validates the JIT function argument types at compile time for **type safety**.
+CuTe DSL 利用 JIT 函数签名中的类型注解，在编译期对 JIT 函数参数类型进行校验，以保证 **类型安全（type safety）**。
 
 ```python
 import cutlass
@@ -606,45 +605,45 @@ a = np.random.randn(10, 10).astype(np.float16)
 b = 32
 
 foo(a, b)
-foo(b, a)  # This will fail at compile time due to type mismatch
+foo(b, a)  # 由于类型不匹配，这将在编译期失败
 ```
 
-The type safety check helps catch the type mismatch issue early at the compile time with clear error message to avoid tricky runtime errors which is usually more expensive to debug. In the example above, the second call to `foo` will fail at compile time due to the type mismatch with a clear error message:
+类型安全检查可以在编译期尽早捕获类型不匹配问题，并给出清晰的错误信息，从而避免更难排查、且通常调试成本更高的运行时错误。在上面的示例中，第二次调用 `foo` 会因为类型不匹配而在编译期失败，并给出清晰的错误信息：
 
 ```python
 cutlass.base_dsl.common.DSLRuntimeError: DSLRuntimeError: expects argument #1 (a) to be <class 'cutlass.cute.typing.Tensor'>, but got <class 'int'>
 ```
 
-## JIT function arguments with customized types
+## 支持自定义类型的 JIT 函数参数
 
-CuTe DSL supports customized types for JIT function arguments by providing two runtime checkable protocols:
+CuTe DSL 通过提供两个可在运行时检查的协议，来支持 JIT 函数参数使用自定义类型：
 
-- `JitArgument` which is used for host JIT functions to be called from Python.
-  - `__c_pointers__`: Generate a list of ctypes pointers for the current object.
-  - `__get_mlir_types__`: Generate a list of MLIR types for the current object.
-  - `__new_from_mlir_values__`: Create a new object from MLIR values.
-- `DynamicExpression` which is used for device JIT functions to be called from the host JIT functions.
-  - `__extract_mlir_values__`: Generate a dynamic expression for the current object.
-  - `__new_from_mlir_values__`: Create a new object from MLIR values.
+- `JitArgument`：用于从 Python 调用的 host 侧 JIT 函数。
+  - `__c_pointers__`：为当前对象生成 ctypes 指针列表。
+  - `__get_mlir_types__`：为当前对象生成 MLIR 类型列表。
+  - `__new_from_mlir_values__`：从 MLIR values 创建一个新对象。
+- `DynamicExpression`：用于在 host 侧 JIT 函数中调用的 device 侧 JIT 函数。
+  - `__extract_mlir_values__`：为当前对象生成一个 dynamic expression。
+  - `__new_from_mlir_values__`：从 MLIR values 创建一个新对象。
 
-Refer to `typing.py`(https://github.com/NVIDIA/cutlass/tree/main/python/CuTeDSL/base_dsl/typing.py) for more details on these protocol APIs.
+关于这些协议 API 的更多细节，请参考 `typing.py`(https://github.com/NVIDIA/cutlass/tree/main/python/CuTeDSL/base_dsl/typing.py)。
 
-Depending on different cases of the customized types, CuTe DSL provides easy ways to adopt customized types for JIT function arguments.
+针对不同类型的自定义类型场景，CuTe DSL 提供了更便捷的方式来接入自定义类型作为 JIT 函数参数。
 
-### 1. Direct protocol implementation in customized types
+### 1. 在自定义类型中直接实现协议
 
-One way is to implement the protocol methods directly in the customized types to enable the protocol based JIT function argument generation.
+一种方式是在自定义类型中直接实现协议方法，以启用基于协议的 JIT 函数参数生成。
 
 ```python
 import cutlass
 import cutlass.cute as cute
 
 
-# Customized type that implements the DynamicExpression protocol
+# 实现 DynamicExpression 协议的自定义类型
 class MyDynamicExpression:
     def __init__(self, tensor, offset):
-        self._tensor = tensor  # Dynamic argument
-        self._offset = offset  # Dynamic argument
+        self._tensor = tensor  # 动态参数
+        self._offset = offset  # 动态参数
 
     def __extract_mlir_values__(self):
         return (
@@ -661,45 +660,44 @@ def my_kernel(x: MyDynamicExpression):
     ...
 ```
 
-In the example above, `MyDynamicExpression` implements the `DynamicExpression` protocol and CuTe DSL will generate the JIT function arguments for the JIT kernel `my_kernel` based on the protocol methods.
+在上面的示例中，`MyDynamicExpression` 实现了 `DynamicExpression` 协议，因此 CuTe DSL 会基于这些协议方法为 JIT kernel `my_kernel` 生成对应的 JIT 函数参数。
 
-### 2. Adaptor based protocol implementation for customized types
+### 2. 基于适配器（Adaptor）的协议实现（用于自定义类型）
 
-For the case where directly changing the customized types to implement the protocol is not feasible, CuTe DSL provides adaptor based approach to adapt the customized types for JIT function argument generation.
+当你无法直接修改自定义类型来实现协议时，CuTe DSL 提供了基于适配器（adaptor）的方式，将自定义类型适配为可用于 JIT 函数参数生成的形式。
 
-The JIT function argument adaptor is a callable object that implements the desired protocol methods for the registered customized types. This way, CuTe DSL automatically queries the JIT argument adaptor registry to generate the JIT function arguments for the given customized types.
+JIT 函数参数适配器是一个可调用对象，它为注册的自定义类型实现所需的协议方法。这样一来，CuTe DSL 会自动查询 JIT 参数适配器注册表，为指定的自定义类型生成 JIT 函数参数。
 
 ```python
 @cutlass.register_jit_arg_adapter(MyFrameworkObject)
 class MyFrameworkObjectAdapter:
     """
-    Convert a 3rd party framework object to a JIT function argument with JitArgument protocol
+    将第三方框架对象转换为遵循 JitArgument 协议的 JIT 函数参数
     """
 
     def __init__(self, arg):
         self._arg = arg
 
     def __c_pointers__(self):
-        # Convert the framework object to a C-ABI compatible object
-        # thru its C-ABI interface
+        # 通过其 C-ABI 接口，将框架对象转换为与 C-ABI 兼容的对象
         return [self._arg.get_cabi_pointer()]
 
     def __get_mlir_types__(self):
-        # Return the list of MLIR types the framework object represents
+        # 返回该框架对象所表示的 MLIR 类型列表
         return [self._arg.get_data().mlir_type]
 
     def __new_from_mlir_values__(self, values):
-        # Convert the MLIR values back to the framework object
+        # 将 MLIR values 转换回框架对象
         return MyFrameworkObject(values[0])
 ```
 
-In this example, the `MyFrameworkObjectAdapter` implements an adaptor class which bridges the CuTe DSL and the 3rd party framework type `MyFrameworkObject`. The registration is done by just decorating the adaptor with `cutlass.register_jit_arg_adapter` for the customized type. With the registered adaptor, CuTe DSL will automatically use the adaptor to generate the JIT function arguments for `MyFrameworkObject` typed arguments.
+在这个示例中，`MyFrameworkObjectAdapter` 实现了一个适配器类，用于桥接 CuTe DSL 与第三方框架类型 `MyFrameworkObject`。注册方式也很简单：只需要用 `cutlass.register_jit_arg_adapter` 装饰该适配器，并指定要适配的自定义类型。完成注册后，CuTe DSL 会自动使用该适配器，为 `MyFrameworkObject` 类型的参数生成对应的 JIT 函数参数。
 
-# Static vs Dynamic layouts
+# 静态布局 vs. 动态布局
 
-## Static Layout
+## 静态布局
 
-When integrating with popular deep learning frameworks, one question is how to deal with the layout of the converted `cute.Tensor`. For example, when converting a `torch.Tensor` to a `cute.Tensor`, the shape of the `torch.Tensor` is honored for the layout of `cute.Tensor`.
+在与主流深度学习框架集成时，一个常见问题是：如何处理转换得到的 `cute.Tensor` 的 layout。例如，当把 `torch.Tensor` 转换为 `cute.Tensor` 时，会把 `torch.Tensor` 的 shape 体现在 `cute.Tensor` 的 layout 中。
 
 ```python
 import torch
@@ -708,13 +706,13 @@ from cutlass.cute.runtime import from_dlpack
 
 @cute.jit
 def foo(tensor):
-    print(f"tensor.layout: {tensor.layout}")  # Prints tensor layout at compile time
-    cute.printf("tensor: {}", tensor)         # Prints tensor values at runtime
+    print(f"tensor.layout: {tensor.layout}")  # 在编译期打印 tensor 的 layout
+    cute.printf("tensor: {}", tensor)         # 在运行期打印 tensor 的值
 ```
 
-In this example, we define a JIT function `foo` that takes a `cute.Tensor` as input and prints its layout. Note that Python print is used to print the layout at compile time. This works fine for static layout whose value is known at compile time.
+在这个示例中，我们定义了一个 JIT 函数 `foo`，它以 `cute.Tensor` 作为输入，并打印其 layout。注意，这里使用 Python 的 `print` 在编译期打印 layout。对于编译期已知值的静态布局，这样做是可行的。
 
-Now let’s try to run the JIT function `foo` with different shapes of the input `torch.Tensor`.
+现在我们尝试用不同 shape 的输入 `torch.Tensor` 来运行该 JIT 函数 `foo`。
 
 ```python
 a = torch.tensor([1, 2, 3], dtype=torch.uint16)
@@ -723,38 +721,38 @@ compiled_func = cute.compile(foo, a_pack)
 compiled_func(a_pack)
 ```
 
-Here we first convert a 1D `torch.Tensor` with 3 elements to a `cute.Tensor` using `from_dlpack`. Then we compile the JIT function `foo` with the converted `cute.Tensor` and call the compiled function.
+这里我们先用 `from_dlpack` 把一个包含 3 个元素的一维 `torch.Tensor` 转换为 `cute.Tensor`。然后用转换后的 `cute.Tensor` 编译 JIT 函数 `foo`，并调用编译后的函数。
 
 ```python
 tensor.layout: (3):(1)
 tensor: raw_ptr(0x00000000079e5100: i16, generic, align<2>) o (3):(1) = (1, 2, 3)
 ```
 
-It prints `(3):(1)` for the layout because the converted `cute.Tensor` has a static layout with shape `(3)` which is the shape of the `a`.
+你会看到 layout 打印为 `(3):(1)`，因为转换得到的 `cute.Tensor` 的静态 layout shape 为 `(3)`，与 `a` 的 shape 一致。
 
-Now if we call the compiled function with a different shape of the input `torch.Tensor`, it would result in an unexpected result at runtime due to the mismatch of the type since `compiled_func` expects a `cute.Tensor` with layout `(3):(1)` while `b` has shape `(5)`.
+如果我们用不同 shape 的输入 `torch.Tensor` 来调用这个已编译的函数，由于类型（更准确地说是 layout）不匹配，会在运行时得到非预期结果：`compiled_func` 期望接收 layout 为 `(3):(1)` 的 `cute.Tensor`，但 `b` 的 shape 是 `(5)`。
 
 ```python
 b = torch.tensor([11, 12, 13, 14, 15], dtype=torch.uint16)
 b_pack = from_dlpack(b)
-compiled_func(b_pack)  # ❌ This results in an unexpected result at runtime due to type mismatch
+compiled_func(b_pack)  # ❌ 类型不匹配会导致运行时非预期结果
 ```
 
-Following is the output which is unexpected due to the type mismatch.
+由于类型不匹配，输出会出现非预期结果，如下所示：
 
 ```python
 tensor: raw_ptr(0x00000000344804c0: i16, generic, align<2>) o (3):(1) =
 (11, 12, 13)
 ```
 
-To fix that, we would have to trigger another code generation and compilation for the new shape for `b`.
+要解决这个问题，我们需要针对 `b` 的新 shape 触发一次新的代码生成与编译。
 
 ```python
-compiled_func_2 = cute.compile(foo, b_pack)  # This would trigger another compilation
-compiled_func_2(b_pack)                      # ✅ Now this works fine
+compiled_func_2 = cute.compile(foo, b_pack)  # 会触发一次新的编译
+compiled_func_2(b_pack)                      # ✅ 现在可以正常工作
 ```
 
-As shown in the example above, with the newly compiled `compiled_func_2`, we can pass in b_pack to the compiled JIT function `compiled_func_2`.
+如上所示，使用新编译得到的 `compiled_func_2`，我们就可以把 `b_pack` 传入编译后的 JIT 函数 `compiled_func_2`。
 
 ```python
 tensor.layout: (5):(1)
@@ -762,15 +760,15 @@ tensor: raw_ptr(0x0000000034bb2840:: i16, generic, align<2>) o (5):(1) =
 (11, 12, 13, 14, 15)
 ```
 
-Now it recompiles and prints the values of `b` correctly.
+现在它会重新编译并正确打印 `b` 的值。
 
-It’s obvoius that we need distinct codes generated and compiled for different static layout. In this case, one for layout `(3):(1)` and the other for layout `(5):(1)`.
+很明显，对于不同的静态 layout，我们需要生成并编译不同版本的代码：在这个例子中，一个对应 layout `(3):(1)`，另一个对应 layout `(5):(1)`。
 
-## Dynamic Layout
+## 动态布局
 
-In order to avoid generating and compiling multiple times for different shapes of the input `torch.Tensor`, CuTe DSL provides a way to generate and compile JIT function with dynamic layout.
+为了避免针对不同 shape 的输入 `torch.Tensor` 重复生成与编译多次，CuTe DSL 提供了使用动态布局（dynamic layout）来生成和编译 JIT 函数的方法。
 
-To get dynamic layout of the `cute.Tensor`, a `torch.Tensor` object can be passed into the JIT function directly which instructs CuTe DSL to call `cute.mark_layout_dynamic` automatically on the converted `cute.Tensor` per the leading dimension of the layout.
+要获得 `cute.Tensor` 的动态布局，可以直接将 `torch.Tensor` 对象传入 JIT 函数。这会指示 CuTe DSL 在转换后的 `cute.Tensor` 上，按 layout 的主维度（leading dimension）自动调用 `cute.mark_layout_dynamic`。
 
 ```python
 import torch
@@ -779,34 +777,34 @@ from cutlass.cute.runtime import from_dlpack
 
 @cute.jit
 def foo(tensor):
-    print(tensor.layout)  # Prints (?,?):(?,1) for dynamic layout
+    print(tensor.layout)  # 对动态布局会打印 (?,?):(?,1)
 
 a = torch.tensor([[1, 2], [3, 4]], dtype=torch.uint16)
 compiled_func = cute.compile(foo, a)
 compiled_func(a)
 
-b = torch.tensor([[11, 12], [13, 14], [15, 16]], dtype=torch.uint16)
-compiled_func(b)  # Reuse the same compiled function for different shape
-```
-
-In the example above, a single compilation of the JIT function `foo` is reused for different shapes of the input `torch.Tensor`. This is possible because the converted `cute.Tensor` has a dynamic layout `(?,?):(?,1)` which is compatible with the shape of the input `torch.Tensor` of both calls.
-
-Alternatively, for compact layout, `cute.mark_compact_shape_dynamic` can be called for a finer-grained control to specify the mode of the layout for dynamic and the divisibility constraint for the dynamic dimension.
-
-Refer to Integration with Frameworks(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/framework_integration.html) for more details on `from_dlpack`, `mark_layout_dynamic`, and `mark_compact_shape_dynamic`.
-
-## Static Layout vs. Dynamic Layout
-
-Per the previous sections, we have seen that static layout leads to distinct JIT code generations while dynamic layout leads to a single compilation for different shapes.
-
-That said, creating JIT function with static layout is useful when the use cases target input data with fixed shapes. Since more information is available at compile time, the compiler can kick in optimizations that otherwise would not be possible for code generated for dynamic layout.
-
-On the other hand, dynamic layout is more flexible for cases where input data has varying shapes. This provides more scalability for the generated code to deal with varying input data of different shapes.
-
-## Programming with Static and Dynamic Layout
-
-CuTe DSL provides intuitive way to program with static and dynamic layout in the code.
-
+ b = torch.tensor([[11, 12], [13, 14], [15, 16]], dtype=torch.uint16)
+ compiled_func(b)  # 对不同 shape 复用同一个已编译函数
+ ```
+ 
+ 在上面的示例中，JIT 函数 `foo` 只编译一次，就可以对不同 shape 的输入 `torch.Tensor` 复用。这是因为转换得到的 `cute.Tensor` 采用了动态布局 `(?,?):(?,1)`，它与两次调用的输入 `torch.Tensor` 的 shape 都兼容。
+ 
+ 另外，对于紧凑布局（compact layout），可以调用 `cute.mark_compact_shape_dynamic` 做更细粒度的控制：用于指定动态布局的 mode，以及动态维度的可整除性约束。
+ 
+ 关于 `from_dlpack`、`mark_layout_dynamic` 与 `mark_compact_shape_dynamic` 的更多细节，请参考 Integration with Frameworks(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/framework_integration.html)。
+ 
+ ## 静态布局 vs. 动态布局
+ 
+ 根据前面的内容可知：静态布局会导致为不同 shape 生成不同的 JIT 代码；而动态布局则可以通过一次编译覆盖多种 shape。
+ 
+ 但需要说明的是：当你的使用场景针对固定 shape 的输入数据时，使用静态布局来创建 JIT 函数仍然很有价值。因为编译期可获得更多信息，编译器就能启用一些对动态布局代码不一定可用的优化。
+ 
+ 另一方面，当输入数据的 shape 经常变化时，动态布局更灵活。它能让生成的代码更具可扩展性，以适配不同 shape 的输入数据。
+ 
+ ## 编程时使用静态布局和动态布局
+ 
+ CuTe DSL 提供了直观的方式来编程时使用静态布局和动态布局。
+ 
 ```python
 import torch
 import cutlass
@@ -814,25 +812,25 @@ from cutlass.cute.runtime import from_dlpack
 
 @cute.jit
 def foo(tensor, x: cutlass.Constexpr[int]):
-    print(cute.size(tensor))  # Prints 3 for the 1st call
-                              # Prints ? for the 2nd call
+    print(cute.size(tensor))  # 第一次调用会打印 3
+                              # 第二次调用会打印 ?
     if cute.size(tensor) > x:
         cute.printf("tensor[2]: {}", tensor[2])
     else:
         cute.printf("tensor size <= {}", x)
 
 a = torch.tensor([1, 2, 3], dtype=torch.uint16)
-foo(from_dlpack(a), 3)   # First call with static layout
+foo(from_dlpack(a), 3)   # 第一次调用：静态布局
 
 b = torch.tensor([1, 2, 3, 4, 5], dtype=torch.uint16)
-foo(b, 3)                # Second call with dynamic layout
+foo(b, 3)                # 第二次调用：动态布局
 ```
 
-In this example, the JIT function `foo` is compiled with a static layout `(3):(1)` for the first call, which means the size of the tensor is known at compile time. CuTe DSL makes good use of this and automatically handles the if condition at the compile time. Hence the generated codes are efficient without the if condition at all.
+在这个示例中，JIT 函数 `foo` 在第一次调用时会使用静态布局 `(3):(1)` 进行编译，这意味着张量的 size 在编译期已知。CuTe DSL 会充分利用这一点，并在编译期自动处理 if 条件，因此生成的代码会更高效，甚至不会包含 if 条件。
 
-For the second call, the JIT function `foo` is compiled with a dynamic layout `(?):(1)` hence the tensor size is only evaluated at runtime. CuTe DSL automatically generates the code to handle the dynamic layout and the if condition at runtime.
+在第二次调用时，JIT 函数 `foo` 会使用动态布局 `(?):(1)` 进行编译，因此张量的 size 只能在运行期求值。CuTe DSL 会自动生成代码，以在运行期处理动态布局与 if 条件。
 
-The same applies to loop as well:
+同样的逻辑也适用于循环：
 
 ```python
 @cute.jit
@@ -841,33 +839,33 @@ def foo(tensor, x: cutlass.Constexpr[int]):
         cute.printf("tensor[{}]: {}", i, tensor[i])
 
 a = torch.tensor([1, 2, 3], dtype=torch.uint16)
-foo(from_dlpack(a), 3)   # First call with static layout
+foo(from_dlpack(a), 3)   # 第一次调用：静态布局
 
 b = torch.tensor([1, 2, 3, 4, 5], dtype=torch.uint16)
-foo(b, 3)                # Second call with dynamic layout
+foo(b, 3)                # 第二次调用：动态布局
 ```
 
-With the static layout in the first call, CuTe DSL is able to fully unroll the loop at compile time. While in the second call, the generated codes will have the loop executed at runtime based on the dynamic layout.
+在第一次调用的静态布局下，CuTe DSL 能在编译期把循环完全展开。而在第二次调用中，生成的代码会基于动态布局在运行期执行循环。
 
-With the single JIT function implementation, CuTe DSL is able to handle control-flow constructs and automatically generate the optimized codes for different cases. This is all possible because CuTe DSL is able to walk the Python AST and convert each control-flow construct it finds accordingly.
+通过同一个 JIT 函数实现，CuTe DSL 能够处理控制流结构，并针对不同场景自动生成优化后的代码。这一切之所以可行，是因为 CuTe DSL 能遍历 Python AST，并将其中的每一种控制流结构按需转换。
 
-Please refer to Control Flow(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/dsl_control_flow.html) for more details.
+更多细节请参考 Control Flow(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/dsl_control_flow.html)。
 
-# JIT Caching
+# JIT 缓存
 
-## Zero Compile and JIT Executor
+## 零编译（Zero Compile）与 JIT Executor
 
-Zero Compile is a feature that enables explicit kernel compilation on demand through `cute.compile`. When cute.compile is called, it compiles the kernel and returns a JIT Executor instance. This JIT Executor instance can be cached and reused directly for subsequent executions without compiling the kernel again.
+零编译（Zero Compile）是一项特性，它允许通过 `cute.compile` 按需显式编译 kernel。当调用 `cute.compile` 时，它会编译 kernel 并返回一个 JIT Executor 实例。这个 JIT Executor 实例可以被缓存，并在后续执行中直接复用，而无需再次编译 kernel。
 
-The JIT Executor is a component that independently executes compiled code. It can be created either through cute.compile or implicit compilation. The JIT Executor instance behaves like a callable object to execute the compiled code. Each JIT Executor instance maintains a single compiled host function.
+JIT Executor 是一个用于独立执行已编译代码的组件。它既可以通过 `cute.compile` 创建，也可以通过隐式编译创建。JIT Executor 实例的行为类似一个可调用对象，用于执行已编译代码。每个 JIT Executor 实例维护一个已编译的 host 函数。
 
-It encompasses all necessary execution components:
+它包含执行所需的全部组件：
 
-- Host function pointer and its MLIR execution engine
-- CUDA modules (optional)
-- Argument specifications defining how Python arguments are converted to C ABI-compatible types. Note that arguments with the `cutlass.Constexpr` hint are excluded from argument specifications since they are evaluated at compile time rather than runtime.
+- Host 函数指针以及其 MLIR 执行引擎
+- CUDA modules（可选）
+- 参数规格（argument specifications），用于定义如何将 Python 参数转换为 C ABI 兼容类型。注意：带有 `cutlass.Constexpr` 提示的参数会被排除在参数规格之外，因为它们在编译期求值，而不是运行期。
 
-For example, in the following code, `print_result` is a `cutlass.Constexpr` value that is **NOT** evaluated at runtime:
+例如，在下面的代码中，`print_result` 是一个 `cutlass.Constexpr` 值，它**不会**在运行期求值：
 
 ```python
 import cutlass.cute as cute
@@ -880,142 +878,142 @@ def add(a, b, print_result: cutlass.Constexpr):
 
 jit_executor = cute.compile(add, 1, 2, True)
 
-jit_executor(1, 2) # output: ``Result: 3``
+jit_executor(1, 2) # 输出：``Result: 3``
 ```
 
-The JIT Executor ensures all components are properly initialized and loaded after compilation. For example, all CUDA modules are loaded (via `cuModuleLoad`) and kernel function pointers are extracted (via `cuModuleGetFunction`).
+JIT Executor 会确保在编译完成后，所有组件都被正确初始化与加载。例如，会加载所有 CUDA modules（通过 `cuModuleLoad`），并提取 kernel 的函数指针（通过 `cuModuleGetFunction`）。
 
-When calling a JIT Executor instance, it:
+调用一个 JIT Executor 实例时，它会：
 
-- Parses Python runtime arguments and converts them to C ABI-compatible types according to argument specifications
-- Invokes the host function with the converted arguments
+- 解析 Python 运行期参数，并根据参数规格把它们转换为 C ABI 兼容类型
+- 使用转换后的参数调用 host 函数
 
-## Custom Caching with `cute.compile`
+## 使用 `cute.compile` 的自定义缓存
 
-`cute.compile` bypasses caching in CuTe DSL and always performs compilation, returning a fixed JIT Executor instance. This allows implementing custom caching strategies.
+`cute.compile` 会绕过 CuTe DSL 内置的缓存机制，并且总是执行编译，返回一个固定的 JIT Executor 实例。这使得你可以实现自定义的缓存策略。
 
-Example:
+示例：
 
 ```python
 @cute.jit
 def add(b):
    return a + b
 
-# Define a custom cache
+# 定义一个自定义缓存
 custom_cache = {}
 
 a = 1
 compiled_add_1 = cute.compile(add, 2)
 custom_cache[1] = compiled_add_1
-compiled_add_1(2) # result = 3
+compiled_add_1(2) # 结果 = 3
 
 a = 2
 compiled_add_2 = cute.compile(add, 2)
 custom_cache[2] = compiled_add_2
-compiled_add_2(2) # result = 4
+compiled_add_2(2) # 结果 = 4
 
-# Use the custom cache
-custom_cache[1](2) # result = 3
-custom_cache[2](2) # result = 4
+# 使用自定义缓存
+custom_cache[1](2) # 结果 = 3
+custom_cache[2](2) # 结果 = 4
 ```
 
-## Cache in CuTe DSL
-
-By default, cache in CuTe DSL is implicitly enabled to avoid recompilation when kernels are called repeatedly without changes.
-
-The cache is implemented as a map storing compiled JIT Executor instances within CuTe DSL.
-
-The cache key combines hashes of:
-
-- MLIR bytecode of the MLIR program generated by CuTe DSL
-- All CuTe DSL Python source files
-- All CuTe DSL shared libraries
-- All CuTe DSL environment variables
-
-The cache value is a compiled JIT Executor instance.
-
-On a cache hit, compilation is skipped and the cached JIT Executor instance is reused.
-
-On a cache miss, the kernel is compiled and the new JIT Executor instance is stored in the cache.
-
-Here is an example demonstrating automatic caching of the `add` kernel:
+## CuTe DSL 中的缓存
+ 
+ 默认情况下，CuTe DSL 会隐式启用缓存，以避免在 kernel 在未发生变化的情况下被反复调用时触发重复编译。
+ 
+ 该缓存实现为一个 map，用于在 CuTe DSL 内部存储已编译的 JIT Executor 实例。
+ 
+ 缓存的 key 由以下内容的哈希共同组成：
+ 
+ - CuTe DSL 生成的 MLIR 程序对应的 MLIR bytecode
+ - 所有 CuTe DSL Python 源文件
+ - 所有 CuTe DSL 共享库
+ - 所有 CuTe DSL 环境变量
+ 
+ 缓存的 value 是一个已编译的 JIT Executor 实例。
+ 
+ 命中缓存（cache hit）时，会跳过编译，并复用缓存中的 JIT Executor 实例。
+ 
+ 未命中缓存（cache miss）时，会编译 kernel，并将新的 JIT Executor 实例存入缓存。
+ 
+ 下面是一个示例，用于演示 `add` kernel 的自动缓存：
 
 ```python
-# Global variable
+# 全局变量
 a = 1
 
 @cute.jit
 def add(b):
    return a + b
 
-# Cache is empty at beginning
+# 缓存起初为空
 
-# First call: cache miss triggers compilation
-result = add(2) # result = 3
-# Cache now has one instance
+# 第一次调用：未命中缓存触发编译
+result = add(2) # 结果 = 3
+# 缓存现在包含一个实例
 
-# Second call: cache hit reuses cached JIT Executor
-result = add(2) # result = 3
+# 第二次调用：命中缓存，复用缓存的 JIT Executor
+result = add(2) # 结果 = 3
 
 a = 2
-# Third call: cache miss due to changed IR code triggers recompilation
-result = add(2) # result = 4
-# Cache now has two instances
+# 第三次调用：由于 IR 代码发生变化而未命中缓存，触发重新编译
+result = add(2) # 结果 = 4
+# 缓存现在包含两个实例
 ```
 
-The cache can be serialized to files for subsequent runs. After serialization, compiled MLIR bytecode is stored in file. The cache directory is `/tmp/{current_user}/cutlass_python_cache`. During compilation, the cache loads the corresponding kernel from file (if it exists) into memory as needed, and after compilation, it saves any newly compiled executables back to file.
+缓存可以被序列化到文件中，以便后续运行复用。序列化之后，已编译的 MLIR bytecode 会被存储到文件里。缓存目录为 `/tmp/{current_user}/cutlass_python_cache`。在编译期间，缓存会按需将对应的 kernel 从文件加载到内存（如果文件存在）；编译结束后，也会把新编译出的可执行文件保存回文件。
 
-Note that for efficiency, the default cache directory is located in a temporary folder. However, this location is not persistent, it may be cleared by the system (for example, during a reboot or disk space cleanup). If you wish to preserve the cache across sessions, set the `CUTE_DSL_CACHE_DIR` environment variable to point to a persistent directory.
+注意：出于效率考虑，默认缓存目录位于临时文件夹中。但这个位置并不持久，可能会被系统清理（例如重启或磁盘空间清理时）。如果你希望跨会话保留缓存，请设置 `CUTE_DSL_CACHE_DIR` 环境变量，使其指向一个持久化目录。
 
-The following environment variables control file caching:
+以下环境变量用于控制文件缓存：
 
 ```shell
-# Disable file caching while keeping in-memory cache available, defaults to False.
+# 禁用文件缓存，同时保留内存缓存可用；默认值为 False。
 export CUTE_DSL_DISABLE_FILE_CACHING=True
 
-# Cache directory, defaults to /tmp/{current_user}/cutlass_python_cache.
+# 缓存目录；默认值为 /tmp/{current_user}/cutlass_python_cache。
 export CUTE_DSL_CACHE_DIR=/home/user/local_cutlass_python_cache/dense_gemm_cache/
 ```
 
-## Limitations
+## 限制
+ 
+ 缓存的目的，是为了降低每次执行前的 host 侧 launch 开销。正如上面的示例所示，由于全局变量等动态因素的影响，很难保持原始 Python 代码与 MLIR 程序之间的一致性。因此，必须（**MUST**）始终生成 MLIR 程序，以验证 kernel 内容与之前构建的内容一致。
+ 
+ 为了获得最佳的 host launch 延迟，我们建议使用上面基于 `cute.compile` 的自定义缓存方法。
+ 
+ # JIT 编译选项
 
-The intention of caching is to reduce the host launch overhead before each execution. As above example shows, the consistency between the original Python code and the MLIR program is hard to maintain because of the impact of dynamic factors such as global variables. Therefore, the MLIR program **MUST** always be generated to verify that the kernel content matches what was previously built.
+## JIT 编译选项概览
 
-For optimal host launch latency, we recommend using above custom caching method with `cute.compile`.
+当使用 CuTe DSL 编译 JIT 函数时，你可能希望控制编译过程的各个方面，例如优化等级或调试开关。CuTe DSL 在调用 `cute.compile` 时提供了灵活的接口来指定这些编译选项。
 
-# JIT Compilation Options
+编译选项允许你自定义 JIT 编译函数的构建与执行方式。这在以下场景中很有用：
 
-## JIT Compilation Options Overview
+- 启用或禁用特定的编译器优化
+- 生成用于排查问题的调试信息
 
-When compiling a JIT function using CuTe DSL, you may want to control various aspects of the compilation process, such as optimization level, or debugging flags. CuTe DSL provides a flexible interface for specifying these compilation options when invoking `cute.compile`.
+这些选项可以作为关键字参数传给 `cute.compile`，也可以全局设置以作用于所有 JIT 编译。可用选项及其效果会在接下来的小节中介绍，并配有使用示例帮助你快速上手。
 
-Compilation options allow you to customize how your JIT-compiled functions are built and executed. This can be useful for:
+CuTe DSL 提供了多种方式来指定编译选项：既可以通过给 `cute.compile` 传入额外参数来指定，也可以采用更 Pythonic 的方式——为 `cute.compile` 使用独立的 Python 类型来表达这些选项。
 
-- Enabling or disabling specific compiler optimizations
-- Generating debug information for troubleshooting
+## `cute.compile` 的字符串形式编译选项
+ 
+ 你可以在调用 `cute.compile` 时，以字符串形式提供额外的编译选项。CuTe DSL 使用 `argparse` 来解析这些选项；如果指定了任何无效选项，则会抛出错误。
+ 
+ ### 选项
+ 
+ | 选项 | 描述 | 默认值 | 类型 |
+ | --- | --- | --- | --- |
+ | `opt-level` | 编译的优化等级。等级越高，启用的优化越多。有效取值范围为 `[0, 3]`。 | `3`（最高优化等级） | `int` |
+ | `enable-assertions` | 启用 host 与 device 代码断言。 | `False` | `bool` |
+ | `keep-cubin` | 保留生成的 CUBIN 文件。 | `False` | `bool` |
+ | `keep-ptx` | 保留生成的 PTX 文件。 | `False` | `bool` |
+ | `ptxas-options` | 传递给 PTX Compiler 库的选项。 | `""` | `str` |
+ | `generate-line-info` | 生成用于调试的行号信息。 | `False` | `bool` |
+ | `gpu-arch` | 要编译到的 GPU 架构。 | `""` | `str` |
+ | `enable-tvm-ffi` | 启用 Apache TVM FFI。 | `False` | `bool` |
 
-These options can be passed as keyword arguments to `cute.compile` or set globally for all JIT compilations. The available options and their effects are described in the following sections, along with usage examples to help you get started.
-
-The CuTe DSL provides multiple ways to specify compilation options - either by specifying additional arguments to `cute.compile` or by using a more Pythonic approach with separate Python types for `cute.compile`.
-
-## `cute.compile` Compilation Options as strings
-
-You can provide additional compilation options as a string when calling `cute.compile`. The CuTe DSL uses `argparse` to parse these options and will raise an error if any invalid options are specified.
-
-### Options
-
-| Option | Description | Default | Type |
-| --- | --- | --- | --- |
-| `opt-level` | Optimization level of compilation. The higher the level, the more optimizations are applied. The valid value range is `[0, 3]`. | `3` (highest level of optimization) | `int` |
-| `enable-assertions` | Enable host and device code assertions. | `False` | `bool` |
-| `keep-cubin` | Keep the generated CUBIN file. | `False` | `bool` |
-| `keep-ptx` | Keep the generated PTX file. | `False` | `bool` |
-| `ptxas-options` | The options to pass to the PTX Compiler library. | `""` | `str` |
-| `generate-line-info` | Generate line information for debugging. | `False` | `bool` |
-| `gpu-arch` | The GPU architecture to compile for. | `""` | `str` |
-| `enable-tvm-ffi` | Enable Apache TVM FFI. | `False` | `bool` |
-
-You can use the following code to specify compilation options:
+你可以使用下面的代码来指定编译选项：
 
 ```python
 jit_executor_with_opt_level_2 = cute.compile(add, 1, 2, options="--opt-level 2")
@@ -1026,9 +1024,9 @@ jit_executor_with_keep_ptx = cute.compile(add, 1, 2, options="--keep-ptx")
 jit_executor_with_ptxas_options = cute.compile(add, 1, 2, options="--ptxas-options '--opt-level=2'")
 ```
 
-## `cute.compile` Compilation Options as separate Python types
-
-Alternatively, you can also use a more Pythonic way to specify compilation options with separate Python types. Compilation options can be programmatically composed using tuple and passed to `cute.compile` separately.
+## `cute.compile` 使用独立 Python 类型表示编译选项
+ 
+ 另外，你也可以用一种更 Pythonic 的方式：使用独立的 Python 类型来指定编译选项。编译选项可以通过 tuple 以编程方式组合，并单独传递给 `cute.compile`。
 
 ```python
 from cutlass.cute import OptLevel, EnableAssertions, GenerateLineInfo, KeepCUBIN, KeepPTX
@@ -1038,7 +1036,7 @@ compiled_kernel_1 = cute.compile[my_debugging_options](my_kernel_1, ...)
 compiled_kernel_2 = cute.compile[my_debugging_options](my_kernel_2, ...)
 ```
 
-This approach causes invalid options to raise errors immediately, making it much easier to detect typos when specifying multiple options. Notebly, boolean options are automatically converted to `True` instances of the option type for convenience.
+ 这种方式会让无效选项立刻报错，因此当你同时指定多个选项时，更容易发现拼写错误。需要注意的是（Notebly），为了使用方便，布尔选项会被自动转换为该选项类型的 `True` 实例。
 
 ```python
 jit_executor_with_opt_level_2 = cute.compile[OptLevel(2)](add, 1, 2)
@@ -1049,23 +1047,22 @@ jit_executor_with_keep_ptx = cute.compile[KeepPTX](add, 1, 2)
 jit_executor_with_ptxas_options = cute.compile[PtxasOptions("--opt-level=2")](add, 1, 2)
 ```
 
- # Integration with Frameworks
+# 与框架集成
  
-In order to facilitate the integration of CUTLASS Python with popular frameworks, we leverage the DLPack protocol(https://github.com/dmlc/dlpack) and transform tensors originating from these frameworks to CuTe tensors. The present page documents the conventions, the API available to the user, and provide example code snippets for common usage patterns. We also provide a section on how to bypass the DLPack protocol and directly call the JIT function.
+为了方便将 CUTLASS Python 与常见框架集成，我们利用 DLPack 协议(https://github.com/dmlc/dlpack)，并将这些框架产生的张量转换为 CuTe 张量。本页面记录了相关约定、用户可用的 API，并提供了常见用法的示例代码片段。我们还提供了一个小节，介绍如何绕过 DLPack 协议并直接调用 JIT 函数。
 
-## Implicit Conversion
-
-Tensors originating from frameworks supporting the DLPack protocol can be directly provided to a JIT function as a regular parameter. CuTe DSL’s runtime implicitly converts the original tensor to a CuTe tensor with a fully dynamic layout except for the stride element corresponding to the leading dimension. The example below demonstrates this use case.
+## 隐式转换
+ 
+来自支持 DLPack 协议的框架的张量，可以作为普通参数直接传给 JIT 函数。CuTe DSL 的运行时会隐式地把原始张量转换为 CuTe 张量，其布局除与 leading dimension 对应的 stride 元素外，其余部分都是完全动态的。下面的示例演示了这一用法。
 
 ```python
 import torch
 import cutlass.cute as cute
 
-
 @cute.jit
 def foo(src):
     """
-    The following lines print
+    下面几行会打印
 
     ptr<f32, generic> o (?,?,?):(?,?,1)
     <class 'cutlass.cute.core._Tensor'>
@@ -1078,32 +1075,32 @@ a = torch.randn(30, 20, 32, device="cpu")
 foo(a)
 ```
 
-## Explicit conversion using `from_dlpack`
+## 使用 `from_dlpack` 的显式转换
 
-CuTe DSL’s runtime provides an interface for converting DLPack-compatible tensors to CuTe tensors,
+CuTe DSL 的运行时提供了一个接口，用于将 DLPack 兼容的张量转换为 CuTe 张量：
 
 ```python
 b = cute.runtime.from_dlpack(a)
 ```
 
-where `a` is a tensor supporting the DLPack protocol with the `__dlpack__` and `__dlpack_device__` methods. The resulting CuTe tensor `b` has a fully static layout. This conversion is performed without copying any tensor data, enabling seamless integration with major frameworks. Users can create tensors using NumPy, PyTorch, etc. and directly feed them into JIT functions writtnen using CuTe DSL.
+其中 `a` 是一个支持 DLPack 协议的张量，并实现了 `__dlpack__` 与 `__dlpack_device__` 方法。转换得到的 CuTe 张量 `b` 具有完全静态的布局。该转换过程不会拷贝任何张量数据，从而实现与主流框架的无缝集成。用户可以用 NumPy、PyTorch 等创建张量，并将其直接喂给用 CuTe DSL 编写的 JIT 函数。
 
-The resulting CuTe tensor shares the same underlying memory buffer as the original tensor. This zero-copy approach maximizes performance by eliminating unnecessary data duplication. However, it is important to note that the CuTe tensor’s validity is tied to the lifetime of the original tensor. If the source tensor is destroyed or goes out of scope, the corresponding CuTe tensor becomes invalid since it references the original memory location.
+转换得到的 CuTe 张量与原始张量共享同一底层内存缓冲区。这种零拷贝方式通过消除不必要的数据复制来最大化性能。但需要注意：CuTe 张量的有效性与原始张量的生命周期绑定。如果源张量被销毁或超出作用域，对应的 CuTe 张量会因为引用了原始内存位置而变得无效。
 
-The full signature of from_dlpack is as follows:
+`from_dlpack` 的完整函数签名如下：
 
 ```python
 def from_dlpack(tensor, assumed_align=None, use_32bit_stride=False):
     ...
 ```
 
-The `assumed_align` integer parameter specifies the alignment of the tensor in unit of bytes. The tensor’s base address must be divisible by `assumed_align`. When not provided explicitly, the alignment is set to the natural alignment of the tensor’s element type. Note that the alignment information is part of the pointer type in the generated IR. Therefore, programs with different alignments have a different IR and identical IRs are required for hitting the kernel caching mechanism of CuTe DSL.
+`assumed_align` 整型参数用于指定张量的对齐（单位：字节）。张量的基地址必须能被 `assumed_align` 整除。如果未显式提供，则对齐会被设置为张量元素类型的自然对齐（natural alignment）。注意：对齐信息是生成 IR 中指针类型的一部分。因此，不同对齐会对应不同的 IR；而要命中 CuTe DSL 的 kernel 缓存机制，需要 IR 完全一致。
 
-The `use_32bit_stride` parameter determines whether to use 32-bit stride for the tensor’s dynamic stride values. By default, it is set to `False` (64bit) to ensure that address calculations do not risk overflow. For smaller problem sizes (where `cosize(layout_of_tensor) <= Int32_MAX`), users may set it to `True` (32bit) to improve performance by reducing register usage and the number of address calculation instructions. When `use_32bit_stride` is set to `True`, a runtime check is performed to ensure that the layout does not overflow. Please note that this parameter only has an effect when the tensor’s layout is marked as dynamic.
+`use_32bit_stride` 参数用于决定是否对张量的动态 stride 值使用 32-bit stride。默认设置为 `False`（64bit），以确保地址计算不会有溢出风险。对于较小的问题规模（满足 `cosize(layout_of_tensor) <= Int32_MAX`），用户可以将其设为 `True`（32bit），通过减少寄存器使用与地址计算指令数量来提升性能。当 `use_32bit_stride` 设为 `True` 时，会执行一次运行期检查以确保布局不会溢出。请注意：该参数只有在张量的 layout 被标记为 dynamic 时才会生效。
 
-### Code Example
+### 代码示例
 
-The following code demonstrates how to convert a PyTorch tensor to a CuTe tensor using the `from_dlpack` function with default parameters.
+下面的代码演示了如何使用默认参数，通过 `from_dlpack` 函数将 PyTorch 张量转换为 CuTe 张量。
 
 ```python
 import torch
@@ -1114,11 +1111,11 @@ x = torch.randn(30, 20, device="cpu")
 y = from_dlpack(x)
 ```
 
-Once converted, we can access the tensor’s information through various attributes. The following list shows the attributes of the converted tensor:
-- `tensor.shape`: the tensor’s shape
-- `tensor.stride`: the tensor’s stride
-- `tensor.memspace`: the tensor’s memory space
-- `tensor.element_type`: the tensor’s element data type
+转换完成后，我们可以通过多种属性访问该张量的信息。下面列出转换后张量的属性：
+- `tensor.shape`：张量的 shape
+- `tensor.stride`：张量的 stride
+- `tensor.memspace`：张量所在的内存空间（memory space）
+- `tensor.element_type`：张量元素的数据类型
 
 ```python
 import torch
@@ -1130,81 +1127,79 @@ y = from_dlpack(x)
 
 print(y.shape)        # (30, 20)
 print(y.stride)       # (20, 1)
-print(y.memspace)     # generic (if torch tensor in on device memory, memspace will be gmem)
+print(y.memspace)     # generic（如果 torch tensor 位于 device memory 上，memspace 会是 gmem）
 print(y.element_type) # Float32
 print(y)              # Tensor<0x000000000875f580@generic o (30, 20):(20, 1)>
 ```
 
-The string format of the resulting CuTe tensor is
+生成的 CuTe 张量的字符串格式为：
 
 ```python
 Tensor<0x{tensor.data_ptr:016x}@{tensor.memspace} o {tensor.shape}:{tensor.stride}>
 ```
 
-As can be seen in the example above, `from_dlpack` first results in a tensor with a static layout. To obtain dynamic or mixed static/dynamic layouts after calling `from_dlpack`, the `mark_layout_dynamic` and `mark_compact_shape_dynamic` functions are used and described in the following sections.
+从上面的例子可以看到，`from_dlpack` 首先会得到一个具有静态布局（static layout）的张量。若想在调用 `from_dlpack` 后得到动态布局（dynamic）或静态/动态混合布局，可以使用 `mark_layout_dynamic` 与 `mark_compact_shape_dynamic`，它们会在后续小节中介绍。
 
-## When to Use Explicit Conversion?
+## 何时使用显式转换？
 
-The DLPack protocol is a widely used protocol for interoperability between different frameworks. However, there is some associated overhead. Based on our benchmark, it usually takes between 2 to 3 us per call to `from_dlpack`.
+DLPack 协议被广泛用于不同框架之间的互操作（interoperability）。但它也会带来一定开销。根据我们的 benchmark，每次调用 `from_dlpack` 通常需要 2 到 3 us。
 
-Explicit conversion allows for caching the converted CuTe tensors in order to avoid the overhead of repeated calls to `from_dlpack`.
+显式转换允许你缓存转换后的 CuTe 张量，从而避免重复调用 `from_dlpack` 带来的开销。
 
 ```python
 x = torch.randn(30, 20, device="cpu")
 if key not in cached_tensors:
-    # Do the conversion only for cache misses
+    # 仅在未命中缓存时执行转换
     cached_tensors[key] = cute.runtime.from_dlpack(x)
 foo(cached_tensors[key])
 ```
 
-Another use case for explicit conversion is to gain fine-grain control over which modes of a tensor are considered dynamic from the perspective of the generated program.
+显式转换的另一个用例，是从生成程序的视角出发，更细粒度地控制张量的哪些 mode 会被视为动态（dynamic）。
 
-## Mark the Tensor’s Layout as Dynamic with `mark_layout_dynamic`
+## 使用 `mark_layout_dynamic` 将张量布局标记为动态
 
-After calling this function, all shape modes become dynamic. The stride modes also become dynamic with the following two exceptions:
+调用该函数后，所有 shape mode 都会变成动态。stride mode 也会变成动态，但有以下两个例外：
 
-- the leading dimension’s stride remains fixed at 1;
-- stride elements equal to 0 (which indicates broadcasting) are retained.
+- leading dimension 的 stride 仍固定为 1；
+- stride 元素等于 0（表示 broadcasting）的部分会被保留。
 
-The full signature of `mark_layout_dynamic` is as follows:
+`mark_layout_dynamic` 的完整函数签名如下：
 
 ```python
 def mark_layout_dynamic(self, leading_dim: int|None = None):
 ```
 
-The `leading_dim` parameter specifies the leading dimension of the tensor. The leading dimension’s stride is set to 1 unless inconsistent with the layout of the DLPack tensor. For example,
+`leading_dim` 参数用于指定张量的 leading dimension。leading dimension 的 stride 会被设置为 1，除非这与 DLPack 张量的布局不一致。例如：
 
-- For a tensor with layout `(2,2,3,4):(2,1,4,12)`, if `leading_dim` is specified to be 1, the layout will be marked as `(?,?,?,?):(?,1,?,?)`.
-- If `leading_dim` is specified to be 0, a deduction failure error is raised because the stride of dimension 0 is 2 (not 1).
+- 对于布局为 `(2,2,3,4):(2,1,4,12)` 的张量，如果将 `leading_dim` 指定为 1，则 layout 会被标记为 `(?,?,?,?):(?,1,?,?)`。
+- 如果将 `leading_dim` 指定为 0，则会抛出推断失败（deduction failure）错误，因为维度 0 的 stride 是 2（而不是 1）。
 
-The default value for `leading_dim` is `None`. In such case, the system automatically deduces it from the tensor’s layout using the following logic:
+`leading_dim` 的默认值是 `None`。此时系统会根据张量的布局自动推断 leading dimension，推断逻辑如下：
 
-- If a dimension’s stride is 1, that dimension is marked as the leading dimension.
-- If multiple dimensions satisfy condition 1, an error is thrown indicating deduction failure. Note that after converting a **PyTorch** tensor to the DLPack format, the stride for dimensions with size 1 are canonicalized to 1. This canonicalization can increase the likelihood of deduction failures. This behavior is specific to PyTorch and does not occur with NumPy for example.
-- If no dimension satisfies condition 1, all strides are marked as dynamic.
+- 如果某个维度的 stride 为 1，则该维度会被标记为 leading dimension。
+- 如果有多个维度满足条件 1，则会抛出错误提示推断失败。注意：将 **PyTorch** 张量转换为 DLPack 格式后，shape 为 1 的维度的 stride 会被规范化（canonicalized）为 1。这种规范化会增加推断失败的概率。该行为是 PyTorch 特有的，例如在 NumPy 中不会发生。
+- 如果没有任何维度满足条件 1，则所有 strides 都会被标记为动态。
 
-For example:
+例如：
 
-- For a tensor with layout `(2,2,3,4):(2,1,4,12)`, the leading dimension is 1. The layout will be marked as `(?,?,?,?):(?,1,?,?)`.
-- For a tensor with layout `(1,5,1):(1,1,1)`, if leading_dim is not specified, a deduction failure error is raised.
-- For a tensor with layout `(2,2):(8,2)`, since no dimension has stride 1, all dimensions are marked as dynamic: `(?,?):(?,?)`.
+- 对于布局为 `(2,2,3,4):(2,1,4,12)` 的张量，leading dimension 是 1，因此 layout 会被标记为 `(?,?,?,?):(?,1,?,?)`。
+- 对于布局为 `(1,5,1):(1,1,1)` 的张量，如果不指定 leading_dim，会抛出推断失败错误。
+- 对于布局为 `(2,2):(8,2)` 的张量，由于没有任何维度的 stride 为 1，所有维度都会被标记为动态：`(?,?):(?,?)`。
 
-The leading dimension accepts negative index which means the dimension is counted from the last dimension. For example,
+leading dimension 支持负索引，这意味着维度从最后一个维度开始计数。例如：
 
-- For a tensor with layout `(2,2,3,4):(2,1,4,12)`, if leading_dim is specified to be -1, the layout will be marked as `(?,?,?,?):(?,?,?,1)`.
+- 对于布局为 `(2,2,3,4):(2,1,4,12)` 的张量，如果将 leading_dim 指定为 -1，则 layout 会被标记为 `(?,?,?,?):(?,?,?,1)`。
 
+### 代码示例
 
-### Code Example
+下面的示例演示了如何使用 `mark_layout_dynamic` 来指定动态张量布局。
 
-The following example demonstrates how to use `mark_layout_dynamic` to specify dynamic tensor layouts.
-
-- `t0` shows the usage of `mark_layout_dynamic` with unspecified `leading_dim` and the automatic deduction of leading dimension.
-- `t1` & `t2` shows the usage of `mark_layout_dynamic` with specified `leading_dim`.
-- `t3` shows the usage of `mark_layout_dynamic` with no leading dimension.
-- `t4` shows the usage of `mark_layout_dynamic` with broadcasted dimensions.
-- `t5` demonstrates the deduction failure when the there’re more than one dimensions with stride equals to 1.
-- `t6` & `t7` demonstrates incorrect settings for leading_dim and expected errors.
-
+- `t0` 展示在不指定 `leading_dim` 时使用 `mark_layout_dynamic`，以及 leading dimension 的自动推断。
+- `t1` 与 `t2` 展示在指定 `leading_dim` 时使用 `mark_layout_dynamic`。
+- `t3` 展示在没有 leading dimension 的情况下使用 `mark_layout_dynamic`。
+- `t4` 展示在存在广播（broadcast）维度时使用 `mark_layout_dynamic`。
+- `t5` 展示当 stride 等于 1 的维度多于一个时的推断失败。
+- `t6` 与 `t7` 展示 `leading_dim` 设置错误时的预期报错。
 
 ```python
 import torch
@@ -1215,12 +1210,8 @@ a = torch.empty(16, 4, 8, 2).permute(2, 1, 0, 3)
 # (1,4,1,32,1):(4,1,4,4,4) => torch tensor when dimension has shape 1, its stride is degenerated to 1,
 # resulting in (1,4,1,32,1):(1,1,1,4,1)
 b = torch.empty(32, 1, 1, 1, 4).permute(3, 4, 1, 0, 2)
-# (2,2):(8,2)
-c = torch.empty(3, 4)[::2, ::2]
-# (3,1,1,5):(5,0,0,1)
-d = torch.empty(3, 1, 1, 5).expand(3, 4, 2, 5)
 
-# auto deduce the leading dimension to be 3
+# 自动推断 leading dimension 为 3
 t0 = from_dlpack(a).mark_layout_dynamic()
 print(t0)
 # (?,?,?,?):(?,?,?,1)
@@ -1242,22 +1233,22 @@ print(t4)
 # (?,?,?,?):(?,0,0,1)
 
 t5 = from_dlpack(b).mark_layout_dynamic()
-# Can't decude the leading dimension from layout, please specify the leading_dim explicitly.
+# 无法从 layout 推断 leading dimension，请显式指定 leading_dim。
 
 t6 = from_dlpack(a).mark_layout_dynamic(leading_dim=1)
-# Expected strides[leading_dim] == 1, but got 16
+# 期望 strides[leading_dim] == 1，但得到 16
 
 t7 = from_dlpack(b).mark_layout_dynamic(leading_dim=3)
-# Expected strides[leading_dim] == 1, but got 4
+# 期望 strides[leading_dim] == 1，但得到 4
 
 c = torch.empty(1000000000, 1000000000)
 t8 = from_dlpack(c, use_32bit_stride=True).mark_layout_dynamic()
-# Layout in DLTensorWrapper has int32 overflow risk. Please set use_32bit_stride to False.
+# DLTensorWrapper 中的 layout 存在 int32 溢出风险。请将 use_32bit_stride 设为 False。
 ```
 
-## Mark the Tensor’s Layout as Dynamic with `mark_compact_shape_dynamic`
+## 使用 `mark_compact_shape_dynamic` 将张量布局标记为动态
 
-The `mark_compact_shape_dynamic` function provides fine-grain control over dynamic shapes for compact layouts. The full signature of `mark_compact_shape_dynamic` is as follows:
+`mark_compact_shape_dynamic` 函数为紧凑布局（compact layout）提供了对动态 shape 的细粒度控制。`mark_compact_shape_dynamic` 的完整函数签名如下：
 
 ```python
 def mark_compact_shape_dynamic(
@@ -1269,49 +1260,49 @@ def mark_compact_shape_dynamic(
     ...
 ```
 
-The `mode` parameter determines which shape dimension becomes dynamic. After calling this function, the specific shape dimension given by `mode` is marked as dynamic immediately. The stride will be updated accordingly. For modes that have a shape of size 1, their stride are canonicalized to 0.
+`mode` 参数用于决定哪一个 shape 维度会变成动态。调用该函数后，由 `mode` 指定的那个 shape 维度会立即被标记为动态，同时 stride 会相应更新。对于 shape 大小为 1 的 mode，其 stride 会被规范化（canonicalized）为 0。
 
-The `stride_order` parameter specifies the ordering of strides in the tensor. It is consistent with `torch.Tensor.dim_order()` and defaults to `None`. The parameter indicates the order of modes (dimensions) if the current layout were to be converted to row-major order. It starts from the outermost to the innermost dimension when reading it from left to right. This parameter must be explicitly set when the stride order cannot be automatically deduced from the tensor’s layout, such as when multiple dimensions have a stride of 1.
+`stride_order` 参数用于指定张量的 stride 排序方式。它与 `torch.Tensor.dim_order()` 一致，默认值为 `None`。该参数表示：如果把当前布局转换为 row-major order，各个 mode（维度）的顺序是什么；从左到右阅读时，它表示从最外层维度到最内层维度的顺序。当无法从张量布局中自动推断 stride 顺序时（例如存在多个维度的 stride 为 1），必须显式设置该参数。
 
-For example:
+例如：
 
-- Layout `(4,2):(1,4)` has a stride_order of `(1,0)` indicates the innermost dimension is 0 (4:1), the outermost dimension is 1 (2:4).
-- Layout `(5,3,2,4):(3,1,15,30)` has a stride_order of `(3,2,0,1)` indicates the innermost dimension is 1 (3:1), the outermost dimension is 3 (4:30).
+- 布局 `(4,2):(1,4)` 的 stride_order 为 `(1,0)`，表示最内层维度是 0（4:1），最外层维度是 1（2:4）。
+- 布局 `(5,3,2,4):(3,1,15,30)` 的 stride_order 为 `(3,2,0,1)`，表示最内层维度是 1（3:1），最外层维度是 3（4:30）。
 
-If `stride_order` is not specified, the system automatically deduces it from the tensor’s layout using the following logic:
+如果未指定 `stride_order`，系统会根据张量布局按如下逻辑自动推断：
 
-- Sort the strides in descending order.
-- If multiple dimensions have a stride of 1, a deduction failure error is raised.
+- 将 strides 按降序排序。
+- 如果有多个维度的 stride 为 1，则会抛出推断失败错误。
 
-For example:
+例如：
 
-- For a tensor with layout `(2,2,3,4):(2,1,4,12)`, the deduced stride_order is `[3,2,0,1]`.
-- For a tensor with layout `(1,5,1):(1,1,1)`, `stride_order`’s deduction fails because all dimensions have an identical stride of 1, making it impossible to determine the correct ordering.
+- 对于布局为 `(2,2,3,4):(2,1,4,12)` 的张量，推断得到的 stride_order 是 `[3,2,0,1]`。
+- 对于布局为 `(1,5,1):(1,1,1)` 的张量，`stride_order` 推断会失败，因为所有维度的 stride 都同为 1，无法确定正确的顺序。
 
-If `stride_order` is specified, the system validates that the order is consistent with the tensor’s layout.
+如果指定了 `stride_order`，系统会验证该顺序是否与张量布局一致。
 
-The `divisibility` parameter specifies the divisibility of the dynamic shape. It could be used to represent the assumption alignment of the input. Defaults to 1.
+`divisibility` 参数用于指定动态 shape 的可整除性（divisibility）。它可用于表达对输入对齐（alignment）的假设。默认值为 1。
 
-Note that this API is only available for compact tensors. For non-compact tensors, we can use `cute.assume` to attach divisibility information to a specific shape mode in a host JIT function, as demonstrated in the following example:
+注意：该 API 仅适用于紧凑张量（compact tensors）。对于非紧凑张量，可以在 host JIT 函数中使用 `cute.assume` 将可整除性信息附加到某个特定的 shape mode 上，如下例所示：
 
 ```python
 @cute.jit
 def foo(a: cute.Tensor):
     new_shape = a.shape
-    # use cute.assume to set shape of mode=0 with divisibility=16
+    # 使用 cute.assume 将 mode=0 的 shape 设置为可被 16 整除
     new_shape[0] = cute.assume(new_shape[0], 16)
     new_layout = cute.make_layout(new_shape, stride=a.stride)
     new_a = cute.make_tensor(a.iterator, new_layout)
 ```
 
-### Code Example
+### 代码示例
 
-The following example demonstrates how to use `mark_compact_shape_dynamic` to specify dynamic tensor layouts.
+下面的示例演示了如何使用 `mark_compact_shape_dynamic` 来指定动态张量布局。
 
-- `t0` & `t1` show the usage of `mark_compact_shape_dynamic` with unspecified stride_order and different mode and divisibility.
-- `t2` shows the usage of consecutive `mark_compact_shape_dynamic` with unspecified stride_order and different mode and divisibility.
-- `t3` & `t4` show the usage of `mark_compact_shape_dynamic` with different specified stride_order.
-- `t5`, `t6`, `t7`, `t8`, `t9`, `t10`, `t11`, and `t12` demonstrate incorrect settings for parameters and expected errors.
+- `t0` 与 `t1` 展示在不指定 stride_order 的情况下，使用不同的 mode 与 divisibility 调用 `mark_compact_shape_dynamic`。
+- `t2` 展示在不指定 stride_order 的情况下，连续调用 `mark_compact_shape_dynamic`，并使用不同的 mode 与 divisibility。
+- `t3` 与 `t4` 展示在指定不同 stride_order 的情况下使用 `mark_compact_shape_dynamic`。
+- `t5`、`t6`、`t7`、`t8`、`t9`、`t10`、`t11` 与 `t12` 展示参数设置错误时的预期报错。
 
 ```python
 import torch
@@ -1319,12 +1310,12 @@ from cutlass.cute.runtime import from_dlpack
 
 # (8,4,16,2):(2,16,64,1)
 a = torch.empty(16, 4, 8, 2).permute(2, 1, 0, 3)
-# (1,4,1,32,1):(4,1,4,4,4) => torch tensor when dimension has shape 1, its stride is degenerated to 1,
-# resulting in (1,4,1,32,1):(1,1,1,4,1)
-# b.dim_order() is (3,2,4,0,1)
+# (1,4,1,32,1):(4,1,4,4,4) => 当 torch tensor 的某个维度的 shape 为 1 时，该维度的 stride 会退化为 1，
+# 从而变为 (1,4,1,32,1):(1,1,1,4,1)
+# b.dim_order() 为 (3,2,4,0,1)
 b = torch.empty(32, 1, 1, 1, 4).permute(3, 4, 1, 0, 2)
 
-# auto deduce the stride order to be [2,1,0,3]
+# 自动推断 stride order 为 [2,1,0,3]
 t0 = from_dlpack(a).mark_compact_shape_dynamic(
     mode=0, divisibility=2
 )
@@ -1360,69 +1351,72 @@ print(t4)
 t5 = t2.mark_compact_shape_dynamic(
     mode=3, divisibility=5, stride_order=(0, 1, 2, 3)
 )
-# The stride_order is not consistent with the last stride_order
+# stride_order 与上一次的 stride_order 不一致
 
 t6 = from_dlpack(a).mark_compact_shape_dynamic(
     mode=3, divisibility=5, stride_order=(0, 1, 2, 3)
 )
-# The stride_order is not consistent with the deduced stride_order
+# stride_order 与推断得到的 stride_order 不一致
 
 t7 = from_dlpack(b).mark_compact_shape_dynamic(
     mode=0, divisibility=4
 )
-# The layout could not be deduced, please specify the stride_order explicitly
+# 无法推断 layout，请显式指定 stride_order
 
 t8 = from_dlpack(b).mark_compact_shape_dynamic(
     mode=30, divisibility=5, stride_order=(3, 0, 2, 4, 1)
 )
-# Expected mode value to be in range [0, 5), but got 30
+# 期望 mode 的取值范围为 [0, 5)，但得到 30
 
 t9 = from_dlpack(b).mark_compact_shape_dynamic(
     mode=3, divisibility=5, stride_order=(2, 1, 2, 3, 4)
 )
-# Expected stride_order to contain all the dimensions of the tensor, but it doesn't contain 0.
+# 期望 stride_order 包含张量的所有维度，但它不包含 0。
 
 t10 = from_dlpack(b).mark_compact_shape_dynamic(
     mode=3, divisibility=5, stride_order=(0, 1, 2, 3, 4, 5)
 )
-# Expected stride_order to have 5 elements, but got 6.
+# 期望 stride_order 有 5 个元素，但得到 6。
 
 t11 = from_dlpack(b).mark_compact_shape_dynamic(
     mode=0, divisibility=4, stride_order=b.dim_order()
 )
-# The shape(1) of mode(0) is not divisible by the divisibility(4)
+# mode(0) 的 shape(1) 不能被 divisibility(4) 整除
 
 t12 = from_dlpack(b).mark_compact_shape_dynamic(
     mode=0, divisibility=1, stride_order=(2, 1, 3, 0, 4)
 )
-# The stride_order is not consistent with the layout
+# stride_order 与 layout 不一致
 
 c = torch.empty(1000000000, 1000000000)
 t13 = from_dlpack(c, use_32bit_stride=True).mark_compact_shape_dynamic(
     mode=0, divisibility=1
 )
-# Layout in DLTensorWrapper has int32 overflow risk. Please set use_32bit_stride to False.
+# DLTensorWrapper 中的 layout 存在 int32 溢出风险。请将 use_32bit_stride 设为 False。
 ```
 
 
-## Leveraging TVM FFI for Faster PyTorch Interop
+## 利用 TVM FFI 加速 PyTorch 互操作
 
-The latest version of CuTe DSL supports TVM FFI to improve interoperability with PyTorch and other machine learning frameworks. Using TVM FFI provides the following features:
+最新版本的 CuTe DSL 支持 TVM FFI，用于提升与 PyTorch 以及其他机器学习框架的互操作能力。使用 TVM FFI 具备以下特性：
 
-- Faster JIT function invocation.
-- Direct acceptance of torch.Tensor objects as function arguments.
-- Enhanced error handling and kernel validation.
-- Seamless integration with multiple programming languages.
+- 更快的 JIT 函数调用。
+- 可直接接受 `torch.Tensor` 对象作为函数参数。
+- 更强的错误处理与 kernel 校验。
+- 可与多种编程语言无缝集成。
 
-For more details, see Compile with TVM FFI(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/compile_with_tvm_ffi.html).
+更多细节请参考 Compile with TVM FFI(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/compile_with_tvm_ffi.html)。
 
-## Bypass the DLPack Protocol
+## 绕过 DLPack 协议
 
-In certain scenarios, users may wish to bypass the DLPack protocol and invoke the JIT function directly. This can be accomplished by creating a lightweight JIT wrapper around the existing JIT function, utilizing `cute.ptr` and `cute.make_tensor` to pass pointers and construct tensors directly.
+在某些场景下，用户可能希望绕过 DLPack 协议并直接调用 JIT 函数。可以通过给现有 JIT 函数套一层轻量级的 JIT wrapper 来实现：使用 `cute.ptr` 与 `cute.make_tensor` 直接传递指针并构造张量。
 
-Typical use cases for bypassing DLPack include: 1. Users want to call the JIT function directly to avoid the overhead introduced by the DLPack protocol. 2. DLPack canonicalizes the stride of shape-1 dimensions to 1, which may result in incorrect alignment propagation and affect memory access or performance. 3. DLPack may lack support for some narrow data types.
+绕过 DLPack 的典型用例包括：
+1. 用户希望直接调用 JIT 函数，以避免 DLPack 协议引入的额外开销。
+2. DLPack 会将 shape 为 1 的维度的 stride 规范化为 1，这可能导致对齐（alignment）信息传播不正确，从而影响内存访问或性能。
+3. DLPack 可能缺少对某些窄数据类型（narrow data types）的支持。
 
-The following example illustrates how to bypass the DLPack protocol when invoking a JIT function. Assume we have a pre-defined `TensorOpGemm` kernel whose JIT interface expects three arguments of type `cute.Tensor`. To enable direct invocation without DLPack, we first define a JIT wrapper function that accepts `cute.Pointer` types as parameters. Within this wrapper, we use `cute.make_tensor` to construct tensors from the provided pointers, and then call the `TensorOpGemm` kernel as usual.
+下面的示例展示了在调用 JIT 函数时如何绕过 DLPack 协议。假设我们已有一个预定义的 `TensorOpGemm` kernel，其 JIT 接口期望 3 个 `cute.Tensor` 类型的参数。为了在不使用 DLPack 的情况下直接调用，我们首先定义一个 JIT wrapper 函数，它接受 `cute.Pointer` 类型作为参数。在该 wrapper 中，我们用 `cute.make_tensor` 从传入指针构造张量，然后像往常一样调用 `TensorOpGemm` kernel。
 
 ```python
 @cute.jit
@@ -1436,11 +1430,11 @@ def tensor_op_gemm_wrapper(
     l: cutlass.Int32,
 ):
 
-    # Assume alignment of shape to call tensorop_gemm example
+    # 假设 shape 满足对齐条件，以调用 tensorop_gemm 示例
     m = cute.assume(m, divby=8)
     n = cute.assume(n, divby=8)
 
-    # Torch is row major
+    # Torch 为行主序（row major）
     a_layout = cute.make_ordered_layout((m, k, l), order=(0, 1, 2))
     b_layout = cute.make_ordered_layout((n, k, l), order=(0, 1, 2))
     c_layout = cute.make_ordered_layout((m, n, l), order=(1, 0, 2))
@@ -1448,7 +1442,7 @@ def tensor_op_gemm_wrapper(
     mB = cute.make_tensor(b_ptr, layout=b_layout)
     mC = cute.make_tensor(c_ptr, layout=c_layout)
 
-    # TensorOpGemm is a pre-defined kernel from our example
+    # TensorOpGemm 是我们示例中预定义的 kernel
     tensor_op_gemm = TensorOpGemm(
         a_ptr.value_type, c_ptr.value_type, cutlass.Float32, (2, 2, 1)
     )
@@ -1456,7 +1450,7 @@ def tensor_op_gemm_wrapper(
     tensor_op_gemm(mA, mB, mC)
 ```
 
-To pass a PyTorch tensor to this new JIT wrapper, we retrieve the raw pointer from the PyTorch tensor and create a `cute.Pointer` instance using `cute.make_ptr`. This approach allows us to bypass the DLPack protocol entirely, avoiding its overhead and potential issues with shape-1 dimension handling.
+为了把 PyTorch 张量传给这个新的 JIT wrapper，我们需要从 PyTorch 张量中获取原始指针（raw pointer），并使用 `cute.make_ptr` 创建一个 `cute.Pointer` 实例。这样就能完全绕过 DLPack 协议，避免其开销以及在处理 shape 为 1 的维度时可能出现的问题。
 
 ```python
 a = torch.randn(
@@ -1482,91 +1476,91 @@ c_ptr = make_ptr(
 tensor_op_gemm_wrapper(a_ptr, b_ptr, c_ptr, m, n, k, l)
 ```
 
-## Debugging
+## 调试
 
-This page provides an overview of debugging techniques and tools for CuTe DSL programs.
+本页面概述了 CuTe DSL 程序的调试技巧与工具。
 
-## Getting Familiar with the Limitations
+## 了解限制
 
-Before diving into comprehensive debugging capabilities, it’s important to understand the limitations of CuTe DSL. Understanding these limitations will help you avoid potential pitfalls from the start.
+在深入了解完整的调试能力之前，理解 CuTe DSL 的限制非常重要。了解这些限制可以帮助你从一开始就避免潜在陷阱。
 
-Please refer to **Limitations**(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/limitations.html) for more details.
+更多细节请参考 **Limitations**(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/limitations.html)。
 
-## Source Code Correlation
+## 源代码关联（Source Code Correlation）
 
-CuTe DSL provides Python code to PTX/SASS correlation to enable the profiling/debugging of generated kernels with debug symbols by generating line info when compiling the kernel.
+CuTe DSL 支持 Python 代码与 PTX/SASS 的关联：通过在编译 kernel 时生成行号信息（line info），你可以使用带有调试符号的方式对生成的 kernel 进行 profiling/调试。
 
-You can enable that globally via the environment variable `CUTE_DSL_LINEINFO=1`. Alternatively, you can use compilation options to enable that per kernel. Please refer to **JIT Compilation Options**(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/dsl_jit_compilation_options.html) for more details.
+你可以通过环境变量 `CUTE_DSL_LINEINFO=1` 全局启用该功能。或者，你也可以使用编译选项为每个 kernel 单独启用。更多细节请参考 **JIT Compilation Options**(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/dsl_jit_compilation_options.html)。
 
-## DSL Debugging
+## DSL 调试
 
-CuTe DSL provides built-in logging mechanisms to help you understand the code execution flow and some of the internal state.
+CuTe DSL 提供了内置的日志机制，帮助你理解代码的执行流程以及部分内部状态。
 
-### Enabling Logging
+### 启用日志
 
-CuTe DSL provides environment variables to control logging level:
+CuTe DSL 提供了环境变量来控制日志级别：
 
 ```shell
-# Enable console logging (default: False)
+# 启用控制台日志（默认：False）
 export CUTE_DSL_LOG_TO_CONSOLE=1
 
-# Log to file instead of console (default: False)
+# 将日志写入文件而不是控制台（默认：False）
 export CUTE_DSL_LOG_TO_FILE=my_log.txt
 
-# Control log verbosity (0, 10, 20, 30, 40, 50, default: 10)
+# 控制日志详细程度（0, 10, 20, 30, 40, 50；默认：10）
 export CUTE_DSL_LOG_LEVEL=20
 ```
 
-### Log Categories and Levels
+### 日志类别与等级
 
-Similar to standard Python logging, different log levels provide varying degrees of detail:
+与标准 Python logging 类似，不同日志级别对应不同的细节程度：
 
-| Level | Description |
+| 等级 | 描述 |
 | --- | --- |
-| 0 | Disabled |
-| 10 | Debug |
-| 20 | Info |
-| 30 | Warning |
-| 40 | Error |
-| 50 | Critical |
+| 0 | 禁用 |
+| 10 | 调试（Debug） |
+| 20 | 信息（Info） |
+| 30 | 警告（Warning） |
+| 40 | 错误（Error） |
+| 50 | 致命（Critical） |
 
-## Dump the generated IR
+## 导出生成的 IR
 
-For users familiar with MLIR and compilers, CuTe DSL supports dumping the Intermediate Representation (IR). This helps you verify whether the IR is generated as expected.
+对于熟悉 MLIR 与编译器的用户，CuTe DSL 支持导出中间表示（Intermediate Representation，IR）。这有助于你验证 IR 是否按预期生成。
 
 ```shell
-# Dump Generated CuTe IR (default: False)
+# 导出生成的 CuTe IR（默认：False）
 export CUTE_DSL_PRINT_IR=1
 
-# Keep Generated CuTe IR in a file (default: False)
+# 将生成的 CuTe IR 保存在文件中（默认：False）
 export CUTE_DSL_KEEP_IR=1
 ```
 
-## Dump the generated PTX & CUBIN
+## 导出生成的 PTX 与 CUBIN
 
-For users familiar with PTX and SASS, CuTe DSL supports dumping the generated PTX and CUBIN.
+对于熟悉 PTX 与 SASS 的用户，CuTe DSL 支持导出生成的 PTX 与 CUBIN。
 
 ```shell
-# Dump generated PTX in a .ptx file (default: False)
+# 将生成的 PTX 导出为 .ptx 文件（默认：False）
 export CUTE_DSL_KEEP_PTX=1
 
-# Dump generated cubin in a .cubin file (default: False)
+# 将生成的 cubin 导出为 .cubin 文件（默认：False）
 export CUTE_DSL_KEEP_CUBIN=1
 ```
 
-To further get SASS from cubin, users can use `nvdisasm` (usually installed with CUDA toolkit) to disassemble the cubin.
+若想进一步从 cubin 获取 SASS，用户可以使用 `nvdisasm`（通常随 CUDA toolkit 安装）对 cubin 进行反汇编。
 
 ```shell
 nvdisasm your_dsl_code.cubin > your_dsl_code.sass
 ```
 
-## Access the dumped contents programmatically
+## 以编程方式访问导出内容
 
-For compiled kernels, the generated PTX/CUBIN/IR can be accessed programmatically as well through following attributes:
+对于已编译的 kernel，也可以通过以下属性以编程方式访问生成的 PTX/CUBIN/IR：
 
-- `__ptx__`: The generated PTX code of the compiled kernel.
-- `__cubin__`: The generated CUBIN data of the compiled kernel.
-- `__mlir__`: The generated IR code of the compiled kernel.
+- `__ptx__`：已编译 kernel 的 PTX 代码。
+- `__cubin__`：已编译 kernel 的 CUBIN 数据。
+- `__mlir__`：已编译 kernel 的 IR 代码。
 
 ```python
 compiled_foo = cute.compile(foo, ...)
@@ -1575,86 +1569,84 @@ with open("foo.cubin", "wb") as f:
     f.write(compiled_foo.__cubin__)
 ```
 
-## Change the dump directory
+## 更改导出目录
 
-By default, all dumped files are saved in the current working directory. To specify a different directory for the dumped files, please set the environment variable `CUTE_DSL_DUMP_DIR` accordingly.
+默认情况下，所有导出的文件都会保存在当前工作目录中。若要为导出文件指定不同的目录，请相应设置环境变量 `CUTE_DSL_DUMP_DIR`。
 
-## Kernel Functional Debugging
+## Kernel 功能调试
 
-### Using Python’s `print` and CuTe’s `cute.printf`
+### 使用 Python 的 `print` 与 CuTe 的 `cute.printf`
 
-CuTe DSL programs can use both Python’s native `print()` as well as our own `cute.printf()` to print debug information during kernel generation and execution. They differ in a few key ways:
+CuTe DSL 程序既可以使用 Python 原生的 `print()`，也可以使用我们提供的 `cute.printf()`，在 kernel 生成与执行期间输出调试信息。它们在一些关键方面有所不同：
 
-- Python’s `print()` executes during compile-time only (no effect on the generated kernel) and is typically used for printing static values (e.g. a fully static layouts).
-- `cute.printf()` executes at runtime on the GPU itself and changes the PTX being generated. This can be used for printing values of tensors at runtime for diagnostics, but comes at a performance overhead similar to that of `printf()` in CUDA C.
+- Python 的 `print()` 仅在编译期执行（对生成的 kernel 没有影响），通常用于打印静态值（例如完全静态的 layout）。
+- `cute.printf()` 在 GPU 上的运行期执行，并会改变生成的 PTX。它可用于在运行期打印张量的值以进行诊断，但会带来类似 CUDA C 中 `printf()` 的性能开销。
 
-For detailed examples of using these functions for debugging, please refer to the associated notebook referenced in **Educational Notebooks**(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/notebooks.html).
+有关如何使用这些函数进行调试的详细示例，请参考 **Educational Notebooks**(https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_general/notebooks.html) 中引用的相关 notebook。
 
-## Handling Unresponsive/Hung Kernels
+## 处理无响应/卡死的 Kernel
 
-When a kernel becomes unresponsive and `SIGINT` (`CTRL+C`) fails to terminate it, you can follow these steps to forcefully terminate the process:
+当 kernel 变得无响应且 `SIGINT`（`CTRL+C`）无法终止时，你可以按以下步骤强制结束进程：
 
-1. Use `CTRL+Z` to suspend the unresponsive kernel
-2. Execute the following command to terminate the suspended process:
+1. 使用 `CTRL+Z` 挂起无响应的 kernel
+2. 执行以下命令终止被挂起的进程：
 
 ```shell
-# Terminate the most recently suspended process
+# 终止最近一次被挂起的进程
 kill -9 $(jobs -P | tail -1)
 ```
 
-CuTe DSL can also be debugged using standard NVIDIA CUDA tools.
+CuTe DSL 也可以使用标准的 NVIDIA CUDA 工具进行调试。
 
-## Using Compute-Sanitizer
+## 使用 Compute-Sanitizer
 
-For detecting memory errors and race conditions:
+用于检测内存错误与竞态条件：
 
 ```shell
 compute-sanitizer --some_options python your_dsl_code.py
 ```
 
-Please refer to the compute-sanitizer documentation(https://developer.nvidia.com/compute-sanitizer) for more details.
+更多细节请参考 compute-sanitizer 文档(https://developer.nvidia.com/compute-sanitizer)。
 
-## Conclusion
+## 总结
 
-This page covered several key methods for debugging CuTe DSL programs. Effective debugging typically requires a combination of these approaches. If you encounter issues with DSL, you can enable logging and share the logs with the CUTLASS team as a GitHub issue to report a bug.
+本页面介绍了调试 CuTe DSL 程序的若干关键方法。有效的调试通常需要组合使用这些方法。如果你遇到 DSL 相关问题，可以启用日志并将日志作为 GitHub issue 分享给 CUTLASS 团队以报告 bug。
 
-## Guidance for Auto-Tuning
+## 自动调优（Auto-Tuning）指南
 
-Numerous GEMM kernel code examples are offered within our codebase. When integrating these kernels into frameworks, auto-tuning becomes essential for achieving optimal performance. This involves selecting the appropriate kernel parameters based on the inputs of real applications. Next, we’ll briefly introduce some tips on how to perform auto-tuning.
+我们的代码库中提供了大量 GEMM kernel 代码示例。当将这些 kernel 集成到框架中时，为了获得最佳性能，自动调优（auto-tuning）就变得至关重要。这通常需要根据真实应用的输入来选择合适的 kernel 参数。接下来我们会简要介绍一些自动调优的技巧。
 
-The auto-tuning process typically involves the following steps:
+自动调优流程通常包含以下步骤：
 
-1. Define search space
-2. Benchmark each configuration and select the kernel with the best performance
-3. Enable caching to reduce the tuning cost
+1. 定义搜索空间（search space）
+2. 对每个配置进行 benchmark，并选择性能最佳的 kernel
+3. 启用缓存以降低调优成本
 
-The search space defines the valid combinations of kernel parameters that can be used to run the kernels. Different inputs (shapes, data types, etc.) typically require different kernel parameters to achieve optimal performance. The search space is related to the kernel. We take the Blackwell GEMM persistent kernel as an example. The search space is as follows:
+搜索空间定义了可用于运行 kernel 的有效参数组合。不同输入（shape、数据类型等）通常需要不同的 kernel 参数才能达到最优性能。搜索空间与 kernel 本身相关。这里以 Blackwell GEMM persistent kernel 为例，其搜索空间如下：
 
-- `mma_tiler_mn`: Defines the dimensions of the matrix tile that each Matrix Multiply-Accumulate (MMA) instruction processes in a single operation.
-- `cluster_shape_mn`: Specifies the number of CTAs along each dimension within a cluster. Refer Parallel Thread Execution ISA documentation(https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#tensorcore-5th-generation-family-instructions) for the possible mma tiler size and cluster shape for different tensor data types.
-- `use_2cta_instrs`: Whether to utilize Blackwell’s 2 CTA instructions for MMA/Copy.
-- `use_tma_store`: Whether to use Tensor Memory Access (TMA) instructions to store the result back to global memory.
+- `mma_tiler_mn`：定义每条矩阵乘加（Matrix Multiply-Accumulate，MMA）指令在一次操作中处理的矩阵 tile 尺寸。
+- `cluster_shape_mn`：指定一个 cluster 内沿各维度的 CTA 数量。不同张量数据类型下可用的 mma tiler size 与 cluster shape 请参考 Parallel Thread Execution ISA 文档(https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#tensorcore-5th-generation-family-instructions)。
+- `use_2cta_instrs`：是否使用 Blackwell 的 2 CTA 指令用于 MMA/Copy。
+- `use_tma_store`：是否使用 Tensor Memory Access（TMA）指令将结果写回全局内存。
 
-     
-
-After defining the search space, we could traverse all parameter combinations to find the optimal kernel. The `autotune_gemm` function below demonstrates a simple exhaustive search approach - it iterates through configurations, compiles and benchmarks each kernel, and returns the best performing one. Since kernel compilation incurs overhead, it’s important to cache and reuse compiled kernels to minimize host launch latency. CuTe DSL facilitates this through its separate compilation and execution workflow. More details can be found in JIT Caching. As demonstrated in the `autotune_gemm` function (between the `begin of cache the compiled GEMM kernel` and `end of cache the compiled GEMM kernel` comments), we can use `cute.compile()` to compile a kernel once, cache the compiled result, and reuse the cached JIT executor for multiple kernel executions. We could maintain a global configuration-to-kernel dictionary (`config_kernel_dict`) to cache the compiled GEMM kernels, where each key (`kernel_cache_key`) uniquely identifies a kernel based on its characteristics. Usually we could use the {dtype + kernel configs} as the cached key for GEMM compilation. For example,
+在定义搜索空间之后，我们可以遍历所有参数组合以找到最优的 kernel。下面的 `autotune_gemm` 函数演示了一种简单的穷举搜索（exhaustive search）方法：它遍历不同配置，对每个 kernel 进行编译与 benchmark，并返回性能最佳的那个。由于 kernel 编译会带来额外开销，为了最小化 host launch 延迟，缓存并复用已编译的 kernel 非常重要。CuTe DSL 通过分离编译与执行的工作流来支持这一点。更多细节可参考 JIT Caching。正如 `autotune_gemm` 函数所示（在 `begin of cache the compiled GEMM kernel` 与 `end of cache the compiled GEMM kernel` 注释之间），我们可以使用 `cute.compile()` 编译一次 kernel，将编译结果缓存起来，并在多次 kernel 执行中复用缓存的 JIT executor。我们可以维护一个全局的“配置 -> kernel”字典（例如 `config_kernel_dict`）来缓存已编译的 GEMM kernel，其中每个 key（`kernel_cache_key`）基于 kernel 特征唯一标识一个 kernel。通常我们可以用 {dtype + kernel configs} 作为 GEMM 编译的缓存 key。例如：
 
 ```python
 kernel_cache_key = f"{ab_dtype}x{c_dtype}x{acc_dtype}x{use_2cta_instrs}x{mma_tiler}x{cluster_shape_mn}x{use_tma_store}"
 ```
 
-If the input tensor’s layout is static, we should add the shape in the cached key too. Users can customize the `benchmark` function to measure kernel execution time. For stable and reliable performance measurements:
+如果输入张量的 layout 是静态的，我们也应该把 shape 加入缓存 key。用户可以自定义 `benchmark` 函数来测量 kernel 执行时间。为了获得稳定可靠的性能测量结果：
 
-1. Run a few warmup iterations (e.g., 5-10) to stabilize GPU temperature
-2. Execute multiple timed iterations (e.g., 100-1000) for statistical significance
-3. Use CUDA events and synchronization for precise timing
-4. Lock GPU frequencies (SM and memory frequencies) with nvidia-smi
-5. Process results by removing outliers and using min/avg statistics as measurements.
+1. 先跑一些 warmup 迭代（例如 5-10 次）以稳定 GPU 温度
+2. 运行多次计时迭代（例如 100-1000 次）以获得统计意义
+3. 使用 CUDA events 与同步来进行精确计时
+4. 使用 nvidia-smi 锁定 GPU 频率（SM 与显存频率）
+5. 对结果进行处理：去除离群值，并使用 min/avg 等统计值作为测量指标
 
-This ensures reliable kernel selection through proper benchmarking.
+这样可以通过规范的 benchmark 确保 kernel 选择的可靠性。
 
 ```python
-# get the best GEMM kernel for given input tensors
+# 为给定输入张量获取最佳 GEMM kernel
 def autotune_gemm(
     a: cute.Tensor,
     b: cute.Tensor,
@@ -1669,7 +1661,7 @@ def autotune_gemm(
 ):
     best_kernel = None
     min_time = float("inf")
-    # traverse the search space
+    # 遍历搜索空间
     for use_2cta_instrs in use_2cta_instrs_list:
         for use_tma_store in use_tma_store_list:
             for mma_tiler_mn in product(mma_tiler_m_list, mma_tiler_n_list):
@@ -1679,7 +1671,7 @@ def autotune_gemm(
                     max_active_clusters = hardware_info.get_max_active_clusters(
                         cluster_shape_mn[0] * cluster_shape_mn[1]
                     )
-                    # instance a GEMM kernel
+                    # 实例化一个 GEMM kernel
                     gemm = PersistentDenseGemmKernel(
                         acc_dtype,
                         use_2cta_instrs,
@@ -1687,9 +1679,9 @@ def autotune_gemm(
                         cluster_shape_mn,
                         use_tma_store,
                     )
-                    # begin of cache the compiled GEMM kernel
+                    # 开始缓存已编译的 GEMM kernel
                     if kernel_cache_key not in config_kernel_dict:
-                        # compile gemm kernel
+                        # 编译 gemm kernel
                         compiled_gemm = cute.compile(
                             gemm,
                             a,
@@ -1701,9 +1693,9 @@ def autotune_gemm(
                         config_kernel_dict[kernel_cache_key] = compiled_gemm
                     else:
                         compiled_gemm = config_kernel_dict[kernel_cache_key]
-                    # end of cache the compiled GEMM kernel
+                    # 结束缓存已编译的 GEMM kernel
                     try:
-                        # define a benchmark function to measure the execution time of the compiled GEMM kernel
+                        # 定义 benchmark 函数，用于测量已编译 GEMM kernel 的执行时间
                         cur_time = benchmark(
                             partial(compiled_gemm, a, b, c, stream),
                         )
@@ -1718,9 +1710,9 @@ def autotune_gemm(
     return best_kernel
 ```
 
-This brute-force approach ensures we could find the optimal parameters, though at the cost of trying every possibilities. For more advanced use cases, users can explore sophisticated optimization techniques like search space pruning and genetic algorithms to reduce tuning overhead and discover better configurations more efficiently.
+这种暴力穷举的方法可以确保找到最优参数，但代价是需要尝试所有可能性。对于更高级的用例，用户可以探索更复杂的优化技术，例如搜索空间剪枝（search space pruning）与遗传算法（genetic algorithms），以降低调优开销，并更高效地发现更优配置。
 
-To further optimize tuning performance, we can utilize caching mechanisms to avoid redundant computations. We could cache the tuning results in a input-to-kernel dictionary (e.g., `input_kernel_dict`). When processing inputs with matching `config_key` values, the cached kernel can be reused directly without re-tuning. The `config_key` is related with the input tensor’s characteristics, such as the shape, data type, etc. The setup of `config_key` is very flexible, users can customize it based on their own application. For instance, if the data type is fixed in users’ application, we could use the input tensor’s shape as the key, i.e., `(m, n, k)`. To further reduce tuning overhead, we could consider using a simplified key like `config_key = (power_of_2(m), power_of_2(n), power_of_2(k))`, where `m`, `n`, and `k` are rounded up to the nearest power of 2. This simplification can significantly reduce the number of unique keys while still maintaining good performance in most cases. However, it’s important to validate that this approximation doesn’t negatively impact performance for your specific use case.
+为了进一步优化调优性能，我们可以利用缓存机制来避免重复计算。例如，可以把调优结果缓存在一个“输入 -> kernel”的字典中（如 `input_kernel_dict`）。当处理具有相同 `config_key` 的输入时，可以直接复用缓存的 kernel，而无需重新调优。`config_key` 与输入张量的特征有关，例如 shape、数据类型等。`config_key` 的设计非常灵活，用户可以根据自己的应用进行定制。例如，如果用户应用中的数据类型是固定的，我们可以使用输入张量的 shape 作为 key，即 `(m, n, k)`。为了进一步降低调优开销，也可以考虑使用简化的 key，例如 `config_key = (power_of_2(m), power_of_2(n), power_of_2(k))`，其中 `m`、`n`、`k` 会向上舍入到最接近的 2 的幂。该简化可以显著减少唯一 key 的数量，同时在大多数情况下仍保持良好性能。不过，务必验证这种近似不会对你的特定用例造成负面影响。
 
 ```python
 config_key = (m, n, k)
@@ -1730,52 +1722,52 @@ else:
     compiled_gemm = autotune_gemm(...)
     input_kernel_dict[config_key] = compiled_gemm
 
-# launch gemm kernel
+# 启动 gemm kernel
 compiled_gemm(a_tensor, b_tensor, c_tensor, stream)
 ```
 
-By following the methods above, you can customize your own auto-tuner to find the optimal GEMM kernel configuration for specific matrix dimensions and data types, significantly improving computational performance for models.
+通过以上方法，你可以定制自己的 auto-tuner，为特定的矩阵维度与数据类型找到最优的 GEMM kernel 配置，从而显著提升模型的计算性能。
 
-# Educational Notebooks
+# 教育笔记本（Educational Notebooks）
 
-A number of notebooks for educational purposes are provided in the CUTLASS GitHub repository. A list with handful links is given below:
+CUTLASS GitHub 仓库中提供了一些用于学习的 notebook。下面给出若干链接：
 
-- “Hello world”(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/hello_world.ipynb)
-- Printing(https://github.com/NVIDIA/cutlass/blob/main/examples/python/CuTeDSL/notebooks/print.ipynb)
-- Data Types Basics(https://github.com/NVIDIA/cutlass/blob/main/examples/python/CuTeDSL/notebooks/print.ipynb)
-- Tensors(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/tensor.ipynb)
- - The TensorSSA Abstraction(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/tensorssa.ipynb)
- - Layout Algebra(https://github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/cute_layout_algebra.ipynb)
- - Element-wise Add Tutorial(https://github.com/NVIDIA/cutlass/blob/main/examples/python/CuTeDSL/notebooks/elementwise_add.ipynb)
- - Using CUDA Graphs(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/cuda_graphs.ipynb)
+- “Hello world”（入门）(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/hello_world.ipynb)
+- Printing（打印）(https://github.com/NVIDIA/cutlass/blob/main/examples/python/CuTeDSL/notebooks/print.ipynb)
+- Data Types Basics（数据类型基础）(https://github.com/NVIDIA/cutlass/blob/main/examples/python/CuTeDSL/notebooks/print.ipynb)
+- Tensors（张量）(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/tensor.ipynb)
+ - The TensorSSA Abstraction（TensorSSA 抽象）(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/tensorssa.ipynb)
+ - Layout Algebra（布局代数）(https://github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/cute_layout_algebra.ipynb)
+ - Element-wise Add Tutorial（逐元素加法教程）(https://github.com/NVIDIA/cutlass/blob/main/examples/python/CuTeDSL/notebooks/elementwise_add.ipynb)
+ - Using CUDA Graphs（使用 CUDA Graphs）(github.com/NVIDIA/cutlass/tree/main/examples/python/CuTeDSL/notebooks/cuda_graphs.ipynb)
  
  
  
 
-# Compile with TVM FFI
+# 使用 TVM FFI 编译
 
-Apache TVM FFI is an open ABI and FFI for machine learning systems. More information can be found in the official documentation(https://tvm.apache.org/ffi/).
+Apache TVM FFI 是一个面向机器学习系统的开放 ABI 与 FFI。更多信息可参考官方文档(https://tvm.apache.org/ffi/)。
 
-To install TVM FFI, you can run the following command:
+要安装 TVM FFI，你可以运行以下命令：
 
 ```shell
 pip install apache-tvm-ffi
-# optional package for improved torch tensor calling performance
+# 可选：用于提升 torch tensor 调用性能的包
 pip install torch-c-dlpack-ext
 ```
 
-In CuTe DSL, TVM FFI can be enabled as an option for JIT-compiled functions. Using TVM FFI can lead to faster JIT function invocation and provides better interoperability with machine learning frameworks (e.g., directly take `torch.Tensor` as arguments).
+在 CuTe DSL 中，可以为 JIT 编译函数启用 TVM FFI 作为一个选项。使用 TVM FFI 可以加速 JIT 函数调用，并提供与机器学习框架更好的互操作能力（例如直接把 `torch.Tensor` 作为参数传入）。
 
-## Enable Apache TVM FFI in CuTe DSL
+## 在 CuTe DSL 中启用 Apache TVM FFI
 
-First, install the `tvm-ffi` package by following its installation guide(https://tvm.apache.org/ffi/#installation).
+首先，请按照其安装指南(https://tvm.apache.org/ffi/#installation) 安装 `tvm-ffi` 包。
 
-There are two ways to enable TVM FFI in CuTe DSL:
+在 CuTe DSL 中启用 TVM FFI 有两种方式：
 
-1. Use the `options` argument in `cute.compile` to specify the TVM FFI option. For example:
+1. 在 `cute.compile` 中使用 `options` 参数来指定 TVM FFI 选项。例如：
 
 ```python
-# Assuming you have defined a function `add` decorated with @cute.jit
+# 假设你已经定义了一个由 @cute.jit 装饰的函数 `add`
 def example_compile():
    a_torch = torch.randn(10, 20, 30).to(torch.float16)
    b_torch = torch.randn(10, 20, 30).to(torch.float16)
@@ -1785,25 +1777,25 @@ def example_compile():
    compiled_add = cute.compile(add, a_torch, b_torch, options="--enable-tvm-ffi")
 ```
 
-Note that the object returned by `cute.compile` is a Python function specific to TVM FFI.
+注意：`cute.compile` 返回的对象是一个特定于 TVM FFI 的 Python 函数。
 
-2. Alternatively, you can enable TVM FFI globally by setting the environment variable `CUTE_DSL_ENABLE_TVM_FFI=1`. Please note that this setting will apply to all JIT compilations within the environment.
+2. 另外，你也可以通过设置环境变量 `CUTE_DSL_ENABLE_TVM_FFI=1` 来全局启用 TVM FFI。请注意，这个设置会对当前环境内的所有 JIT 编译生效。
 
-## Minimizing Host Overhead
+## 最小化 Host 开销
 
-Eager kernel invocation overhead on the CPU host can sometimes become a bottleneck for latency-sensitive applications. TVM FFI can help greatly reduce this overhead. To maximize performance benefits, we recommend setting up your workflow as follows (detailed instructions are provided in subsequent sections):
+在一些对延迟敏感的应用中，CPU host 侧的 eager kernel 调用开销有时会成为瓶颈。TVM FFI 可以显著降低这部分开销。为了最大化性能收益，我们建议按如下方式组织你的工作流（后续小节会给出更详细的说明）：
 
-- **Compile the kernel with TVM FFI enabled**.
-- **Declare shape constraints using fake tensors** and reuse the compiled function throughout your execution.
-- **Pass PyTorch tensors directly** to the compiled function to avoid explicit DLPack conversion.
-- **Use the environment stream flag** to implicitly pass the current PyTorch stream.
-- **Rely on compiled argument-validation** instead of Python-side attribute validation, as TVM FFI functions perform fast compiled checks.
+- **启用 TVM FFI 编译 kernel**。
+- **使用假张量（fake tensors）声明 shape 约束**，并在整个执行过程中复用已编译函数。
+- **直接把 PyTorch 张量传给已编译函数**，避免显式 DLPack 转换。
+- **使用环境 stream flag** 来隐式传递当前 PyTorch stream。
+- **依赖编译后的参数校验（argument-validation）**，而不是 Python 侧的属性校验，因为 TVM FFI 函数会执行快速的编译态检查。
 
-Following these steps can significantly reduce the host-side overhead of eager kernel execution. The sections below provide detailed examples and explanations for each step. You may find it helpful to refer back to this summary after you review the implementation details.
+按以上步骤操作，可以显著降低 eager kernel 执行的 host 侧开销。下面的小节会对每一步给出更详细的示例与解释。阅读完实现细节后，你也可以回头参考这份总结。
 
-## Fake tensor for compilation
+## 用于编译的假张量（Fake tensor）
 
-The TVM FFI function accepts DLPack-compatible tensors as arguments, such as those from torch or jax. However, during compilation, it is necessary to specify the tensors’ dynamic properties in CuTe DSL. To clearly distinguish between the compilation phase and runtime, CuTe DSL provides a “fake tensor” that can be used for compilation. For example:
+TVM FFI 函数可以接受 DLPack 兼容的张量作为参数，例如来自 torch 或 jax 的张量。但在编译期间，需要在 CuTe DSL 中指定这些张量的动态属性。为了清晰地区分“编译阶段”和“运行阶段”，CuTe DSL 提供了一种可用于编译的“假张量（fake tensor）”。例如：
 
 ```python
 import cutlass.cute as cute
@@ -1832,9 +1824,9 @@ def example_add_one():
    n = cute.sym_int()
    a_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
    b_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
-   # compile the kernel with "--enable-tvm-ffi" option and example input tensors
+   # 使用 "--enable-tvm-ffi" 选项和示例输入张量来编译 kernel
    compiled_add_one = cute.compile(add_one, a_cute, b_cute, options="--enable-tvm-ffi")
-   # now compiled_add_one is a TVM-FFI function that can be called with torch.Tensor as input
+   # 此时 compiled_add_one 是一个 TVM-FFI 函数，可以用 torch.Tensor 作为输入来调用
    a_torch = torch.arange(10, dtype=torch.float32, device="cuda")
    b_torch = torch.empty(10, dtype=torch.float32, device="cuda")
    compiled_add_one(a_torch, b_torch)
@@ -1842,15 +1834,15 @@ def example_add_one():
    print(b_torch)
 ```
 
-The fake tensor is a placeholder that mimics the interface of a real tensor but does not hold real data or allow indexing. It is used in compilation or testing scenarios where only shape/type/layout information is needed. All attempts to access or mutate data will raise errors.
+ 假张量（fake tensor）是一种占位符，它模拟真实张量的接口，但不包含真实数据，也不允许进行索引访问。它用于只需要 shape/type/layout 信息的编译或测试场景。任何尝试访问或修改数据的操作都会抛出错误。
 
-## Note on Stride Order
+## 关于 Stride Order 的说明
 
-Note that CuTe’s convention is to write the stride order for dimensions from left to right, where a lower order number means higher priority. In the context of the `make_fake_compact_tensor` API, for shape `(2, 3, 4)` and stride order `(0, 1, 2)`, the stride is `(1, 2, 6)`. This is commonly known as column-major order. If you want to create a fake tensor with compact row-major order, you should explicitly pass in `stride_order=tuple(reversed(range(len(shape))))` to `make_fake_compact_tensor`. Alternatively, you can always precisely control the stride via the `stride` argument in the `make_fake_tensor` API.
+注意：CuTe 的约定是从左到右书写各维度的 stride order，order 数字越小表示优先级越高。在 `make_fake_compact_tensor` API 的语境下，对于 shape `(2, 3, 4)` 且 stride order 为 `(0, 1, 2)` 的情况，其 stride 为 `(1, 2, 6)`，这通常被称为列主序（column-major order）。如果你想创建一个紧凑的行主序（row-major order）假张量，应当在调用 `make_fake_compact_tensor` 时显式传入 `stride_order=tuple(reversed(range(len(shape))))`。另外，你也可以通过 `make_fake_tensor` API 的 `stride` 参数始终精确地控制 stride。
 
-## `cute.Tensor` adapter for TVM FFI
+## 用于 TVM FFI 的 `cute.Tensor` 适配器
 
-To adapt the `cute.Tensor` to the TVM FFI function, you can use the `cute.runtime.from_dlpack` function with the `enable_tvm_ffi=True` option or the environment variable `CUTE_DSL_ENABLE_TVM_FFI=1`. For example:
+要让 `cute.Tensor` 适配 TVM FFI 函数，你可以使用带有 `enable_tvm_ffi=True` 选项的 `cute.runtime.from_dlpack`，或者设置环境变量 `CUTE_DSL_ENABLE_TVM_FFI=1`。例如：
 
 ```python
 def example_from_dlpack():
@@ -1860,19 +1852,19 @@ def example_from_dlpack():
     compiled_add_one(a_cute, b_cute)
 ```
 
-Note that because the `cute.runtime.from_dlpack` function performs an explicit DLPack conversion, it is less efficient than passing the `torch.Tensor` directly. You can also use `cute.Tensor` as an argument hint for `cute.compile`.
+注意：由于 `cute.runtime.from_dlpack` 会执行一次显式 DLPack 转换，因此它比直接传递 `torch.Tensor` 更低效。你也可以在 `cute.compile` 中使用 `cute.Tensor` 作为参数提示（argument hint）。
 
 ```python
 compiled_add_one = cute.compile(add_one, a_cute, b_cute, options="--enable-tvm-ffi")
 ```
 
-## Working with torch Tensors
+## 与 torch Tensor 协作
 
-As you may have noticed in the examples above, TVM FFI-compiled functions can directly accept `torch.Tensor` objects (and other DLPack-compatible tensors) as inputs. The resulting functions add minimal overhead, enabling faster eager invocations thanks to the optimized calling path.
+正如上面示例所展示的那样，经 TVM FFI 编译的函数可以直接接受 `torch.Tensor` 对象（以及其他 DLPack 兼容张量）作为输入。得益于优化后的调用路径，这类函数额外开销很小，从而能实现更快的 eager 调用。
 
-## Working with Streams
+## 与 Stream 协作
 
-In many cases, a CuTe kernel needs to run on a specific CUDA stream. CuTe DSL provides two ways to work with streams through TVM FFI. The first is to pass the stream explicitly as an argument. The following example demonstrates this approach; the function accepts `torch.cuda.Stream`, `CUstream` or any stream class that implements the CUDA stream protocol.
+在很多情况下，CuTe kernel 需要在指定的 CUDA stream 上运行。CuTe DSL 通过 TVM FFI 提供了两种与 stream 协作的方式。第一种是把 stream 作为参数显式传入。下面的示例演示了这种方式；该函数接受 `torch.cuda.Stream`、`CUstream` 或任何实现了 CUDA stream 协议的 stream 类。
 
 ```python
 import cutlass.cute as cute
@@ -1903,7 +1895,7 @@ def example_add_one_with_stream():
    n = cute.sym_int()
    a_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
    b_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
-   # Fake stream is a placeholder for stream argument
+   # Fake stream 是 stream 参数的占位符
    stream = cute.runtime.make_fake_stream()
    compiled_add_one = cute.compile(
       add_one_with_stream, a_cute, b_cute, stream, options="--enable-tvm-ffi"
@@ -1917,17 +1909,17 @@ def example_add_one_with_stream():
    print(b_torch)
 ```
 
-## Using Environment Stream
+## 使用环境 Stream
 
-The second option is to rely on the environment stream flag. Pass `use_tvm_ffi_env_stream=True` to `make_fake_stream` to mark the stream argument as an environment stream, which means it no longer needs to be provided explicitly. TVM FFI will automatically use its environment stream (i.e., the current PyTorch stream) as the stream argument. The example below demonstrates this flow:
+第二种方式是依赖环境 stream flag。给 `make_fake_stream` 传入 `use_tvm_ffi_env_stream=True`，即可把 stream 参数标记为“环境 stream”，这意味着它不再需要显式传入。TVM FFI 会自动使用其环境 stream（即当前 PyTorch stream）作为 stream 参数。下面示例演示了这一流程：
 
 ```python
 def example_add_one_with_env_stream():
    n = cute.sym_int()
    a_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
    b_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
-   # Fake stream is a placeholder for stream argument
-   # we will use TVM FFI environment stream
+   # Fake stream 是 stream 参数的占位符
+   # 我们将使用 TVM FFI 的环境 stream
    stream = cute.runtime.make_fake_stream(use_tvm_ffi_env_stream=True)
    compiled_add_one = cute.compile(
       add_one_with_stream, a_cute, b_cute, stream, options="--enable-tvm-ffi"
@@ -1936,19 +1928,19 @@ def example_add_one_with_env_stream():
    b_torch = torch.empty(10, dtype=torch.float32, device="cuda")
    torch_stream = torch.cuda.current_stream()
    with torch.cuda.stream(torch_stream):
-      # no need to pass in the stream explicitly, env stream will be synced
-      # to torch.cuda.current_stream() before the function call.
+      # 无需显式传入 stream；环境 stream 会在函数调用前
+      # 与 torch.cuda.current_stream() 同步。
       compiled_add_one(a_torch, b_torch)
    torch_stream.synchronize()
    print("result of b_torch after compiled_add_one(a_torch, b_torch)")
    print(b_torch)
 ```
 
-Using the environment stream flag both speeds up calls and simplifies integration with frameworks such as PyTorch, since no explicit stream parameter is required. We recommend using the environment stream flag to both simplify framework integration and minimize host-side calling overhead.
+使用环境 stream flag 不仅能加速调用，还能简化与 PyTorch 等框架的集成，因为不需要显式 stream 参数。我们建议使用环境 stream flag，以同时简化框架集成并最小化 host 侧调用开销。
 
-## Working with Tuples
+## 使用元组（Tuples）
 
-TVM FFI functions can also accept tuples as arguments. Tuples can be recursively composed of the types that are supported by TVM FFI. The example below shows how to use tuples as arguments:
+TVM FFI 函数也可以接受元组作为参数。元组可以递归地由 TVM FFI 支持的类型组合而成。下面的示例展示了如何使用元组作为参数：
 
 ```python
 import torch
@@ -1987,9 +1979,9 @@ def example_add_one_with_tuple():
 example_add_one_with_tuple()
 ```
 
-## Working with Variadic Tuples
+## 使用可变长元组（Variadic Tuples）
 
-Sometimes it is helpful to annotate a tuple with no explicit element types. This can be useful to build up a generic template for a function that accepts a variable number of elements. The compiled function’s signature will be determined by the tuple argument passed to the `cute.compile` function. The following example shows how to use a variadic tuple to build such a generic template.
+有时，把一个元组标注为“没有显式元素类型”会很有用。这有助于构建一个通用模板，用于接受可变数量元素的函数。编译后的函数签名将由传给 `cute.compile` 的元组实参决定。下面的示例展示了如何使用可变长元组来构建这样的通用模板。
 
 ```python
 import cutlass
@@ -2039,9 +2031,9 @@ def example_add_one_with_variadic_tuple():
 example_add_one_with_variadic_tuple()
 ```
 
-## Working with Named Tuples
+## 使用命名元组（Named Tuples）
 
-Named tuples are also supported and help logically group related arguments together. The example below shows how to use named tuples as arguments. Under the hood, named tuples are passed as unnamed tuples at the ABI level. When errors occur, the function signature in error messages will display unnamed tuple arguments. Ensure that the compile-time CuTe named tuple type definition has the same fields as the runtime PyTorch named tuple. Currently, users need to explicitly unpack the named tuple outside of conditionals and then use the unpacked variables inside the conditionals.
+命名元组同样受支持，并且有助于在逻辑上把相关参数分组。下面示例展示了如何使用命名元组作为参数。在底层实现中，命名元组会在 ABI 层以“未命名元组”的形式传递。当发生错误时，错误信息中的函数签名也会显示未命名元组参数。请确保编译期 CuTe 命名元组类型定义的字段与运行期 PyTorch 命名元组一致。目前用户需要在条件语句之外显式解包命名元组，然后在条件语句内部使用解包后的变量。
 
 ```python
 from typing import NamedTuple
@@ -2064,7 +2056,7 @@ class TorchNamedTuple(NamedTuple):
 @cute.kernel
 def device_add_one_named_tuple(value: CuteNamedTuple):
    tid = cute.arch.block_idx()[0] * 128 + cute.arch.thread_idx()[0]
-   # need to unpack namedtuple outside conditionals
+   # 需要在条件语句之外解包 namedtuple
    a = value.a
    b = value.b
    c = value.c
@@ -2097,15 +2089,15 @@ example_add_one_with_named_tuple()
 ```
 
 
-## Supported types
+## 支持的类型
 
-The TVM FFI function supports the following CuTe DSL-specific types as arguments:
+TVM FFI 函数支持以下 CuTe DSL 特有类型作为参数：
 
 - `cute.Tensor`
 - `cutlass.Boolean`, `cutlass.Int8`, `cutlass.Int16`, `cutlass.Int32`, `cutlass.Int64`, `cutlass.Uint8`, `cutlass.Uint16`, `cutlass.Uint32`, `cutlass.Uint64`, `cutlass.Float32`, `cutlass.Float64`
 - `cute.Shape`, `cute.Stride`, `cute.Coord`, `cute.Tile`, `cute.IntTuple`
 
-| Compile-time type | Call-time type |
+| 编译期类型 | 调用期类型 |
 | --- | --- |
 | `cute.Pointer` | `ctypes.c_void_p` or a class that implements `__tvm_ffi_opaque_ptr__` protocol. |
 | `cute.runtime.FakeTensor` | `torch.Tensor` and other DLPack-compatible tensors. |
@@ -2114,14 +2106,14 @@ The TVM FFI function supports the following CuTe DSL-specific types as arguments
 | CUDA stream `cuda.CUstream` | A stream class that implements the CUDA stream protocol (e.g. `torch.cuda.Stream`, `cuda.CUstream`). |
 | Tuple of types (e.g. `Tuple[cute.Tensor, cute.Tensor, cutlass.Int32]`) | Python tuple of corresponding call-time types. |
 
-## Error handling
+## 错误处理
 
-TVM FFI functions will enable validation of arguments to make sure they match the expected type and value constraints declared by the user. These checks are compiled into the function, run very fast, and have no observable overhead during function invocation. Each of those errors will translate into a proper Python exception that can be caught and handled. The example below shows some example error cases that can be checked:
+TVM FFI 函数会启用参数校验（validation），以确保传入实参符合用户声明的期望类型与取值约束。这些检查会被编译进函数中，执行速度很快，并且在函数调用时没有可观察到的额外开销。每一种错误都会被转换为可捕获与处理的 Python 异常。下面的示例展示了一些可被检查到的错误场景：
 
 ```python
 def example_constraint_checks():
    n = cute.sym_int(divisibility=16)
-   # assume align to 16 bytes (4 int32), both should share same shape variable n
+   # 假设对齐到 16 bytes（4 个 int32），并且 a 与 b 应共享同一个 shape 变量 n
    a_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,), assumed_align=16)
    b_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,), assumed_align=16)
    compiled_add_one = cute.compile(add_one, a_cute, b_cute, options="--enable-tvm-ffi")
@@ -2129,7 +2121,7 @@ def example_constraint_checks():
    b = torch.zeros(128, dtype=torch.float32, device="cuda")
 
    try:
-      # raises type mismatch error because we expect a and b to be float32
+      # 触发类型不匹配错误：因为我们期望 a 和 b 都是 float32
       compiled_add_one(a, 1)
    except TypeError as e:
       # Mismatched type on argument #1 when calling:
@@ -2138,7 +2130,7 @@ def example_constraint_checks():
       print(f"TypeError: {e}")
 
    try:
-      # raises shape mismatch error because we expect both a and b have shap [n]
+      # 触发 shape 不匹配错误：因为我们期望 a 和 b 都具有 shape [n]
       compiled_add_one(a, b[:126])
    except ValueError as e:
       # Mismatched b.shape[0] on argument #1 when calling:
@@ -2147,7 +2139,7 @@ def example_constraint_checks():
       print(f"ValueError: {e}")
 
    try:
-      # triggers divisibility mismatch error because 126 is not divisible by 16
+      # 触发可整除性不匹配错误：因为 126 不能被 16 整除
       compiled_add_one(a[:126], b[:126])
    except ValueError as e:
       # Invalid a.shape[0] on argument #0 when calling:
@@ -2158,7 +2150,7 @@ def example_constraint_checks():
    try:
       a = torch.zeros(129, dtype=torch.float32, device="cuda")
       b = torch.zeros(129, dtype=torch.float32, device="cuda")
-      # triggers data alignment mismatch error because x and y are not aligned to 16 bytes
+      # 触发数据对齐不匹配错误：因为 x 和 y 没有按 16 bytes 对齐
       compiled_add_one(a[1:], b[1:])
    except ValueError as e:
       # raises: Misaligned Tensor data on argument #0 when calling:
@@ -2167,13 +2159,13 @@ def example_constraint_checks():
       print(f"ValueError: {e}")
 ```
 
-Any CUDA errors encountered will also be automatically converted into Python exceptions by the TVM FFI function.
+TVM FFI 函数也会把遇到的任何 CUDA 错误自动转换为 Python 异常。
 
 ```python
 @cute.jit
 def add_one_invalid_launch(a: cute.Tensor, b: cute.Tensor):
-   # Intentionally exceed the maximum block dimension (1024 threads) so the
-   # CUDA runtime reports an invalid configuration error.
+   # 故意超过最大 block 维度（1024 threads），使得
+   # CUDA runtime 报告无效配置错误。
    device_add_one(a, b).launch(grid=(1, 1, 1), block=(4096, 1, 1))
 
 def example_error_cuda_error():
@@ -2193,13 +2185,13 @@ def example_error_cuda_error():
       print(f"RuntimeError: {e}")
 ```
 
-## Working with Devices
+## 与设备（Devices）协作
 
-TVM FFI-compiled functions naturally work across GPU devices. The device index of the first input GPU tensor determines the kernel’s device context. The TVM FFI function calls `cudaSetDevice` to set the correct device before launching the kernel based on that tensor’s device index. For advanced scenarios that pass raw pointers instead of tensors, you should call `cudaSetDevice` explicitly through the CUDA Python API.
+TVM FFI 编译函数可以自然地跨 GPU 设备工作。第一个输入的 GPU 张量的 device index 决定了 kernel 的 device context。TVM FFI 函数会在启动 kernel 前调用 `cudaSetDevice`，根据该张量的 device index 设置正确的设备。对于传入原始指针而非张量的高级场景，你应当通过 CUDA Python API 显式调用 `cudaSetDevice`。
 
-## Exporting Compiled Module
+## 导出已编译模块
 
-The TVM FFI function supports exporting the compiled module to an object file for further use. For example:
+TVM FFI 函数支持将已编译模块导出为 object 文件，以便后续使用。例如：
 
 ```python
 import subprocess
@@ -2209,9 +2201,9 @@ def example_add_one_export():
    n = cute.sym_int()
    a_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
    b_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
-   # compile the kernel with "--enable-tvm-ffi" option and example input tensors
+   # 使用 "--enable-tvm-ffi" 选项和示例输入张量来编译 kernel
    compiled_add_one = cute.compile(add_one, a_cute, b_cute, options="--enable-tvm-ffi")
-   # export the compiled module to object file
+   # 将已编译模块导出为 object 文件
    compiled_add_one.export_to_c("./add_one.o", function_name="add_one")
    # obtain necessary runtime libs for loading the shared library
    runtime_libs = cute.runtime.find_runtime_libraries(enable_tvm_ffi=True)
@@ -2222,7 +2214,7 @@ def example_add_one_export():
    print(f"Successfully created shared library: ./add_one.so")
 ```
 
-Then you can load back the exported module and use it in different ways:
+然后你可以把导出的模块重新加载回来，并用不同方式使用它：
 
 ```python
 import torch
@@ -2237,13 +2229,13 @@ def example_load_module_add_one():
    print(b_torch)
 ```
 
-The exported object file exposes the function symbol `__tvm_ffi_add_one` that is compatible with TVM FFI and can be used in various frameworks and programming languages. You can either build a shared library and load it back, or link the object file directly into your application and invoke the function via the `InvokeExternC` mechanism in TVM FFI. For more information, see the quick start guide(https://tvm.apache.org/ffi/get_started/quickstart) in the official documentation.
+导出的 object 文件会暴露一个与 TVM FFI 兼容的函数符号 `__tvm_ffi_add_one`，可在多种框架与编程语言中使用。你既可以构建一个 shared library 并重新加载，也可以把该 object 文件直接链接到你的应用中，并通过 TVM FFI 的 `InvokeExternC` 机制来调用该函数。更多信息请参考官方文档中的快速开始指南(https://tvm.apache.org/ffi/get_started/quickstart)。
 
-When you build your own libraries, make sure you link against the necessary runtime libraries. You can use `cute.runtime.find_runtime_libraries(enable_tvm_ffi=True)` to get the path to these libraries. `cute.runtime.load_module` will load these libraries automatically before loading an exported module. You can also manually load these libraries in advanced use cases.
+当你构建自己的库时，请确保链接了必要的运行时库。你可以使用 `cute.runtime.find_runtime_libraries(enable_tvm_ffi=True)` 获取这些库的路径。`cute.runtime.load_module` 会在加载导出模块之前自动加载这些库。在更高级的场景中，你也可以手动加载这些库。
 
-## Keyword Arguments and Defaults
+## 关键字参数与默认值
 
-The function returned by `cute.compile` supports keyword arguments and defaults. The example below shows how to use keyword arguments and defaults:
+`cute.compile` 返回的函数支持关键字参数（keyword arguments）与默认值（defaults）。下面示例展示了如何使用关键字参数与默认值：
 
 ```python
 import torch
@@ -2280,7 +2272,7 @@ def example_kwargs_and_defaults():
    print(b_torch)
 ```
 
-For efficiency and portability reasons, TVM FFI ABI supports functions with positional-only arguments. If you export the compiled module to an object file and then load it back, the function will only accept positional arguments in the order of the arguments in the function signature. You can rewrap the function or use the TVM FFI wrapper generator to generate a kwargs wrapper. The code block below shows how to do this:
+出于效率与可移植性考虑，TVM FFI ABI 支持“仅位置参数”（positional-only arguments）的函数。如果你把已编译模块导出为 object 文件并重新加载，那么该函数将只接受按函数签名顺序传入的位置参数。你可以重新封装（rewrap）该函数，或使用 TVM FFI wrapper generator 生成一个 kwargs wrapper。下面的代码块展示了如何实现：
 
 ```python
 def example_kwargs_and_defaults():
@@ -2288,11 +2280,11 @@ def example_kwargs_and_defaults():
    a_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
    b_cute = cute.runtime.make_fake_compact_tensor(cute.Float32, (n,))
    compiled_add_constant = cute.compile(add_constant, a_cute, b_cute, options="--enable-tvm-ffi")
-   # export the compiled module to object file
+   # 将已编译模块导出为 object 文件
    compiled_add_constant.export_to_c("./add_constant.o", function_name="add_constant")
-   # obtain necessary runtime libs for loading the shared library
+   # 获取加载 shared library 所需的运行时库
    runtime_libs = cute.runtime.find_runtime_libraries(enable_tvm_ffi=True)
-   # compile the object file to a shared library
+   # 将 object 文件编译为 shared library
    cmd = ["gcc", "-shared", "-o", "./add_constant.so", "./add_constant.o", *runtime_libs]
    subprocess.run(cmd, check=True)
 
@@ -2303,22 +2295,21 @@ def example_kwargs_and_defaults():
    try:
       mod.add_constant(a_torch, b_torch)
    except Exception as e:
-      # Raises a missing arguments error because kwargs and default information are lost
+      # 会抛出缺少参数错误，因为 kwargs 与默认值信息已经丢失
       print(e)
-   # We rewrap the function to regain argument and kwargs support.
-   # Alternatively, use the TVM FFI wrapper generator to generate a kwargs wrapper function.
+   # 重新封装函数以恢复参数与 kwargs 支持。
+   # 或者，使用 TVM FFI wrapper generator 生成 kwargs wrapper 函数。
    from tvm_ffi.utils import kwargs_wrapper
-   # arg_defaults are aligned to the end of the argument list
+   # arg_defaults 会与参数列表末尾对齐
    wrapped_func = kwargs_wrapper.make_kwargs_wrapper(
       mod.add_constant, arg_names=["a", "b", "offset"], arg_defaults=(1,)
    )
    wrapped_func(a_torch, b_torch)
    print("result of b_torch after wrapped_func(a_torch, b_torch)")
    print(b_torch)
-   # You can also use the signature of the original function
-   # to generate a kwargs wrapper function. Make sure to exclude
-   # arguments that are not included in the runtime,
-   # such as 'self', constexpr, and env stream arguments.
+   # 你也可以使用原始函数的 signature 来生成 kwargs wrapper 函数。
+   # 注意要排除运行期不会包含的参数，
+   # 例如 'self'、constexpr、以及 env stream 参数。
    wrapped_func = kwargs_wrapper.make_kwargs_wrapper_from_signature(
       mod.add_constant, signature=inspect.signature(add_constant),
       exclude_arg_names=["self"]
@@ -2331,105 +2322,104 @@ def example_kwargs_and_defaults():
  
  
 
-# Limitations
+# 限制
 
-## Overview
+## 概览
 
-CuTe DSL is an embedded domain-specific language within Python. It utilizes a subset of Python’s syntax to provide a streamlined programming experience. It is important to understand that CuTe DSL does NOT implement the complete Python language semantics in its JIT compilation process.
+CuTe DSL 是嵌入在 Python 中的一种领域特定语言（DSL）。它使用 Python 语法的一个子集来提供更简洁的编程体验。需要注意的是：CuTe DSL 在其 JIT 编译过程中**不会**实现完整的 Python 语言语义。
 
-This section documents the current limitations of the CuTe DSL. While some of these limitations may be addressed in future releases, developers should be aware of them when building applications with the DSL.
+本节记录了 CuTe DSL 当前的限制。虽然其中一些限制可能会在未来版本中被解决，但在使用该 DSL 构建应用时，开发者应当了解这些限制。
 
-## Notable unsupported features
+## 主要不支持的特性
 
-- Programmatic Dependent Launch (PDL)
-- convolutions
-- full support for ahead of time compilation
+- Programmatic Dependent Launch（PDL）
+- 卷积（convolutions）
+- 对 ahead-of-time compilation 的完整支持
 - preferred clusters
-- CLC-based tile schedulers
-- EVT support
-- Windows support
+- 基于 CLC 的 tile schedulers
+- EVT 支持
+- Windows 支持
 
-## Programming Model
+## 编程模型
 
-### CuTe Layout Algebra Only support 32bit
+### CuTe Layout Algebra 仅支持 32-bit
 
-Today, we only support 32bit shapes/strides in CuTe layouts. 64bit or arbitrary width support is planned for future releases.
+目前，CuTe layouts 仅支持 32-bit 的 shapes/strides。未来版本计划支持 64-bit 或任意位宽。
 
-### Python Native Data Types
+### Python 原生数据类型
 
-CuTe DSL supports Python data structures when used for “meta-programming”, but these structures cannot be treated as dynamic values modifiable at runtime. For instance, lists and dictionaries can be used to configure kernel parameters during compilation or serve as containers for dynamic values, but their structure and organization cannot be altered during kernel execution.
+CuTe DSL 支持在“元编程（meta-programming）”场景中使用 Python 数据结构，但这些结构不能被当作运行期可修改的动态值。例如，列表与字典可以在编译期用于配置 kernel 参数，或作为动态值的容器，但在 kernel 执行期间，它们的结构与组织方式不能被改变。
 
-- Static Values:
-  - Evaluated during JIT compilation phase
-  - Immutable after compilation completes
-  - Most Python native types (lists, tuples, dictionaries) are processed as static values
-  - Primarily utilized for “meta-programming” and configuration purposes
-  - Example: Lists can contain dynamic values but their structure cannot be modified during kernel execution
+- 静态值（Static Values）：
+  - 在 JIT 编译阶段求值
+  - 编译完成后不可变
+  - 大多数 Python 原生类型（lists、tuples、dictionaries）会被当作静态值处理
+  - 主要用于“元编程”和配置
+  - 示例：列表可以包含动态值，但其结构在 kernel 执行期间不能被修改
 
-- Dynamic Values:
-  - Evaluated during runtime execution
-  - Modifiable during execution of JIT-compiled functions
-  - Only a specific subset of Python types are supported as dynamic values
-  - Primitive types are automatically converted when passed as function arguments:
-    - `int` -> `Int32` (may be updated to `Int64` in future releases)
+- 动态值（Dynamic Values）：
+  - 在运行期执行阶段求值
+  - 在 JIT 编译函数执行期间可修改
+  - 只有一小部分 Python 类型支持作为动态值
+  - 基础类型在作为函数实参传入时会被自动转换：
+    - `int` -> `Int32`（未来版本可能更新为 `Int64`）
     - `bool` -> `Bool`
-    - `float` -> `Float32` (may be updated to `Float64` in future releases)
+    - `float` -> `Float32`（未来版本可能更新为 `Float64`）
 
-The JIT compiler processes Python native types analogously to C++ template parameters. The compiled code cannot manipulate dynamic values of composite types such as lists, tuples, or dictionaries.
+JIT 编译器会把 Python 原生类型的处理方式类比于 C++ 模板参数。编译后的代码无法操纵列表、元组、字典等复合类型的动态值。
 
-For example, following code doesn’t work as traditional Python program inside JIT function.
+例如，下面的代码在 JIT 函数内部无法像传统 Python 程序那样工作。
 
 ```python
 @cute.jit
 def foo(a: Float32, b: Float32, i: Int32, res: cute.Tensor):
     xs = [a, b]
-    # indexing list with dynamic index is not supported in CuTe DSL:
+    # 在 CuTe DSL 中，不支持用动态索引访问 list：
     res[0] = xs[i]
 
     if i == 0:
-        # This will always append Float32(3.0) to the list regardless
-        # of the runtime value of `i`
+        # 无论 `i` 的运行期值是什么，这里都会在 list 里追加 Float32(3.0)
         xs.append(Float32(3.0))
 
     for i in range(10):
-        # This only append one element to the list at compile-time
-        # as loop doesn’t unroll at compile-time
+        # 由于该循环在编译期不会展开（unroll），
+        # 这里在编译期只会向 list 追加一个元素
         xs.append(Float32(1.0))
 ```
 
-### Python Function
+### Python 函数
 
-The DSL currently does not implement support for return values from Python functions, although this capability is planned for future releases.
+目前该 DSL 尚不支持 Python 函数的返回值（return values），不过这一能力计划在未来版本中提供。
 
-Example:
+示例：
 
 ```python
 @cute.jit
 def foo():
-    return 1  # Currently unsupported in CuTe DSL
+    return 1  # 当前在 CuTe DSL 中不支持
 ```
 
-### Expression or Statement with Dependent Type
+### 具有依赖类型（Dependent Type）的表达式或语句
 
-CuTe DSL implements static typing and does not support dependent types. The type of each expression must be determinable during compile time, in contrast to standard Python which implements dynamic typing.
+CuTe DSL 实现了静态类型（static typing），并且不支持依赖类型（dependent types）。每个表达式的类型都必须在编译期可确定，这与采用动态类型（dynamic typing）的标准 Python 形成对比。
 
-Example illustrating functionality in Python that is not supported in the DSL:
+以下示例展示了在标准 Python 中可用，但在该 DSL 中不支持的用法：
 
 ```python
-# Valid in standard Python, but unsupported in CuTe DSL
+# 在标准 Python 中有效，但在 CuTe DSL 中不支持
 max(int(1), float(2.0))  # => 2.0 : float
 max(int(3), float(2.0))  # => 3 : int
 ```
 
-In CuTe DSL, types are promoted. For example:
+在 CuTe DSL 中，类型会被提升（promoted）。例如：
 
 ```python
 @cute.jit
 def foo(a: Int32, b: Float32, res: cute.Tensor):
-    res[0] = max(a, b)  # Type is automatically promoted to Float32
+    res[0] = max(a, b)  # 类型会被自动提升为 Float32
 ```
 
-Following code using inlined if-else expression with dependent types is not supported in CuTe DSL:
+以下使用内联 if-else 表达式并具有依赖类型的代码在 CuTe DSL 中不受支持：
 
 ```python
 @cute.jit
@@ -2437,48 +2427,48 @@ def foo(cond: Boolean, a: Int32, b: Float32, res: cute.Tensor):
     res[0] = a if cond else b
 ```
 
-### Control Flow
+### 控制流
 
-The DSL transforms Python control flow statements (`if`, `for`, `while`) during Abstract Syntax Tree (AST) processing into structured control flow in MLIR which has the same constraints as dependent types. For instance, changing type of a variable in loop body is not allowed.
+在抽象语法树（AST）处理过程中，该 DSL 会把 Python 控制流语句（`if`、`for`、`while`）转换为 MLIR 中的结构化控制流（structured control flow），并遵循与依赖类型相同的约束。例如，不允许在循环体内部改变变量的类型。
 
-- Variables must be defined prior to the control flow statement
-- Type consistency must be maintained throughout the control flow statement
-- Don’t support early exit or return from if-else statements
+- 变量必须在控制流语句之前定义
+- 在整个控制流语句中必须保持类型一致性
+- 不支持在 if-else 语句中提前退出或 return
 
-Example illustrating functionality in Python that is not supported in the DSL:
+以下示例展示了在标准 Python 中可用，但在该 DSL 中不支持的用法：
 
 ```python
 @cute.jit
 def foo():
     a = Int32(1)
     for i in range(10):
-        a = Float32(2)  # Changing type inside loop-body is not allowed in the DSL
+        a = Float32(2)  # 在 DSL 中不允许在循环体内改变类型
 ```
 
-### Built-in Operators
+### 内置运算符
 
-The DSL transforms built-in operators like `and`, `or`, `max`, `min`, etc. into MLIR operations. They also follow the same constraints of dependent types. For instance, `a and b` requires `a` and `b` to be of the same type.
+该 DSL 会把 `and`、`or`、`max`、`min` 等内置运算符转换为 MLIR 操作，并同样遵循依赖类型的约束。例如，`a and b` 要求 `a` 与 `b` 的类型相同。
 
-### Special Variables
+### 特殊变量
 
-The DSL treats `_` as a special variable that it’s value is meant to be ignored. It is not allowed to read `_` in the DSL.
+该 DSL 将 `_` 视为一个特殊变量，表示其值应被忽略。在该 DSL 中不允许读取 `_`。
 
-Example illustrating functionality in Python that is not supported in the DSL:
+以下示例展示了在标准 Python 中可用，但在该 DSL 中不支持的用法：
 
 ```python
 @cute.jit
 def foo():
     _ = 1
-    print(_)  # This is not allowed in the DSL
+    print(_)  # 在 DSL 中不允许
 ```
 
-### Object Oriented Programming
+### 面向对象编程（OOP）
 
-The DSL is implemented on top of Python and supports Python’s object-oriented programming (OOP) features for meta-programming at compile-time.
+该 DSL 构建在 Python 之上，并支持使用 Python 的面向对象编程（OOP）特性在编译期进行元编程。
 
-However, similar to other composed data types, the DSL provides limited support for OOP when objects contain dynamic values. It is strongly recommended to avoid passing dynamic values between member methods through class state in your code.
+但与其他复合数据类型类似，当对象包含动态值时，该 DSL 对 OOP 的支持是有限的。强烈建议你避免在代码中通过类的状态在成员方法之间传递动态值。
 
-The following example illustrates functionality in Python that is not supported in the DSL without implementing the `DynamicExpression` protocol:
+下例展示了在未实现 `DynamicExpression` 协议时，该 DSL 中不支持的 Python 用法：
 
 ```python
 class Foo:
@@ -2498,137 +2488,137 @@ def foo(a: Int32, res: cute.Tensor):
     for i in range(10):
         foo.set_a(i)
 
-    # This fails to compile because `Foo.a` is assigned a local value defined within the for-
-    # loop body, which is not visible outside of the loop body
+    # 这会编译失败，因为 `Foo.a` 被赋值为一个在 for 循环体内部定义的局部值，
+    # 而该值在循环体之外不可见
     res[0] = foo.get_a()
 ```
 
-The example above fails to compile because `Foo.a` is assigned a local value defined within the for-loop body, which is not visible outside of the loop body.
+上面的示例编译失败，是因为 `Foo.a` 被赋值为一个在 for 循环体内部定义的局部值，而该值在循环体之外不可见。
 
-The CuTe DSL implements an internal mechanism that provides limited support for OOP patterns via protocol. As the DSL continues to evolve to support additional features, this mechanism is subject to change and is not recommended for direct use in users’ code for better portability.
+CuTe DSL 通过 protocol 实现了一套内部机制，为 OOP 模式提供有限支持。随着 DSL 持续演进以支持更多特性，该机制可能会发生变化；为了更好的可移植性，不建议用户在代码中直接使用。
 
-### CuTe Layout algebra in native Python
+### 原生 Python 环境中的 CuTe Layout Algebra
 
-Entirety of CuTe Layout algebra operations and APIs require JIT compilation. These functionalities are exclusively available within JIT-compiled functions and cannot be accessed in standard Python execution environments.
+CuTe Layout Algebra 的全部操作与 API 都需要 JIT 编译。这些功能只能在 JIT 编译函数内部使用，无法在标准 Python 执行环境中访问。
 
-Additionally, there exists a restricted set of data types that can be passed as arguments to JIT-compiled functions, which further constrains their usage in native Python contexts. Only following CuTe algebra types are supported as JIT function arguments: `Tensor`, `Pointer`, `Shape`, `Stride`, `Coord` and `IntTuple`. For `Stride`, we don’t support `ScaledBasis` from native Python Context. Unfortunately, in the first release, we don’t support passing `Layout` under native Python Context.
+此外，能够作为 JIT 编译函数参数传入的数据类型也受到限制，这进一步约束了它们在原生 Python 语境下的使用。只有以下 CuTe algebra 类型可作为 JIT 函数参数：`Tensor`、`Pointer`、`Shape`、`Stride`、`Coord` 与 `IntTuple`。对于 `Stride`，我们不支持在原生 Python 环境下使用 `ScaledBasis`。遗憾的是，在首个版本中，我们也不支持在原生 Python 环境下传入 `Layout`。
 
-## Suggestions
+## 建议
 
-For reliable and predictable results:
+为了获得可靠且可预测的结果：
 
-- Avoid dependent types in your code
-- Implement explicit type conversion for dynamic values
-- Clearly distinguish between static (compile-time) and dynamic (runtime) values
-- Use type annotations as much as possible to help JIT compiler to identify type to avoid ambiguity
+- 避免在代码中使用依赖类型（dependent types）
+- 对动态值实现显式的类型转换
+- 清晰地区分静态值（编译期）与动态值（运行期）
+- 尽可能使用类型标注，帮助 JIT 编译器识别类型以避免歧义
 
 ```python
-# Example demonstrating explicit typing
-alpha = 1.0  # Explicitly defined as float using `1.0` instead of `1`
-beta = 2.0   # or `float(1)`
-result = max(alpha, beta)  # Will correctly perform float comparison
+# 展示显式类型的示例
+alpha = 1.0  # 使用 `1.0` 而不是 `1` 来显式表示 float
+beta = 2.0   # 或使用 `float(1)`
+result = max(alpha, beta)  # 将正确执行 float 比较
 ```
 
-### Debugging Capabilities
+### 调试能力
 
-Debugging tools and facilities for the Python DSL are currently more limited in comparison to the C++ API. For instance, we don’t support single-stepping through the JIT-compiled code. And lack of exception handling in JIT-compiled code makes it hard to debug in some cases.
+与 C++ API 相比，Python DSL 的调试工具与设施目前更受限。例如，我们不支持对 JIT 编译代码进行单步调试（single-stepping）。同时，JIT 编译代码缺少异常处理（exception handling）也会在一些情况下增加调试难度。
 
-### Integration with Frameworks
+### 与框架集成
 
-Integration with certain deep learning frameworks is in early development stages and may have limitations. For instance, converting frameworking tensor to `cute.Tensor` is known to have overhead with 2us~3us per tensor as we convert from general DLPack protocol which offers compatibility with all frameworks.
+与某些深度学习框架的集成仍处于早期开发阶段，可能存在限制。例如，将框架张量转换为 `cute.Tensor` 已知会产生开销：由于我们通过通用 DLPack 协议进行转换（以兼容所有框架），每个张量的转换开销大约为 2us~3us。
 
-### Hashing DSL APIs and Objects
+### DSL API 与对象的哈希（Hash）
 
-DSL APIs and Objects are sensitive to MLIR context, region or other contextual information which has no meaning cross different context. Any stateful design rely on `__hash__` likely misbehave with unexpected results. An example is `functools.lru_cache`, which combined with `@cute.jit`, it may cache MLIR object from one context and use in another one.
+DSL API 与对象会受到 MLIR context、region 等上下文信息的影响，而这些信息跨 context 时并无意义。任何依赖 `__hash__` 的有状态设计都可能出现非预期行为。例如，`functools.lru_cache` 与 `@cute.jit` 结合时，可能会缓存来自某个 context 的 MLIR 对象，并在另一个 context 中复用。
 
-## Future Improvements
+## 未来改进
 
-The CuTe DSL development team is actively addressing these limitations. Upcoming releases will aim to:
+CuTe DSL 开发团队正在积极解决这些限制。后续版本将致力于：
 
-- Implement support for return values from JIT compiled functions
-- Improve support for built-in operators to handle more cases without dependent types
-- Enhance debugging capabilities and tools
-- Improve error messages with precise diagnostic information
-- Extend support for additional numeric data types
-- Improve performance of converting framework tensor to `cute.Tensor` with native support for different frameworks
-- Offer more user friendly benchmarking methodology
+- 支持 JIT 编译函数的返回值
+- 改进内置运算符支持，以处理更多不含依赖类型的场景
+- 增强调试能力与工具
+- 改进错误信息，提供更精确的诊断信息
+- 扩展对更多数值数据类型的支持
+- 通过对不同框架的原生支持来提升将框架张量转换为 `cute.Tensor` 的性能
+- 提供更易用的 benchmark 方法论
 
-## Design Limitations Likely to Remain
+## 可能会长期保留的设计限制
 
-The primary objective of CuTe DSL is to provide a domain-specific language for expressing complex CUDA kernels with optimal GPU performance, not to execute arbitrary Python code on GPU hardware.
+CuTe DSL 的核心目标是提供一种领域特定语言，用于以最优 GPU 性能表达复杂的 CUDA kernel，而不是在 GPU 硬件上执行任意 Python 代码。
 
-The following limitations will likely remain by design:
+以下限制很可能会作为设计取舍而长期保留：
 
-- Complex Data Structures as Dynamic Values: Lists, tuples, and dictionaries will continue to function as static containers. While they can store dynamic values, their structure (adding/removing elements) cannot be modified during execution of JIT-compiled functions.
-- Dependent Types: Supporting dependent types would introduce substantial complexity and adversely affect the performance characteristics of generated code.
-- CuTe Layout Algebra: We don’t have plan to extend the support of CuTe Layout Algebra under native Python Context. We are planning to extend support for data types and allow JIT function to interoperate with native Python code.
+- 复合数据结构作为动态值：列表、元组、字典等将继续作为静态容器使用。虽然它们可以存储动态值，但在 JIT 编译函数执行期间，它们的结构（添加/删除元素）不能被修改。
+- 依赖类型：支持依赖类型会引入大量复杂性，并对生成代码的性能特征产生负面影响。
+- CuTe Layout Algebra：我们不计划在原生 Python 环境下扩展 CuTe Layout Algebra 的支持。我们计划扩展对数据类型的支持，并允许 JIT 函数与原生 Python 代码进行交互。
 
-# FAQ: General
+# 常见问题：常规
 
-## Are the DSLs replacing C++ templates?
+## DSLs 会取代 C++ templates 吗？
 
-TL;DR: No - but also yes. The CUTLASS 4.0 release (CuTe DSL), along with all future extensions to our Python-native programming models, does not come at the expense of CUTLASS C++. CUTLASS 2.x and 3.x C++ APIs are both going to continue receiving fixes and updates for the architectures we support them for. However, CUTLASS 4.x CuTe DSL is fully isomorphic in its programming model and performance with CuTe C++ for Blackwell, and it is our hope that the community embraces this for much easier while still equally performant custom kernel development. This is why we are releasing CuTe DSL with support for all architectures starting with the NVIDIA Ampere Architecture.
+TL;DR：不会——但从某种意义上也算是。CUTLASS 4.0（CuTe DSL）以及未来所有对 Python 原生编程模型的扩展，都不会以牺牲 CUTLASS C++ 为代价。我们将继续为所支持的架构维护并更新 CUTLASS 2.x 与 3.x 的 C++ API。不过，CUTLASS 4.x 的 CuTe DSL 在编程模型与性能上与 Blackwell 上的 CuTe C++ 完全同构（isomorphic）。我们希望社区能够拥抱这一点：让自定义 kernel 的开发更容易，同时仍保持同等的高性能。这也是我们从 NVIDIA Ampere Architecture 起，为所有架构提供 CuTe DSL 支持的原因。
 
-## What is the difference between CuTe DSL, CUTLASS Python, and CUTLASS DSLs?
+## CuTe DSL、CUTLASS Python 与 CUTLASS DSLs 有什么区别？
 
-CUTLASS Python was the Python interface for instantiating C++ kernels via a Python frontend. This is now deprecated with the release of CUTLASS 4.0. CUTLASS DSLs are a family of Python DSLs for native device programming in Python. Currently, this is limited to our initial release of CuTe DSL, but future versions will include higher-level abstractions that gradually trade off control for convenience.
+CUTLASS Python 是通过 Python 前端实例化 C++ kernels 的 Python 接口。随着 CUTLASS 4.0 的发布，它已经被弃用（deprecated）。CUTLASS DSLs 是一组用于在 Python 中进行原生 device 编程的 Python DSL 家族。目前，这一体系仅包含我们初版发布的 CuTe DSL，但未来版本会逐步加入更高层抽象，在“控制力”和“易用性”之间做渐进式的权衡。
 
-## What should I learn, CUTLASS C++ or the Python DSLs?
+## 我应该学习 CUTLASS C++ 还是 Python DSLs？
 
-We believe the Python DSLs will significantly improve the learning curve and recommend starting with them for all newcomers, as they eliminate the inherent complexity of learning C++ metaprogramming for GPU kernel programming. Since CuTe C++ and CuTe DSL share fully isomorphic programming models and patterns, any knowledge gained can eventually be applied to C++.
+我们认为 Python DSLs 能显著改善学习曲线，并建议所有新手从它们开始，因为它们免除了为 GPU kernel 编程学习 C++ 元编程的固有复杂性。并且由于 CuTe C++ 与 CuTe DSL 在编程模型与模式上完全同构，你在 DSL 中获得的知识最终也都可以迁移到 C++。
 
-## Where will the code live? PIP wheel or GitHub repo? Do I have to build it myself?
+## 代码将发布在哪里？PIP wheel 还是 GitHub repo？我需要自己构建吗？
 
-This is a major change compared to CUTLASS C++ and Python DSLs. Going forward, the GitHub code only exists as a way for users to file issues and pull requests against. While it can be used with the pip wheel, we do not recommend most users do so unless they are hacking on the DSL itself. For all other users, we recommend they simply `pip install nvidia-cutlass-dsl` and use the pip wheel as the single source of truth for the dialect compiler and DSL implementation. CUTLASS GitHub repository will contain a `requirements.txt` file pinning the version of the wheel consistent with the state of the OSS repository (please see Quick Start Guide). This means getting started with CUTLASS is easier than ever: no more CMake command lines to learn and no more builds to kick off. Simply install the pip wheel and start running the examples.
+与 CUTLASS C++ 和以往的 Python DSLs 相比，这是一个重大变化。未来，GitHub 上的代码主要用于让用户提交 issues 与 pull requests。虽然你也可以配合 pip wheel 使用 GitHub 代码，但除非你在开发/修改 DSL 本身，否则我们不建议大多数用户这样做。对于其他用户，我们建议直接 `pip install nvidia-cutlass-dsl`，并将 pip wheel 作为 dialect compiler 与 DSL 实现的唯一权威来源（single source of truth）。CUTLASS 的 GitHub 仓库会提供一个 `requirements.txt` 来固定 wheel 版本，使其与开源仓库状态一致（见 Quick Start Guide）。这意味着上手 CUTLASS 比以往更简单：不再需要学习 CMake 命令行，也不再需要手动触发构建。只需安装 pip wheel 并运行示例即可。
 
-# Migration
+# 迁移
 
-## Should I port my code from C++ templates to Python?
+## 我应该把 C++ templates 的代码迁移到 Python 吗？
 
-Almost certainly not, unless you need extremely fast JIT times for your kernel and C++ compile times are a blocker for you. The 2.x and 3.x APIs will continue to be supported, and Nvidia’s Hopper and Blackwell architectures 3.x will continue to improve in terms of features and performance.
+几乎可以肯定不需要，除非你对 kernel 的 JIT 时间有极端苛刻的要求，而 C++ 编译时间已经成为你的阻碍。2.x 与 3.x API 将继续受支持，并且 Nvidia 在 Hopper 与 Blackwell 架构上的 3.x 实现也会持续在特性与性能上改进。
 
-## Are portability promises different with Python?
+## 使用 Python 后，可移植性承诺会不同吗？
 
-For the initial release while the DSL is still in beta, we do not promise any portability as we may make changes to the DSL itself. While we do not expect any changes to the CuTe operations, the DSL utilities, decorators, helper classes like pipelines and schedulers may change as we refine them with community feedback. We encourage users to file issues and discussions on GitHub during this beta period with their feedback!
+在初始发布阶段（DSL 仍处于 beta），我们不对可移植性做任何承诺，因为我们可能会对 DSL 本身进行修改。虽然我们不预期 CuTe operations 会发生变化，但 DSL 的工具函数、装饰器、以及 pipelines、schedulers 等辅助类可能会随着社区反馈不断迭代。我们鼓励用户在 beta 期间在 GitHub 上提交 issues 与讨论并提供反馈。
 
-In the long term, we plan to continue to treat the OSS community with care. Just like the prior history of CUTLASS, we plan not to break users unless necessary, but we reserve the right to make limited breaking changes in case we believe it is a net benefit to the community and project. These will be announced ahead of time and/or clearly highlighted in the CHANGELOG of each release.
+从长期来看，我们会继续认真对待开源社区。就像 CUTLASS 以往一样，除非必要，我们不会破坏用户代码；但如果我们认为对社区与项目的整体收益更大，我们也保留做有限 breaking changes 的权利。此类变更会提前公告，并/或在每个版本的 CHANGELOG 中明确标注。
 
-# Technical
+# 技术
 
-## What NVIDIA architectures will it support?
+## 将支持哪些 NVIDIA 架构？
 
-CuTe DSL will support all NVIDIA GPU architectures starting with NVIDIA Ampere Architecture (SM80).
+CuTe DSL 将支持从 NVIDIA Ampere Architecture（SM80）开始的所有 NVIDIA GPU 架构。
 
-## Will it be compatible with DL frameworks (e.g., PyTorch, JAX)?
+## 是否兼容深度学习框架（如 PyTorch、JAX）？
 
-Yes, we will provide utilities to convert from DLPack-supported tensor formats to `cute.Tensor`. This should allow a user to never have to leave Python when writing model code in their framework of choice. Our JAX interoperability story is not as strong as PyTorch’s today, however, we are actively working on improving it and welcome contributions in this space.
+兼容。我们会提供工具将 DLPack 支持的张量格式转换为 `cute.Tensor`。这能让用户在使用偏好的框架编写模型代码时无需离开 Python。目前我们对 JAX 的互操作能力不如 PyTorch 成熟，不过我们正在积极改进，也欢迎在该方向做贡献。
 
-## Does it compile to PTX or SASS?
+## 会编译到 PTX 还是 SASS？
 
-CuTe DSL compiles the program down to PTX. After that, we currently use the PTX compiler that ships with the CUDA toolkit to compile the PTX down to SASS. We plan to remove this limitation in the future and allow the use of the PTX JIT that is included in the CUDA driver in case a user does not have a CUDA toolkit installed.
+CuTe DSL 会将程序编译到 PTX。随后，我们目前使用随 CUDA toolkit 提供的 PTX 编译器将 PTX 再编译到 SASS。未来我们计划移除这一限制：当用户未安装 CUDA toolkit 时，也能使用 CUDA driver 中自带的 PTX JIT。
 
-## Do I need to use NVCC or NVRTC?
+## 我需要使用 NVCC 或 NVRTC 吗？
 
-No, the `nvidia-cutlass-dsl` wheel packages is everything needed to generate GPU kernels. It shares the driver requirements of the 12.9 toolkit which can be found here.
+不需要，`nvidia-cutlass-dsl` wheel 包含生成 GPU kernels 所需的一切。它与 CUDA 12.9 toolkit 具有相同的 driver 需求（可参考对应说明）。
 
-## How would one debug the code?
+## 如何调试代码？
 
-Since CuTe DSL is not native python and an embedded DSL instead, tools like pdb cannot be used. However, if you have experience with GPU kernel programming, the debugging techniques will be nearly identical. Typically, compile time and runtime printing of types and values are the most expedient. Please see documentation on printing to learn how to print types and values at both compile time and runtime. You can also use `cuda-gdb` to set breakpoints in the program and step through the execution or use tools such as `compute-sanitizer` to detect and triage bugs in your program. As the DSL matures, our source location tracking from Python user programs will also improve to provide more helpful source-level mapping when setting breakpoints and using other tools such as nsight.
+由于 CuTe DSL 不是原生 Python，而是一种嵌入式 DSL，因此无法使用 pdb 等工具。不过如果你有 GPU kernel 编程经验，调试方法会非常类似。通常，编译期与运行期打印类型和值是最直接的方式。请参考 printing 文档，了解如何在编译期和运行期打印类型和值。你也可以使用 `cuda-gdb` 在程序中设置断点并单步执行，或使用 `compute-sanitizer` 来检测和定位程序中的 bug。随着 DSL 的成熟，我们对 Python 用户程序的源位置（source location）跟踪也会改进，从而在设置断点以及使用 nsight 等工具时提供更好的源码级映射。
 
-## How would one implement warp specialization in CuTe DSL?
+## 如何在 CuTe DSL 中实现 warp specialization？
 
-Exactly the same way you would in C++ but in a Python-native syntax instead. Consult our Control Flow and "Blackwell kernel example" for a detailed how-to guide.
+实现方式与 C++ 本质上相同，只是语法改为 Python 原生风格。详细指南请参考我们的 Control Flow 与 “Blackwell kernel example”。
 
-## Can I call functions from other functions or use OOP?
+## 我可以在函数里调用其他函数，或使用 OOP 吗？
 
-Yes. We frequently call functions from one another and set up class hierarchies to organize and modularize our code for pipelines and schedulers. Consult the Introduction documentation or our examples for more details.
+可以。我们经常在函数之间相互调用，并搭建类继承体系来组织 pipelines 与 schedulers 的代码结构、实现模块化。更多细节请参考 Introduction 文档或我们的示例。
 
-# License
+# 许可证
 
-## What is the license for CuTe DSL and the associated GitHub samples?
+## CuTe DSL 与相关 GitHub samples 的许可证是什么？
 
-CuTe DSL components available on Github and via the nvidia-cutlass-dsl Python pip wheel are released under the “NVIDIA Software End User License Agreement (EULA)”. Because the pip package includes a compiler that shares several components with the CUDA Toolkit, it is subject to usage terms and restrictions similar to those of the CUDA SDK. Please refer to the EULA for specific terms of use.
+在 GitHub 以及通过 nvidia-cutlass-dsl Python pip wheel 提供的 CuTe DSL 组件，均在 “NVIDIA Software End User License Agreement (EULA)” 下发布。由于 pip 包包含一个与 CUDA Toolkit 共享若干组件的编译器，因此其使用条款与限制与 CUDA SDK 类似。具体使用条款请参考 EULA。
 
-CuTe DSL samples and Jupyter notebooks, released on GitHub are provided under the BSD 3-Clause License and may be used and redistributed under those terms. This distinction ensures that developers have flexibility when using or modifying the code samples, independent of the compiler and runtime components governed by the EULA.
+在 GitHub 上发布的 CuTe DSL samples 与 Jupyter notebooks 采用 BSD 3-Clause License，你可以在其条款下使用与再分发。这一区分确保开发者在使用或修改代码示例时具备灵活性，而无需与受 EULA 管束的编译器与运行时组件绑定。
 
-If you have any questions or need clarification, feel free to contact us.
+如果你有任何问题或需要进一步澄清，欢迎联系我们。
