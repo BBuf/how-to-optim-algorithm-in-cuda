@@ -1,3 +1,5 @@
+> 初步了解CuTe DSL的最好方式就是看一下它的文档，下面是手动把CuTe DSL文档的非API部分进行复制然后用GPT5.2做了翻译和校对，可以作为入门CuTe DSL的中文资料。除API之外的文档都被集中到这篇翻译中，一文速通CuTe DSL基本概念和设计，对于详细的API请看：https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl_api.html 。
+
 # CuTe DSL 4.3.5 文档
 
 
