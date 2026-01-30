@@ -1,14 +1,24 @@
+> 本文原文存放在：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/large-language-model-note/sglang%26lightllm/SGLang_JIT_%E6%8A%80%E6%9C%AF%E6%96%87%E6%A1%A3.md 
 
+## 标题
+
+SGLang JIT Kernel 介绍
 
 ## 0x0. 前言
 
+之前在 SGLang 中如果要开发CUDA Kernel，需要经历在sgl-kernel中编写cuda kernel，导出pybind接口，注册算子，修改cmakelists等流程，开发完毕合入main之后还需要经历一次sgl-kernel的release才可以用起来，开发流程比较繁琐。且随着模板化的kernel越来越多，编译时间越来越长，换一台机器或者换一个Docker环境从头编译可能要编译1个小时，很影响软件开发的速度。为了加速迭代，我们在最近几个月基于 TVM-FFI 开始探索JIT kernel的开发方式，大大加速了Kernel的迭代速度。现在开发者不需要再付出大量的编译时间，Kernel的应用和SGLang源代码兼容，不用再经历繁琐的 sgl-kernel 发版流程就能快速把当前开发的Kernel用在LLM/Diffusion模型中获取性能收益。
 
-
-本文面向希望理解/开发 SGLang JIT kernel 的开发者，梳理下：
+本文面向希望理解/开发 SGLang JIT kernel 的开发者，梳理下JIT Kernel的机制，抽象，以及新增 Kernel 的流程：
 
 - 机制：JIT kernel 如何从 Python 调用走到运行时编译、再到 CUDA kernel launch
 - 抽象：`jit_kernel` 这套代码提供了哪些通用设施（校验、错误定位、kernel launch、向量化）
 - 流程：以 `add_constant` 和 `fused_add_rmsnorm` 为例，如何组织 C++/CUDA 代码、Python 封装、以及 test/benchmark
+
+Q&A：
+
+- 社区发起了 sgl-kernel 往 JIT Kernel 的迁移计划，需要说明的是这个计划在 sgl-kernel 中只会移除几个模板非常大的 gemm kernel 达到减少 sgl-kernel wheel包体积的效果，而并非移除 sgl-kernel 已有的所有 AOT kernel，对 sgl-kernel 的 AOT kernel 有依赖的用户或者项目在这个过程中基本不会受到影响。如果你对迁移计划感兴趣或者想做贡献欢迎查看这个ISSUE：https://github.com/sgl-project/sglang/issues/17865 
+- JIT Kernel的基础设施特别是 TVM-FFI 对接部分主要由 mini-sglang 的作者 https://github.com/DarkSharpness lead 完成，持续维护中
+- CUTE Dsl环境在SGLang环境中已登陆，也欢迎大家用 CuteDSL 实现高性能kernel然后存放到 JIT Kernel 下，比如：https://github.com/sgl-project/sglang/pull/14717
 
 ## 0x1. 环境设置
 
