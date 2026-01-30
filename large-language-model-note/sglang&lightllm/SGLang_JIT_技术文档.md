@@ -199,7 +199,7 @@ void check(const tvm::ffi::TensorView input,
 - 从 `DLDevice` 解析出当前 stream（与 PyTorch stream 语义对齐）
 - 用 `cudaLaunchKernelEx` 发射
 - 自动做 `RuntimeDeviceCheck(...)`（等价于检查 `cudaGetLastError()`）
-- 可选 `.enable_pdl(true/false)` 控制 programmatic stream serialization 属性
+- 可选 `.enable_pdl(true/false)` 控制是否启用 PDL
 
 `LaunchKernel::resolve_device` 从 PyTorch 获取当前 `cudaStream`。
 
