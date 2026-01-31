@@ -1082,7 +1082,7 @@ import cutlass.cute as cute
 ### 布局代数运算
 
 这些运算形成了 CuTe 布局操作能力的基础，使得：
-- 高效的数据平铺和分区
+- 高效的数据Tile 和分区
 - 使用规范类型表示线程和数据布局以分离两者
 - 原生描述和操作对张量核心程序至关重要的线程和数据的分层张量
 - 混合静态/动态布局转换
@@ -1354,7 +1354,7 @@ from cutlass.cute.runtime import from_dlpack
 在本教程中，您将逐步学习在 CuTe DSL 中构建高效的逐元素内核：
 - 如何使用基本 CUDA 技术在 CuTe DSL 中实现基本 GPU 内核
 - 如何对内核性能进行基准测试
-- 如何平铺和分区张量并映射到基本 CuTe 布局
+- 如何Tile 和分区张量并映射到基本 CuTe 布局
 - 什么是线程和值布局以及从线程和值索引到逻辑坐标的映射
 - 如何使用 TV 布局实现高级内核并调整性能以达到峰值性能
 
@@ -1462,7 +1462,7 @@ def naive_elementwise_add_kernel(
 这个朴素的实现为理解后续更优化的版本提供了基线，这些版本引入了：
 - 向量化内存访问
 - 线程和值（TV）布局
-- 高级平铺策略
+- 高级Tile 策略
 - 自定义二元运算
 
 有关合并内存访问的更多详细信息，请阅读：https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/#coalesced-access-to-global-memory
@@ -1645,7 +1645,7 @@ $L = \lambda \times W$
 为了根据 Little's Law 提高性能，我们需要增加In-flight请求的数量。我们可以通过向量化内存访问增加每个线程在每次加载和存储操作中处理的字节数来实现这一点。
 
 由于 Ampere GPU 支持每次加载/存储最多 128 位，并且每个元素是 32 位，我们可以在连续行上每次向量化操作加载 4 个元素。
-CuTe 平铺操作使这种向量化变得简单。
+CuTe Tile 操作使这种向量化变得简单。
 
 使用 ``tiled_tensor = cute.zipped_divide(tensor, tiler)``，我们可以将输入 ``tensor`` 分区为 ``tiler`` 块组。对于向量化，我们将 ``tiler`` 指定为每个线程访问的数据块（同一行中的 4 个连续元素，或 ``(1,4)``）。
 然后，不同的线程可以通过索引到 ``tiled_tensor`` 的第二个模式来访问不同的块。
@@ -1687,15 +1687,15 @@ CuTe 引入 TV 布局来表示从线程索引和值索引（即每个线程加�
 
 ### 使用 TV 布局的逐元素加法
 
-在本示例中，我们使用两级平铺重写逐元素内核：
+在本示例中，我们使用两级Tile 重写逐元素内核：
 * 线程块级别
-* 使用 TV 布局和平铺的线程级别
+* 使用 TV 布局和Tile 的线程级别
 
-对于线程块级别的平铺，每个输入和输出张量首先在主机端被划分为一组 ``(TileM, TileN)`` 子张量。请注意，在这种情况下，我们仍然使用 `zipped_divide`，但用于线程块级别的平铺。
+对于线程块级别的Tile ，每个输入和输出张量首先在主机端被划分为一组 ``(TileM, TileN)`` 子张量。请注意，在这种情况下，我们仍然使用 `zipped_divide`，但用于线程块级别的Tile 。
 
-在 GPU 内核内部，我们使用第二个模式的线程块索引对平铺张量进行切片，如 ``gA[((None, None), bidx)]``，这将返回单个 ``(TileM, TileN)`` 子张量的线程块局部视图。此子张量将 ``(TileM, TileN)`` 内的逻辑坐标映射到元素的物理地址。
+在 GPU 内核内部，我们使用第二个模式的线程块索引对Tile 张量进行切片，如 ``gA[((None, None), bidx)]``，这将返回单个 ``(TileM, TileN)`` 子张量的线程块局部视图。此子张量将 ``(TileM, TileN)`` 内的逻辑坐标映射到元素的物理地址。
 
-在线程级别平铺时，我们将上述子张量（逻辑坐标到物理地址）与 TV 布局（线程和值索引到逻辑坐标）进行组合。这为我们提供了一个平铺的子张量，该子张量直接从线程和值索引映射到物理地址。
+在线程级别Tile 时，我们将上述子张量（逻辑坐标到物理地址）与 TV 布局（线程和值索引到逻辑坐标）进行组合。这为我们提供了一个Tile 的子张量，该子张量直接从线程和值索引映射到物理地址。
 
 然后我们使用线程索引对其进行切片，如 ``tidfrgA[(tidx, None)]``，以获得每个线程访问的数据的线程局部视图。请注意，线程索引现在在第一个模式中，因为 TV 布局通常具有形式 ``(thread_domain, value_domain):(...,...)``。
 
@@ -1790,8 +1790,8 @@ def elementwise_add(
     gB = cute.zipped_divide(mB, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
     gC = cute.zipped_divide(mC, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
 
-    print("平铺输入张量:")
-    print("[DSL INFO] 平铺张量:")
+    print("Tile 输入张量:")
+    print("[DSL INFO] Tile 张量:")
     print(f"[DSL INFO]   gA = {gA.type}")
     print(f"[DSL INFO]   gB = {gB.type}")
     print(f"[DSL INFO]   gC = {gC.type}")
@@ -1825,7 +1825,7 @@ torch.testing.assert_close(c, a + b)
 我们还选择了更小的 M/N，`(256,512)`，以使其更容易解释和可视化。
 
 ```
-平铺到线程块:
+Tile 到线程块:
 
     ((16,256),(16,2))  : ((512,1),(8192,256))
      ~~~~~~~~  ~~~~~~      ~~~~~
@@ -1844,7 +1844,7 @@ torch.testing.assert_close(c, a + b)
 
     (16,256)   :  (512,1)
      ~~~~~~        ~~~~~~
-        |             |        平铺/与 TV 布局组合
+        |             |        Tile /与 TV 布局组合
         |             |
         |             |    o   ((32,4),(8,4)):((128,4),(16,1))
         V             V
@@ -1908,7 +1908,7 @@ benchmark(elementwise_add_, a_, b_, c_)
 由于本示例中的张量是行主序，我们可能希望线程块尽可能多地加载连续内存。
 
 我们可以应用简单的线程块重映射来转置行优先顺序中线程块索引的映射。
-`cute.composition(gA, (None, remap_block))` 仅应用平铺布局第二个模式的转置，但保持第一个模式不变。
+`cute.composition(gA, (None, remap_block))` 仅应用Tile 布局第二个模式的转置，但保持第一个模式不变。
 
 ```python
     remap_block = cute.make_ordered_layout(
@@ -1957,8 +1957,8 @@ def elementwise_add(
     gB = cute.composition(gB, (None, remap_block))
     gC = cute.composition(gC, (None, remap_block))
 
-    print("平铺输入张量:")
-    print("[DSL INFO] 平铺张量:")
+    print("Tile 输入张量:")
+    print("[DSL INFO] Tile 张量:")
     print(f"[DSL INFO]   gA = {gA.type}")
     print(f"[DSL INFO]   gB = {gB.type}")
     print(f"[DSL INFO]   gC = {gC.type}")
