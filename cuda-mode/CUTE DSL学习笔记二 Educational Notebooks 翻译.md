@@ -1,3 +1,4 @@
+
 # CUTE DSL 学习笔记二：Educational Notebooks
 
 本文档是 CUTLASS 4.3.5 CuTe DSL Educational Notebooks 的中文翻译和学习笔记。
@@ -1083,15 +1084,9 @@ import cutlass.cute as cute
 
 ###  Layout  代数运算
 
-<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
-这些运算形成了 CuTe 布局操作能力的基础，使得：
+这些运算形成了 CuTe  Layout 操作能力的基础，使得：
 - 高效的数据Tile 和分区
-- 使用规范类型表示线程和数据布局以分离两者
-=======
-这些运算形成了 CuTe  Layout  操作能力的基础，使得：
-- 高效的数据平铺和分区
-- 使用规范类型表示线程和数据 Layout  以分离两者
->>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
+- 使用规范类型表示线程和数据 Layout 以分离两者
 - 原生描述和操作对张量核心程序至关重要的线程和数据的分层张量
 - 混合静态/动态 Layout  转换
 -  Layout  代数与张量运算的无缝集成
@@ -1359,21 +1354,12 @@ from cutlass.cute.runtime import from_dlpack
 
 ### 学习目标
 
-<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
-在本教程中，您将逐步学习在 CuTe DSL 中构建高效的逐元素内核：
-- 如何使用基本 CUDA 技术在 CuTe DSL 中实现基本 GPU 内核
-- 如何对内核性能进行基准测试
-- 如何Tile 和分区张量并映射到基本 CuTe 布局
-- 什么是线程和值布局以及从线程和值索引到逻辑坐标的映射
-- 如何使用 TV 布局实现高级内核并调整性能以达到峰值性能
-=======
 在本教程中，您将逐步学习在 CuTe DSL 中构建高效的逐元素 kernel ：
 - 如何使用基本 CUDA 技术在 CuTe DSL 中实现基本 GPU  kernel 
 - 如何对 kernel 性能进行基准测试
-- 如何平铺和分区张量并映射到基本 CuTe  Layout  
+- 如何 Tile 和分区张量并映射到基本 CuTe  Layout  
 - 什么是线程和值 Layout  以及从线程和值索引到逻辑坐标的映射
 - 如何使用 TV  Layout  实现高级 kernel 并调整性能以达到峰值性能
->>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 
 ### 理解逐元素加法
 
@@ -1478,13 +1464,8 @@ def naive_elementwise_add_kernel(
 
 这个朴素的实现为理解后续更优化的版本提供了基线，这些版本引入了：
 - 向量化内存访问
-<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
-- 线程和值（TV）布局
+- 线程和值（TV） Layout 
 - 高级Tile 策略
-=======
-- 线程和值（TV） Layout  
-- 高级平铺策略
->>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 - 自定义二元运算
 
 有关合并内存访问的更多详细信息，请阅读：https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/#coalesced-access-to-global-memory
@@ -1707,20 +1688,19 @@ CuTe 引入 TV  Layout  来表示从线程索引和值索引（即每个线程�
 
 使用 *TV Layout*，每个线程可以找到分区到当前线程的数据的逻辑坐标或索引。
 
-<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
-### 使用 TV 布局的逐元素加法
+### 使用 TV  Layout 的逐元素加法
 
 在本示例中，我们使用两级Tile 重写逐元素内核：
 * 线程块级别
-* 使用 TV 布局和Tile 的线程级别
+* 使用 TV  Layout 和Tile 的线程级别
 
 对于线程块级别的Tile ，每个输入和输出张量首先在主机端被划分为一组 ``(TileM, TileN)`` 子张量。请注意，在这种情况下，我们仍然使用 `zipped_divide`，但用于线程块级别的Tile 。
 
 在 GPU 内核内部，我们使用第二个模式的线程块索引对Tile 张量进行切片，如 ``gA[((None, None), bidx)]``，这将返回单个 ``(TileM, TileN)`` 子张量的线程块局部视图。此子张量将 ``(TileM, TileN)`` 内的逻辑坐标映射到元素的物理地址。
 
-在线程级别Tile 时，我们将上述子张量（逻辑坐标到物理地址）与 TV 布局（线程和值索引到逻辑坐标）进行组合。这为我们提供了一个Tile 的子张量，该子张量直接从线程和值索引映射到物理地址。
+在线程级别Tile 时，我们将上述子张量（逻辑坐标到物理地址）与 TV  Layout （线程和值索引到逻辑坐标）进行组合。这为我们提供了一个Tile 的子张量，该子张量直接从线程和值索引映射到物理地址。
 
-然后我们使用线程索引对其进行切片，如 ``tidfrgA[(tidx, None)]``，以获得每个线程访问的数据的线程局部视图。请注意，线程索引现在在第一个模式中，因为 TV 布局通常具有形式 ``(thread_domain, value_domain):(...,...)``。
+然后我们使用线程索引对其进行切片，如 ``tidfrgA[(tidx, None)]``，以获得每个线程访问的数据的线程局部视图。请注意，线程索引现在在第一个模式中，因为 TV  Layout 通常具有形式 ``(thread_domain, value_domain):(...,...)``。
 
 #### 内核代码
 
@@ -1753,7 +1733,7 @@ def elementwise_add_kernel(
     tidfrgB = cute.composition(blkB, tv_layout)
     tidfrgC = cute.composition(blkC, tv_layout)
 
-    print("与 TV 布局组合后:")
+    print("与 TV  Layout 组合后:")
     print(f"  tidfrgA: {tidfrgA.type}")
 
     # --------------------------------
@@ -1773,9 +1753,9 @@ def elementwise_add_kernel(
 
 #### 主机代码
 
-下面的主机代码展示了 TV 布局的构造。通过组合线程布局 ``(4,64):(64,1)``（64 个线程读取行维度上的连续元素，然后 64 线程组（2 个 warp）读取不同的行）与值布局 ``(16,8):(8,1)``（每个线程在行维度上读取 8 个连续的 16b 元素，跨越 4 个连续的行）。
+下面的主机代码展示了 TV  Layout 的构造。通过组合线程 Layout  ``(4,64):(64,1)``（64 个线程读取行维度上的连续元素，然后 64 线程组（2 个 warp）读取不同的行）与值 Layout  ``(16,8):(8,1)``（每个线程在行维度上读取 8 个连续的 16b 元素，跨越 4 个连续的行）。
 
-为了通用化，我们从字节布局开始以字节描述元素的布局。这是为了确保使用 128 位向量化加载存储。然后我们利用 ``recast_layout`` 转换为元素布局。
+为了通用化，我们从字节 Layout 开始以字节描述元素的 Layout 。这是为了确保使用 128 位向量化加载存储。然后我们利用 ``recast_layout`` 转换为元素 Layout 。
 
 ```python
     # 源类型位数: 8
@@ -1790,9 +1770,9 @@ def elementwise_add(
     mB: cute.Tensor,
     mC: cute.Tensor,
 ):
-    # mA 布局: (M, N):(N, 1)
-    # TV 布局将线程和值索引映射到 (64, 512) 逻辑 Tile
-    #  - 连续的线程索引映射到 mode-1，因为输入布局在 mode-1 上是连续的
+    # mA  Layout : (M, N):(N, 1)
+    # TV  Layout 将线程和值索引映射到 (64, 512) 逻辑 Tile
+    #  - 连续的线程索引映射到 mode-1，因为输入 Layout 在 mode-1 上是连续的
     #     以实现合并加载存储
     #  - 每个线程每行加载连续的 16 字节，加载 16 行
     coalesced_ldst_bytes = 16
@@ -1842,7 +1822,7 @@ elementwise_add_(a_, b_, c_)
 torch.testing.assert_close(c, a + b)
 ```
 
-#### 布局解释
+####  Layout 解释
 
 让我们更仔细地看看使用 zipped divided 输入张量 `gA` 作为示例。
 我们还选择了更小的 M/N，`(256,512)`，以使其更容易解释和可视化。
@@ -1867,7 +1847,7 @@ Tile 到线程块:
 
     (16,256)   :  (512,1)
      ~~~~~~        ~~~~~~
-        |             |        Tile /与 TV 布局组合
+        |             |        Tile /与 TV  Layout 组合
         |             |
         |             |    o   ((32,4),(8,4)):((128,4),(16,1))
         V             V
@@ -1882,9 +1862,9 @@ Tile 到线程块:
 切片到线程局部子张量（一个 (4,8) Tile）:  tidfrgA[(tidx, None)]
 ```
 
-#### TV 布局可视化
+#### TV  Layout 可视化
 
-要可视化 TV 布局，我们可以首先安装 *`cute-viz`*
+要可视化 TV  Layout ，我们可以首先安装 *`cute-viz`*
 
 ```
 pip install -U git+https://github.com/NTT123/cute-viz.git
@@ -1896,7 +1876,7 @@ try:
 
     @cute.jit
     def visualize():
-        # 创建并将布局渲染到文件
+        # 创建并将 Layout 渲染到文件
         # layout = cute.make_layout( ((16,16),(256,2)), stride=((512,8192),(1,256)))
         # display_layout(layout)
 
@@ -1911,16 +1891,16 @@ except ImportError:
     pass
 ```
 
-#### 为什么当张量是行主序时，TV 布局的线程域模式看起来被交换了？
+#### 为什么当张量是行主序时，TV  Layout 的线程域模式看起来被交换了？
 
-我们可能会注意到上面示例中的 *TV 布局* 是 `((32,4),(8,4)):((128,4),(16,1))`。
-然而，在可视化中，线程索引被排列为形状 `(4,32)` 而不是 *TV 布局* 的 `(32,4)`。
+我们可能会注意到上面示例中的 *TV  Layout * 是 `((32,4),(8,4)):((128,4),(16,1))`。
+然而，在可视化中，线程索引被排列为形状 `(4,32)` 而不是 *TV  Layout * 的 `(32,4)`。
 
 这是内部团队和社区的开发人员经常问的问题。
 
-重要的是要记住，*TV 布局* 将 `(thread_index, value_index)` 映射到逻辑域 `(TileM, TileN)` 的 `(row_index, column_index)`。但是，可视化显示了逻辑域 `(TileM, TileN)` 到 `(thread_domain, value_domain)` 的**逆**映射，因为这对人类开发者来说更直观。
+重要的是要记住，*TV  Layout * 将 `(thread_index, value_index)` 映射到逻辑域 `(TileM, TileN)` 的 `(row_index, column_index)`。但是，可视化显示了逻辑域 `(TileM, TileN)` 到 `(thread_domain, value_domain)` 的**逆**映射，因为这对人类开发者来说更直观。
 
-这就是为什么 *TV 布局* 的域形状不一定与逻辑视图匹配。
+这就是为什么 *TV  Layout * 的域形状不一定与逻辑视图匹配。
 
 ```python
 benchmark(elementwise_add_, a_, b_, c_)
@@ -1931,7 +1911,7 @@ benchmark(elementwise_add_, a_, b_, c_)
 由于本示例中的张量是行主序，我们可能希望线程块尽可能多地加载连续内存。
 
 我们可以应用简单的线程块重映射来转置行优先顺序中线程块索引的映射。
-`cute.composition(gA, (None, remap_block))` 仅应用Tile 布局第二个模式的转置，但保持第一个模式不变。
+`cute.composition(gA, (None, remap_block))` 仅应用Tile  Layout 第二个模式的转置，但保持第一个模式不变。
 
 ```python
     remap_block = cute.make_ordered_layout(
@@ -1949,9 +1929,9 @@ def elementwise_add(
     mB: cute.Tensor,
     mC: cute.Tensor,
 ):
-    # mA 布局: (M, N):(N, 1)
-    # TV 布局将线程和值索引映射到 (64, 512) 逻辑 Tile
-    #  - 连续的线程索引映射到 mode-1，因为输入布局在 mode-1 上是连续的
+    # mA  Layout : (M, N):(N, 1)
+    # TV  Layout 将线程和值索引映射到 (64, 512) 逻辑 Tile
+    #  - 连续的线程索引映射到 mode-1，因为输入 Layout 在 mode-1 上是连续的
     #     以实现合并加载存储
     #  - 每个线程每行加载连续的 16 字节，加载 16 行
     coalesced_ldst_bytes = 16
@@ -2012,16 +1992,12 @@ torch.testing.assert_close(c, a + b)
 ```python
 benchmark(elementwise_add_, a_, b_, c_)
 ```
-=======
-（后续示例展示了如何使用 TV  Layout  实现更高效的 kernel ）
->>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 
 ### 使用 Lambda 函数
 
 CuTe DSL 建立在 Python 之上。它可以利用 Python 实现元编程以生成灵活的 kernel 。
 例如，我们可以编写接受自定义二元运算的 kernel 模板，以为任意二元运算生成 kernel 。
 
-<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
 ```python
 @cute.jit
 def elementwise_apply(
@@ -2064,14 +2040,14 @@ def elementwise_apply_kernel(
     print(f"[DSL INFO]   gCrd = {gCrd.type}")
 
     ###############################################################################
-    # 与线程块 TV 布局组合以将线程和值索引映射到内存地址
+    # 与线程块 TV  Layout 组合以将线程和值索引映射到内存地址
     ###############################################################################
     # (tid, vid) -> 内存地址
     tidfrgInputs = [cute.composition(t, tv_layout) for t in gInputs]
     tidfrgC = cute.composition(gC, tv_layout)
     tidfrgCrd = cute.composition(gCrd, tv_layout)
 
-    # 重复 None 类似 vid 以移除布局的层次结构
+    # 重复 None 类似 vid 以移除 Layout 的层次结构
     thr_crd = (tidx, cute.repeat_like(None, tidfrgInputs[0][1]))
 
     ###############################################################################
@@ -2186,9 +2162,6 @@ elementwise_apply(mul_relu, [a_, b_], c_)
 # 验证正确性
 torch.testing.assert_close(c, mul_relu_ref(a, b))
 ```
-=======
-（示例展示了如何使用自定义操作创建通用的逐元素 kernel ）
->>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 
 ---
 
