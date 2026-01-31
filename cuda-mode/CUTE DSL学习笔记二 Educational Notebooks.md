@@ -776,7 +776,7 @@ print(data)
 CuTe 通过词典排序在 1-D 索引和 N-D 坐标之间建立同构。对于形状为 S = (s₁, s₂, ..., sₙ) 的单位张量中的坐标 c = (c₁, c₂, ..., cₙ)：
 
  **线性索引公式：**
- 
+
  $$
  \text{idx} = c_1 + \sum_{i=2}^{n} \left(c_i \prod_{j=1}^{i-1} s_j\right)
  $$
@@ -1235,9 +1235,9 @@ def bymode_composition_example():
 bymode_composition_example()
 ```
 
-### 3. Division（除法/分割成瓦片）
+### 3. Division（除法/分割成Tile）
 
-CuTe 中的 Division 操作用于将布局拆分为瓦片，这对于跨线程或内存层次结构分区数据特别有用。
+CuTe 中的 Division 操作用于将布局拆分为Tile，这对于跨线程或内存层次结构分区数据特别有用。
 
 #### 示例：
 
@@ -1282,13 +1282,13 @@ logical_divide_1d_example()
 
 这些是 `logical_divide` 的变体，可能将模式重新排列成更方便的形式。
 
-### 4. Product（乘积/重现瓦片）
+### 4. Product（乘积/重现Tile）
 
 CuTe 中的 Product 操作用于根据另一个布局重现一个布局。它创建一个新布局，其中：
 - 第一个模式是原始布局 A
 - 第二个模式是重新调整步长的布局 B，指向 A 的"唯一复制"的原点
 
-这对于跨数据瓦片重复线程布局以创建"重复"模式特别有用。
+这对于跨数据Tile重复线程布局以创建"重复"模式特别有用。
 
 #### 示例
 
@@ -1329,7 +1329,7 @@ logical_product_1d_example()
 
 - Blocked 和 Raked Product：
   - Blocked Product：以块状方式组合 A 和 B 的模式，通过在乘积后重新关联来保留模式的语义含义。
-  - Raked Product：以交错或"耙状"方式组合 A 和 B 的模式，创建瓦片的循环分布。
+  - Raked Product：以交错或"耙状"方式组合 A 和 B 的模式，创建Tile的循环分布。
 
 ---
 
