@@ -9,9 +9,11 @@
 3. [Data Types Basics（数据类型基础）](#3-data-types-basics数据类型基础)
 4. [Tensors（张量）](#4-tensors张量)
 5. [The TensorSSA Abstraction（TensorSSA 抽象）](#5-the-tensorssa-abstractiontensorssa-抽象)
-6. [Layout Algebra（布局代数）](#6-layout-algebra布局代数)
+6. [Layout Algebra（ Layout  代数）](#6-Layout-Algebra)
 7. [Element-wise Add Tutorial（逐元素加法教程）](#7-element-wise-add-tutorial逐元素加法教程)
 8. [Using CUDA Graphs（使用 CUDA Graphs）](#8-using-cuda-graphs使用-cuda-graphs)
+
+> 笔者注：第7节的TV Layout部分没有接触 CuTe Layout 的话会比较难懂，因为有很多细节被省掉了，可以看Zarbot佬这篇博客 [Tensor-101: Element-Wise Add](https://mp.weixin.qq.com/s/yiCP4sCU_kb_jM4UHgQ-vg) 的讲解更详细和易懂。
 
 ---
 
@@ -24,7 +26,7 @@
 ### 学习内容
 
 - 如何编写在 CPU（主机）和 GPU（设备）上运行的代码
-- 如何启动 GPU 内核（在 GPU 上运行的函数）
+- 如何启动 GPU  kernel （在 GPU 上运行的函数）
 - 基本的 CUDA 概念，如线程和线程块
 
 ### 步骤 1：导入所需的库
@@ -36,9 +38,9 @@ import cutlass
 import cutlass.cute as cute
 ```
 
-### 步骤 2：编写 GPU 内核
+### 步骤 2：编写 GPU  kernel 
 
-GPU 内核是在 GPU 上运行的函数。这是一个打印"Hello World"的简单内核。
+GPU  kernel 是在 GPU 上运行的函数。这是一个打印"Hello World"的简单 kernel 。
 
 **关键概念：**
 - `@cute.kernel`：此装饰器告诉 CUTLASS 此函数应在 GPU 上运行
@@ -57,7 +59,7 @@ def kernel():
 
 ### 步骤 3：编写主机函数
 
-现在我们需要一个设置 GPU 并启动内核的函数。
+现在我们需要一个设置 GPU 并启动 kernel 的函数。
 
 **关键概念：**
 - `@cute.jit`：此装饰器用于在 CPU 上运行但可以启动 GPU 代码的函数
@@ -70,7 +72,7 @@ def hello_world():
     # 从主机代码打印 hello world
     cute.printf("hello world")
 
-    # 启动内核
+    # 启动 kernel 
     kernel().launch(
         grid=(1, 1, 1),  # 单个线程块
         block=(32, 1, 1),  # 每个线程块一个 warp（32 个线程）
@@ -84,10 +86,10 @@ def hello_world():
 1. 编译并立即运行
 2. 分离编译，允许我们编译代码一次并多次运行
 
-**注意：** 方法 2 的 `Compiling...` 在第一个内核的"Hello world"之前打印。这显示了 CPU 和 GPU 打印之间的异步行为。
+**注意：** 方法 2 的 `Compiling...` 在第一个 kernel 的"Hello world"之前打印。这显示了 CPU 和 GPU 打印之间的异步行为。
 
 ```python
-# 初始化用于启动内核的 CUDA 上下文，带错误检查
+# 初始化用于启动 kernel 的 CUDA 上下文，带错误检查
 # 我们使上下文初始化显式化，以允许用户控制上下文创建
 # 并避免多个上下文的潜在问题
 cutlass.cuda.initialize_cuda_context()
@@ -136,7 +138,7 @@ Hello world
 - **静态值**：在编译时已知
 - **动态值**：仅在运行时已知
 - 不同场景的不同打印方法
-- CuTe 中的布局表示
+- CuTe 中的 Layout  表示
 - 张量可视化和格式化
 
 ```python
@@ -157,8 +159,8 @@ import numpy as np
 - `a`：动态 `Int32` 值（运行时）
 - `b`：静态 `Constexpr[int]` 值（编译时）
 
-#### 3. 布局打印
-显示布局在静态与动态上下文中的不同表示：
+#### 3.  Layout  打印
+显示 Layout  在静态与动态上下文中的不同表示：
 - 静态上下文：未知值显示为 `?`
 - 动态上下文：显示实际值
 
@@ -172,7 +174,7 @@ def print_example(a: cutlass.Int32, b: cutlass.Constexpr[int]):
     1. Python 的 print 函数如何在编译时处理静态值但无法显示动态值
     2. cute.printf 如何在运行时显示静态和动态值
     3. 静态与动态上下文中的类型差异
-    4. 布局在两种打印方法中的表示方式
+    4.  Layout  在两种打印方法中的表示方式
 
     参数：
         a: 将在运行时确定的动态 Int32 值
@@ -318,7 +320,7 @@ def print_tensor_slice(x: cute.Tensor, coord: tuple):
     cute.print_tensor(y)
 ```
 
-默认的 `cute.print_tensor` 将输出带有数据类型、存储空间、CuTe 布局信息的 CuTe 张量，并以 torch 风格格式打印数据。
+默认的 `cute.print_tensor` 将输出带有数据类型、存储空间、CuTe  Layout  信息的 CuTe 张量，并以 torch 风格格式打印数据。
 
 ```python
 def tensor_print_example1():
@@ -367,7 +369,7 @@ tensor_print_example2()
 
 要打印给定张量中的元素子集，我们可以使用 `cute.slice_` 选择给定张量的一个范围，将它们加载到寄存器中，然后使用 `cute.print_tensor` 打印值。
 
-要打印设备内存中的张量，您可以在 CuTe JIT 内核中使用 `cute.print_tensor`。
+要打印设备内存中的张量，您可以在 CuTe JIT  kernel 中使用 `cute.print_tensor`。
 
 **注意：** 目前，`cute.print_tensor` 仅支持整数数据类型和 `Float16`/`Float32`/`Float64` 浮点数据类型的张量。我们将来会支持更多数据类型。
 
@@ -586,14 +588,14 @@ import cutlass.cute as cute
 CuTe 中的张量是通过两个关键组件的组合创建的：
 
 1. **引擎（Engine）** (E) - 一个随机访问、类指针对象，支持：
-   - 偏移操作：`e + d → e`（按布局余域的元素偏移引擎）
+   - 偏移操作：`e + d → e`（按 Layout  余域的元素偏移引擎）
    - 解引用操作：`*e → v`（解引用引擎以产生值）
 
-2. **布局（Layout）** (L) - 定义从坐标到偏移的映射
+2. ** Layout  （Layout）** (L) - 定义从坐标到偏移的映射
 
-张量正式定义为引擎 E 与布局 L 的组合，表示为 `T = E ∘ L`。在坐标 c 处评估张量时，它：
+张量正式定义为引擎 E 与 Layout   L 的组合，表示为 `T = E ∘ L`。在坐标 c 处评估张量时，它：
 
-1. 使用布局将坐标 c 映射到余域
+1. 使用 Layout  将坐标 c 映射到余域
 2. 相应地偏移引擎
 3. 解引用结果以获得张量的值
 
@@ -605,7 +607,7 @@ T(c) = (E ∘ L)(c) = *(E + L(c))
 
 ### 示例用法
 
-这是一个使用指针和布局 `(8,5):(5,1)` 创建张量并填充 1 的简单示例：
+这是一个使用指针和 Layout   `(8,5):(5,1)` 创建张量并填充 1 的简单示例：
 
 ```python
 @cute.jit
@@ -618,8 +620,8 @@ def create_tensor_from_ptr(ptr: cute.Pointer):
 
 这创建了一个张量，其中：
 - 引擎是一个指针
-- 布局的形状为 `(8, 5)`，步长为 `(5, 1)`
-- 生成的张量可以使用布局定义的坐标进行评估
+-  Layout  的形状为 `(8, 5)`，步长为 `(5, 1)`
+- 生成的张量可以使用 Layout  定义的坐标进行评估
 
 我们可以通过使用 torch 分配缓冲区并使用指向 torch 张量的指针运行测试来测试：
 
@@ -741,7 +743,7 @@ print(data)
 
 考虑一个 `(4,4)` 坐标张量：
 
-**行主序布局（C 风格）：**
+**行主序 Layout  （C 风格）：**
 ```
 [[（0,0） (0,1) (0,2) (0,3)]
  [(1,0) (1,1) (1,2) (1,3)]
@@ -749,7 +751,7 @@ print(data)
  [(3,0) (3,1) (3,2) (3,3)]]
 ```
 
-**列主序布局（Fortran 风格）：**
+**列主序 Layout  （Fortran 风格）：**
 ```
 [[(0,0) (1,0) (2,0) (3,0)]
  [(0,1) (1,1) (2,1) (3,1)]
@@ -770,7 +772,7 @@ print(data)
 
  **属性：**
  1. **双射映射**：单位张量在坐标之间建立一对一的对应关系。
- 2. **布局不变性**：逻辑结构保持恒定，而不管底层内存布局如何。
+ 2. ** Layout  不变性**：逻辑结构保持恒定，而不管底层内存 Layout  如何。
 3. **坐标保留**：对于任何坐标 c，I(c) = c。
 
 CuTe 通过词典排序在 1-D 索引和 N-D 坐标之间建立同构。对于形状为 S = (s₁, s₂, ..., sₙ) 的单位张量中的坐标 c = (c₁, c₂, ..., cₙ)：
@@ -862,7 +864,7 @@ load_and_store(from_dlpack(c), from_dlpack(a), from_dlpack(b))
 
 #### 寄存器级张量运算
 
-在编写内核逻辑时，对加载到寄存器中的数据执行各种计算、转换、切片等。
+在编写 kernel 逻辑时，对加载到寄存器中的数据执行各种计算、转换、切片等。
 
 ```python
 @cute.jit
@@ -1052,9 +1054,9 @@ broadcast_examples()
 
 ---
 
-## 6. Layout Algebra（布局代数）
+## 6. Layout Algebra
 
-### 使用 Python DSL 的 CuTe 布局代数
+### 使用 Python DSL 的 CuTe  Layout  代数
 
 参考 CuTe C++ 的 [01_layout.md](https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/cute/01_layout.md) 和 [02_layout_algebra.md](https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/cute/02_layout_algebra.md) 文档，我们总结：
 
@@ -1063,14 +1065,14 @@ broadcast_examples()
 - 将坐标空间映射到索引空间
 - 支持静态（编译时）和动态（运行时）值
 
-CuTe 还提供了一组强大的操作——*布局代数*——用于组合和操作布局，包括：
-- 布局组合：布局的函数组合
-- 布局"除法"：将布局拆分为两个组件布局
-- 布局"乘积"：根据另一个布局重现布局
+CuTe 还提供了一组强大的操作——* Layout  代数*——用于组合和操作 Layout  ，包括：
+-  Layout  组合： Layout  的函数组合
+-  Layout  "除法"：将 Layout  拆分为两个组件 Layout  
+-  Layout  "乘积"：根据另一个 Layout  重现 Layout  
 
 在本 notebook 中，我们将演示：
-1. 如何使用 Python DSL 的 CuTe 关键布局代数运算
-2. 静态和动态布局在 Python DSL 中打印或操作时的行为方式
+1. 如何使用 Python DSL 的 CuTe 关键 Layout  代数运算
+2. 静态和动态 Layout  在 Python DSL 中打印或操作时的行为方式
 
 我们使用来自 [02_layout_algebra.md](https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/cute/02_layout_algebra.md) 的示例，我们建议读者阅读以获取更多详细信息。
 
@@ -1079,19 +1081,25 @@ import cutlass
 import cutlass.cute as cute
 ```
 
-### 布局代数运算
+###  Layout  代数运算
 
+<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
 这些运算形成了 CuTe 布局操作能力的基础，使得：
 - 高效的数据Tile 和分区
 - 使用规范类型表示线程和数据布局以分离两者
+=======
+这些运算形成了 CuTe  Layout  操作能力的基础，使得：
+- 高效的数据平铺和分区
+- 使用规范类型表示线程和数据 Layout  以分离两者
+>>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 - 原生描述和操作对张量核心程序至关重要的线程和数据的分层张量
-- 混合静态/动态布局转换
-- 布局代数与张量运算的无缝集成
+- 混合静态/动态 Layout  转换
+-  Layout  代数与张量运算的无缝集成
 - 将复杂的 MMA 和复制表达为规范循环
 
 ### 1. Coalesce（合并）
 
-`coalesce` 操作通过在可能的情况下展平和组合模式来简化布局，而不改变其大小或作为整数函数的行为。
+`coalesce` 操作通过在可能的情况下展平和组合模式来简化 Layout  ，而不改变其大小或作为整数函数的行为。
 
 它确保后置条件：
 - 保留大小：cute.size(layout) == cute.size(result)
@@ -1159,11 +1167,11 @@ bymode_coalesce_example()
 
 ### 2. Composition（组合）
 
-布局 `A` 与布局 `B` 的 `Composition` 创建一个新布局 `R = A ◦ B`，其中：
+ Layout   `A` 与 Layout   `B` 的 `Composition` 创建一个新 Layout   `R = A ◦ B`，其中：
 - `B` 的形状与 `R` 的形状兼容，以便 `B` 的所有坐标也可以用作 `R` 的坐标
 - `R(c) = A(B(c))` 对于 `B` 域中的所有坐标 `c`
 
-布局组合对于重塑和重新排序布局非常有用。
+ Layout  组合对于重塑和重新排序 Layout  非常有用。
 
 #### 示例
 
@@ -1173,7 +1181,7 @@ bymode_coalesce_example()
 @cute.jit
 def composition_example():
     """
-    演示基本布局组合 R = A ◦ B
+    演示基本 Layout  组合 R = A ◦ B
     """
     A = cute.make_layout((6, 2), stride=(cutlass.Int32(8), 2))  # 动态步长
     B = cute.make_layout((4, 3), stride=(3, 1))
@@ -1203,7 +1211,7 @@ composition_example()
 
 - 按模式组合示例：
 
-按模式组合允许我们将组合运算应用于布局的各个模式。这在您想要独立操作特定模式布局（例如行和列）时特别有用。
+按模式组合允许我们将组合运算应用于 Layout  的各个模式。这在您想要独立操作特定模式 Layout  （例如行和列）时特别有用。
 
 ```python
 @cute.jit
@@ -1211,7 +1219,7 @@ def bymode_composition_example():
     """
     演示使用 tiler 的按模式组合
     """
-    # 定义原始布局 A
+    # 定义原始 Layout   A
     A = cute.make_layout(
         (cutlass.Int32(12), (cutlass.Int32(4), cutlass.Int32(8))),
         stride=(cutlass.Int32(59), (cutlass.Int32(13), cutlass.Int32(1))),
@@ -1237,13 +1245,13 @@ bymode_composition_example()
 
 ### 3. Division（除法/分割成Tile）
 
-CuTe 中的 Division 操作用于将布局拆分为Tile，这对于跨线程或内存层次结构分区数据特别有用。
+CuTe 中的 Division 操作用于将 Layout  拆分为Tile，这对于跨线程或内存层次结构分区数据特别有用。
 
 #### 示例：
 
 - Logical divide：
 
-当应用于两个 Layouts 时，`logical_divide` 将布局拆分为两个模式——第一个模式包含 tiler 指向的元素，第二个模式包含剩余元素。
+当应用于两个 Layouts 时，`logical_divide` 将 Layout  拆分为两个模式——第一个模式包含 tiler 指向的元素，第二个模式包含剩余元素。
 
 ```python
 @cute.jit
@@ -1251,11 +1259,11 @@ def logical_divide_1d_example():
     """
     演示 1D logical divide
     """
-    # 定义原始布局
+    # 定义原始 Layout  
     layout = cute.make_layout((4, 2, 3), stride=(2, 1, 8))  # (4,2,3):(2,1,8)
 
     # 定义 tiler
-    tiler = cute.make_layout(4, stride=2)  # 应用于布局 4:2
+    tiler = cute.make_layout(4, stride=2)  # 应用于 Layout   4:2
 
     # 应用 logical divide
     result = cute.logical_divide(layout, tiler=tiler)
@@ -1284,11 +1292,11 @@ logical_divide_1d_example()
 
 ### 4. Product（乘积/重现Tile）
 
-CuTe 中的 Product 操作用于根据另一个布局重现一个布局。它创建一个新布局，其中：
-- 第一个模式是原始布局 A
-- 第二个模式是重新调整步长的布局 B，指向 A 的"唯一复制"的原点
+CuTe 中的 Product 操作用于根据另一个 Layout  重现一个 Layout  。它创建一个新 Layout  ，其中：
+- 第一个模式是原始 Layout   A
+- 第二个模式是重新调整步长的 Layout   B，指向 A 的"唯一复制"的原点
 
-这对于跨数据Tile重复线程布局以创建"重复"模式特别有用。
+这对于跨数据Tile重复线程 Layout  以创建"重复"模式特别有用。
 
 #### 示例
 
@@ -1300,11 +1308,11 @@ def logical_product_1d_example():
     """
     演示 1D logical product
     """
-    # 定义原始布局
+    # 定义原始 Layout  
     layout = cute.make_layout((2, 2), stride=(4, 1))  # (2,2):(4,1)
 
     # 定义 tiler
-    tiler = cute.make_layout(6, stride=1)  # 应用于布局 6:1
+    tiler = cute.make_layout(6, stride=1)  # 应用于 Layout   6:1
 
     # 应用 logical product
     result = cute.logical_product(layout, tiler=tiler)
@@ -1345,18 +1353,27 @@ import cutlass.cute as cute
 from cutlass.cute.runtime import from_dlpack
 ```
 
-### 内核教程：使用 CuTe DSL 构建高效的逐元素加法内核
+###  kernel 教程：使用 CuTe DSL 构建高效的逐元素加法 kernel 
 
-本教程演示如何使用 CuTe DSL 实现和优化 GPU 逐元素加法内核。
+本教程演示如何使用 CuTe DSL 实现和优化 GPU 逐元素加法 kernel 。
 
 ### 学习目标
 
+<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
 在本教程中，您将逐步学习在 CuTe DSL 中构建高效的逐元素内核：
 - 如何使用基本 CUDA 技术在 CuTe DSL 中实现基本 GPU 内核
 - 如何对内核性能进行基准测试
 - 如何Tile 和分区张量并映射到基本 CuTe 布局
 - 什么是线程和值布局以及从线程和值索引到逻辑坐标的映射
 - 如何使用 TV 布局实现高级内核并调整性能以达到峰值性能
+=======
+在本教程中，您将逐步学习在 CuTe DSL 中构建高效的逐元素 kernel ：
+- 如何使用基本 CUDA 技术在 CuTe DSL 中实现基本 GPU  kernel 
+- 如何对 kernel 性能进行基准测试
+- 如何平铺和分区张量并映射到基本 CuTe  Layout  
+- 什么是线程和值 Layout  以及从线程和值索引到逻辑坐标的映射
+- 如何使用 TV  Layout  实现高级 kernel 并调整性能以达到峰值性能
+>>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 
 ### 理解逐元素加法
 
@@ -1377,14 +1394,14 @@ $C_{i,j} = A_{i,j} + B_{i,j}$
 3. **对合并敏感**：效率取决于内存访问模式
 4. **友好于向量化**：多个元素可以一起处理
 
-### 朴素的逐元素加法内核
+### 朴素的逐元素加法 kernel 
 
 让我们从一个朴素的实现开始，在探索优化之前建立基线。
 
 ```python
-# 基本内核实现
+# 基本 kernel 实现
 # ---------------------
-# 这是我们第一个逐元素加法内核的实现。
+# 这是我们第一个逐元素加法 kernel 的实现。
 # 它遵循线程和张量元素之间的简单 1:1 映射。
 
 
@@ -1420,7 +1437,7 @@ def naive_elementwise_add_kernel(
     # 步骤 3：加载和处理数据
     # ---------------------------
     # 从输入张量加载值
-    # 张量布局自动处理从逻辑索引 (mi, ni) 到物理内存地址的转换
+    # 张量 Layout  自动处理从逻辑索引 (mi, ni) 到物理内存地址的转换
     a_val = gA[mi, ni]  # 从张量 A 加载元素
     b_val = gB[mi, ni]  # 从张量 B 加载元素
 
@@ -1430,9 +1447,9 @@ def naive_elementwise_add_kernel(
     gC[mi, ni] = a_val + b_val
 ```
 
-### 内核结构
+###  kernel 结构
 
-朴素内核实现遵循一个直接但有效的 GPU 并行处理结构。以下是其工作原理的详细分解：
+朴素 kernel 实现遵循一个直接但有效的 GPU 并行处理结构。以下是其工作原理的详细分解：
 
 1. **线程组织和索引**
    - 每个 CUDA 线程使用以下组合唯一标识：
@@ -1442,7 +1459,7 @@ def naive_elementwise_add_kernel(
    - 全局线程 ID 计算为：`thread_idx = bidx * bdim + tidx`
 
 2. **坐标映射**
-   - 内核将每个线程的全局 ID 映射到 2D 张量坐标：
+   -  kernel 将每个线程的全局 ID 映射到 2D 张量坐标：
      * `ni = thread_idx % n`（列索引 - 更快变化）
      * `mi = thread_idx // n`（行索引 - 较慢变化）
    - 此映射确保通过让相邻线程访问相邻内存位置来实现合并内存访问
@@ -1461,16 +1478,21 @@ def naive_elementwise_add_kernel(
 
 这个朴素的实现为理解后续更优化的版本提供了基线，这些版本引入了：
 - 向量化内存访问
+<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
 - 线程和值（TV）布局
 - 高级Tile 策略
+=======
+- 线程和值（TV） Layout  
+- 高级平铺策略
+>>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 - 自定义二元运算
 
 有关合并内存访问的更多详细信息，请阅读：https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/#coalesced-access-to-global-memory
 
-### 内核启动配置和测试
+###  kernel 启动配置和测试
 
 本节演示如何：
-1. 使用 `cute.jit` 函数配置和启动内核
+1. 使用 `cute.jit` 函数配置和启动 kernel 
 2. 使用 `torch` 设置测试数据
 3. 验证正确性
 
@@ -1479,7 +1501,7 @@ def naive_elementwise_add_kernel(
 - 根据总元素计算的网格大小：`(m * n) // threads_per_block`
 - 单维度块和网格配置以简化
 
-#### 用于启动内核的主机 JIT 函数
+#### 用于启动 kernel 的主机 JIT 函数
 
 ```python
 @cute.jit  # 即时编译装饰器
@@ -1488,7 +1510,7 @@ def naive_elementwise_add(
     mB: cute.Tensor,  # 输入张量 B
     mC: cute.Tensor,  # 输出张量 C
 ):
-    # 配置内核启动参数
+    # 配置 kernel 启动参数
     # --------------------------------
     # 选择每个块的线程数
     # 256 是一个常见的选择，因为它：
@@ -1500,10 +1522,10 @@ def naive_elementwise_add(
     # 获取输入维度
     m, n = mA.shape  # 矩阵维度（M 行 × N 列）
 
-    # 创建内核实例
+    # 创建 kernel 实例
     kernel = naive_elementwise_add_kernel(mA, mB, mC)
 
-    # 使用计算的网格维度启动内核
+    # 使用计算的网格维度启动 kernel 
     # -------------------------------------------
     # 网格大小计算：
     # - 总元素：m * n
@@ -1547,26 +1569,26 @@ c_ = from_dlpack(c, assumed_align=16)  # CuTe 张量 C
 #### 编译并运行
 
 ```python
-# 为特定输入类型编译内核
+# 为特定输入类型编译 kernel 
 naive_elementwise_add_ = cute.compile(naive_elementwise_add, a_, b_, c_)
 
-# 运行内核
+# 运行 kernel 
 naive_elementwise_add_(a_, b_, c_)
 
 # 验证结果
 # -------------
-# 将我们的内核输出与 PyTorch 的原生实现进行比较
+# 将我们的 kernel 输出与 PyTorch 的原生实现进行比较
 torch.testing.assert_close(c, a + b)  # 如果结果不匹配则引发错误
 ```
 
 ### 性能分析和基准测试
 
-要理解和改进我们内核的性能，我们需要测量其执行时间和内存吞吐量。让我们分析几个关键指标：
+要理解和改进我们 kernel 的性能，我们需要测量其执行时间和内存吞吐量。让我们分析几个关键指标：
 
 * **执行时间**
-   - 以微秒为单位测量原始内核性能
+   - 以微秒为单位测量原始 kernel 性能
    - 越低越好
-   - 受 GPU 时钟速度、内存带宽和内核效率的影响
+   - 受 GPU 时钟速度、内存带宽和 kernel 效率的影响
 * **内存吞吐量**
    - 测量我们可以复制数据的速度（GB/s）
    - 越高越好
@@ -1613,7 +1635,7 @@ benchmark(naive_elementwise_add_, a_, b_, c_)
 
 ### 理论分析
 
-本节通过几个理论框架分析我们逐元素加法内核的性能特征和优化机会。
+本节通过几个理论框架分析我们逐元素加法 kernel 的性能特征和优化机会。
 
 #### Little's Law
 
@@ -1657,9 +1679,9 @@ gA = cute.zipped_divide(a, tiler=(1, 4))   # tiled/vectorized => ((1,4),(2048,51
 
 （示例展示了如何使用向量化来提高性能）
 
-### TV 布局
+### TV  Layout  
 
-朴素和向量化内核都遵循一个共同的模式，通过两个步骤将线程索引映射到物理地址：
+朴素和向量化 kernel 都遵循一个共同的模式，通过两个步骤将线程索引映射到物理地址：
 
 步骤 1：将线程索引映射到 `(M, N)` 中的逻辑坐标
 
@@ -1674,17 +1696,18 @@ gA = cute.zipped_divide(a, tiler=(1, 4))   # tiled/vectorized => ((1,4),(2048,51
 * `thread_idx // n`
 * `(thread_idx % n) * 4 + value_idx`
 
-步骤 2：使用张量布局将 `(M, N)` 中的逻辑坐标映射到物理地址
+步骤 2：使用张量 Layout  将 `(M, N)` 中的逻辑坐标映射到物理地址
 
-CuTe 引入 TV 布局来表示从线程索引和值索引（即每个线程加载的 4 个元素）到张量逻辑坐标空间的映射。
-通过配置不同的 TV 布局，我们可以用最少的代码更改尝试不同的内存访问模式。
+CuTe 引入 TV  Layout  来表示从线程索引和值索引（即每个线程加载的 4 个元素）到张量逻辑坐标空间的映射。
+通过配置不同的 TV  Layout  ，我们可以用最少的代码更改尝试不同的内存访问模式。
 
-**定义：** *TV Layout* 是 rank-2 布局，它将 `(thread_index, value_index)` 映射到张量的逻辑坐标。
+**定义：** *TV Layout* 是 rank-2  Layout  ，它将 `(thread_index, value_index)` 映射到张量的逻辑坐标。
 
 我们总是有规范形式的 *TV Layout*，如 `(thread_domain, value_domain):(..., ...)`。
 
 使用 *TV Layout*，每个线程可以找到分区到当前线程的数据的逻辑坐标或索引。
 
+<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
 ### 使用 TV 布局的逐元素加法
 
 在本示例中，我们使用两级Tile 重写逐元素内核：
@@ -1989,12 +2012,16 @@ torch.testing.assert_close(c, a + b)
 ```python
 benchmark(elementwise_add_, a_, b_, c_)
 ```
+=======
+（后续示例展示了如何使用 TV  Layout  实现更高效的 kernel ）
+>>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 
 ### 使用 Lambda 函数
 
-CuTe DSL 建立在 Python 之上。它可以利用 Python 实现元编程以生成灵活的内核。
-例如，我们可以编写接受自定义二元运算的内核模板，以为任意二元运算生成内核。
+CuTe DSL 建立在 Python 之上。它可以利用 Python 实现元编程以生成灵活的 kernel 。
+例如，我们可以编写接受自定义二元运算的 kernel 模板，以为任意二元运算生成 kernel 。
 
+<<<<<<< HEAD:cuda-mode/CUTE DSL学习笔记二 Educational Notebooks.md
 ```python
 @cute.jit
 def elementwise_apply(
@@ -2159,6 +2186,9 @@ elementwise_apply(mul_relu, [a_, b_], c_)
 # 验证正确性
 torch.testing.assert_close(c, mul_relu_ref(a, b))
 ```
+=======
+（示例展示了如何使用自定义操作创建通用的逐元素 kernel ）
+>>>>>>> 48ed35a (ud):cuda-mode/CUTE DSL学习笔记二 Educational Notebooks 翻译.md
 
 ---
 
@@ -2185,18 +2215,18 @@ from cuda.bindings.driver import CUstream
 from torch.cuda import current_stream
 ```
 
-### 内核创建
+###  kernel 创建
 
-我们创建一个打印"Hello world"的内核以及一个用于启动内核的主机函数。
-然后我们通过传入默认流来编译内核以在我们的 graph 中使用。
+我们创建一个打印"Hello world"的 kernel 以及一个用于启动 kernel 的主机函数。
+然后我们通过传入默认流来编译 kernel 以在我们的 graph 中使用。
 
-在 graph 捕获之前进行内核编译是必需的，因为 CUDA graphs 在 graph 执行期间无法进行 JIT 编译内核。
+在 graph 捕获之前进行 kernel 编译是必需的，因为 CUDA graphs 在 graph 执行期间无法进行 JIT 编译 kernel 。
 
 ```python
 @cute.kernel
 def hello_world_kernel():
     """
-    一个打印 hello world 的内核
+    一个打印 hello world 的 kernel 
     """
     cute.printf("Hello world")
 
@@ -2218,7 +2248,7 @@ hello_world_compiled = cute.compile(hello_world, CUstream(stream.cuda_stream))
 ### 创建和重放 CUDA Graph
 
 我们通过 torch 创建一个流以及一个 graph。
-当我们创建 graph 时，我们可以将想要捕获的流传递给 torch。我们同样使用流作为 CUstream 运行编译的内核。
+当我们创建 graph 时，我们可以将想要捕获的流传递给 torch。我们同样使用流作为 CUstream 运行编译的 kernel 。
 
 最后，我们可以重放我们的 graph 并同步。
 
@@ -2230,9 +2260,9 @@ with torch.cuda.graph(g):
     # 将我们的 torch Stream 转换为 cuStream 流。
     # 这是通过使用 .cuda_stream 获取底层 CUstream 来完成的
     graph_stream = CUstream(current_stream().cuda_stream)
-    # 运行 2 次我们编译的内核
+    # 运行 2 次我们编译的 kernel 
     for _ in range(2):
-        # 在流中运行我们的内核
+        # 在流中运行我们的 kernel 
         hello_world_compiled(graph_stream)
 
 # 重放我们的 graph
@@ -2249,9 +2279,9 @@ Hello world
 
 我们的运行在 NSight Systems 中查看时会导致以下执行：
 
-![两个 hello world 内核在 CUDA graph 中连续运行的图像](images/cuda_graphs_image.png)
+![两个 hello world  kernel 在 CUDA graph 中连续运行的图像](images/cuda_graphs_image.png)
 
-我们可以观察到两个内核的启动，然后是 `cudaDeviceSynchronize()`。
+我们可以观察到两个 kernel 的启动，然后是 `cudaDeviceSynchronize()`。
 
 现在我们可以确认这最小化了一些启动开销：
 
@@ -2266,22 +2296,22 @@ with torch.cuda.graph(g):
     # 将我们的 torch Stream 转换为 cuStream 流。
     # 这是通过使用 .cuda_stream 获取底层 CUstream 来完成的
     graph_stream = CUstream(current_stream().cuda_stream)
-    # 运行 2 次我们编译的内核
+    # 运行 2 次我们编译的 kernel 
     for _ in range(100):
-        # 在流中运行我们的内核
+        # 在流中运行我们的 kernel 
         hello_world_compiled(graph_stream)
 
 # 创建 CUDA 事件以测量性能
 start = torch.cuda.Event(enable_timing=True)
 end = torch.cuda.Event(enable_timing=True)
 
-# 运行我们的内核以预热 GPU
+# 运行我们的 kernel 以预热 GPU
 for _ in range(100):
     hello_world_compiled(stream)
 
 # 记录我们的开始时间
 start.record()
-# 运行 100 个内核
+# 运行 100 个 kernel 
 for _ in range(100):
     hello_world_compiled(stream)
 # 记录我们的结束时间
@@ -2289,7 +2319,7 @@ end.record()
 # 同步（cudaDeviceSynchronize()）
 torch.cuda.synchronize()
 
-# 计算在流中启动内核时花费的时间
+# 计算在流中启动 kernel 时花费的时间
 # 结果以 ms 为单位
 stream_time = start.elapsed_time(end)
 
@@ -2304,7 +2334,7 @@ end.record()
 # 同步（cudaDeviceSynchronize()）
 torch.cuda.synchronize()
 
-# 计算在 graph 中启动内核时花费的时间
+# 计算在 graph 中启动 kernel 时花费的时间
 # 单位是 ms
 graph_time = start.elapsed_time(end)
 ```
