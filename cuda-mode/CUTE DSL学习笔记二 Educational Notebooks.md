@@ -775,15 +775,14 @@ print(data)
 
 CuTe 通过词典排序在 1-D 索引和 N-D 坐标之间建立同构。对于形状为 S = (s₁, s₂, ..., sₙ) 的单位张量中的坐标 c = (c₁, c₂, ..., cₙ)：
 
-**线性索引公式：**
-$$
-\text{idx} = c_1 + \sum_{i=2}^{n} \left(c_i \prod_{j=1}^{i-1} s_j\right)
-$$
-$\text{idx} = c_1 + \sum_{i=2}^{n} \left(c_i \prod_{j=1}^{i-1} s_j\right)$
+ **线性索引公式：**
+ $$
+ \text{idx} = c_1 + \sum_{i=2}^{n} \left(c_i \prod_{j=1}^{i-1} s_j\right)
+ $$
 
-**示例：**
+ **示例：**
 ```python
-# 从给定形状创建单位张量
+ # 从给定形状创建单位张量
 coord_tensor = make_identity_tensor(layout.shape())
 
 # 使用线性索引访问坐标
