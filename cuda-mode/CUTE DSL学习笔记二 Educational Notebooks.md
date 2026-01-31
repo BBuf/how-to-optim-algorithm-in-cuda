@@ -1685,14 +1685,480 @@ CuTe 引入 TV 布局来表示从线程索引和值索引（即每个线程加�
 
 使用 *TV Layout*，每个线程可以找到分区到当前线程的数据的逻辑坐标或索引。
 
-（后续示例展示了如何使用 TV 布局实现更高效的内核）
+### 使用 TV 布局的逐元素加法
+
+在本示例中，我们使用两级平铺重写逐元素内核：
+* 线程块级别
+* 使用 TV 布局和平铺的线程级别
+
+对于线程块级别的平铺，每个输入和输出张量首先在主机端被划分为一组 ``(TileM, TileN)`` 子张量。请注意，在这种情况下，我们仍然使用 `zipped_divide`，但用于线程块级别的平铺。
+
+在 GPU 内核内部，我们使用第二个模式的线程块索引对平铺张量进行切片，如 ``gA[((None, None), bidx)]``，这将返回单个 ``(TileM, TileN)`` 子张量的线程块局部视图。此子张量将 ``(TileM, TileN)`` 内的逻辑坐标映射到元素的物理地址。
+
+在线程级别平铺时，我们将上述子张量（逻辑坐标到物理地址）与 TV 布局（线程和值索引到逻辑坐标）进行组合。这为我们提供了一个平铺的子张量，该子张量直接从线程和值索引映射到物理地址。
+
+然后我们使用线程索引对其进行切片，如 ``tidfrgA[(tidx, None)]``，以获得每个线程访问的数据的线程局部视图。请注意，线程索引现在在第一个模式中，因为 TV 布局通常具有形式 ``(thread_domain, value_domain):(...,...)``。
+
+#### 内核代码
+
+```python
+@cute.kernel
+def elementwise_add_kernel(
+    gA: cute.Tensor, gB: cute.Tensor, gC: cute.Tensor, tv_layout: cute.Layout
+):
+    tidx, _, _ = cute.arch.thread_idx()
+    bidx, _, _ = cute.arch.block_idx()
+
+    # --------------------------------
+    # 线程块级别视图切片
+    # --------------------------------
+    blk_coord = ((None, None), bidx)
+
+    # 逻辑坐标 -> 地址
+    blkA = gA[blk_coord]  # (TileM, TileN) -> 物理地址
+    blkB = gB[blk_coord]  # (TileM, TileN) -> 物理地址
+    blkC = gC[blk_coord]  # (TileM, TileN) -> 物理地址
+
+    # --------------------------------
+    # 组合线程索引和值索引到物理映射
+    # --------------------------------
+    # blockA:    (TileM, TileN) -> 物理地址
+    # tv_layout: (tid, vid)     -> (TileM, TileN)
+    # tidfrgA = blkA o tv_layout
+    # tidfrgA:   (tid, vid) -> 物理地址
+    tidfrgA = cute.composition(blkA, tv_layout)
+    tidfrgB = cute.composition(blkB, tv_layout)
+    tidfrgC = cute.composition(blkC, tv_layout)
+
+    print("与 TV 布局组合后:")
+    print(f"  tidfrgA: {tidfrgA.type}")
+
+    # --------------------------------
+    # 线程级别视图切片
+    # --------------------------------
+    # `None` 表示切片整个每线程数据
+    thr_coord = (tidx, None)
+    # thr_coord = (tidx, cute.repeat_like(None, gA.shape[1]))
+
+    # 为线程切片: vid -> 地址
+    thrA = tidfrgA[thr_coord]  # (V) -> 物理地址
+    thrB = tidfrgB[thr_coord]  # (V) -> 物理地址
+    thrC = tidfrgC[thr_coord]  # (V) -> 物理地址
+
+    thrC[None] = thrA.load() + thrB.load()
+```
+
+#### 主机代码
+
+下面的主机代码展示了 TV 布局的构造。通过组合线程布局 ``(4,64):(64,1)``（64 个线程读取行维度上的连续元素，然后 64 线程组（2 个 warp）读取不同的行）与值布局 ``(16,8):(8,1)``（每个线程在行维度上读取 8 个连续的 16b 元素，跨越 4 个连续的行）。
+
+为了通用化，我们从字节布局开始以字节描述元素的布局。这是为了确保使用 128 位向量化加载存储。然后我们利用 ``recast_layout`` 转换为元素布局。
+
+```python
+    # 源类型位数: 8
+    # 目标类型位数: 元素类型的位数
+    val_layout = cute.recast_layout(dtype.width, 8, bit_val_layout)
+```
+
+```python
+@cute.jit
+def elementwise_add(
+    mA: cute.Tensor,
+    mB: cute.Tensor,
+    mC: cute.Tensor,
+):
+    # mA 布局: (M, N):(N, 1)
+    # TV 布局将线程和值索引映射到 (64, 512) 逻辑 Tile
+    #  - 连续的线程索引映射到 mode-1，因为输入布局在 mode-1 上是连续的
+    #     以实现合并加载存储
+    #  - 每个线程每行加载连续的 16 字节，加载 16 行
+    coalesced_ldst_bytes = 16
+
+    # 编译时验证：期望所有输入张量具有相同的元素类型
+    assert all(t.element_type == mA.element_type for t in [mA, mB, mC])
+    dtype = mA.element_type
+
+    thr_layout = cute.make_ordered_layout((4, 64), order=(1, 0))
+    val_layout = cute.make_ordered_layout((16, coalesced_ldst_bytes), order=(1, 0))
+    val_layout = cute.recast_layout(dtype.width, 8, val_layout)
+    tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
+
+    print(f"[DSL INFO] Tiler: {tiler_mn}")
+    print(f"[DSL INFO] TV Layout: {tv_layout}")
+
+    gA = cute.zipped_divide(mA, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
+    gB = cute.zipped_divide(mB, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
+    gC = cute.zipped_divide(mC, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
+
+    print("平铺输入张量:")
+    print("[DSL INFO] 平铺张量:")
+    print(f"[DSL INFO]   gA = {gA.type}")
+    print(f"[DSL INFO]   gB = {gB.type}")
+    print(f"[DSL INFO]   gC = {gC.type}")
+
+    # 异步启动内核
+    # 也可以指定异步令牌作为依赖项
+    elementwise_add_kernel(gA, gB, gC, tv_layout).launch(
+        grid=[cute.size(gC, mode=[1]), 1, 1],
+        block=[cute.size(tv_layout, mode=[0]), 1, 1],
+    )
+
+
+a = torch.randn(M, N, device="cuda", dtype=torch.float16)
+b = torch.randn(M, N, device="cuda", dtype=torch.float16)
+c = torch.zeros(M, N, device="cuda", dtype=torch.float16)
+
+a_ = from_dlpack(a, assumed_align=16)
+b_ = from_dlpack(b, assumed_align=16)
+c_ = from_dlpack(c, assumed_align=16)
+
+elementwise_add_ = cute.compile(elementwise_add, a_, b_, c_)
+elementwise_add_(a_, b_, c_)
+
+# 验证正确性
+torch.testing.assert_close(c, a + b)
+```
+
+#### 布局解释
+
+让我们更仔细地看看使用 zipped divided 输入张量 `gA` 作为示例。
+我们还选择了更小的 M/N，`(256,512)`，以使其更容易解释和可视化。
+
+```
+平铺到线程块:
+
+    ((16,256),(16,2))  : ((512,1),(8192,256))
+     ~~~~~~~~  ~~~~~~      ~~~~~
+        |        |           |
+        |        |           |
+        |        `-----------------------> 线程块数量
+        |                    |
+        |                    |
+        `-------------------'
+                  |
+                  V
+             线程块
+               Tile
+
+切片到线程块局部子张量（一个 (16, 256) Tile）:  gA[((None, None), bidx)]
+
+    (16,256)   :  (512,1)
+     ~~~~~~        ~~~~~~
+        |             |        平铺/与 TV 布局组合
+        |             |
+        |             |    o   ((32,4),(8,4)):((128,4),(16,1))
+        V             V
+~~~~~~~~~~~~~~~     ~~~~~~~~~~~~~~~~~~~
+((32,4),(8,4))  :  ((8,2048),(1,512))
+    |      |
+    |      `--------> 每线程片段
+    |
+线程块
+  形状
+
+切片到线程局部子张量（一个 (4,8) Tile）:  tidfrgA[(tidx, None)]
+```
+
+#### TV 布局可视化
+
+要可视化 TV 布局，我们可以首先安装 *`cute-viz`*
+
+```
+pip install -U git+https://github.com/NTT123/cute-viz.git
+```
+
+```python
+try:
+    from cute_viz import display_tv_layout
+
+    @cute.jit
+    def visualize():
+        # 创建并将布局渲染到文件
+        # layout = cute.make_layout( ((16,16),(256,2)), stride=((512,8192),(1,256)))
+        # display_layout(layout)
+
+        tv_layout = cute.make_layout(((32, 4), (8, 4)), stride=((128, 4), (16, 1)))
+        display_tv_layout(tv_layout, (16, 256))
+
+        thr_block_layout = cute.make_layout((16, 256), stride=(512, 1))
+        print(cute.composition(thr_block_layout, tv_layout))
+
+    visualize()
+except ImportError:
+    pass
+```
+
+#### 为什么当张量是行主序时，TV 布局的线程域模式看起来被交换了？
+
+我们可能会注意到上面示例中的 *TV 布局* 是 `((32,4),(8,4)):((128,4),(16,1))`。
+然而，在可视化中，线程索引被排列为形状 `(4,32)` 而不是 *TV 布局* 的 `(32,4)`。
+
+这是内部团队和社区的开发人员经常问的问题。
+
+重要的是要记住，*TV 布局* 将 `(thread_index, value_index)` 映射到逻辑域 `(TileM, TileN)` 的 `(row_index, column_index)`。但是，可视化显示了逻辑域 `(TileM, TileN)` 到 `(thread_domain, value_domain)` 的**逆**映射，因为这对人类开发者来说更直观。
+
+这就是为什么 *TV 布局* 的域形状不一定与逻辑视图匹配。
+
+```python
+benchmark(elementwise_add_, a_, b_, c_)
+```
+
+#### 重映射/转置线程块索引
+
+由于本示例中的张量是行主序，我们可能希望线程块尽可能多地加载连续内存。
+
+我们可以应用简单的线程块重映射来转置行优先顺序中线程块索引的映射。
+`cute.composition(gA, (None, remap_block))` 仅应用平铺布局第二个模式的转置，但保持第一个模式不变。
+
+```python
+    remap_block = cute.make_ordered_layout(
+        cute.select(gA.shape[1], mode=[1, 0]), order=(1, 0)
+    )
+    gA = cute.composition(gA, (None, remap_block))
+    gB = cute.composition(gB, (None, remap_block))
+    gC = cute.composition(gC, (None, remap_block))
+```
+
+```python
+@cute.jit
+def elementwise_add(
+    mA: cute.Tensor,
+    mB: cute.Tensor,
+    mC: cute.Tensor,
+):
+    # mA 布局: (M, N):(N, 1)
+    # TV 布局将线程和值索引映射到 (64, 512) 逻辑 Tile
+    #  - 连续的线程索引映射到 mode-1，因为输入布局在 mode-1 上是连续的
+    #     以实现合并加载存储
+    #  - 每个线程每行加载连续的 16 字节，加载 16 行
+    coalesced_ldst_bytes = 16
+
+    # 编译时验证：期望所有输入张量具有相同的元素类型
+    assert all(t.element_type == mA.element_type for t in [mA, mB, mC])
+    dtype = mA.element_type
+
+    thr_layout = cute.make_ordered_layout((4, 64), order=(1, 0))
+    val_layout = cute.make_ordered_layout((16, coalesced_ldst_bytes), order=(1, 0))
+    val_layout = cute.recast_layout(dtype.width, 8, val_layout)
+    tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
+
+    print(f"[DSL INFO] Tiler: {tiler_mn}")
+    print(f"[DSL INFO] TV Layout: {tv_layout}")
+
+    gA = cute.zipped_divide(mA, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
+    gB = cute.zipped_divide(mB, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
+    gC = cute.zipped_divide(mC, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
+
+    # (RestM, RestN) -> (RestN, RestM)
+    remap_block = cute.make_ordered_layout(
+        cute.select(gA.shape[1], mode=[1, 0]), order=(1, 0)
+    )
+    gA = cute.composition(gA, (None, remap_block))
+    gB = cute.composition(gB, (None, remap_block))
+    gC = cute.composition(gC, (None, remap_block))
+
+    print("平铺输入张量:")
+    print("[DSL INFO] 平铺张量:")
+    print(f"[DSL INFO]   gA = {gA.type}")
+    print(f"[DSL INFO]   gB = {gB.type}")
+    print(f"[DSL INFO]   gC = {gC.type}")
+
+    # 异步启动内核
+    # 也可以指定异步令牌作为依赖项
+    elementwise_add_kernel(gA, gB, gC, tv_layout).launch(
+        grid=[cute.size(gC, mode=[1]), 1, 1],
+        block=[cute.size(tv_layout, mode=[0]), 1, 1],
+    )
+
+
+a = torch.randn(M, N, device="cuda", dtype=torch.float16)
+b = torch.randn(M, N, device="cuda", dtype=torch.float16)
+c = torch.zeros(M, N, device="cuda", dtype=torch.float16)
+
+a_ = from_dlpack(a, assumed_align=16)
+b_ = from_dlpack(b, assumed_align=16)
+c_ = from_dlpack(c, assumed_align=16)
+
+elementwise_add_ = cute.compile(elementwise_add, a_, b_, c_)
+elementwise_add_(a_, b_, c_)
+
+# 验证正确性
+torch.testing.assert_close(c, a + b)
+```
+
+```python
+benchmark(elementwise_add_, a_, b_, c_)
+```
 
 ### 使用 Lambda 函数
 
 CuTe DSL 建立在 Python 之上。它可以利用 Python 实现元编程以生成灵活的内核。
 例如，我们可以编写接受自定义二元运算的内核模板，以为任意二元运算生成内核。
 
-（示例展示了如何使用自定义操作创建通用的逐元素内核）
+```python
+@cute.jit
+def elementwise_apply(
+    op: cutlass.Constexpr,
+    inputs,
+    result: cute.Tensor
+):
+    ...
+```
+
+```python
+@cute.kernel
+def elementwise_apply_kernel(
+    op: cutlass.Constexpr,
+    mInputs: List[cute.Tensor],
+    mC: cute.Tensor,
+    cC: cute.Tensor,  # 坐标张量
+    shape: cute.Shape,
+    tv_layout: cute.Layout,  # (tid, vid) -> 逻辑坐标
+):
+    tidx, _, _ = cute.arch.thread_idx()
+    bidx, _, _ = cute.arch.block_idx()
+
+    ###############################################################################
+    # 切片到线程块的局部 Tile
+    ###############################################################################
+    blk_crd = ((None, None), bidx)
+
+    # 利用 DSL 的元编程能力为每个输入切片张量
+    # 下面所有输入张量上的 for 循环将在编译时自动完全展开
+    # 逻辑坐标 -> 内存地址
+    gInputs = [t[blk_crd] for t in mInputs]  # (TileM, TileN)
+    gC = mC[blk_crd]  # (TileM, TileN)
+    gCrd = cC[blk_crd]  # (TileM, TileN)
+
+    print("[DSL INFO] 每个线程块的切片张量:")
+    for i in cutlass.range_constexpr(len(gInputs)):
+        print(f"[DSL INFO]   ctaInputs{i} = {gInputs[i].type}")
+    print(f"[DSL INFO]   gC = {gC.type}")
+    print(f"[DSL INFO]   gCrd = {gCrd.type}")
+
+    ###############################################################################
+    # 与线程块 TV 布局组合以将线程和值索引映射到内存地址
+    ###############################################################################
+    # (tid, vid) -> 内存地址
+    tidfrgInputs = [cute.composition(t, tv_layout) for t in gInputs]
+    tidfrgC = cute.composition(gC, tv_layout)
+    tidfrgCrd = cute.composition(gCrd, tv_layout)
+
+    # 重复 None 类似 vid 以移除布局的层次结构
+    thr_crd = (tidx, cute.repeat_like(None, tidfrgInputs[0][1]))
+
+    ###############################################################################
+    # 切片到线程的局部 Tile
+    ###############################################################################
+    # vid -> 地址
+    thrInputs = [t[thr_crd] for t in tidfrgInputs]  # (V)
+    thrC = tidfrgC[thr_crd]  # (V)
+    thrCrd = tidfrgCrd[thr_crd]
+
+    print("[DSL INFO] 每个线程的切片张量:")
+    for i in cutlass.range_constexpr(len(thrInputs)):
+        print(f"[DSL INFO]   thrInputs{i} = {thrInputs[i].type}")
+    print(f"[DSL INFO]   thrC = {thrC.type}")
+    print(f"[DSL INFO]   thrCrd = {thrCrd.type}")
+
+    ###############################################################################
+    # 计算边界检查的谓词
+    ###############################################################################
+    frgPred = cute.make_fragment(thrCrd.shape, cutlass.Boolean)
+    print(f"[DSL INFO]   frgPred = {frgPred.type}")
+
+    for i in cutlass.range_constexpr(cute.size(frgPred)):
+        frgPred[i] = cute.elem_less(thrCrd[i], shape)
+
+    # if tidx == 0 and bidx == 0:
+    #     cute.print_tensor(frgPred)
+
+    ##########################################################
+    # 加载数据并计算结果
+    ##########################################################
+
+    # 在使用前加载数据。编译器将优化复制和加载操作
+    # 将一些内存 ld/st 转换为寄存器使用。
+    result = op(*[thrInput.load() for thrInput in thrInputs])
+    thrC.store(result)
+
+
+@cute.jit
+def elementwise_apply(op: cutlass.Constexpr, inputs, result: cute.Tensor):
+    # 使用 128bit(16B) 加载作为 val_layout 的规范化形式，然后重铸为目标元素类型
+    coalesced_ldst_bytes = 16
+
+    # 编译时验证：期望所有输入张量具有相同的元素类型
+    assert all(t.element_type == inputs[0].element_type for t in inputs)
+    dtype = inputs[0].element_type
+
+    thr_layout = cute.make_ordered_layout((4, 64), order=(1, 0))
+    val_layout = cute.make_ordered_layout((16, coalesced_ldst_bytes), order=(1, 0))
+    val_layout = cute.recast_layout(dtype.width, 8, val_layout)
+    tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
+
+    mInputs = [cute.zipped_divide(input, tiler_mn) for input in inputs]
+    mC = cute.zipped_divide(result, tiler_mn)  # ((TileM, TileN), (RestM, RestN))
+
+    # (RestM, RestN) -> (RestN, RestM)
+    remap_block = cute.make_ordered_layout(
+        cute.select(mInputs[0].shape[1], mode=[1, 0]), order=(1, 0)
+    )
+    for i, t in enumerate(mInputs):
+        mInputs[i] = cute.composition(t, (None, remap_block))
+
+    mC = cute.composition(mC, (None, remap_block))
+
+    idC = cute.make_identity_tensor(result.shape)
+    cC = cute.zipped_divide(idC, tiler=tiler_mn)
+
+    # 异步启动内核
+    # 将输入张量分组到一个列表中作为单个参数
+    elementwise_apply_kernel(op, mInputs, mC, cC, result.shape, tv_layout).launch(
+        grid=[cute.size(mC, mode=[1]), 1, 1],
+        block=[cute.size(tv_layout, mode=[0]), 1, 1],
+    )
+
+
+a = torch.randn(M, N, device="cuda", dtype=torch.float16)
+b = torch.randn(M, N, device="cuda", dtype=torch.float16)
+c = torch.zeros(M, N, device="cuda", dtype=torch.float16)
+
+a_ = from_dlpack(a, assumed_align=16)
+b_ = from_dlpack(b, assumed_align=16)
+c_ = from_dlpack(c, assumed_align=16)
+```
+
+```python
+from operator import mul
+
+elementwise_apply(mul, [a_, b_], c_)
+
+# 验证正确性
+torch.testing.assert_close(c, mul(a, b))
+```
+
+#### 使用自定义函数
+
+自定义运算符可以更复杂。例如，这是一个执行乘法后跟 ReLU 的函数：
+
+```python
+def mul_relu(a, b):
+    tmp = a * b
+    return cute.where(tmp > 0, tmp, cute.full_like(tmp, 0))
+
+
+# 由于我们在自定义运算中使用 cute.where，我们需要创建另一个 relu 函数
+def mul_relu_ref(a, b):
+    tmp = a * b
+    return torch.relu(tmp)
+
+
+elementwise_apply(mul_relu, [a_, b_], c_)
+
+# 验证正确性
+torch.testing.assert_close(c, mul_relu_ref(a, b))
+```
 
 ---
 
