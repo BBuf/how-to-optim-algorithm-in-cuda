@@ -1,11 +1,32 @@
-## 记录 CUDA-MODE 课程学习笔记
+# cuda-mode
 
-- 课程的 Slides 和 脚本：https://github.com/cuda-mode/lectures
-- 课程地址：https://www.youtube.com/@CUDAMODE
-- 我的课程笔记：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode
+CUDA-MODE 课程学习笔记与代码，以及相关技术博客翻译。
 
-一直想系统看一下某个课程系统和科学的学习下 CUDA ，感觉 CUDA-MODE 这个课程能满足我的需求。这个课程是几个 PyTorch 的 Core Dev 搞的，比较系统和专业。不过由于这个课程是 Youtube 上的英语课程，所以要学习和理解这个课程还是需要花不少时间的，我这里记录一下学习这个课程的每一课的笔记，希望可以通过这个笔记帮助对这个课程以及 CUDA 感兴趣的读者更快吸收这个课程的知识。这个课程相比于以前的纯教程更加关注的是我们可以利用 CUDA 做什么事情，而不是让读者陷入到 CUDA 专业术语的细节中，那会非常痛苦。伟大无需多言，感兴趣请阅读本文件夹下的各个课程的学习笔记。
+## 目录结构
 
+```
+cuda-mode/
+├── code/              # 【代码】课程相关 CUDA 实验代码
+│   ├── YHs_Sample/    #   CUDA 采样示例代码
+│   └── cudabmk/       #   GPU 微基准测试工具（cudabmk）
+├── slides/            # 【幻灯片】课程 PPT / PDF 讲义
+├── lectures/          # 【笔记】CUDA-MODE 各讲课程笔记（Lecture 1~77+）
+├── blog-translations/ # 【笔记】CUDA 相关博客翻译
+├── cute-dsl/          # 【笔记】CuTe DSL 学习笔记
+├── lei-mao-blogs/     # 【笔记】Lei Mao CUDA 系列博客转载（28 篇）
+├── practice/          # 【笔记】课程课后实战练习
+└── tech-notes/        # 【笔记】GPU 技术专题笔记
+```
 
-> 这里的记录可能会随意些，主要是记录一下个人觉得有用的知识或者有趣的话。
+## 内容说明
 
+| 子目录 | 说明 |
+|--------|------|
+| [code/](code/) | YHs CUDA 示例 + cudabmk GPU 微基准测试工具 |
+| [slides/](slides/) | 课程原版 PPT/PDF（Lecture 2/7/8/10/16/17/20/29 等）|
+| [lectures/](lectures/) | Lecture 1-77+ 各课笔记，覆盖 Profiling、GEMM、Flash Attention、Triton、NCCL 等 |
+| [blog-translations/](blog-translations/) | GPU Assembly、PTX、TMA、CuTe Layout、Prefix Sum、RMSNorm 等博客翻译 |
+| [cute-dsl/](cute-dsl/) | CUTLASS 4.x CuTe DSL 文档翻译与学习笔记 |
+| [lei-mao-blogs/](lei-mao-blogs/) | Lei Mao 的 CUDA 系列博客：内存、shared memory、tensor core、ldmatrix 等 |
+| [practice/](practice/) | 第一课课后实战（上）（下）|
+| [tech-notes/](tech-notes/) | GPU 内存演进、异步计算、nsight、Green Context 等技术专题 |
