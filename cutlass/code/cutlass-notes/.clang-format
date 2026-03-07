@@ -1,0 +1,12 @@
+BasedOnStyle: LLVM
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+BreakBeforeBraces: Attach
+BinPackParameters: false
+ColumnLimit: 119
+AccessModifierOffset: -2
+NamespaceIndentation: None
+SpacesInAngles: false

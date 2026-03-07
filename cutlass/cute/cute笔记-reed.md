@@ -513,7 +513,7 @@ __global__ void gemm_simple(T *Cptr, const T *Aptr, const T *Bptr, int m, int n,
 
 GPU中有多个SM（Stream Multiprocessor）我们编程时以grid、block的软件层级进行编程来利用这些SM，在矩阵计算中，我们以输出矩阵C作为划分thead block的单元进行任务拆分，也就是说一个thread block完成C矩阵中的一个小块（TileC）的计算任务，如图3所示，我们定义矩阵TileC的大小为kTileM、kTileN，分别表示小块矩阵包含元素的行数目和列数目，根据块状矩阵乘法的公式完成TileC的计算需要A矩阵中的绿色高亮部分和B矩阵的黄色高亮部分，它们的形状分别为(kTileM, k)和(kTileN, k)。我们对AB矩阵的k轴按照kTileK的大小进行分块，则可以将TileC矩阵表达为AB矩阵块的点积运算
 
-$TileC = \sum_{i_{\text{tile}}=0}^{\text{num\_tile}} TileA_{i_{\text{tile}}}TileB_{i_{\text{tile}}}$ 
+$$TileC = \sum_{i_{\text{tile}}=0}^{\text{num\_tile}} TileA_{i_{\text{tile}}}TileB_{i_{\text{tile}}}$$ 
 
 ![Figure 3. sliced-k模式的C矩阵为中心的任务划分方法](https://files.mdnice.com/user/59/60cf5c46-814b-41a1-928d-c3013ce29c34.png)
 

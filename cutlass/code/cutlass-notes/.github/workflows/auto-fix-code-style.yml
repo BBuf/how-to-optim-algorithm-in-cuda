@@ -1,0 +1,203 @@
+name: Auto Fix Code Style
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number'
+        required: true
+        type: string
+      pr_branch:
+        description: 'Pull Request branch'
+        required: true
+        type: string
+      needs_python_fix:
+        description: 'Whether Python needs fixing'
+        required: true
+        type: string
+        default: 'false'
+      needs_cpp_fix:
+        description: 'Whether C++ needs fixing'
+        required: true
+        type: string
+        default: 'false'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-fix-python:
+    name: Auto Fix Python Code
+    runs-on: ubuntu-latest
+    if: fromJson(github.event.inputs.needs_python_fix)
+    outputs:
+      has_changes: ${{ steps.auto-fix-python.outputs.has_changes }}
+    
+    steps:
+    - name: Checkout PR branch
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.event.inputs.pr_branch }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Python dependencies
+      run: pip install ruff==0.14.6
+
+    - name: Auto-fix Python formatting
+      id: auto-fix-python
+      run: |
+        echo "Attempting to auto-fix Python formatting issues..."
+        make style
+
+        if git diff --quiet; then
+          echo "No changes to commit after auto-fix"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "Changes detected, committing fixes..."
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add -A
+        git commit -m "style: auto-format Python code with ruff"
+        echo "has_changes=true" >> $GITHUB_OUTPUT
+
+        echo "Pushing changes..."
+        git push origin HEAD:${{ github.event.inputs.pr_branch }}
+
+    - name: Comment on PR for Python fixes
+      if: steps.auto-fix-python.outcome == 'success' && fromJson(steps.auto-fix-python.outputs.has_changes)
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ github.event.inputs.pr_number }}
+          });
+          
+          const hasExistingComment = comments.some(comment => 
+            comment.user.login === 'github-actions[bot]' && 
+            comment.body.includes('Python formatting')
+          );
+          
+          if (!hasExistingComment) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.inputs.pr_number }},
+              body: '✅ **Python Code Formatting Applied**\n\nI\'ve automatically formatted your Python code using `ruff`. The changes have been pushed to your branch. Please review the changes and update your PR if needed.'
+            });
+          }
+
+  auto-fix-cpp:
+    name: Auto Fix C++ Code
+    runs-on: ubuntu-latest
+    if: fromJson(github.event.inputs.needs_cpp_fix)
+    outputs:
+      has_changes: ${{ steps.auto-fix-cpp.outputs.has_changes }}
+    
+    steps:
+    - name: Checkout PR branch
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.event.inputs.pr_branch }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install clang-format via pip
+      run: pip install clang-format==21.1.8
+
+    - name: Auto-fix C++ formatting
+      id: auto-fix-cpp
+      run: |
+        echo "Attempting to auto-fix C++ formatting issues..."
+        make cstyle
+        
+        if git diff --quiet; then
+          echo "No changes to commit after auto-fix"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        echo "Changes detected, committing fixes..."
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add -A
+        git commit -m "style: auto-format C++ code with clang-format"
+        echo "has_changes=true" >> $GITHUB_OUTPUT
+        
+        echo "Pushing changes..."
+        git push origin HEAD:${{ github.event.inputs.pr_branch }}
+
+    - name: Comment on PR for C++ fixes
+      if: steps.auto-fix-cpp.outcome == 'success' && fromJson(steps.auto-fix-cpp.outputs.has_changes)
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ github.event.inputs.pr_number }}
+          });
+  
+          const hasExistingComment = comments.some(comment => 
+            comment.user.login === 'github-actions[bot]' && 
+            comment.body.includes('C++ formatting')
+          );
+          
+          if (!hasExistingComment) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.inputs.pr_number }},
+              body: '✅ **C++ Code Formatting Applied**\n\nI\'ve automatically formatted your C++ code using `clang-format`. The changes have been pushed to your branch. Please review the changes and update your PR if needed.'
+            });
+          }
+
+  summary-comment:
+    name: Formatting Summary
+    needs: [auto-fix-python, auto-fix-cpp]
+    if: always() && (needs.auto-fix-python.result == 'success' || needs.auto-fix-cpp.result == 'success')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Post formatting summary
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const pythonFixed = "${{ needs.auto-fix-python.outputs.has_changes }}" === 'true';
+          const cppFixed = "${{ needs.auto-fix-cpp.outputs.has_changes }}" === 'true';
+          
+          let summary = '## 📝 Formatting Summary\n\n';
+          
+          if (pythonFixed && cppFixed) {
+            summary += '✅ Both Python and C++ code have been automatically formatted.\n';
+            summary += '✅ All formatting issues are now resolved.';
+          } else if (pythonFixed) {
+            summary += '✅ Python code has been automatically formatted.\n';
+          } else if (cppFixed) {
+            summary += '✅ C++ code has been automatically formatted.\n';
+          }
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ github.event.inputs.pr_number }},
+            body: summary
+          });

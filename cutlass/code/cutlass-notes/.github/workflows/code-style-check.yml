@@ -1,0 +1,96 @@
+name: Code Style Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  python-style-check:
+    name: Python Code Style Check
+    runs-on: ubuntu-latest
+    outputs:
+      needs_fix: ${{ steps.python-check.outcome == 'failure' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Python dependencies
+      run: pip install ruff==0.14.6
+
+    - name: Run Python style check
+      id: python-check
+      continue-on-error: true
+      run: make quality
+
+    - name: Set check status
+      if: steps.python-check.outcome == 'failure'
+      run: echo "Python style check failed, will trigger auto-fix workflow"
+
+  cpp-style-check:
+    name: C++ Code Style Check
+    runs-on: ubuntu-latest
+    outputs:
+      needs_fix: ${{ steps.cpp-check.outcome == 'failure' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install clang-format via pip
+      run: pip install clang-format==21.1.8
+
+    - name: Run C++ style check
+      id: cpp-check
+      continue-on-error: true
+      run: make cquality
+
+    - name: Set check status
+      if: steps.cpp-check.outcome == 'failure'
+      run: echo "C++ style check failed, will trigger auto-fix workflow"
+
+  trigger-auto-fix:
+    name: Trigger Auto-Fix if Needed
+    needs: [python-style-check, cpp-style-check]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && (needs.python-style-check.outputs.needs_fix == 'true' || needs.cpp-style-check.outputs.needs_fix == 'true')
+    
+    steps:
+    - name: Trigger auto-fix workflow
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          // Trigger the auto-fix workflow
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'auto-fix-code-style.yml',
+            ref: context.payload.pull_request.head.ref,
+            inputs: {
+              pr_number: context.payload.pull_request.number.toString(),
+              pr_branch: context.payload.pull_request.head.ref,
+              needs_python_fix: '${{ needs.python-style-check.outputs.needs_fix }}',
+              needs_cpp_fix: '${{ needs.cpp-style-check.outputs.needs_fix }}'
+            }
+          });

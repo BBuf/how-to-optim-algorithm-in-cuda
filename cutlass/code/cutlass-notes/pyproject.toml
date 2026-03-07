@@ -1,0 +1,135 @@
+
+[tool.ruff]
+line-length = 119
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.lint]
+preview = true
+extend-select = [
+    "A",       # flake8-builtins
+    "B",       # flake8-bugbear
+    "C4",
+    "E",       # PEP8 errors
+    "F",       # PEP8 formatting
+    "FURB",
+    "I",       # Import sorting
+    "LOG",
+    "NPY",
+    "PERF",
+    "PGH004",
+    "PIE790",
+    "PIE794",
+    "PIE800",
+    "PIE804",
+    "PIE807",
+    "PIE810",
+    "PLC0131", # type bivariance
+    "PLC0132", # type param mismatch
+    "PLC0205", # string as __slots__
+    "PLC3002", # unnecessary-direct-lambda-call
+    "PLE",
+    "PLR0133", # constant comparison
+    "PLR0206", # property with params
+    "PLR1722", # use sys exit
+    "PLR1736", # unnecessary list index
+    "PLW0129", # assert on string literal
+    "PLW0133", # useless exception statement
+    "PLW0406", # import self
+    "PLW0711", # binary op exception
+    "PLW1509", # preexec_fn not safe with threads
+    "PLW2101", # useless lock statement
+    "PLW3301", # nested min max
+    "PT006",   # TODO: enable more PT rules
+    "PT022",
+    "PT023",
+    "PT024",
+    "PT025",
+    "PT026",
+    "PYI",
+    "Q003",    # avoidable escaped quote
+    "Q004",    # unnecessary escaped quote
+    "RSE",
+    "RUF008",  # mutable dataclass default
+    "RUF015",  # access first ele in constant time
+    "RUF016",  # type error non-integer index
+    "RUF017",
+    "RUF018",  # no assignment in assert
+    "RUF019",  # unnecessary-key-check
+    "RUF024",  # from keys mutable
+    "RUF026",  # default factory kwarg
+    "SIM",     # flake8-simplify
+    "TID",     # flake8-tidy-imports
+    "UP",      # Pyupgrade
+    "W",       # PEP8 warnings
+    # "TCH", # flake8-type-checking
+    # "D", # pydocstyle
+    # "ANN", # flake8-annotations,
+    # "PLC", # Pylint Convention rules,
+    # "ARG", # flake8-unused-arguments
+]
+ignore = [
+    "A001", # Variable is shadowing a Python builtin
+    "A002", # Argument is shadowing a Python builtin
+    "A005", # Module is shadowing a Python builtin
+    "B007", # Loop control variable not used within loop body
+    "B008", # function-call-in-default-argument
+    "B017", # assert-raises-exception
+    # "B018", # Useless expression
+    # "B023", # function-uses-loop-variable
+    "B028", # No explicit `stacklevel` keyword argument found
+    "B904", # distinguish them from errors in exception handling
+    "C408", # C408 ignored because we like the dict keyword argument syntax
+    # "D102", # Missing docstring in public method
+    "E402", # Module level import not at top of cell
+    "E501", # Line length (handled by ruff-format)
+    "E731", # lambda expression assignment
+    "E741", # Ambiguous variable name
+    # "F841", # Local variable is assigned to but never used
+    "E902",    # No such file or directory (os error 2)
+    "FURB101", # `open` and `read` should be replaced
+    "FURB103", # `open` and `write` should be replaced
+    "FURB113", # Use `list.extend(...)` instead of repeatedly calling `list.append()`
+    "NPY002",  # Replace legacy call
+    "PERF203", # `try`-`except` within a loop incurs performance overhead
+    "PERF401", # Use a list comprehension to create a transformed list
+    "PERF403", # Use a dictionary comprehension instead of a for-loop
+    "PYI024",
+    "PYI036",
+    "PYI041",
+    "PYI056",
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
+    "SIM105",
+    "SIM108",  # SIM108 ignored because we prefer if-else-block instead of ternary expression
+    "SIM112",
+    "SIM115",  # Use a context manager for opening files
+    "SIM116",  # Disable Use a dictionary instead of consecutive `if` statements
+    "SIM117",  # multiple-with-statements
+    "SIM118",  # Use `key in dict` instead of `key in dict.keys()`
+    # "TID251", # banned API
+    "UP007", # X | Y type annotations
+    "W605",  # Invalid escape sequence
+]
+
+[tool.ruff.lint.per-file-ignores]
+"third-party/**" = ["ALL"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+
+[tool.ruff.lint.flake8-unused-arguments]
+ignore-variadic-names = true
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.getenv".msg = "Use os.environ instead"
+"os.putenv".msg = "Use os.environ instead"
+"os.unsetenv".msg = "Use os.environ instead"
+
+[tool.ruff.format]
+docstring-code-format = true
+indent-style = "space"
+line-ending = "auto"
+quote-style = "double"
+exclude = [
+    "third-party/**",
+]
