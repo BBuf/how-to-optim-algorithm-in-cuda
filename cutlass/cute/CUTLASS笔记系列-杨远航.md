@@ -2026,3 +2026,631 @@ Copy_Atom
 下一篇文章见：[CUTLASS 笔记 (5)：Block MMA](https://zhuanlan.zhihu.com/p/1970162570636816559)
 
 **最后，感谢您阅读到这里！如果您觉得本文对您有帮助，就点个赞吧，谢谢～**
+
+# CUTLASS 笔记 (5)：Block MMA
+
+本篇主要介绍如何在 Block 维度完成更大规模的 MMA 计算，并解析了 TiledCopy、TiledMMA 在 Block 维度下的分块特点。
+
+本篇所使用的 CUTLASS 版本为 4.1.0，硬件架构为 SM90。
+
+**本笔记系列的相关代码已全部开源，代码仓库见：[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)，欢迎大家多多 star～**
+
+CUTLASS 笔记系列导读及文章列表详见：
+
+[CUTLASS 笔记：导读](https://zhuanlan.zhihu.com/p/1937220431728845963)
+
+---
+
+在前两篇笔记中，我们介绍了如何在单个 Tile 维度完成数据拷贝和 MMA 运算。从本篇开始，我们将从 Tile 维度扩展至 Block 维度。
+
+[CUTLASS 笔记 (3)：Tiled MMA](https://zhuanlan.zhihu.com/p/1950555644814946318)
+
+[CUTLASS 笔记 (4)：Tiled Copy](https://zhuanlan.zhihu.com/p/1968745447741972494)
+
+我们在笔记（3）中介绍了 GEMM 分块运算的重要概念模型，也就是**三级 Tiling**，这篇笔记首先回顾一下第二级 Tiling，也就是 Block 到 Tile 的分块过程是如何进行的。
+
+## 1. Tile 扩展至 Block
+
+### 1.1 扩展方式与循环维度
+
+![图1: Block MMA 示意图](https://pica.zhimg.com/v2-394281ba1f90414ed3d78ac6a9a8b31e_1440w.jpg)
+
+由于单个 Tile 的规模受限于 SM 的寄存器大小，当我们继续扩大矩阵运算规模时，就需要以 Tile 为单位循环执行拷贝和 MMA 运算了。
+
+例如，如果完整加载一个 Block 的大小（128x128x64）到寄存器，那么单个 SM 所需寄存器数量为 `128*128*64/2 = 524288` 个，远远超过 `32768` 的上限，因此强行这么做就会发生寄存器溢出，在使用大量 GMEM 的同时，使算子性能大幅下降。
+
+在这种情况下，我们需要将 Block 规模的运算，从 `(M, N, K)` 三个维度划分为若干个 Tile 规模的运算。运行过程中，我们通过**三重循环**依次处理每个 Tile 的 Copy 和 MMA 指令。Copy 时需要使用 **TiledCopy** API，MMA 时需要使用 **TiledMMA** API，如下代码所示：
+
+```cpp
+for (int m_tile = 0; m_tile < NTilesM; ++m_tile) {
+  for (int n_tile = 0; n_tile < NTilesN; ++n_tile) {
+    for (int k_tile = 0; k_tile < NTilesK; ++k_tile) {
+      copy(tiled_copy, gA(_, m_tile, k_tile), rA(_, m_tile, k_tile));
+      copy(tiled_copy, gB(_, n_tile, k_tile), rB(_, n_tile, k_tile));
+      gemm(tiled_mma, rC, rA, rB, rC);
+    }
+  }
+}
+```
+
+> 关于 Tile 维度 Copy 和 MMA 的相关细节，可参考笔记（3）和笔记（4）的有关内容。
+
+通过循环计算 Tile，我们就可以在有限的寄存器下完成更大规模的矩阵运算。**理论上说，一个 block 能处理的矩阵规模是没有限制的。**
+
+然而我们注意到，在循环拷贝 Tile 的过程中，部分 Tile 的数据被重复读取了多次。例如在下图中 Tile1 和 Tile2 使用了同一份 A 的 Tile 数据，运行上述代码时，这份数据被重复访问，增加了 GMEM 的访存量，从而影响了 GEMM 算子性能。
+
+![图2: Tile 访存存在重复读取 GMEM 的问题](https://pic3.zhimg.com/v2-baf4ff5091cb791bfa3c149a9d602b6a_1440w.jpg)
+
+为避免该问题，**我们需要将整个 Block 的数据先从 GMEM 拷贝至 SMEM**，在循环拷贝时，从 SMEM 读取同一份数据就快多了。我们将在下篇笔记中介绍如何完成 SMEM 相关的拷贝操作。
+
+---
+
+Block MMA 的理论部分比较简单，但在实战过程中有一些需要注意的点。接下来我们来看算子实现。
+
+## 2. Block MMA 实现
+
+本篇开始，我们将 MMA 的基础指令更换为 `16x8x16` 的大小，同时 Tile 规模也在 K 维度扩展一倍，变成 `32x32x32`，以适配更大规模的矩阵运算。Block 的大小定为 `128x128x64`，也就是在 `(M, N, K)` 维度分别扩展了 `(4, 4, 2)` 倍。
+
+本篇开发的算子详情如下：
+
+| 项目 | 值 |
+| --- | --- |
+| 问题规模 | `(128, 128, 64)` |
+| 算子精度 | `BF16 = BF16 * BF16 + FP32` |
+| Grid shape | `(1, 1, 1)` |
+| Block shape | `(256, 1, 1)` |
+| Block tile shape | `(128, 128, 64)` |
+| Tiled MMA shape | `(32, 32, 32)` |
+| MMA atom shape | `(16, 8, 16)` |
+
+在代码的 Spec 层面，我们需要将 kTile 的大小改为 Block 的大小：
+
+```cpp
+template <typename OutType_, typename ComputeTypeA_, typename ComputeTypeB_, typename ComputeTypeC_,
+          int kTileM_ = 128, int kTileN_ = 128, int kTileK_ = 64>
+struct KernelSpec { ... }
+```
+
+实际上，在 TiledCopy 的基础上，仅修改这一处代码，我们就可以正确运行 Block MMA 的示例了。然而这其中的一些细节被 CuTe 的 API 所掩盖了，当我们需要自定义 Copy 和 MMA 操作时，很可能会遇到问题。因此我们需要关注扩展至 Block 后，之前的一些 Tensor 在 shape 层面的变化，以及 CuTe 是如何完成 Copy 和 MMA 的循环运算的。
+
+### 2.1 理解 MMA、Copy 分块 Tensor 的扩展维度
+
+首先我们来关注 TiledMMA 分块后的 Tensor：
+
+```cpp
+Tensor tCgA = thr_mma.partition_A(gA);  // (MMA, MMA_M, MMA_K)
+Tensor tCgB = thr_mma.partition_B(gB);  // (MMA, MMA_N, MMA_K)
+Tensor tCgC = thr_mma.partition_C(gC);  // (MMA, MMA_M, MMA_N)
+
+Tensor tCrA = thr_mma.partition_fragment_A(gA);  // (MMA, MMA_M, MMA_K)
+Tensor tCrB = thr_mma.partition_fragment_B(gB);  // (MMA, MMA_N, MMA_K)
+Tensor tCrC = thr_mma.partition_fragment_C(gC);  // (MMA, MMA_M, MMA_N)
+```
+
+对于上面的 6 个 Tensor，我们比较上篇笔记的 metadata：
+
+```text
+gmem_ptr[16b](0x7f448be00000) o ((_2,_2),_1,_2):((_1,128),_0,_8)
+gmem_ptr[16b](0x7f448be00400) o (_2,_1,_2):(_1,_0,_8)
+gmem_ptr[32b](0x7f448be01800) o ((_2,_2),_1,_1):((_1,256),_0,_0)
+ptr[16b](0x7f44a1fffca0) o ((_2,_2),_1,_2):((_1,_2),_0,_4)
+ptr[16b](0x7f44a1fffcb0) o (_2,_1,_2):(_1,_0,_2)
+ptr[32b](0x7f44a1fffcc0) o ((_2,_2),_1,_1):((_1,_2),_0,_0)
+```
+
+以及本篇扩展到 Block 后的 metadata：
+
+```text
+gmem_ptr[16b](0x7fdb4be00000) o ((_2,_2,_2),_4,_4):((_1,512,_8),2048,_16)
+gmem_ptr[16b](0x7fdb4be04000) o ((_2,_2),_4,_4):((_1,_8),2048,_16)
+gmem_ptr[32b](0x7fdb4be18000) o ((_2,_2),_4,_4):((_1,1024),4096,_32)
+ptr[16b](0x7fdb61fffa50) o ((_2,_2,_2),_4,_4):((_1,_2,_4),_32,_8)
+ptr[16b](0x7fdb61fffb50) o ((_2,_2),_4,_4):((_1,_2),_16,_4)
+ptr[32b](0x7fdb61fffbd0) o ((_2,_2),_4,_4):((_1,_2),_4,_16)
+```
+
+可以发现，由于我们将 mma 指令大小从 `16x8x8` 提升至 `16x8x16`，与 K 维度相关的 MMA 这个值，也就是单指令单线程参与计算的数据个数，也同步扩展成原来的 2 倍。
+
+而 `(MMA_M, MMA_N, MMA_K)` 从 `(1, 1, 2)` 变成了 `(4, 4, 4)`，而 Block 相比于 Tile 扩展了 `(4, 4, 2)` 倍。因此我们可以发现，**MMA 的分块是以 MMA Atom 为粒度的，而 `(MMA_M, MMA_N, MMA_K)` 这个扩展维度既包括 Atom 扩展到 Tile 的维度，也包括 Tile 扩展到 Block 的维度。**
+
+随后我们关注 TiledCopy 的分块：
+
+```cpp
+TiledCopyA g2r_tiled_copy_a;
+ThrCopy g2r_thr_copy_a = g2r_tiled_copy_a.get_slice(tid);
+Tensor tAgA = g2r_thr_copy_a.retile_S(tCgA);     // (CPY, CPY_M, CPY_K)
+Tensor tArA = g2r_thr_copy_a.retile_D(tCrA);     // (CPY, CPY_M, CPY_K)
+
+TiledCopyB g2r_tiled_copy_b;
+ThrCopy g2r_thr_copy_b = g2r_tiled_copy_b.get_slice(tid);
+Tensor tBgB = g2r_thr_copy_b.retile_S(tCgB);   // (CPY, CPY_N, CPY_K)
+Tensor tBrB = g2r_thr_copy_b.retile_D(tCrB);   // (CPY, CPY_N, CPY_K)
+```
+
+对于上面的 4 个 Tensor，比较上篇笔记代码的 metadata：
+
+```text
+gmem_ptr[16b](0x7f448be00000) o ((_1,(_2,_2,_2)),_1,_1):((_0,(_1,128,_8)),_0,_0)
+ptr[16b](0x7f44a1fffca0) o ((_1,_8),_1,_1):((_0,_1),_0,_0)
+gmem_ptr[16b](0x7f448be00400) o ((_1,(_2,_2)),_1,_1):((_0,(_1,_8)),_0,_0)
+ptr[16b](0x7f44a1fffcb0) o ((_1,_4),_1,_1):((_0,_1),_0,_0)
+```
+
+以及本篇笔记代码的 metadata：
+
+```text
+gmem_ptr[16b](0x7fdb4be00000) o ((_1,(_2,_2,_4)),_4,_2):((_0,(_1,512,_8)),2048,_32)
+ptr[16b](0x7fdb61fffa50) o ((_1,_16),_4,_2):((_0,_1),_32,_16)
+gmem_ptr[16b](0x7fdb4be04000) o ((_1,(_2,_4)),_4,_2):((_0,(_1,_8)),2048,_32)
+ptr[16b](0x7fdb61fffb50) o ((_1,_8),_4,_2):((_0,_1),_16,_8)
+```
+
+CPY 是单个 Tile 单线程需要拷贝的数据个数，由于我们的 Tile shape 增加了一倍，因此 CPY 也相应增加了一倍。
+
+`(CPY_M, CPY_N, CPY_K)` 表示 Tile 扩展到 Block 的各个维度。上篇笔记中，这些扩展维度自然都是 1，而本篇笔记中的 `(CPY_M, CPY_N, CPY_K)` 是 `(4, 4, 2)`，等于 Tile 到 Block 的扩展维度大小。因此 **Copy 的分块是以 Tile 为粒度的，`(CPY_M, CPY_N, CPY_K)` 仅表示 Tile 扩展到 Block 的维度。**
+
+> 从这里可以看到，由于 MMA 和 CPY 的扩展维度有所区别，如果我们要将 MMA 分块得到的 Tensor 用于 Copy，那就需要变换这个 Tensor 的 Layout，使之适配 CPY 的维度，这也就是 `retile_S`、`retile_D` 函数的作用。
+
+这里读者需要特别关注 MMA 和 Copy 的**分块粒度有所不同**，它们**扩展维度的含义也有所不同**，这两个不同决定了循环完成 Copy 和 MMA 的方式也有所不同。具体来说，**Copy 时，按照 Tile 的粒度循环；MMA 时，按照 MMA Atom 的粒度循环。**
+
+### 2.2 循环执行 Copy 和 MMA
+
+如下代码所示，我们在最外层通过**三重循环**遍历执行各个 Tile 的拷贝和计算。在每个 Tile 内部，我们调用 copy API 完成一个 Tile 所需数据的拷贝，随后继续通过**三重循环**遍历执行**这个 Tile 下**的各个 MMA Atom。
+
+```cpp
+for (int m_tile = 0; m_tile < NTilesM; ++m_tile) {
+  for (int n_tile = 0; n_tile < NTilesN; ++n_tile) {
+    for (int k_tile = 0; k_tile < NTilesK; ++k_tile) {
+      copy(g2r_tiled_copy_a, tAgA(_, m_tile, k_tile), tArA(_, m_tile, k_tile));
+      copy(g2r_tiled_copy_b, tBgB(_, n_tile, k_tile), tBrB(_, n_tile, k_tile));
+
+      for (int im = m_tile * kMmaValExpandM; im < (m_tile + 1) * kMmaValExpandM; ++im) {
+        for (int in = n_tile * kMmaValExpandN; in < (n_tile + 1) * kMmaValExpandN; ++in) {
+          for (int ik = k_tile * kMmaValExpandK; ik < (k_tile + 1) * kMmaValExpandK; ++ik) {
+            gemm(tiled_mma, tCrC(_, im, in), tCrA(_, im, ik), tCrB(_, in, ik), tCrC(_, im, in));
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+注意到，对于 Copy 分块的矩阵 `tAgA`、`tArA`、`tBgB`、`tBrB`，我们是通过 Tile index，也就是 `(m_tile, n_tile, k_tile)` 来索引的；而 MMA 分块的矩阵，是按照 Atom Expand 的维度索引的。读者可通过这段代码，理解“**Copy 时，按照 Tile 的粒度循环；MMA 时，按照 MMA Atom 的粒度循环**”这段话。
+
+CuTe 提供的 `copy`、`gemm` API 可以自动帮我们完成上面的循环遍历。其背后采用了蛇形遍历算法，利用 Cache 最大化数据复用率。
+
+```cpp
+copy(g2r_tiled_copy_a, tAgA, tArA);
+copy(g2r_tiled_copy_b, tBgB, tBrB);
+
+gemm(tiled_mma, tCrC, tCrA, tCrB, tCrC);
+```
+
+我们也可以**手动控制部分维度的循环**，而将其余维度的循环交给 `copy`、`gemm` API 自行处理。例如，我们如果想手动控制 K 维度的循环，就可以写出如下代码：
+
+```cpp
+for (int ik = 0; ik < NTilesK; ++ik) {
+  copy(g2r_tiled_copy_a, tAgA(_, _, ik), tArA(_, _, ik));
+  copy(g2r_tiled_copy_b, tBgB(_, _, ik), tBrB(_, _, ik));
+
+  for (int gk = ik * kMmaValExpandK; gk < (ik + 1) * kMmaValExpandK; ++gk) {
+    gemm(tiled_mma, tCrC, tCrA(_, _, gk), tCrB(_, _, gk), tCrC);
+  }
+}
+```
+
+开源代码中已经提供上面三种循环的实现方式，读者可以自行验证这些实现都可以得到正确的结果。
+
+### 2.3 PTX、SASS 代码分析
+
+这里读者可能会有疑惑，对于最简洁的循环方式：
+
+```cpp
+copy(g2r_tiled_copy_a, tAgA, tArA);
+copy(g2r_tiled_copy_b, tBgB, tBrB);
+
+gemm(tiled_mma, tCrC, tCrA, tCrB, tCrC);
+```
+
+是否意味着等待一个 Block 的所有数据拷贝完成，才进行 gemm 计算？这样难道不会导致寄存器溢出吗？
+
+实际上，编译器会**合理重排**内部循环中 copy 指令和 mma 指令的先后次序，在尽可能充分利用寄存器资源的情况下不发生寄存器溢出。
+
+我们可以从 PTX code 和 SASS code 看出。即便我们采用上述写法，实际上硬件仍然是交错执行拷贝和计算指令的。
+
+![图3: Block MMA 的 PTX / SASS code](https://pic1.zhimg.com/v2-a270e0bf6068ba92044e9a2d0a3d0c62_1440w.jpg)
+
+这里读者可能又有一个问题，既然编译器会重排，那我们手动控制 copy 和 mma 循环的意义在哪里呢？因为编译器并不是全能的，通过手动控制循环，我们可以在一定程度上控制 copy 和 mma 的计算流水线，让 copy 到寄存器的操作尽可能被 mma 计算所掩盖，这能够带来微小的性能提升。此外，对于编译器无法直接优化的 SMEM 流水线，我们就必须手动写循环来实现流水线了。
+
+## 3. 总结
+
+本篇主要从计算层面实现了 Block 维度的 MMA 运算，并解析了 Copy、MMA 分块细节的区别，这有助于我们在后续的优化过程中写出正确的流水线。
+
+下一步，我们将介绍 SMEM 的特性以及相关的拷贝操作，了解如何在 Block 维度完成多层级的数据拷贝，进一步提升 Block 维度下 MMA 的算子性能，敬请期待！
+
+下一篇文章见：[CUTLASS 笔记 (6)：Block Copy](https://zhuanlan.zhihu.com/p/2004627053077627913)
+
+**最后，感谢您阅读到这里！如果您觉得本文对您有帮助，就点个赞吧，谢谢～**
+
+# CUTLASS 笔记 (6)：Block Copy
+
+本篇主要介绍 SMEM 的特性，以及在 Block 维度下如何用 CUTLASS CuTe 编写与 SMEM 相关的代码，最终建立起 GMEM、SMEM、RMEM 的二级拷贝流水，进一步提升 Block 维度下 MMA 的算子性能。
+
+本篇所使用的 CUTLASS 版本为 4.3.4（我们更新了！），硬件架构为 SM90。
+
+**本笔记系列的相关代码已全部开源，代码仓库见：[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)，欢迎大家多多 star～**
+
+CUTLASS 笔记系列导读及文章列表详见：
+
+[CUTLASS 笔记：导读](https://zhuanlan.zhihu.com/p/1937220431728845963)
+
+---
+
+在上一篇笔记中，我们将矩阵运算的规模从 Tile 扩展至 Block，并以恰当的方式处理了 Block 层级 Tiling 的拷贝和计算循环。
+
+[CUTLASS 笔记 (5)：Block MMA](https://zhuanlan.zhihu.com/p/1970162570636816559)
+
+同时我们也观察到从 GMEM 搬运数据时有重复访存的现象，可以借助 SMEM 进一步优化算子的访存。
+
+![图1: Tile 访存存在重复读取 GMEM 的问题](https://pic3.zhimg.com/v2-baf4ff5091cb791bfa3c149a9d602b6a_1440w.jpg)
+
+在笔记（4）中，我们也遇到拷贝指令出现冗余访存的问题，且在不引入 SMEM 的情况下，我们并没有很好的解决方案。
+
+[CUTLASS 笔记 (4)：Tiled Copy](https://zhuanlan.zhihu.com/p/1968745447741972494)
+
+![图2: 笔记（4）中 GMEM 的冗余访存问题](https://pic1.zhimg.com/v2-bc919e348bec08c42a12697500f2ef92_1440w.jpg)
+
+本篇笔记延续 Block 维度的矩阵运算，引入 SMEM 这个新的内存层级，探究如何充分利用 SMEM 特性，完成数据在 GMEM、SMEM 和 RMEM 间的二级拷贝，从而进一步提升算子性能。
+
+我们首先了解下 SMEM 的硬件特性。
+
+## 1. NV GPU 的共享内存访存特性
+
+**共享内存（Shared Memory, SMEM）**是 GPU 上每个 SM 内部的一块存储区域，物理上与 L1 缓存共用存储。为了提供高带宽，SMEM 在物理上被划分为**32 个等宽、可同时访问的内存模块**，这些模块称为 **Bank**。通常每个 Bank 宽度为 4 bytes。SMEM 的延迟远低于全局内存 GMEM，带宽也高得多，因此常常存放需要频繁访问的数据。
+
+![图3: GPU 内存层级（图源自 FA 论文）](https://pica.zhimg.com/v2-80ec4e43b6c003132741e4678138dea4_1440w.jpg)
+
+> 每个 thread block 的 SMEM 空间大小可以在 kernel launch 前动态指定，但有上限。不同的 SM 架构下，单个 thread block 可分配的最大 SMEM 空间通常也不同，例如 SM80 架构为 163 KB，SM90/SM100 架构为 227 KB。
+
+由于对同一个 Bank 的不同地址的访存无法并行处理，要充分利用 SMEM 性能，通常我们需要避免 **Bank Conflict**，其含义为：当**同一个 warp**中的多个线程在**一次 transaction**中访问**同一个 bank**中的**不同内存地址**时，就会发生 Bank Conflict。发生 Bank Conflict 时，这个 transaction 无法在一个 wavefront 中并行执行，硬件必须将它们序列化为多个独立的 wavefronts，从而降低有效带宽。
+
+Transaction 的概念我们在笔记（4）中已经介绍，这里再回顾一下：
+
+> NV GPU 采用 SIMT 架构，一个 warp 上的 32 个线程会同时运行读取内存或写入内存的指令，硬件层面会将这个 warp 的一次访存请求合并为若干个 **transaction**。
+
+SMEM 中一个 transaction 的数据量最多是 **128 bytes**，且不要求内存连续或对齐。一般而言，每一个 warp 同时执行的一个访存指令（**instruction**）对应着一次访存请求（**request**），硬件会将这个 warp 的一次请求按 128 bytes 的粒度合并为若干 **transactions**。例如，当每个线程访存 4 bytes 时，一个 warp 的访存刚好合并为一个 128 bytes 的 transaction；当每个线程访存 8 bytes 时，一个 warp 的访存就会合并为 2 个 transactions，其中 T0-T15 为一个 transaction，T16-T31 为一个 transaction。
+
+**Wavefront** 是指 L1/TEX 等硬件一次并行的访存处理。一个 wavefront 在一个时钟周期中完成，不同的 wavefronts 在不同的时钟周期串行执行。最优情况下，一个 transaction 仅需一个 wavefront 就可以完成，但在发生 Bank Conflict 时，就需要多个 wavefronts 处理这个 transaction。
+
+---
+
+关于 Bank Conflict，我们需要注意三点。
+
+一是，**是否产生 Bank Conflict 是从 transaction 的粒度判断的。**NV 论坛中有一个案例供大家参考：[https://forums.developer.nvidia.com/t/how-to-understand-the-bank-conflict-of-shared-mem/260900/8](https://forums.developer.nvidia.com/t/how-to-understand-the-bank-conflict-of-shared-mem/260900/8)。
+
+二是，**凡是涉及 SMEM 的访存操作，包括 SMEM <-> GMEM 之间的读写，以及 SMEM <-> RMEM (RF) 之间的读写，均有可能触发 Bank Conflict**。
+
+三是，**SMEM 存在 Broadcast 和 Multicast 机制。**如果一个 Warp 内的所有线程访问的是同一个 Bank 中的**同一个地址**，则硬件会将该数据 Broadcast 给所有请求的线程，这可以在一个 wavefront 中完成，没有冲突；如果多个线程访问同一个 Bank 的**同一个地址**，则会触发 Multicast，同样也可以在一个 wavefront 中完成。
+
+CUTLASS 中一般通过对数据进行内存布局的变换（**Swizzling**）来解决 Bank Conflict 问题。关于 Swizzling 在 CUTLASS 中的细节和使用，我们将在下篇笔记中介绍。**在本篇文章中，我们先聚焦于如何在 CUTLASS 中完成与 SMEM 相关的拷贝操作。**
+
+---
+
+## 2. 二级 Tiling 和二级拷贝
+
+当我们在 GMEM -> RMEM 的拷贝中增加了 SMEM 这个层级后，我们需要考虑如何构建 GMEM -> SMEM，以及 SMEM -> RMEM 这两层拷贝的 TiledCopy 了。
+
+![图4: Global、Block、Tile 的二级 Tiling，以及 GMEM、SMEM、RMEM 的二级拷贝之间的对应关系](https://picx.zhimg.com/v2-5ea668a70a81e4d968c5fe62a9d3d3d9_1440w.jpg)
+
+我们目前需要解决的问题规模仅有 `(128, 128, 64)` 的单 Block 大小。当单个 Block 能够被 SMEM 装下时，我们可以通过一次拷贝将 GMEM 上的 Block 数据搬运至 SMEM，这是第一级拷贝。而 SMEM -> RMEM 的第二级拷贝，其实就类似于之前的 GMEM -> RMEM，需要通过三重循环将 SMEM 的每个 Tile 逐个搬运到 RMEM，之后便可以交给 TiledMMA 进行矩阵运算。上图展示了这里描述的二级拷贝过程。
+
+值得指出的是，无论是哪一级拷贝，每次拷贝的数据规模仅取决于 TiledCopy 的参数，它并不一定和对应层级的 MMA 规模相同。也就是说，**Block Copy 的规模可以不同于 Block MMA 的规模**。因为我们可以分 2 次或者更多次拷贝，每次用一个更小规模的 TiledCopy 来搬运数据；同时 Tiled Copy 的规模也可以不同于 Tiled MMA 的规模，因为我们可以分多次完成一个 Tile 的拷贝，当然在寄存器足够的情况下，也可以一次拷贝多个 Tile 的数据。甚至 Copy 的规模可以不被同层级的 MMA 规模整除。
+
+究其原因是，**Copy 和 MMA 的规模在 CUTLASS 中由 TiledCopy 和 TiledMMA 分别确定，理论上可以任意设置规模**。但我们在大多数情况下会让同层级的 Copy 和 MMA 规模相同，这样易于理解和处理，且更细粒度的拷贝可以通过手动控制 copy 循环来实现（参考笔记 5）。
+
+接下来，我们按上图来构建这两级拷贝的 TiledCopy。
+
+---
+
+## 3. Block Copy 实现
+
+本篇的算子详情与上篇一致：
+
+| 项目 | 值 |
+| --- | --- |
+| 问题规模 | `(128, 128, 64)` |
+| 算子精度 | `BF16 = BF16 * BF16 + FP32` |
+| Grid shape | `(1, 1, 1)` |
+| Block shape | `(256, 1, 1)` |
+| Block tile shape | `(128, 128, 64)` |
+| Tiled MMA shape | `(32, 32, 32)` |
+| MMA atom shape | `(16, 8, 16)` |
+
+### 3.1 GMEM 拷贝至 SMEM
+
+第一级拷贝，我们需要将问题规模为 `(128, 128, 64)` 的数据从 GMEM 拷贝至 SMEM，总共需要拷贝 `gA`、`gB`、`gC` 三个矩阵。由于拷贝这三个矩阵的原理基本相同，此处我们以 `gA` 矩阵为例，其形状为 `(128, 64)`。
+
+回顾创建 TiledCopy 的 `make_tiled_copy` API，我们需要指定三个参数：
+
+1. **CopyAtom**，即拷贝指令和数据元素类型
+2. **ThrLayout**，即有多少个线程参与拷贝，以及线程排布如何
+3. **ValLayout**，即每个线程拷贝多少个数据元素，以及数据元素排布如何
+
+![图5: make_tiled_copy API](https://pica.zhimg.com/v2-5e5344d1475f682ee8f508832c7089bc_1440w.jpg)
+
+指令层面，我们可以选择常规的 `AutoVectorizingCopy`。考虑到 SM80 新增了一个 GMEM -> SMEM 的异步拷贝指令 `cp.async`，它可以直接从 GMEM 经 L2 拷贝至 SMEM，避免在 RMEM 中转数据，因此在 SM80 上通常是最优选择。
+
+![图6: cp.async 拷贝原理（图源自 NVIDIA Ampere 白皮书）](https://pica.zhimg.com/v2-432c4861b4a83a54a7ee736ec0a3ffd0_1440w.jpg)
+
+单个 `cp.async` 指令支持 128 bits 的向量化拷贝，因此第一级拷贝的指令和数据元素类型指定为：
+
+```cpp
+using Copy_G2S_op = SM80_CP_ASYNC_CACHEGLOBAL<cute::uint128_t>;
+using CopyA_G2S_atom = Copy_Atom<Copy_G2S_op, ComputeTypeA>;
+```
+
+确定好指令后，剩余两个参数 ThrLayout 和 ValLayout 如何确定则需要考虑诸多因素。在讨论这两个参数之前，我们需要补充一些 TiledCopy 的细节。
+
+---
+
+ThrLayout 和 ValLayout 的 shape 之积，决定了这个 TiledCopy 每次拷贝的**基本单元块（Copy Tile）**的大小。例如，当 ThrLayout 的 shape 为 `(32, 8)`，ValLayout 的 shape 为 `(1, 8)` 时，Copy Tile 的大小就是 `(32, 64)`。
+
+我们可以从源代码看到这个 Tiler 的构建过程：
+
+```cpp
+template <class... Args,
+          class ThrLayout,
+          class ValLayout = Layout<_1>>
+CUTE_HOST_DEVICE
+auto
+make_tiled_copy(Copy_Atom<Args...> const& copy_atom,
+                ThrLayout          const& thr_layout = {},     // (m,n) -> thr_idx
+                ValLayout          const& val_layout = {})     // (m,n) -> val_idx
+{
+  // Take the raked_products to compute the Layout_MN
+  // (M,N) -> (thr_idx, val_idx)
+  auto layout_mn = raked_product(thr_layout, val_layout);
+  // (thr_idx, val_idx) -> (M,N)
+  auto layout_tv = right_inverse(layout_mn).with_shape(make_shape(size(thr_layout), size(val_layout)));
+  // Tiler for extracting relevant elements
+  // (M,N) -> tensor coord
+  auto tiler = product_each(shape(layout_mn));
+
+  return make_tiled_copy_impl(copy_atom, layout_tv, tiler);
+}
+```
+
+在笔记（4）和笔记（5）中，这个 Copy Tile 的大小就等于 MMA Tile 的大小，因为我们是直接将 TiledMMA 的 TV Layout 传给 TiledCopy 的。
+
+```cpp
+using TiledCopyA = decltype(make_tiled_copy_A(CopyA_atom{}, TiledMMA{}));
+```
+
+我们在上面已经说明，Copy Tile 实际上可以任意指定，不一定要和 MMA Tile 相同。但我们也发现，**在建立 TiledCopy 的过程时，它是不知道实际参与拷贝的数据规模和 Layout 是如何的**，只有在做 partition 的时候才会感知数据规模的大小：
+
+```cpp
+typename Spec::TiledCopyA_G2S g2s_tiled_copy_a;
+ThrCopy g2s_thr_copy_a = g2s_tiled_copy_a.get_slice(tid);
+Tensor tAgA_g2s = g2s_thr_copy_a.partition_S(gA); // (CPY, CPY_M, CPY_K)
+Tensor tAsA_g2s = g2s_thr_copy_a.partition_D(sA); // (CPY, CPY_M, CPY_K)
+```
+
+那么就会有以下几种情况：
+
+1. **需要拷贝的数据规模恰好等于 Copy Tile。**例如数据规模是 `(128, 64)`，构建的 Copy Tile 也是 `(128, 64)`。
+2. **需要拷贝的数据规模至少在某一个维度大于 Copy Tile。**例如数据规模是 `(128, 64)`，构建的 Copy Tile 是 `(64, 32)` 或 `(96, 128)`。
+3. **需要拷贝的数据规模至少在某一个维度小于 Copy Tile。**例如数据规模是 `(64, 64)`，构建的 Copy Tile 是 `(128, 32)` 或 `(96, 128)`。
+
+在这三种情况下，TiledCopy 是如何完成拷贝的呢？
+
+1. 当数据规模和 Copy Tile **完全相等**时，我们只需要完整拷贝 1 个 Tile，不需要做 Tile 的扩展，因此 `CPY_M`、`CPY_K` 均为 1。
+2. 当数据规模在某一个维度**大于** Copy Tile 时，这个维度需要做 Tile 的扩展，扩展的大小可通过 `ceil_div` 计算得到。例如数据规模是 `(128, 64)`，构建的 Copy Tile 是 `(64, 32)` 时，扩展规模为 `(2, 2)`，如果 Copy Tile 为 `(96, 32)` 时，扩展规模也为 `(2, 2)`。
+3. 当数据规模在某一个维度**小于** Copy Tile 时，这个维度不需要扩展 Tile，但会有越界问题。例如，当数据规模是 `(64, 64)`，Copy Tile 是 `(128, 128)` 时，在两个维度都会产生访存越界。
+
+CuTe 提供的 copy API 会通过 for 循环来完成多个 Tile 的拷贝，我们也可以仿照笔记（5）的做法手动控制这个 for 循环。**然而，如果某个维度不能整除，那么在进行这个维度的最后一个 Tile 的拷贝时，就会有越界问题。**
+
+需要注意的是，产生越界问题时，无论是从源地址 GMEM 读取数据，还是向目标地址 SMEM 写入数据，均可能报 Illegal Memory Access (IMA) 错误。并且，**以上提到的越界问题，TiledCopy 是不会帮忙处理的，需要我们手动判断来避免**。
+
+因此尽管 TiledCopy 的构建无需感知数据规模，我们仍然需要**考虑数据规模对 Copy Tile 的影响**。一般来说，为避免越界问题，Copy Tile 的规模需要被数据规模整除，且尽可能地小。
+
+---
+
+除了 Copy Tile 的规模，拷贝指令也是影响 TiledCopy 构建的一大因素。我们使用的拷贝指令 `cp.async` 要求参与拷贝的 128 bits 是**内存连续**的。因此，如果 GMEM 的矩阵是行连续的，我们的 ValLayout 的 shape 也应当设置为按行拷贝，例如 `(1, 8)`；反之，如果 GMEM 的矩阵是列连续的，shape 也要设置为按列拷贝，例如 `(8, 1)`。
+
+此外，当每个元素占用 2 bytes 时，单个 128 bits 拷贝指令会拷贝 8 个元素，因此**单个线程需要拷贝的元素个数应为 8 的倍数**。否则，CuTe 在编译期就会报错。
+
+```text
+copy_atom.hpp(206): error: static assertion failed with "TiledCopy uses too few vals for selected CopyAtom"
+    static_assert(decltype(TiledNumVal{} % AtomNumVal{} == Int<0>{})::value, "TiledCopy uses too few vals for selected CopyAtom");
+```
+
+出于效率考虑，在拷贝过程中我们也要关注**访存连续性**和**硬件执行访存的最小单位**。对于 GMEM 而言，访存的最小单位是 transaction，为 32 bytes；对于 L1 Cache 和 L2 Cache 而言，访存的最小单位是 Cache Line，其大小均为 128 bytes。因此，**为高效利用硬件带宽，我们在拷贝一个 Copy Tile 的数据时，尽量让 Tile 的数据在 128 bytes 的粒度上内存连续**。
+
+例如，假定数据按行连续存储，每个元素占用 2 bytes，当数据规模为 `(128, 128)`，Copy Tile 的规模为 `(128, 32)` 时，我们需要从左到右拷贝 4 个 Tile，每个 Tile 的每一行都是内存连续的。此时一行的数据量为 64 bytes，没有达到 128 bytes 的访存最小单位，于是这里会产生一倍的冗余访存。如果 Copy Tile 的规模设置为 `(128, 64)`，那么一行的数据量达到 128 bytes，此时访存是最高效的。
+
+---
+
+总结一下，要合理设置 ThrLayout 和 ValLayout 需要考虑以下三个因素：
+
+1. **考虑实际参与拷贝的数据规模，构建可整除数据规模且尽可能小的 Copy Tile，以避免越界问题；**
+2. **考虑 Copy Atom 指令对访存的特殊要求；**
+3. **考虑访存连续性对拷贝性能的影响。**
+
+回到拷贝 `gA` 的场景，这里 `gA` 的 shape 为 `(kBlockM, kBlockK) = (128, 64)`，且内存布局为行连续。考虑因素 1、2，我们设置 ValLayout 为 `(1,8):(1,0)`，既满足元素个数是 8 的倍数，又让 Copy Tile 尽可能小。考虑因素 1、3，ThrLayout 的第二个维度可设置为 `min(kBlockK, 64) / 8`，在避免越界问题的同时优化访存连续性，而第一个维度则是总线程数除以第二个维度。
+
+```cpp
+static constexpr int kThreadNum = size(TiledMMA{});
+static constexpr int kBlockK_Copy = cute::min(64, kBlockK) / 8;
+
+using TiledCopyA_G2S =
+    decltype(make_tiled_copy(CopyA_G2S_atom{},
+                              make_layout(make_shape(Int<kThreadNum / kBlockK_Copy>{}, Int<kBlockK_Copy>{}),
+                                          make_stride(Int<kBlockK_Copy>{}, Int<1>{})),
+                              make_layout(make_shape(Int<1>{}, Int<8>{}))));
+```
+
+### 3.2 SMEM 拷贝至 RMEM
+
+第二级拷贝 `SMEM -> RMEM` 的规模就是 TiledMMA 的规模，TiledCopy 的构建流程与先前的 `GMEM -> RMEM` 一致。尽管有更好的选择，但这里我们仍然使用 `AutoVectorizingCopy` 作为拷贝指令。
+
+```cpp
+using Copy_S2R_op = AutoVectorizingCopy;
+using CopyA_S2R_atom = Copy_Atom<Copy_S2R_op, ComputeTypeA>;
+using TiledCopyA_S2R = decltype(make_tiled_copy_A(CopyA_S2R_atom{}, TiledMMA{}));
+```
+
+### 3.3 将数据拷贝回 GMEM
+
+MMA 计算完成后，我们还需要将计算结果从 RMEM 经过 SMEM 拷贝回 GMEM，流程和之前类似，只有拷贝方向上的区别。
+
+```cpp
+static constexpr int kBlockN_Copy = cute::min(64, kBlockN) / 8;
+
+using Copy_R2S_op = AutoVectorizingCopy;
+using Copy_S2G_op = AutoVectorizingCopy;
+using CopyO_R2S_atom = Copy_Atom<Copy_R2S_op, OutType>;
+using CopyO_S2G_atom = Copy_Atom<Copy_S2G_op, OutType>;
+
+using TiledCopyO_R2S = decltype(make_tiled_copy_C(CopyO_R2S_atom{}, TiledMMA{}));
+using TiledCopyO_S2G =
+    decltype(make_tiled_copy(CopyO_S2G_atom{},
+                              make_layout(make_shape(Int<kThreadNum / kBlockN_Copy>{}, Int<kBlockN_Copy>{}),
+                                          make_stride(Int<kBlockN_Copy>{}, Int<1>{})),
+                              make_layout(make_shape(Int<1>{}, Int<8>{}))));
+```
+
+### 3.4 创建 SMEM 空间
+
+我们还需要在 launch kernel 前计算分配好所需的 SMEM 空间。从 MMA 的公式看，输入的 A、B、C 矩阵都需要从 GMEM 搬运至 SMEM，而在本篇中，每个矩阵都会一次性搬到 SMEM，因此 SMEM 给各个矩阵分配的空间就是 GMEM 占用的空间。输出的 O 矩阵也需要经过 SMEM，其空间可以复用 A、B、C 的空间。
+
+我们可以写出 SMEM 上 A、B、C、O 矩阵的 Tensor，以用于后续的 TiledCopy：
+
+```cpp
+using SmemLayoutA = decltype(make_layout(make_shape(Int<kTileM>{}, Int<kTileK>{}),
+                                          make_stride(Int<kTileK>{}, Int<1>{})));
+using SmemLayoutB = decltype(make_layout(make_shape(Int<kTileN>{}, Int<kTileK>{}),
+                                          make_stride(Int<kTileK>{}, Int<1>{})));
+using SmemLayoutC = decltype(make_layout(make_shape(Int<kTileM>{}, Int<kTileN>{}),
+                                          make_stride(Int<kTileN>{}, Int<1>{})));
+using SmemLayoutO =
+    decltype(make_layout(make_shape(Int<kBlockM>{}, Int<kBlockN>{}), make_stride(Int<kBlockN>{}, Int<1>{})));
+```
+
+同时可以在编译期计算出需要分配的 SMEM 空间：
+
+```cpp
+static constexpr int kShmSizeA = cosize(SmemLayoutA{}) * sizeof(ComputeTypeA);
+static constexpr int kShmSizeB = cosize(SmemLayoutB{}) * sizeof(ComputeTypeB);
+static constexpr int kShmSizeC = cosize(SmemLayoutC{}) * sizeof(ComputeTypeC);
+static constexpr int kShmSizeO = cosize(SmemLayoutO{}) * sizeof(OutType);
+
+static constexpr int kShmSize = cute::max(kShmSizeA + kShmSizeB + kShmSizeC, kShmSizeO);
+```
+
+在 Kernel launch 时，我们需要传入 `kShmSize` 动态指定 SMEM 大小。
+
+```cpp
+int shm_size = Spec::kShmSize;
+
+// Kernel launch
+BOOL_SWITCH(is_gemm, IsGemm, [&] {
+  cudaEventRecord(start, stream);
+  if (shm_size >= 48 * 1024) {
+    cudaFuncSetAttribute(block_copy<Spec, IsGemm, IsCvtPrecision>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+                        shm_size);
+  }
+  block_copy<Spec, IsGemm, IsCvtPrecision>
+      <<<grid, block, shm_size, stream>>>(c.data_ptr(), a.data_ptr(), b.data_ptr(), M, N, K, out_ptr);
+  cudaEventRecord(stop, stream);
+});
+```
+
+### 3.5 Kernel 代码
+
+Kernel 代码中与 SMEM 相关的仅有 SMEM Tensor 的创建流程。与 TiledCopy 相关的代码我们在笔记（4）中已经分析过了，此处不再赘述。
+
+```cpp
+extern __shared__ __align__(1024) uint8_t smem[];
+
+uint8_t *Aptr_smem = smem;
+uint8_t *Bptr_smem = smem + kShmSizeA;
+uint8_t *Cptr_smem = smem + kShmSizeA + kShmSizeB;
+uint8_t *Optr_smem = smem;
+
+Tensor sA = make_tensor(make_smem_ptr((ComputeTypeA *)Aptr_smem), SmemLayoutA{}); // (kBlockM, kBlockK)
+Tensor sB = make_tensor(make_smem_ptr((ComputeTypeB *)Bptr_smem), SmemLayoutB{}); // (kBlockN, kBlockK)
+Tensor sC = make_tensor(make_smem_ptr((ComputeTypeC *)Cptr_smem), SmemLayoutC{}); // (kBlockM, kBlockN)
+Tensor sO = make_tensor(make_smem_ptr((OutType *)Optr_smem), SmemLayoutO{});      // (kBlockM, kBlockN)
+```
+
+---
+
+## 4. NCU 算子分析
+
+本篇笔记中，我们主要来关注 SMEM 相关的指令和统计指标。
+
+### 4.1 GMEM 拷贝到 SMEM
+
+在笔记（4）中，我们受限于 MMA 要求的数据排布影响，在 GMEM 到 RMEM 的拷贝中无法合并访存。在引入 SMEM 后，GMEM 拷贝到 SMEM 不再于 MMA 指令要求的数据排布产生关联，于是我们可以用更大字长的拷贝指令来完成拷贝，也解决了先前的冗余访存问题。
+
+![图7: ncu 展示的 8 条 LDGSTS 指令](https://pic4.zhimg.com/v2-56957ea9398e9292253b2ba5fa7a7c25_1440w.jpg)
+
+从 ncu 展示的 SASS 代码可以看到，`cp.async` 对应到 SASS 代码中的 `LDGSTS` 指令，且 ncu 没有报告该指令的访存问题。分析可知，我们总共有 256 个线程，A、B 矩阵的规模均为 `(128, 64)`，因此每个线程需要从 GMEM 拷贝 32 个 A 矩阵元素和 32 个 B 矩阵元素，对应着 `4 + 4 = 8` 个 `cp.async` 指令，正好对应到图上的 8 个 `LDGSTS` 指令。
+
+> 关于 `cp.async` 等异步指令的使用方法和同步机制，我们在后续笔记中详细介绍。
+
+以 A 矩阵为例，我们展示了 `(16, 64)` 的形状下 SMEM 的内存排布情况，并在图中标注了拷贝指令的覆盖范围、transaction、wavefront 和 bank 的相关信息。可以看出，当前 `LDGSTS` 指令具备良好的访存连续性，一条指令合并为 4 个 transactions，且 1 个 transaction 恰好写入了 32 个 bank，未产生 bank conflict。因此第一级拷贝的性能已经达到最优。
+
+![图8: GMEM 拷贝至 SMEM 过程中，SMEM 的写入内存排布](https://pic4.zhimg.com/v2-1a147e345f0207a207193ce1aead2a4d_1440w.jpg)
+
+### 4.2 SMEM 拷贝到 RMEM
+
+然而第二级拷贝我们仍然需要按 MMA 要求的数据排布进行线程的拷贝。因此从 SMEM 读取 A 矩阵的一个 Tile 的数据时（规模为 `32x32`），就变成了如下的情况：
+
+![图9: SMEM -> RMEM 过程中，SMEM 的读取内存排布](https://pica.zhimg.com/v2-3f546b6d837f864d1da6b204c1252f7e_1440w.jpg)
+
+这种情况下，一个从 SMEM 读取数据的字长被 MMA 限制在了 32 bits，因此仅可使用 `ld.shared.u32` / `LDS` 指令。我们发现 warp 的每一个 `ld.shared.u32` 访存指令都会合并为一个 transaction，但在这个 transaction 中访问了同一个 bank 的 8 个数据，因此实际上触发了 8 个 wavefronts，每个 wavefront 并行处理 16 bytes 的数据。
+
+理想情况下，一个 transaction 仅需一个 wavefront 并行处理即可，但在产生 Bank Conflict 的情况下用了 8 个 wavefronts，因此其中 `7/8` 的 wavefronts 是多余的。Ncu 在发生 Bank Conflict 的指令处会提示访存问题。
+
+![图10: ncu 会报告 SMEM 的访存问题，例如 Bank Conflict](https://pic1.zhimg.com/v2-3c82163e3fd88894b2445aa927a5ca72_1440w.jpg)
+
+我们在上图也可以看到每条 SMEM 访存指令对应的**实际 wavefronts 个数（L1 Wavefronts Shared）**、**理想 wavefronts 个数（L1 Wavefronts Shared Ideal）**和**两者的差值（L1 Wavefronts Shared Excessive）**。如果差值不为 0，则说明该指令出现了 Bank Conflict 问题。
+
+在本篇笔记的场景下，我们总共有 8 个 warps，每个 warp 的 `LDS` 指令合并为 1 个 transaction，因此理想情况下一条 `LDS` 指令总共需要 8 个 wavefronts 处理，但实际上处理了 `8x8 = 64` 个 wavefronts，多了 56 个 wavefronts。
+
+### 4.3 SMEM 指标分析
+
+在 ncu 中我们可以查询到 SMEM 访存情况的表格，如下图所示：
+
+![图11: ncu 展示的 SMEM 访存指标统计](https://pic3.zhimg.com/v2-b2e3483a348ce62ae6c7c2d34557618a_1440w.jpg)
+
+接下来我们分析这些指标是如何计算出来的。
+
+**1）Shared Load 对应到 LDS 相关指令，在本篇示例中和计算前 SMEM -> RMEM，以及计算后 SMEM -> GMEM 有关。**
+
+- SMEM -> RMEM 时，考虑到问题规模是 `(128, 128, 64)`，TiledMMA 规模是 `(32, 32, 32)`，总共需要拷贝 `(128x64) / (32x32) = 8` 个 A Tile 和 `(128x64) / (32x32) = 8` 个 B Tile，每个 warp 需要从每个 A Tile 拷贝 2 个 `16x16` 的 A fragment（8 个 `LDS`），从每个 B Tile 拷贝 2 个 `8x16` 的 B fragment（4 个 `LDS`）。因此每个 warp 总共需要执行 `8x8 + 8x4 = 96` 个 `LDS` 指令，8 个 warp 总共 `96x8 = 768` 个指令。
+- SMEM -> GMEM 时不受限于 MMA 的数据排布，采用的是 `LDS.128` 指令。输出的数据形状为 `(128, 128)`，因此从线程粒度看总共需要完成 `(128x128) / (128/8/2) = 2048` 次拷贝，从 warp 粒度看需要执行 `2048/32 = 64` 个 `LDS.128` 指令。
+
+因此总指令数为 `768 + 64 = 832` 个，而大多数情况一个指令对应一个请求，所以总请求数也为 832 个。注意到 SMEM -> RMEM 的每个指令都处理了 1 个 transaction，由于 bank conflict 产生了 8 个 wavefronts，SMEM -> GMEM 每个指令都处理了 4 个 transactions，对应到 4 个 wavefronts（没有 bank conflict），因此总 wavefronts 数等于 `768x8 + 64x4 = 6400`，其中由于 bank conflict 多产生了 `768x7 = 5376` 个 wavefronts，对应到表中的 Bank Conflicts 数。
+
+**2）Shared Store 对应到 STS 相关指令，在本篇示例中仅与计算后 RMEM -> SMEM 有关。**
+
+由于 RMEM 的数据排布仍受限于 MMA，因此只能使用 `STS` 指令，计算过程类似于上面的 `SMEM -> GMEM`，从 warp 粒度来看需要执行 `(128x128) / (32/8/2) / 32 = 256` 个指令，每个指令对应 1 个 transactions 和 8 个 wavefronts，总 wavefronts 数等于 `256x8 = 2048`，其中由于 bank conflict 多产生了 `256x7 = 1792` 个 wavefronts。
+
+**3）Shared Store From Global Load 对应到 LDGSTS 相关指令，在本篇示例中仅与计算前 GMEM -> SMEM 有关。**
+
+上面我们已经知道每个 warp 会执行 8 个 `LDGSTS` 指令，因此总共执行了 64 个指令，每个指令对应 4 个 transactions 和 4 个 wavefronts，总共 256 个 wavefronts，并且没有 bank conflict。
+
+从上面的分析过程可以看到，尽管我们通过引入 SMEM 避免了 GMEM 的冗余访存问题，但又新引入了 bank conflict 的问题，大幅降低了 SMEM 的访存效率，我们应当通过 Swizzling 的方式继续解决该问题。
+
+---
+
+## 5. 总结
+
+本篇主要实现了 Block 维度的二级拷贝流程，并深入解析了 SMEM 的特性和 ncu 中对 SMEM 的分析方法。
+
+下一步，我们将深入 Swizzling 的基本原理，介绍如何在 CUTLASS 中正确使用 Swizzling 的相关组件，最终解决 SMEM 遇到的 bank conflict 问题，敬请期待！
+
+**最后，感谢您阅读到这里！如果您觉得本文对您有帮助，就点个赞吧，谢谢～**
