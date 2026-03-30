@@ -2,7 +2,7 @@
 
 在前面的[记录下SGLang开发，优化，debug的技巧之大SKILL时代已来临](./记录下SGLang开发，优化，debug的技巧之大SKILL时代已来临.md)和[Codex正在重塑传统推理框架开发流程](./Codex正在重塑传统推理框架开发流程.md)里，我更多聊的是一件事：Agent 时代，SGLang 这类推理框架的开发、优化、debug、benchmark，普通模型的优化越来越像“给足 context 之后让模型高速推进”的问题了。
 
-本周末搞了一下cc-connect对接飞书和本地的Codex来进行SGLang模型优化的流程，听起来像是个玩具，但真的跑起来之后会发现，这不是“在手机上写代码”，而是“在手机上调度一个真正能 SSH、能 benchmark、能改 SGLang、能连远端 GPU 机器做profile，做benchmark验证的 Codex 工程体。现在离随时随地将你的想法变成现实更加接近。能完成这套工作流也依赖了一些前置的skills工作：
+本周末搞了一下cc-connect对接飞书和本地的Codex来进行SGLang模型优化的流程，听起来像是个玩具，但真的跑起来之后会发现，这不是“在手机上写代码”，而是“在手机上调度一个真正能 SSH、能 benchmark、能改 SGLang、能连远端 GPU 机器做profile，能写kernel，能用ncu迭代式优化，能做各种benchmark验证的 Agent 工程体, 它即将无所不能。现在离随时随地将你的想法变成现实更加接近。能完成这套工作流也依赖了一些前置的skills工作：
 
 ![](https://files.mdnice.com/user/59/467c923f-8b93-4193-90e3-860030c9042e.png)
 
