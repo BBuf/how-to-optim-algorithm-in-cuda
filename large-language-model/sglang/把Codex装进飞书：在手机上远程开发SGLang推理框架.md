@@ -30,9 +30,9 @@
 
 我感觉 OpenClaw 肯定也能做到这个，不过更想要的是一条从手机消息直达本地 Codex、直达本地 repo、直达远端 GPU 机器的最短控制链路并且配置更简单的方式。我已经有现成的 Codex CLI、SGLang SKILL、SSH SKILL完整的开发环境，`cc-connect + 飞书` 最有价值的地方就是几乎不动这些模块，只是把控制面自然延伸到了手机上，多了一个桥。所以调研了下感觉cc-connect比较合适
 
-# 0x2. 为什么这套方式有用处
+# 0x2. 为什么选择这个方式
 
-举个飞书里我会直接扔给 Agent 的 prompt：
+举个飞书里我直接扔给 Codex 的 prompt 例子：
 
 ![](https://files.mdnice.com/user/59/fe976435-1052-43ad-bc99-21a46d99a615.png)
 
@@ -40,6 +40,7 @@
 
 ![](https://files.mdnice.com/user/59/1837890d-aab4-46c4-8395-f02b0d605826.png)
 
+![](https://files.mdnice.com/user/59/ffb6fb5d-1eac-4920-8d09-a173582eeb56.png)
 
 这个prompt会走下面的流程：
 
@@ -50,13 +51,13 @@
 - **Nsight Compute（Level 3）**：写新 kernel 或prfoile某几个top kernel性能时用上 `ncu`，看带宽、occupancy、stall等。
 - **Baseline / 回归**：每次 benchmark 顺手写 `--perf-dump-path`，改完用 `compare_perf.py` 做前后 JSON 对比；kernel 融合、AKO4ALL 那套迭代替换可以跟 **ako4all** 技能里的 microbench、ncu profile结果走。
 
-这些流程在SKILL和远端环境就绪之后都可以自动进行，并且通过飞书消息的方式对关键信息进行交互方便我把握优化方向，整个调优过程变成自动化。有用的地方在于，你可以在任何空闲的时间聊下天把你的想法就交给Codex蹬起来了。
+这些流程在SKILL和远端环境就绪之后都是自动进行，并且通过飞书消息的方式对关键信息进行交互方便自己来把握优化方向，整个调优过程将变成自动化。这个流程有用的地方在于，你可以在任何空闲的时间通过聊下天就把你的想法就交给Codex蹬起来了。
 
-# 0x3. 飞书 + Codex 从“能连上”到“真正能用”，还有些Tricks
+# 0x3. cc-connect 飞书 + Codex Tricks
 
 ## 0x3.1 让它能做真正的远端开发
 
-`cc-connect` 里把 Codex 从默认的 `suggest` 改成 `yolo`，这个几乎是刚需：联网、SSH、shell、进 Docker、蹭远端 GPU，哪样都不是保守sandbox能做完的。不切yolo模式，大半验证动作会受限。
+`cc-connect` 里把 Codex 从默认的 `suggest` 改成 `yolo`，这个几乎是刚需：联网、SSH、shell、进 Docker、蹭远端 GPU，哪样都不是保守sandbox能做完的。不切yolo模式，gpu服务器上的操作无法实现。
 
 ## 0x3.2 让飞书里只保留值得人类看的消息
 
@@ -78,7 +79,7 @@ Bash、`rg`、thinking 等全量灌进飞书，聊天窗很快变成刷屏现场
 
 ## 0x3.4 一些常用的飞书命令
 
-链路跑顺以后，飞书里我反倒更常敲短命令，而不是堆长 prompt：
+跑通之后，还有一些小的命令可以用：
 
 - `/new`、`/new b200-debug`：开新会话，免得新任务糊进旧上下文
 - `/stop`：掐掉正在跑的任务
@@ -113,10 +114,16 @@ Bash、`rg`、thinking 等全量灌进飞书，聊天窗很快变成刷屏现场
 
 **`cc-connect + 飞书` 把这套开发方式进一步从桌面释放到了手机上。**
 
-你可以吃饭的时候在手机上指挥Codex写 Triton，写 CUDA kernel， debug cuda crash, 优化模型，甚至添加模型，一切框架端需要做的事情。前提是skills和开发环境要搭建好，而且即使后续模型产生了很大的进步，我们的skills仍然也可以留着用，不会过时。
+你可以吃饭的时候，玩游戏的间隙在手机上用飞书发个消息指挥Codex写某个 Triton kernel，写 CUDA kernel， debug cuda crash, 优化模型，甚至添加模型，做一切框架端能做的事情以及你尝试你自己的任何想法。这个前提是Skills和开发环境要搭建好，Skills这方面社区也在一直推进，而且即使后续模型产生了很大的进步，我们的skills仍然也可以留着用，不会过时。
 
 
 # 0x6. 飞书和 cc-connect 详细配置教程
 
-详细配置这里我大多数都是让Codex自己给我配置的，我只配置了一下飞书部分。
+详细配置这里我大多数都是让Codex自己给我配置的，我只配置了一下飞书那部分。详细的教程我用Codex总结到这里了：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/large-language-model/sglang/%E9%A3%9E%E4%B9%A6%E5%92%8C%20cc-connect%20%E8%AF%A6%E7%BB%86%E9%85%8D%E7%BD%AE%E6%95%99%E7%A8%8B.md ，除了飞书应用创建那个小章节需要我们花几分钟自己操作一下，其它的都可以让Codex自己一键配置。
+
+
+
+
+
+
 
