@@ -10,6 +10,13 @@
 
 远程连接相关的skills大家可以让Codex或者Claude Code自己创建
 
+cc-connect描述见：https://github.com/chenhg5/cc-connect ，然后架构图见：
+
+![](https://files.mdnice.com/user/59/a855ae40-d2bb-4f3d-9fb2-ffa863dc8693.jpg)
+
+除了飞书，你也可以配置微信，Slack，Telegram等几乎所有的主流社媒。除了Codex，你也可以配置Clacude Code, Gemini CLI，Cusor等等多种主流Agent，完全够用了。
+
+
 # 0x1. 为什么是飞书和cc-connect
 
 因为我目前已经处于在本地mac的固定文件夹下使用Codex去处理工作的模式，这个模式不方便的点在于你必须要在电脑上进行操作并且为了让任务顺利完成还要盯着它的思考过程。一些关键信息容易看漏且整个对话很长，工具调用这种日志又非常多影响阅读，懒得去翻中间过程就容易搞出问题。
@@ -35,8 +42,6 @@
 举个飞书里我直接扔给 Codex 的 prompt 例子：
 
 ![](https://files.mdnice.com/user/59/fe976435-1052-43ad-bc99-21a46d99a615.png)
-
-![](https://files.mdnice.com/user/59/51b08681-cca0-4251-8d2e-49b75ce6d488.png)
 
 ![](https://files.mdnice.com/user/59/1837890d-aab4-46c4-8395-f02b0d605826.png)
 
