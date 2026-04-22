@@ -2,7 +2,7 @@
 
 最近对这个skills又做了一些升级，单独再分享一下。你可以通过这个链接安装这个SKILLS然后开箱即用：
 
-https://github.com/BBuf/SGLang-Auto-Driven-SKILLS/tree/main/skills/sglang-torch-profiler-analysis
+https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/skills/sglang-torch-profiler-analysis
 
 或者这里也可以：https://github.com/sgl-project/sglang/tree/main/.claude/skills/sglang-torch-profiler-analysis
 

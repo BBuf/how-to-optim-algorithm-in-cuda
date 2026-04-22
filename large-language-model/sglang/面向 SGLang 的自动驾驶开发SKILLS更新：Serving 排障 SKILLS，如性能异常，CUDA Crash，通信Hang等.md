@@ -1,10 +1,10 @@
-> 欢迎关注：https://github.com/BBuf/SGLang-Auto-Driven-SKILLS 用Codex/Claude Code一起自动驾驶SGLang开发。
+> 欢迎关注：https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS 用Codex/Claude Code一起自动驾驶SGLang开发。
 
 # 0x0. 前言
 
-SGLang-Auto-Driven-SKILLS 更新一个新的 SKILLS ，这次更新的的是一个更偏真实 serving 排障的 SKILL：
+AI-Infra-Auto-Driven-SKILLS 更新一个新的 SKILLS ，这次更新的的是一个更偏真实 serving 排障的 SKILL：
 
-https://github.com/BBuf/SGLang-Auto-Driven-SKILLS/tree/main/skills/sglang-prod-incident-triage
+https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/skills/sglang-prod-incident-triage
 
 如果后续合并进 SGLang 主仓，对应目录就是：
 
