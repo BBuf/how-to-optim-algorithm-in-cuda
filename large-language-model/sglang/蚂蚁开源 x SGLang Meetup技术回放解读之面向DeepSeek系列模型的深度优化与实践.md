@@ -12,6 +12,8 @@
 
 分享嘉宾张天雨（墨纭）是蚂蚁 Theta 推理云 DeepSeek 系列模型的迭代负责人。从公开 PR 看，这次 slides 里的不少优化都能在 SGLang 和蚂蚁 fork 的 PR 里找到对应实现。一个很重要的入口是 AntGroup 这个部署汇总 PR：[Deploying DeepSeek-R1 on H20-96G with SGLang: Best Practices](https://github.com/antgroup/sglang/pull/4)。它不是为了 merge，而是把复现实验的镜像、启动参数、profile 链接和相关 PR 都放在一起，后面很多线索都是从这里展开的。
 
+这套优化也对应 LMSYS 上的那篇博客：[Together with SGLang: Best Practices for Serving DeepSeek-R1 on H20-96G](https://www.lmsys.org/blog/2025-09-26-sglang-ant-group/)。博客里把 H20 的挑战、Prefill/Decode 分离、FP8 FlashMLA、SwapAB、SBO、Expert Affinity EPLB、DeepXTrace 这些点按生产部署视角串了一遍；这篇文章则主要沿着 slides 和 PR 代码，把实现细节展开。
+
 ![](https://files.mdnice.com/user/59/9892fed6-51c3-460f-9a6a-604cab09432c.png)
 
 Slides 的目录分成四块：Challenges、Methodology、Evaluation & Conclusion、DeepSeek V3.2。下面我也按这个顺序来讲，但重点会放在 Methodology 里面的代码实现。
@@ -943,6 +945,7 @@ Future Work 里提了几件事：
 参考链接：
 
 - AntGroup 复现汇总 PR：https://github.com/antgroup/sglang/pull/4
+- LMSYS Blog：https://www.lmsys.org/blog/2025-09-26-sglang-ant-group/
 - Prefill TP scattered input：https://github.com/sgl-project/sglang/pull/10568
 - Prefill MHA one-shot：https://github.com/sgl-project/sglang/pull/10953
 - FusedMoE down projection TMA：https://github.com/sgl-project/sglang/pull/10567
