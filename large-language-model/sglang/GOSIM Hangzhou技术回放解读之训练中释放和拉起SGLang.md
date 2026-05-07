@@ -1,4 +1,4 @@
-> 这篇是 GOSIM Hangzhou 里 `Inference empowering training in Reinforcement Learning` 这场分享的回放解读。原始 PDF 已经按页转成 mdnice 图片，正文里每一页 slides 都保留了对应图片；技术页我会尽量落到公开代码，讲清楚这页到底对应什么实现。
+> 这篇按 slides 顺序梳理 RL 训练中释放和拉起 SGLang 的实现。图片保留为线上链接；涉及技术实现的部分只讨论公开代码和能核验的接口。
 
 # 0x0. 前言
 
@@ -12,8 +12,15 @@
 - SGLang：`python/sglang/srt/managers/scheduler_update_weights_mixin.py`，提供 `release_memory_occupation` 和 `resume_memory_occupation` 接口。
 - SGLang：`python/sglang/srt/model_executor/model_runner.py`，实现 `update_weights_from_distributed`、`update_weights_from_tensor` 以及 `flattened_bucket`。
 - SGLang：`python/sglang/srt/model_executor/cuda_graph_runner.py` 和 `torch_memory_saver_adapter.py`，把 CUDA Graph 捕获也纳入 memory saver tag。
+- LMSYS slime blog：`https://lmsys.org/blog/2025-07-09-slime/`，可以作为 colocate rollout、weight sync 和 SGLang-native RL 系统的补充背景。
 
 我在本地 `sglang` 和 `torch_memory_saver` 源码里能对上 slide 里的实现。这里没有强行写 PR 号，因为这组改动在当前代码树里已经变成了功能面；博客里按文件和关键函数讲更稳。
+
+slime 的系统图能帮这篇文章校准视角：release/resume 不是孤立功能，而是 RL 系统里“训练阶段让出显存、rollout 阶段恢复推理”的一个环节。LMSYS blog 里把 SGLang rollout、weight sync、partial rollout、训练 actor 放在同一张图里，和这套 slides 的 colocate 主题刚好对上：
+
+![](https://files.mdnice.com/user/59/e62c3bfc-5f68-4989-a912-c8495837396d.png)
+
+图里最关键的是 weight sync 和 rollout server group。训练 step 结束后，actor 侧的新权重不能慢慢通过 CPU 一层层搬过去，否则 rollout 时间会被同步开销吃掉；推理 server 恢复后也不能破坏 CUDA Graph 捕获过的虚拟地址。所以下面看 `torch_memory_saver` 和 SGLang 更新权重代码时，要把它们放回这个闭环里理解：release/resume 解决显存复用，bucket/IPC/broadcast 解决权重刷新，两者缺一块都跑不顺。
 
 # 0x2. Slides 逐页解读
 
@@ -21,7 +28,7 @@
 
 ![](https://files.mdnice.com/user/59/56e0d33e-6b3b-46fc-a381-7b9dc764f17d.png)
 
-这场分享的核心不是“把 SGLang 用起来”这么简单，而是把 SGLang 当成 RL 训练系统里的一个可调度组件：需要它生成 rollout 时，它要有显存、有 CUDA Graph、有 KV cache；训练 step 要吃满显存时，它又要把自己占着的物理显存交出来。
+标题页不展开，直接从 RL 训练里的 colocate 问题说起：SGLang 不只是一个 rollout 服务，而是训练系统里的可调度组件。需要它生成 rollout 时，它要有显存、有 CUDA Graph、有 KV cache；训练 step 要吃满显存时，它又要把自己占着的物理显存交出来。
 ### Slide 2：内容主线：释放/拉起 SGLang 和参数更新
 
 ![](https://files.mdnice.com/user/59/6aea82b2-2d02-4839-ac61-ec33ffe7c35f.png)

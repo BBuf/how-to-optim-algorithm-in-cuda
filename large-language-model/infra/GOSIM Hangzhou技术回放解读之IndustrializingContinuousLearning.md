@@ -1,4 +1,4 @@
-> 这篇是 GOSIM Hangzhou 里 `Industrializing Continuous Learning` 这场分享的回放解读。原始 PDF 已经按页转成 mdnice 图片，正文里每一页 slides 都保留了对应图片；技术页我会尽量落到公开代码，讲清楚这页到底对应什么实现。
+> 这篇按 slides 顺序梳理 continuous learning 工业化流程，以及 retrain-pipelines 里能对上的 DAG、评测和 serving 代码。图片保留为线上链接；涉及技术实现的部分只讨论公开代码和公开文档。
 
 # 0x0. 前言
 
@@ -20,13 +20,13 @@
 
 ![](https://files.mdnice.com/user/59/208be9f5-c987-4823-8e2e-70f71fe9fd57.png)
 
-这场分享不像前面几场专注 LLM serving，而是讲 continuous learning 的工业化。它把 retraining pipeline、评测、服务验证和 function-calling adapter 放到一个闭环里。
+标题页不展开。这里的重点不是 LLM serving，而是 continuous learning 的工业化：把 retraining pipeline、评测、服务验证和 function-calling adapter 放到一个闭环里。
 
-### Slide 2：Speaker 和主题背景
+### Slide 2：项目背景
 
 ![](https://files.mdnice.com/user/59/9d70fd30-a455-4f72-a2b0-0eb82d213272.png)
 
-背景页说明项目来自 retrain-pipelines。它的目标不是替代训练框架，而是把“数据进来、模型重训、评测、发布验证、文档产出”串成可重复流程。
+背景页只取项目定位：retrain-pipelines 不是替代训练框架，而是把“数据进来、模型重训、评测、发布验证、文档产出”串成可重复流程。
 
 ### Slide 3：目录：retrain-pipelines 与 function calling
 
@@ -74,7 +74,7 @@ WebConsole 提供运行列表、DAG 可视化、Gantt timeline 等。continuous 
 
 ![](https://files.mdnice.com/user/59/b6100d54-d253-4186-b727-9166152376f4.png)
 
-团队协作页强调共享运行记录、产物和文档。模型迭代不是个人脚本，尤其涉及生产发布时，大家要能看见同一份 pipeline 状态。
+团队协作页强调共享运行记录、产物和文档。模型迭代不能停在单机脚本，尤其涉及生产发布时，大家要能看见同一份 pipeline 状态。
 
 ### Slide 11：Pipeline card
 

@@ -1,4 +1,4 @@
-> 这篇是 GOSIM Hangzhou 里 `Training Framework for Speculative Decoding Models` 这场分享的回放解读。原始 PDF 已经按页转成 mdnice 图片，正文里每一页 slides 都保留了对应图片；技术页我会尽量落到公开代码，讲清楚这页到底对应什么实现。
+> 这篇按 slides 顺序梳理 SpecForge 和 EAGLE3 draft model 训练。图片保留为线上链接；涉及技术实现的部分只讨论公开代码、公开文档和 LMSYS 博客中能核验的内容。
 
 # 0x0. 前言
 
@@ -13,13 +13,23 @@
 - LMSYS 博客：`https://lmsys.org/blog/2025-07-25-spec-forge/`，介绍 SpecForge 的定位和 EAGLE3 训练；`https://lmsys.org/blog/2025-08-27-gpt-oss/` 对应 GPT-OSS EAGLE 实践。
 - SGLang serving 侧的 speculative decoding 和 multi-LoRA 能力是下游消费端，本文重点放训练框架本身。
 
+LMSYS 的 SpecForge blog 正好补了 slides 背后的几层上下文。第一层是 EAGLE3 本身：draft model 不只吃 token embedding，还要吃目标模型若干中间层的 hidden states。这样做的好处是 draft model 能更接近 target model 的局部推理状态，坏处是训练流程不再像普通 LM 那么干净，必须先拿到 target hidden states，再把多层 hidden states 投影、拼接、递归 unroll。
+
+![](https://files.mdnice.com/user/59/41c0c2fb-7f9b-4b79-a1b3-3e96363e6395.PNG)
+
+这张图可以当成 EAGLE3 的训练数据流来看：target model 负责提供 logits 和 hidden states，draft model 用这些中间表示预测后续 token，训练时还要模拟多步生成。LMSYS blog 里强调 SpecForge 支持 online/offline 两条路径，原因也在这里。如果在线跑 target model，训练时 GPU 压力大，但磁盘不会被 hidden states 数据集打爆；如果先离线生成 hidden states，训练阶段便宜很多，但中间数据会非常大。
+
+![](https://files.mdnice.com/user/59/48b7c84d-440c-462a-b381-4acd0863a18e.jpg)
+
+这张 online/offline 图对应到代码就是两个入口：online 路径在训练 step 内部调用 target model 拿 hidden states，offline 路径把 hidden states 当成 dataset 字段读进来。读 SpecForge 源码时，只要抓住这件事就不容易迷路：`Eagle3Model` 处理的是共同的 TTT/unroll/loss 逻辑，online/offline 差别主要在 hidden states 从哪里来。GPT-OSS 那篇 LMSYS blog 的价值也在这里，它说明 SpecForge 不是只适配一种 Llama-like 模型，而是把 target backend 做成可扩展层，新模型结构变了以后只需要把 hidden states、tokenizer、draft config 对齐。
+
 # 0x2. Slides 逐页解读
 
 ### Slide 1：SpecForge：Speculative Decoding Models 的训练框架
 
 ![](https://files.mdnice.com/user/59/ba69be4e-bd0e-4084-b9e4-6e50b89d6769.png)
 
-SpecForge 解决的是投机解码的“训练侧”。SGLang 已经能 serve EAGLE/EAGLE3 draft model，但 draft model 从哪里来、怎么跟目标模型 hidden states 对齐、怎么处理特殊 attention mask，是另一个完整工程。
+标题页不展开。SpecForge 解决的是投机解码的“训练侧”：SGLang 已经能 serve EAGLE/EAGLE3 draft model，但 draft model 从哪里来、怎么跟目标模型 hidden states 对齐、怎么处理特殊 attention mask，是另一个完整工程。
 
 ### Slide 2：目录：从投机解码到自定义训练
 

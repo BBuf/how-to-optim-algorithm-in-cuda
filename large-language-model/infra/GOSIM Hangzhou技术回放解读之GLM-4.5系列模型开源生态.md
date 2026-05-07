@@ -1,4 +1,4 @@
-> 这篇是 GOSIM Hangzhou 里 `GLM-4.5 系列模型开源生态` 这场分享的回放解读。原始 PDF 已经按页转成 mdnice 图片，正文里每一页 slides 都保留了对应图片；技术页我会尽量落到公开代码，讲清楚这页到底对应什么实现。
+> 这篇按 slides 顺序梳理 GLM-4.5 系列模型开源生态，以及背后能落到代码的 slime/SGLang 训练和 rollout 链路。图片保留为线上链接；涉及技术实现的部分只讨论公开代码和公开文档。
 
 # 0x0. 前言
 
@@ -13,6 +13,13 @@
 - slime：`slime/backends/sglang_utils/sglang_engine.py`，SGLang engine 启动、release/resume、update weights。
 - slime：`slime/ray/rollout.py`，SGLang server group、router、colocate offload/onload、rollout 数据回流。
 - slime 文档：`docs/zh/get_started/quick_start.md` 和 `docs/zh/examples/glm4.7-355B-A32B.md`，能看到 SGLang 参数、partial rollout、MTP 配置等。
+- LMSYS slime blog：`https://lmsys.org/blog/2025-07-09-slime/`，解释 SGLang-native RL 系统为什么要把训练、rollout、权重同步放进同一个框架。
+
+GLM-4.5 的模型生态如果只看权重发布会少一块：这些模型后续 RL/post-training 怎么跑，rollout 后端怎么接，权重怎么同步。LMSYS 的 slime blog 给了一个很好的公开参考：
+
+![](https://files.mdnice.com/user/59/e62c3bfc-5f68-4989-a912-c8495837396d.png)
+
+这张图里的 SGLang Server Group、Router、Weight Sync 和 Partial Rollout，基本就是后面读 slime 代码的地图。GLM 系列模型体量大、MoE 多、上下文长，训练端每轮更新后都要让 rollout 侧尽快吃到新权重。slime 选择围绕 SGLang 做原生集成，原因也在这里：推理引擎的 release/resume、server group 管理、采样参数和 rollout 数据回流，不适合被当成普通 HTTP 客户端糊过去。
 
 # 0x2. Slides 逐页解读
 
@@ -20,7 +27,7 @@
 
 ![](https://files.mdnice.com/user/59/8e9e3b5e-658f-41ee-9d46-b081e2a3bad4.png)
 
-这场分享讲 GLM-4.5 系列和开源生态。和 infra 目录的关系在于 slime：GLM-4.5 背后的 RL/post-training 框架公开后，训练和 SGLang rollout 的工程细节也能被讨论。
+标题页不展开。和 infra 目录最相关的是 slime：GLM-4.5 背后的 RL/post-training 框架公开后，训练和 SGLang rollout 的工程细节也能被讨论。
 
 ### Slide 2：目录
 

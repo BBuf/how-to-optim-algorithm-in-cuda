@@ -1,8 +1,8 @@
-> 这篇是 GOSIM Hangzhou 里 `verl: an Open-Source Large-Scale LLM RL Framework for Agentic Tasks` 这场分享的回放解读。原始 PDF 已经按页转成 mdnice 图片，正文里每一页 slides 都保留了对应图片；技术页我会尽量落到公开代码，讲清楚这页到底对应什么实现。
+> 这篇按 slides 顺序梳理 verl 的大规模 LLM RL 训练框架，以及它和 SGLang rollout 后端的连接。图片保留为线上链接；涉及技术实现的部分只讨论公开代码和公开文档。
 
 # 0x0. 前言
 
-这篇是巫锡斌关于 verl 的分享解读。它和前两篇 SGLang 文章的连接点在 rollout：训练框架需要高吞吐推理后端，推理后端又必须接受训练框架的权重同步、显存 offload 和多轮 agent 采样。
+这篇和前两篇 SGLang 文章的连接点在 rollout：训练框架需要高吞吐推理后端，推理后端又必须接受训练框架的权重同步、显存 offload 和多轮 agent 采样。
 
 # 0x1. 资料和代码落点
 
@@ -13,19 +13,29 @@
 - verl 单 Controller 抽象：`verl/single_controller/base/decorator.py`，定义多种 dispatch/collect 行为。
 - slime 资料：`https://lmsys.org/blog/2025-07-09-slime/` 和 `THUDM/slime`，可作为 SGLang-native RL 系统的对照。
 
+这里把 LMSYS 的 slime blog 也提前放进来。verl 和 slime 不是同一个项目，但它们都在处理同一个系统问题：RL 训练框架要不断生成 rollout，rollout 又需要一个高吞吐推理引擎；训练权重更新以后，推理引擎必须尽快同步新参数。slime 的 blog 给出的系统图很有帮助：
+
+![](https://files.mdnice.com/user/59/e62c3bfc-5f68-4989-a912-c8495837396d.png)
+
+slime 的设计更偏 SGLang-native：rollout server group、router、weight sync、partial rollout 都围绕 SGLang 展开。verl 则更像通用 RL 编排框架，把 FSDP/Megatron、vLLM/SGLang、Ray worker 放到统一 controller 下。读这篇 slides 时可以把 slime 当作对照组：如果只服务 SGLang，很多路径可以写得更紧；如果要兼容多种训练和推理后端，就需要 verl 这种更抽象的 dispatch/collect、worker group 和 backend adapter。
+
+LMSYS 另一篇 deterministic inference blog 对 Agentic RL 也有参考价值。它讨论的问题是：同一个 prompt、同一组采样参数，在分布式推理和多轮 rollout 下能不能复现。RL 训练里 reward 波动本来就大，如果 rollout engine 还因为 batch 形状、kernel 路径或调度顺序产生额外随机性，排查会很痛苦。slime/SGLang 的确定性路线可以理解为给训练系统加一条“可复现实验”的保险丝：
+
+![](https://files.mdnice.com/user/59/27b393ab-80dc-41da-931c-b164acc24a58.png)
+
 # 0x2. Slides 逐页解读
 
 ### Slide 1：verl：面向 Agentic Tasks 的大规模 LLM RL 框架
 
 ![](https://files.mdnice.com/user/59/0fe522e1-9759-43b4-8938-44d127f9ee82.png)
 
-这场分享讲 verl，但和 SGLang 的关系很近：verl 负责 RL 训练编排，SGLang 可以作为 rollout 后端。Agentic 任务把采样变成多轮交互后，推理后端的生命周期管理会变得更重要。
+标题页不展开，直接看系统关系：verl 负责 RL 训练编排，SGLang 可以作为 rollout 后端。Agentic 任务把采样变成多轮交互后，推理后端的生命周期管理会变得更重要。
 
-### Slide 2：个人和项目背景
+### Slide 2：项目背景
 
 ![](https://files.mdnice.com/user/59/0a778b33-4eea-4d4f-9ff0-1519dae69c81.png)
 
-介绍页交代了分享者和项目背景。verl 不是单一算法实现，而是把 PPO/GRPO/RLOO、FSDP/Megatron、vLLM/SGLang、Ray 编排拼在一起的训练系统。
+背景页只取项目定位：verl 不是单一算法实现，而是把 PPO/GRPO/RLOO、FSDP/Megatron、vLLM/SGLang、Ray 编排拼在一起的训练系统。
 
 ### Slide 3：目录：RLHF 到 Agentic RL
 

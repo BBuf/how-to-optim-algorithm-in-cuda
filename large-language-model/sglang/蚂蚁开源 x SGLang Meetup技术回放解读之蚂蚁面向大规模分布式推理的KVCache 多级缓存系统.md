@@ -4,9 +4,9 @@
 
 ![](https://files.mdnice.com/user/59/ba77bb1f-3c13-495f-a8b4-faf8ad6480ec.png)
 
-这场分享的题目是「蚂蚁面向大规模分布式推理的 KVCache 多级缓存系统」，嘉宾是蚂蚁集团的黄庭威和赵永科。黄庭威是 SGLang collaborator，GitHub ID 是 `huangtingwei9988`；赵永科是 Mooncake collaborator，GitHub ID 是 `zhaoyongke`。本次整理到的 mdnice 图片里少了讲者介绍页，所以这里不贴图，只在文字里补一下。
+标题页不展开会议信息，直接进入技术主线。
 
-我读这套 slides 时最强的感受是：它不是单独讲「KVCache offload 到 CPU」这么简单。真正的问题是，当线上推理变成多租户、多轮对话、Agentic Coding、PD 分离、异构 TP、Sparse Attention 混在一起以后，KVCache 已经不是一个局部优化点，而是一个跨 scheduler、memory pool、storage backend、transfer engine 的系统问题。
+这套 slides 值得展开的地方在于：它不是单独讲「KVCache offload 到 CPU」这么简单。真正的问题是，当线上推理变成多租户、多轮对话、Agentic Coding、PD 分离、异构 TP、Sparse Attention 混在一起以后，KVCache 已经不是一个局部优化点，而是一个跨 scheduler、memory pool、storage backend、transfer engine 的系统问题。
 
 SGLang 这条线最早可以追到 PR [#2693 Hierarchical Caching for SGLang](https://github.com/sgl-project/sglang/pull/2693)。后面又经历了 TP 修复、HiCache refactor、Mooncake/3FS/NIXL/AIBrix 后端接入、动态 backend、HiSparse 等一串工作。slides 里很多看似「平台架构」的图，落到代码里其实都能在这些文件里看到影子：
 
@@ -24,6 +24,26 @@ LMSYS blog 也有几篇刚好能对上这套 slides：
 - [SGLang Day 0 Support for DeepSeek-V3.2 with Sparse Attention](https://www.lmsys.org/blog/2025-09-29-deepseek-V32/)：对应 DeepSeek Sparse Attention 的背景，也就是 DSA、Lightning Indexer、Top-k Selector。
 - [HiSparse: Turbocharging Sparse Attention with Hierarchical Memory](https://www.lmsys.org/blog/2026-04-10-sglang-hisparse/)：对应 slides 中间的分层稀疏化和 hot buffer/LRU/swap-in kernel。
 - [Together with SGLang: Best Practices for Serving DeepSeek-R1 on H20-96G](https://www.lmsys.org/blog/2025-09-26-sglang-ant-group/)：不是这场 KVPool 分享的同一篇文章，但里面的蚂蚁 H20 大规模推理、Prefill/Decode 部署口径，可以帮助理解后面 Theta KVPool 的生产背景。
+
+先把 LMSYS blog 里和这套 slides 最相关的两张系统图补在这里。第一张是 HiCache 的整体结构：
+
+![](https://files.mdnice.com/user/59/a6dd1768-dc5c-45b9-bc9d-89fadc5b27e4.png)
+
+LMSYS 对 HiCache 的解释可以浓缩成一句话：把 RadixAttention 的 GPU prefix cache 扩展成 GPU/CPU/外部存储三层缓存，同时保留原来基于 radix tree 的 prefix 匹配能力。这个说法比「KVCache offload」更准确，因为 offload 只描述了数据往外搬，HiCache 真正加的是一套 page table、写回策略、异步加载和多后端 I/O 抽象。后面逐页看代码时，`HiRadixCache`、`HiCacheController`、`BaseKVStorage` 这几个名字会反复出现。
+
+第二张是 HiCache 的内存布局：
+
+![](https://files.mdnice.com/user/59/7ed0d8fe-883d-4556-868f-cb8b5a5c0b8f.png)
+
+这张图里最容易被忽略的是 page 粒度。HiCache 不是把一个请求的整段 KV 当成一个大 blob 存起来，而是按 page 管理。GPU 上的 page index、CPU pinned memory 里的 page、远端 backend 里的 key/value 对应起来以后，scheduler 才能在 prefix 命中时只恢复需要的那部分。LMSYS blog 强调了两个收益：一是 GPU 空间不足时不用把 prefix 彻底丢掉，二是可以把 CPU、file、Mooncake、3FS 这些 backend 放在同一个接口后面。代价也很清楚：每次命中都要多算一笔 I/O 是否划算的账，所以 SGLang 里才会有 `--hicache-prefetch-threshold`、write policy、backend 选择这些参数。
+
+HiSparse 的 blog 也对 slides 中的 sparse attention 部分有帮助。它把 DeepSeek Sparse Attention 的问题讲得更直白：Top-k selector 让 attention 不再看完整历史，但「该看哪些 token」本身需要历史索引；如果索引和 KV 都留在 GPU，长上下文并发还是会被 HBM 卡住。HiSparse 的做法是把热 KV 留在 GPU hot buffer，冷 KV 放到 host 或外部层级，miss 时再 swap in：
+
+![](https://files.mdnice.com/user/59/0c2ba128-ec5a-4fe1-8157-d306aeeaffcf.png)
+
+下面这张图是 LMSYS 给出的吞吐曲线。它的重点不是某个绝对数，而是 concurrency 上来以后，分层 sparse cache 能比只依赖 GPU 的方案更稳：
+
+![](https://files.mdnice.com/user/59/6543cf79-89e5-4ebd-b50f-22defac1c9ab.png)
 
 ![](https://files.mdnice.com/user/59/c4739884-ecaf-40ac-b02d-e8de86617f3e.png)
 

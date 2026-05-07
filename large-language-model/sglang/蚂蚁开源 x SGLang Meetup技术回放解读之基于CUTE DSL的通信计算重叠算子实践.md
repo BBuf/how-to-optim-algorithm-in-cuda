@@ -4,7 +4,7 @@
 
 ![](https://files.mdnice.com/user/59/8fe0d2c2-6ba6-4d94-81ed-02f17ef4200f.jpg)
 
-这个分享的题目是「基于 CUTE DSL 的通信计算重叠算子实践 GEMM + AR 经验分享」。嘉宾是 NVIDIA 的周沛源，slides 里写的时间是 2026/01/17。
+标题页不展开会议信息，直接进入 kernel 优化本身。
 
 我读这套 slides 的感受是，它不是在讲「怎么调用一个更快的 AllReduce」，而是在讲一个更底层的问题：如果 Tensor Parallel 里的 `RowParallelLinear` 每层都要做一次 GEMM 后的 AllReduce，那么这个 AllReduce 能不能不要作为一个独立阶段裸露在 timeline 上？更具体一点，能不能让 GEMM 写回结果之后，马上由同一个 persistent kernel 里的通信 warp 去发起 multimem reduce/broadcast，让通信和后续 tile 的计算重叠起来？
 
@@ -19,7 +19,7 @@ We do GEMM+AllReduce overlap during TensorParallel via cutlass based fused kerne
 - Attention 后面的 `o_proj`，也就是 TP 下需要 all-reduce 的输出投影；
 - MLP 后面的 `down_proj`，同样是 row parallel 后需要聚合的那一层。
 
-分享嘉宾的背景也解释了为什么这套内容很偏底层。slides 后面出现的术语基本都在 CUTLASS/CuTe DSL、NVSHMEM、NVLS、多播地址、TMA store、persistent scheduler 这些东西附近打转。它跟上一篇 DeepSeek 部署优化不太一样，那篇更多是 SGLang server 层和模型执行路径的组合拳；这篇几乎是顺着一条 kernel 的 pipeline 往里钻。
+这套内容很偏底层。slides 后面出现的术语基本都在 CUTLASS/CuTe DSL、NVSHMEM、NVLS、多播地址、TMA store、persistent scheduler 这些东西附近打转。它跟上一篇 DeepSeek 部署优化不太一样，那篇更多是 SGLang server 层和模型执行路径的组合拳；这篇几乎是顺着一条 kernel 的 pipeline 往里钻。
 
 ![](https://files.mdnice.com/user/59/3859b993-496f-488f-9cff-e9aaca103df4.jpg)
 
@@ -621,7 +621,7 @@ assert bias is None
 
 所以这不是一个已经覆盖所有模型、所有 dtype、所有并行策略的通用替换。它更像一条 B200 上 TP overlap 的工程起点。
 
-PR 讨论里也有一些边界很值得记。有人问能不能支持 Qwen3 / DeepSeek。周沛源的回复大意是：Qwen3 MoE 里 dense attention 的 O projection 可以用，但 MoE MLP down projection 还需要 group GEMM + AR；DeepSeek-V3 FP8 blockwise 还涉及 activation/weight scale，当前 kernel 还没支持这条 scale 路径。所以它不是「打开开关所有模型都变快」，模型结构和量化格式都要对上。
+PR 讨论里也有一些边界很值得记。有人问能不能支持 Qwen3 / DeepSeek。维护者的回复大意是：Qwen3 MoE 里 dense attention 的 O projection 可以用，但 MoE MLP down projection 还需要 group GEMM + AR；DeepSeek-V3 FP8 blockwise 还涉及 activation/weight scale，当前 kernel 还没支持这条 scale 路径。所以它不是「打开开关所有模型都变快」，模型结构和量化格式都要对上。
 
 # 0xB. CUTLASS 官方示例和 SGLang PR 的关系
 
