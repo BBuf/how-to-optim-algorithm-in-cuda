@@ -4,8 +4,6 @@
 
 ![](https://files.mdnice.com/user/59/ba77bb1f-3c13-495f-a8b4-faf8ad6480ec.png)
 
-标题页不展开会议信息，直接进入技术主线。
-
 这套 slides 值得展开的地方在于：它不是单独讲「KVCache offload 到 CPU」这么简单。真正的问题是，当线上推理变成多租户、多轮对话、Agentic Coding、PD 分离、异构 TP、Sparse Attention 混在一起以后，KVCache 已经不是一个局部优化点，而是一个跨 scheduler、memory pool、storage backend、transfer engine 的系统问题。
 
 SGLang 这条线最早可以追到 PR [#2693 Hierarchical Caching for SGLang](https://github.com/sgl-project/sglang/pull/2693)。后面又经历了 TP 修复、HiCache refactor、Mooncake/3FS/NIXL/AIBrix 后端接入、动态 backend、HiSparse 等一串工作。slides 里很多看似「平台架构」的图，落到代码里其实都能在这些文件里看到影子：
@@ -29,7 +27,7 @@ LMSYS blog 也有几篇刚好能对上这套 slides：
 
 ![](https://files.mdnice.com/user/59/a6dd1768-dc5c-45b9-bc9d-89fadc5b27e4.png)
 
-LMSYS 对 HiCache 的解释可以浓缩成一句话：把 RadixAttention 的 GPU prefix cache 扩展成 GPU/CPU/外部存储三层缓存，同时保留原来基于 radix tree 的 prefix 匹配能力。这个说法比「KVCache offload」更准确，因为 offload 只描述了数据往外搬，HiCache 真正加的是一套 page table、写回策略、异步加载和多后端 I/O 抽象。后面逐页看代码时，`HiRadixCache`、`HiCacheController`、`BaseKVStorage` 这几个名字会反复出现。
+LMSYS 对 HiCache 的解释很直接：把 RadixAttention 的 GPU prefix cache 扩展成 GPU/CPU/外部存储三层缓存，同时保留原来基于 radix tree 的 prefix 匹配能力。这个说法比「KVCache offload」更准确，因为 offload 只描述了数据往外搬，HiCache 真正加的是一套 page table、写回策略、异步加载和多后端 I/O 抽象。后面逐页看代码时，`HiRadixCache`、`HiCacheController`、`BaseKVStorage` 这几个名字会反复出现。
 
 第二张是 HiCache 的内存布局：
 

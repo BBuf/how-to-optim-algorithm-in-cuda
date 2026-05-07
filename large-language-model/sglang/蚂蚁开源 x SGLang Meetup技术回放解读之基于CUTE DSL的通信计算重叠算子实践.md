@@ -4,8 +4,6 @@
 
 ![](https://files.mdnice.com/user/59/8fe0d2c2-6ba6-4d94-81ed-02f17ef4200f.jpg)
 
-标题页不展开会议信息，直接进入 kernel 优化本身。
-
 我读这套 slides 的感受是，它不是在讲「怎么调用一个更快的 AllReduce」，而是在讲一个更底层的问题：如果 Tensor Parallel 里的 `RowParallelLinear` 每层都要做一次 GEMM 后的 AllReduce，那么这个 AllReduce 能不能不要作为一个独立阶段裸露在 timeline 上？更具体一点，能不能让 GEMM 写回结果之后，马上由同一个 persistent kernel 里的通信 warp 去发起 multimem reduce/broadcast，让通信和后续 tile 的计算重叠起来？
 
 SGLang 这条线目前最直接的公开实现是 PR [#15103](https://github.com/sgl-project/sglang/pull/15103)。PR 描述里写得很直白：
