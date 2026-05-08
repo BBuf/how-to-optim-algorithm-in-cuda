@@ -6,7 +6,7 @@
 
 这次分享的主角是蚂蚁 Theta 团队在 H20-96G 上做 DeepSeek 系列模型推理优化的实践。它不是单点 kernel 优化，而是从部署形态、Prefill、Decode、MoE 通信、Expert Load Balance、投机解码、观测诊断，到 DeepSeek-V3.2 DSA 支持的一整套方案。
 
-我读完 slides 和公开 PR 后的感觉是，这套优化真正有意思的地方不在某一个 trick，而在它把 H20 的硬件特性吃得很细：H20 算力弱于 H800，但显存容量、带宽、NVLink 都不差，所以 Prefill 和 Decode 不能按一个固定套路去做，必须拆开部署，再按瓶颈分别优化。
+把 slides 和公开 PR 放在一起看，这套优化的主线不在某一个 trick，而在它把 H20 的硬件特性吃得很细：H20 算力弱于 H800，但显存容量、带宽、NVLink 都不差，所以 Prefill 和 Decode 不能按一个固定套路去做，必须拆开部署，再按瓶颈分别优化。
 
 ![](https://files.mdnice.com/user/59/4faacfe1-ed81-4160-9606-9a26affa1ad2.png)
 
@@ -416,18 +416,15 @@ Decode 启动参数里用的是 `--attention-backend flashmla`，Ant 的汇总 P
 
 PR 给的 H20 数据里，cache length=8196、head_num=64 时，batch size 32/48/64/128 下，新 FP8 MLA 相比 BF16 MLA 的提升分别是 69%/62%/62%/74%，相比之前 FP8 PR 也还有约 5% 的提升。Decode 侧小 batch 的 MoE 之外，attention backend 这条线也很重要，否则 MoE 优化完以后瓶颈会很快转移到 MLA。
 
-# 0x5. Decode 优化二：为什么不用 TBO
-
-这页在解释为什么 H20 Decode 上 Two-Batch Overlap(TBO) 不理想。原因有两个：
-
-1. Hopper WGMMA 的 `block_m` 通常是 64，小 batch Decode 下 MLP GEMM 会有冗余计算；
-2. TBO 要在 batch 足够大时才容易转正收益，但 H20 算力弱，batch 大了以后 TPOT/ITL 的 SLA 又容易炸。
-
-所以 slides 里说 TBO 不适合这个在线服务场景。公开实现对应到 [#9660 Single Batch Overlap for MoE Models](https://github.com/sgl-project/sglang/pull/9660)。这个 PR 的 Motivation 和 slides 几乎是一致的：小 batch 时 TBO 的正收益不够稳定，需要一个对单 batch 也有效的 overlap。
-
-# 0x6. Decode 优化三：SBO
+# 0x5. Decode 优化二：为什么不用 TBO，为什么换成 SBO
 
 ![](https://files.mdnice.com/user/59/193194d9-dc59-4e08-af1d-f8e1f4f31c50.png)
+
+这页左半边解释为什么 H20 Decode 上 Two-Batch Overlap(TBO) 不理想。Hopper 架构下 WGMMA 的 `block_m` 通常固定在 64，小 batch Decode 的 MLP GEMM 会有冗余计算；TBO 需要 batch size 大于 64 时才更容易拿到吞吐收益，但 H20 算力弱，大 batch 又会把 TPOT SLA 顶上去。所以 slides 里才写 TBO unsuitable for online serving。
+
+右半边是 SBO 的做法，分两条 overlap。第一条是 Dispatch Recv 和 Shared Expert overlap：DeepEP 收到 token packet 的顺序可能是乱的，但 shared expert 不依赖远端 expert 的结果，可以先算起来；slides 也标了 UP&GATE GEMM 很难 overlap，因为它要等 dispatch 后的 routed token 更完整。第二条是 Combine Send 和 Down GEMM overlap：down projection 的输出是按 token/block 逐步产生的，数据流更可预测，适合做 signal-synchronized producer-consumer。公开实现对应 [#9660 Single Batch Overlap for MoE Models](https://github.com/sgl-project/sglang/pull/9660)，Motivation 和 slides 基本一致：小 batch 时 TBO 的正收益不够稳定，需要一个对单 batch 也有效的 overlap。
+
+# 0x6. Decode 优化三：SBO 的代码路径
 
 SBO 做了两个 overlap：
 
@@ -940,7 +937,7 @@ Future Work 里提了几件事：
 5. 通信侧用 Expert Affinity EPLB 减少跨节点通信，用 DeepXTrace 定位慢 rank。
 6. DeepSeek-V3.2 侧重新处理 DSA 带来的 CP、Indexer、MHA/MLA 选择问题。
 
-我觉得最值得借鉴的是两个习惯。第一，优化不是「看到一个 kernel 慢就调一个 kernel」，而是先把硬件约束和部署形态定下来，再决定 kernel、通信、调度各自要解决什么。第二，很多优化都用了真实线上分布，比如 MoE tuning 用真实 `topk_ids`，EPLB 用 co-activation matrix，这比随机 benchmark 更接近实际服务。
+这套分享里有两个习惯很值得保留下来。第一，优化不是「看到一个 kernel 慢就调一个 kernel」，而是先把硬件约束和部署形态定下来，再决定 kernel、通信、调度各自要解决什么。第二，很多优化都用了真实线上分布，比如 MoE tuning 用真实 `topk_ids`，EPLB 用 co-activation matrix，这比随机 benchmark 更接近实际服务。
 
 参考链接：
 

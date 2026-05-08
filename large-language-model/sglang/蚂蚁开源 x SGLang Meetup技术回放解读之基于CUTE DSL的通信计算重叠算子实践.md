@@ -389,7 +389,7 @@ def spin_lock_multimem_arrive(lock_ptr: cute.Pointer):
 
 ![](https://files.mdnice.com/user/59/32c12604-52e8-4adf-8f4f-9c63ee76ace5.png)
 
-这页讲 task partition。它是整个 two-shot 算法最容易被忽略，但也最值得看的一页。
+这页讲 task partition。two-shot 算法的通信量能不能降下来，主要就看这里的分工。
 
 假设输出 tile 是 `M x N`，有 `num_ranks` 张卡。如果每个 rank 都对整个 tile 做 `ld_reduce + st`，那所有 rank 会做重复工作。two-shot 的做法是把 tile 按 rank 切开，每个 rank 只负责其中一段。做完 reduce 后，再通过 `multimem.st` 把自己负责的结果广播给所有 rank。这样最终每张卡都拿到完整 all-reduce 输出，但 reduce 工作被摊开了。
 

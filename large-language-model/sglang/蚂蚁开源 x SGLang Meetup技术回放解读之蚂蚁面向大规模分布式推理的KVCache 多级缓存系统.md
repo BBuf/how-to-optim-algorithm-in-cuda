@@ -70,7 +70,7 @@ SGLang 的 `RadixCache` 把 token 序列挂在 radix tree 上，value 是 GPU KV
 
 ![](https://files.mdnice.com/user/59/c0c241a5-6a70-4c3b-a6aa-1200d3254048.png)
 
-这页用了「以存代算，存比算快」这个说法。我觉得它挺准确，但要补两个限定条件：
+这页用了「以存代算，存比算快」这个说法，但它成立需要两个条件：
 
 第一，必须是长 prefix 或长上下文。短 prompt 为了几十个 token 去 L3 拉 KV，可能不划算。
 
@@ -586,7 +586,7 @@ def _get_mha_split_heads_buffer_meta(self, keys, indices):
 
 ![](https://files.mdnice.com/user/59/ccede706-f72d-40dc-9dc7-f46bd55622d4.png)
 
-这里进入第二部分：Hierarchical Sparse Attention。共同作者里有阿里云的 `hzh0425` 和 Stanford 的 `xiezhq-hermann`。这两位也正好是 HiCache/HiSparse 相关 PR 里经常能看到的名字。
+这里进入第二部分：Hierarchical Sparse Attention。标题页不展开个人信息，后面直接看 DSA 和 HiSparse 的系统问题。
 
 ![](https://files.mdnice.com/user/59/4b7e8dd3-9a9e-477b-a100-48ec47014d1d.png)
 
@@ -852,7 +852,7 @@ if forward_batch.hisparse_coordinator is not None:
 
 也就是说，attention kernel 后面看到的还是「Top-k 对应的一组 device loc」，只是这些 loc 不再是完整 KVCache pool 的 loc，而是 hot buffer 里的 loc。
 
-`hisparse.cuh` 是这页最值得看的代码。kernel 每个 block 处理一个 request，短序列走 fast path：
+`hisparse.cuh` 是这页对应的核心代码。kernel 每个 block 处理一个 request，短序列走 fast path：
 
 ```cpp
 if (seq_len <= HOT_BUFFER_SIZE) {
