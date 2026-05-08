@@ -15,193 +15,193 @@
 
 LMSYS 的 slime blog 适合放在这里对照看。verl 和 slime 不是同一个项目，但它们都在处理同一个系统问题：RL 训练框架要不断生成 rollout，rollout 又需要一个高吞吐推理引擎；训练权重更新以后，推理引擎必须尽快同步新参数。slime 的系统图很直观：
 
-![](https://files.mdnice.com/user/59/e62c3bfc-5f68-4989-a912-c8495837396d.png)
+<img src="https://files.mdnice.com/user/59/e62c3bfc-5f68-4989-a912-c8495837396d.png" referrerpolicy="no-referrer" />
 
 slime 的设计更偏 SGLang-native：rollout server group、router、weight sync、partial rollout 都围绕 SGLang 展开。verl 则更像通用 RL 编排框架，把 FSDP/Megatron、vLLM/SGLang、Ray worker 放到统一 controller 下。读这篇 slides 时可以把 slime 当作对照组：如果只服务 SGLang，很多路径可以写得更紧；如果要兼容多种训练和推理后端，就需要 verl 这种更抽象的 dispatch/collect、worker group 和 backend adapter。
 
 LMSYS 另一篇 deterministic inference blog 对 Agentic RL 也有参考价值。它讨论的问题是：同一个 prompt、同一组采样参数，在分布式推理和多轮 rollout 下能不能复现。RL 训练里 reward 波动本来就大，如果 rollout engine 还因为 batch 形状、kernel 路径或调度顺序产生额外随机性，排查会很痛苦。slime/SGLang 的确定性路线可以理解为给训练系统加一条“可复现实验”的保险丝：
 
-![](https://files.mdnice.com/user/59/27b393ab-80dc-41da-931c-b164acc24a58.png)
+<img src="https://files.mdnice.com/user/59/27b393ab-80dc-41da-931c-b164acc24a58.png" referrerpolicy="no-referrer" />
 
 # 0x2. Slides 逐页解读
 
 ### Slide 1：verl：面向 Agentic Tasks 的大规模 LLM RL 框架
 
-![](https://files.mdnice.com/user/59/0fe522e1-9759-43b4-8938-44d127f9ee82.png)
+<img src="https://files.mdnice.com/user/59/0fe522e1-9759-43b4-8938-44d127f9ee82.png" referrerpolicy="no-referrer" />
 
 先看系统关系：verl 负责 RL 训练编排，SGLang 可以作为 rollout 后端。Agentic 任务把采样变成多轮交互后，推理后端的生命周期管理会变得更重要。
 
 ### Slide 2：项目背景
 
-![](https://files.mdnice.com/user/59/0a778b33-4eea-4d4f-9ff0-1519dae69c81.png)
+<img src="https://files.mdnice.com/user/59/0a778b33-4eea-4d4f-9ff0-1519dae69c81.png" referrerpolicy="no-referrer" />
 
 这一页的项目定位很清楚：verl 不是单一算法实现，而是把 PPO/GRPO/RLOO、FSDP/Megatron、vLLM/SGLang、Ray 编排拼在一起的训练系统。
 
 ### Slide 3：Seed 团队项目背景
 
-![](https://files.mdnice.com/user/59/4834c013-8b60-492a-b638-2ee25807c74f.png)
+<img src="https://files.mdnice.com/user/59/4834c013-8b60-492a-b638-2ee25807c74f.png" referrerpolicy="no-referrer" />
 
 这一页仍然是背景页，重点放在 Seed 系列项目和 RL 训练需求。放到这篇文章里看，它的作用是说明 verl 面对的不是小 demo，而是大模型 post-training、tool-use 和 agentic task 这类真实系统压力。
 
 ### Slide 4：SFT 和 RL 的边界
 
-![](https://files.mdnice.com/user/59/0687d159-14be-4f2f-a24b-f678991b21e1.png)
+<img src="https://files.mdnice.com/user/59/0687d159-14be-4f2f-a24b-f678991b21e1.png" referrerpolicy="no-referrer" />
 
 SFT 的数据是静态的，RL 的数据来自当前 policy。模型一训练，policy 就变，下一轮 rollout 分布也变。所以 RL 框架必须把“生成数据”和“消费数据”放在同一个控制闭环里。
 
 ### Slide 5：为什么 LLM RL 需要系统框架
 
-![](https://files.mdnice.com/user/59/156b6ef3-b8b2-4ecf-adbb-6460d57064f6.png)
+<img src="https://files.mdnice.com/user/59/156b6ef3-b8b2-4ecf-adbb-6460d57064f6.png" referrerpolicy="no-referrer" />
 
 LLM RL 不是多跑几条 generate 就完事。它要同时处理 actor、reference、reward/verifier、rollout engine、advantage、logprob，以及模型权重在训练端和推理端之间的更新。
 
 ### Slide 6：RL 数据流比监督学习复杂得多
 
-![](https://files.mdnice.com/user/59/bcf1ce0e-56eb-4224-a12b-963d2088056d.png)
+<img src="https://files.mdnice.com/user/59/bcf1ce0e-56eb-4224-a12b-963d2088056d.png" referrerpolicy="no-referrer" />
 
 这页的数据流图通常是 verl 入门的关键。一次 rollout 会产生 responses、logprobs、rewards、masks；训练时又要按 micro-batch、sequence length、DP rank 做切分。任何一步形状不对，后面 loss 就会悄悄错。
 
 ### Slide 7：大规模分布式数据流
 
-![](https://files.mdnice.com/user/59/9b91b06c-3db6-4960-9b64-ba761d2263f8.png)
+<img src="https://files.mdnice.com/user/59/9b91b06c-3db6-4960-9b64-ba761d2263f8.png" referrerpolicy="no-referrer" />
 
 分布式后，数据流从函数调用变成跨 actor 的调度。Ray actor、placement group、device mesh 和通信组都要对齐。verl 的 Controller 负责把这些事情放在一个可读的 Python 流程里。
 
 ### Slide 8：RL 数据流里的依赖和资源限制
 
-![](https://files.mdnice.com/user/59/dbb12ae4-cabd-46af-9d99-58a1e6832fc9.png)
+<img src="https://files.mdnice.com/user/59/dbb12ae4-cabd-46af-9d99-58a1e6832fc9.png" referrerpolicy="no-referrer" />
 
 这一页还在解释为什么 RL 数据流难写：不同阶段有数据依赖，actor/reference/reward/rollout 又抢同一批 GPU 资源。verl 后面的 Hybrid Controller 设计，就是为了把这些依赖和资源切换放进一个可维护的控制流里。
 
 ### Slide 9：社区和采用情况
 
-![](https://files.mdnice.com/user/59/d5642148-3456-4983-aeb0-a84cc5e0b2a2.png)
+<img src="https://files.mdnice.com/user/59/d5642148-3456-4983-aeb0-a84cc5e0b2a2.png" referrerpolicy="no-referrer" />
 
 社区页说明 verl 已经不是论文附属代码。它的使用者来自开源模型、研究项目和工业训练，带来的后果是后端适配必须现实：FSDP、Megatron、vLLM、SGLang 都要能接。
 
 ### Slide 10：verl 的功能面
 
-![](https://files.mdnice.com/user/59/a1c4d479-2790-4460-adeb-a7600be8329a.png)
+<img src="https://files.mdnice.com/user/59/a1c4d479-2790-4460-adeb-a7600be8329a.png" referrerpolicy="no-referrer" />
 
 功能面覆盖 PPO/GRPO、FSDP/Megatron actor、vLLM/SGLang rollout、multi-turn、tool calling。对 SGLang 用户来说，重点是 rollout 后端已经有显存释放、权重同步和 server adapter。
 
 ### Slide 11：Hybrid Controller：把控制流留在 Python
 
-![](https://files.mdnice.com/user/59/dc3f2492-e100-4190-8cba-bb067e79600a.png)
+<img src="https://files.mdnice.com/user/59/dc3f2492-e100-4190-8cba-bb067e79600a.png" referrerpolicy="no-referrer" />
 
 Hybrid Controller 把“谁先跑、谁等谁、数据怎么分发”放在一个 Controller 进程里。Worker 只实现具体计算。这个设计牺牲了一点极致自动调度，换来算法流程可读。
 
 ### Slide 12：单 Controller 驱动多 Worker
 
-![](https://files.mdnice.com/user/59/cd0badbd-f787-4c1e-b1c3-cee6bdf43364.png)
+<img src="https://files.mdnice.com/user/59/cd0badbd-f787-4c1e-b1c3-cee6bdf43364.png" referrerpolicy="no-referrer" />
 
 单 Controller 多 Worker 的好处是调试。你能沿着 Python 调用栈看到 actor rollout、reference logprob、reward 这些步骤，而不是在多个服务之间猜消息顺序。
 
 ### Slide 13：Dispatch/Collect 的数据分发语义
 
-![](https://files.mdnice.com/user/59/199975db-56fa-4425-b2ad-aebd6c5d8706.png)
+<img src="https://files.mdnice.com/user/59/199975db-56fa-4425-b2ad-aebd6c5d8706.png" referrerpolicy="no-referrer" />
 
 Dispatch/Collect 是 verl 的核心抽象。不同数据要按 rank0、all-to-all、DP compute 等模式分发。比如 prompt 数据按 DP 分片，模型参数更新又按 TP/PP mesh 走不同路径。
 
 ### Slide 14：FSDP、Megatron、vLLM、SGLang 后端
 
-![](https://files.mdnice.com/user/59/8a5c0533-16eb-4cce-98d0-e9e074f7ff95.png)
+<img src="https://files.mdnice.com/user/59/8a5c0533-16eb-4cce-98d0-e9e074f7ff95.png" referrerpolicy="no-referrer" />
 
 后端层面，verl 不把自己绑死在一个训练框架上。FSDP 适合 HuggingFace/torch 生态，Megatron 适合大 MoE；rollout 端可以接 vLLM，也可以接 SGLang。
 
 ### Slide 15：3D-HybridEngine 和 colocate
 
-![](https://files.mdnice.com/user/59/9c98a861-0533-4b50-80cd-f76112c33110.png)
+<img src="https://files.mdnice.com/user/59/9c98a861-0533-4b50-80cd-f76112c33110.png" referrerpolicy="no-referrer" />
 
 3D-HybridEngine 指的是训练和推理在 3D 并行、显存、执行阶段上的复用。Colocate 时，推理引擎必须支持 release/resume，否则训练 peak 一来就 OOM。
 
 ### Slide 16：verl 的编程方式
 
-![](https://files.mdnice.com/user/59/a4dbb7c0-7504-4122-8410-25852913e2ac.png)
+<img src="https://files.mdnice.com/user/59/a4dbb7c0-7504-4122-8410-25852913e2ac.png" referrerpolicy="no-referrer" />
 
 这一页展示的是 verl 的编程接口：用户在单 controller 里写 Python 流程，背后调用会分发到多个 worker group。它把分布式细节收进 decorator、dispatch 和 collect 语义里，让算法代码还能保持“先 rollout，再算 logprob/reward，再更新”的形状。
 
 ### Slide 17：Agentic RL 章节过渡
 
-![](https://files.mdnice.com/user/59/13866e10-62e7-471d-8407-eb8fe33951fb.png)
+<img src="https://files.mdnice.com/user/59/13866e10-62e7-471d-8407-eb8fe33951fb.png" referrerpolicy="no-referrer" />
 
 这一页是章节过渡，开始进入 Agentic RL。前面讲的是普通 RL 数据流和 Hybrid Controller，后面要处理的是更麻烦的 rollout：模型会调用工具、等待环境返回，再继续生成。
 
 ### Slide 18：什么是 Agent
 
-![](https://files.mdnice.com/user/59/1a51f878-78f8-4662-9cbd-8f051f9a167c.png)
+<img src="https://files.mdnice.com/user/59/1a51f878-78f8-4662-9cbd-8f051f9a167c.png" referrerpolicy="no-referrer" />
 
 这页先定义 Agent：模型不只是生成一段答案，而是在环境里观察状态、规划动作、调用工具、读取反馈，再决定下一步。对 RL 框架来说，这意味着 rollout 不再是固定长度的一次 `generate`。
 
 ### Slide 19：ReTool：工具调用型训练
 
-![](https://files.mdnice.com/user/59/38bbf1b5-7ae4-4f02-8095-99d1366ddce4.png)
+<img src="https://files.mdnice.com/user/59/38bbf1b5-7ae4-4f02-8095-99d1366ddce4.png" referrerpolicy="no-referrer" />
 
 ReTool 这类工作把工具调用纳入训练。工具返回的文本或图片会进入下一轮上下文，reward 也可能来自工具结果是否满足 verifier。它把普通 RLHF 里的 response，扩展成了 action/observation 交替出现的轨迹。
 
 ### Slide 20：Agentic RL 的同步 rollout 问题
 
-![](https://files.mdnice.com/user/59/87ea2976-4cc8-4337-867e-fdbf01e1853e.png)
+<img src="https://files.mdnice.com/user/59/87ea2976-4cc8-4337-867e-fdbf01e1853e.png" referrerpolicy="no-referrer" />
 
 这一页讲的是 naive synchronous rollout 的缺点。多轮 agent 样本长度和工具耗时差异很大，慢样本会拖住一整批训练数据；如果 rollout 引擎一直等环境，GPU 利用率也会掉。
 
 ### Slide 21：AgentLoop 状态机
 
-![](https://files.mdnice.com/user/59/3674cef1-8c90-44b1-a72c-1b85ca0bfc7f.png)
+<img src="https://files.mdnice.com/user/59/3674cef1-8c90-44b1-a72c-1b85ca0bfc7f.png" referrerpolicy="no-referrer" />
 
 AgentLoop 状态机是 verl 代码里最直观的实现：`PENDING -> GENERATING -> PROCESSING_TOOLS -> TERMINATED`。这比把所有逻辑写成一个大 while 更容易扩展新的环境，也方便把 tool latency 和模型生成解耦。
 
 ### Slide 22：AgentLoop 的 server mode
 
-![](https://files.mdnice.com/user/59/3c1b21f8-eaf5-499b-811f-8d916c40e7e2.png)
+<img src="https://files.mdnice.com/user/59/3c1b21f8-eaf5-499b-811f-8d916c40e7e2.png" referrerpolicy="no-referrer" />
 
 server mode 的意思是把 AgentLoop 变成可服务化的 rollout 组件。训练 controller 不必把工具环境和生成逻辑全塞在一个进程里，而是通过服务接口请求 agent rollout，再把生成轨迹收回来训练。
 
 ### Slide 23：ReTool with AgentLoop
 
-![](https://files.mdnice.com/user/59/c6bd3548-fbed-4eb7-b74b-f4818ddc2c10.png)
+<img src="https://files.mdnice.com/user/59/c6bd3548-fbed-4eb7-b74b-f4818ddc2c10.png" referrerpolicy="no-referrer" />
 
 这页把 ReTool 放回 AgentLoop 框架里：模型生成工具调用，环境执行工具，把观察结果写回上下文，然后继续生成。训练前要把这些轨迹整理成统一的 token、mask、logprob 和 reward 张量。
 
 ### Slide 24：ReTool 复现经验
 
-![](https://files.mdnice.com/user/59/dbea2a89-9dbb-4629-8684-31b999c22e58.png)
+<img src="https://files.mdnice.com/user/59/dbea2a89-9dbb-4629-8684-31b999c22e58.png" referrerpolicy="no-referrer" />
 
 这页是 ReTool reproduction 的经验总结。我的理解是，Agentic RL 的难点不只在算法，而在数据格式、工具协议、reward/verifier 和异步执行都要对齐。只要一个环节不稳定，最后看到的就是 reward 曲线抖、复现困难。
 
 ### Slide 25：Roadmap：更大的 MoE 和更强推理后端
 
-![](https://files.mdnice.com/user/59/1c2f87a3-fc72-4ca8-8ca5-62ab1125f571.png)
+<img src="https://files.mdnice.com/user/59/1c2f87a3-fc72-4ca8-8ca5-62ab1125f571.png" referrerpolicy="no-referrer" />
 
 更大的 MoE 模型会把问题放大：参数更多、expert routing 更复杂、rollout 引擎更吃显存。SGLang 后端在 DP attention、EP、MTP、memory saver 上的能力会越来越关键。
 
 ### Slide 26：大 MoE RL 训练更新
 
-![](https://files.mdnice.com/user/59/d299f10a-532d-48bd-98c0-49aea8c20f59.png)
+<img src="https://files.mdnice.com/user/59/d299f10a-532d-48bd-98c0-49aea8c20f59.png" referrerpolicy="no-referrer" />
 
 这页讲 Trainer Updates，重点是大 MoE 模型的 scalable RL。slime 这类 SGLang-native 系统可以作为对照：当模型规模继续变大，训练端和 rollout 端的权重同步、显存管理、路由和部分 rollout 都会变成一等公民。
 
 ### Slide 27：Partial rollout 和 async rollout
 
-![](https://files.mdnice.com/user/59/dd64e373-0b24-43ae-8a0e-33d1acc9780b.png)
+<img src="https://files.mdnice.com/user/59/dd64e373-0b24-43ae-8a0e-33d1acc9780b.png" referrerpolicy="no-referrer" />
 
 Partial rollout 的想法很实用：动态采样里被提前 abort 的样本不要丢，下轮接着生成。这样能缓解长尾，但要求 data buffer 能保存半截请求状态。
 
 ### Slide 28：更真实的 Agentic 任务
 
-![](https://files.mdnice.com/user/59/09723001-3598-4ef3-8998-d8ada87aa22d.png)
+<img src="https://files.mdnice.com/user/59/09723001-3598-4ef3-8998-d8ada87aa22d.png" referrerpolicy="no-referrer" />
 
 这一页回到更真实的 agentic task。真实环境里会有更长的工具链、更复杂的观察结果和更强的异步需求。对 SGLang rollout 后端来说，这意味着 server 生命周期、请求状态和采样接口都要能承受多轮交互。
 
 ### Slide 29：社区协作方向
 
-![](https://files.mdnice.com/user/59/77311927-0b64-4cac-a3e2-b1eab98a4580.png)
+<img src="https://files.mdnice.com/user/59/77311927-0b64-4cac-a3e2-b1eab98a4580.png" referrerpolicy="no-referrer" />
 
 社区方向主要是让算法和系统各自迭代。Agentic 任务还在快速变化，框架如果抽象太死，会很快跟不上工具协议和环境形式。
 
 ### Slide 30：总结
 
-![](https://files.mdnice.com/user/59/fc135309-9983-4b77-b911-016dfc4e2240.png)
+<img src="https://files.mdnice.com/user/59/fc135309-9983-4b77-b911-016dfc4e2240.png" referrerpolicy="no-referrer" />
 
 总结页回到主题：verl 的价值不是某个 RL 算法，而是把复杂 RL 数据流、分布式 Worker 和推理后端管理放到一个能改、能调、能扩展的框架里。
 
