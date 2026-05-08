@@ -79,19 +79,25 @@ Ming-Omni 的能力页写得很满：看、听、说、画。代码里能看到 
 
 <img src="https://files.mdnice.com/user/59/e34996d6-4e24-4420-9aae-01c9c69cfbc0.png" referrerpolicy="no-referrer" />
 
-架构页和公开代码能对上：vision encoder 输出视觉 token，经 MLP 投影到 LLM hidden size；audio 用 Whisper encoder 加 Conv1d/MLP 投影；语言底座是 BailingMoeV2/Ling 系。
+这页左侧图例先给 token 类型：蓝框是 text token，黄框是 vision token，绿框是 audio token，灰框是 pad token；浅色块表示 shared experts，蓝色块表示 routing experts；火焰表示 perception training，水滴表示 generation training。底部的 image/video 先进入 Vision Encoder，audio 进入 Audio Encoder，连续特征被插回 token 序列后送进 Ling 底座。中间的 Ling 由 Attention Layer 和 MoE FFN 堆叠，右下角还画了 T/V/A Router，说明文本、视觉、音频 token 可以走不同模态路由，再和 shared/routing experts 组合。
+
+上方的 Audio Decoder 用绿色 audio token 做音频生成，右上角的图像生成分支则从紫色 multi-scale learnable tokens 出发，经过 Connector 和 Multi-scale DiT Blocks 生成多尺度图片。右侧文字把特性讲清楚了：基于 Ling-lite 1.5(16B A3B)，在 Ling-lite 上引入模态专属路由器，并且按训练阶段、数据模态两个维度调度训练流程。公开代码里 `BailingMM2NativeForConditionalGeneration` 把 vision/audio/LLM/image generation 模块放在同一个模型类里，正好对应这张图。
 
 ### Slide 12：混合全模态训练
 
 <img src="https://files.mdnice.com/user/59/c0a67340-13b9-4a1e-8200-3e8e5c7f1ac2.png" referrerpolicy="no-referrer" />
 
-混合全模态训练要解决 loss scale。文本、图像、音频的 token 数和 loss 形态差异很大，slides 里提到 weighted losses 和 dynamic balancing，本质是避免某个模态主导梯度。
+这页左上讲预训练梯度累积策略：每个 step 对各模态各采一个 batch 分别算 loss，再做梯度加权更新。右上虚线框列了训练数据形态：图像文本对、音频文本对、OCR、纯文本、交错图文序列、视频文本对，它们都进 `BailingMM-Native`，forward 得到 `loss1` 到 `loss6`，backward 时再合到参数更新。
+
+下半部分是 SFT 的动态均衡策略。左下普通全模态联合 SFT 是文本、图像、视频、音频各自输出 loss_t/loss_i/loss_v/loss_a，然后直接更新；旁边曲线说明不同模态收敛趋势不一致，同一个训练步上有的模态已经接近最优，有的还没追上。右下动态策略会先评估各模态性能趋势，把 loss 乘以动态权重，比如图里示意的 `loss_t x 0.90`、`loss_i x 0.85`、`loss_v x 0.30`、`loss_a x 2.00`，再更新参数。这里的目标不是让每个 loss 数值一样，而是让各模态的能力进度更接近。
 
 ### Slide 13：视觉理解和生成统一
 
 <img src="https://files.mdnice.com/user/59/08c8ca6d-57fa-4131-926d-2c1d1334aa0a.png" referrerpolicy="no-referrer" />
 
-视觉理解和生成统一这页对应 image generation 分支：模型可以从 LLM hidden states 或视觉特征取 condition embedding，再调用 diffusion head 采样。
+这页左侧把训练和推理画在一起。训练时，image tokens、text tokens 和 multi-scale queries 进入 Multi-modal LLM；response 侧的多尺度 query 通过 Connector 接到 DiT Blocks，分别服务 128px、256px、512px 的 denoising objective，同时还有 representation alignment，让不同尺度的表征能对齐。推理时，noisy inputs 进入多层 DiT Block，最终生成 512px 图片。
+
+右侧对比了不做 scale alignment 和做 scale alignment 的生成效果。上半部分没有对齐时，16 tokens/128px、64 tokens/256px、256 tokens/512px 的图像细节和语义一致性不稳定；下半部分做了跨尺度对齐后，同一个 “A colorful bird perched on a tree branch” prompt 在不同分辨率下更连贯。右边两张曲线则说明相比 MetaQuery，HieraQuery 随 query token 增多，Geneval overall 上升，MJHQ-30K FID 下降。代码里这部分落在 image generation 分支：LLM 给出 condition embeddings，diffusion head/DiT 用这些 condition 做采样。
 
 ### Slide 14：章节过渡：开源与演进
 
