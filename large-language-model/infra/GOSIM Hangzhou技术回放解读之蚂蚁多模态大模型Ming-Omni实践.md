@@ -19,61 +19,81 @@
 
 <img src="https://files.mdnice.com/user/59/24549154-9b5c-4227-9019-588e4427f224.png" referrerpolicy="no-referrer" />
 
-主线是 Ming-Omni：它不是单纯 VLM，而是把图像、视频、音频、文本理解和生成放进一个更统一的模型体系里。
+标题页给出主题：蚂蚁多模态大模型实践。正文的主线是 Ming-Omni，它不是单纯 VLM，而是把图像、视频、音频、文本理解和生成放进一个更统一的模型体系里。
+
+这类模型的难点在接口统一：图像/视频是连续视觉特征，音频既可能是连续特征也可能是离散 token，文本走 LLM，图像生成又要接 diffusion head。后面的代码拆解会围绕这些接口展开。
 
 ### Slide 2：目录：模型族、Ming-Omni、技术细节
 
 <img src="https://files.mdnice.com/user/59/fad02339-9622-49b4-9d54-49ace65e8975.png" referrerpolicy="no-referrer" />
 
-目录先介绍 Ling/Ring/Ming，再进入 Ming-Omni 的能力和技术细节。代码部分对照公开 Ming 仓库，看它如何把视觉、音频和图像生成接进同一个 `generate`。
+目录分四段：百灵大模型技术布局，多模态技术趋势及蚂蚁多模态演进，Ming-Omni 关键技术，百灵大模型演进。前两段解释为什么要做统一多模态，第三段才进入模型结构、训练和生成。
+
+代码部分对照公开 Ming 仓库，看它如何把视觉、音频和图像生成接进同一个模型类和 `generate` 流程。这样读 slides 不会停在效果展示，而是能看到输入 embedding、condition embeddings 和 diffusion 分支怎么接。
 
 ### Slide 3：Ling/Ring/Ming 模型布局
 
 <img src="https://files.mdnice.com/user/59/1a4004e3-2f9c-4b27-9526-2b396c401898.png" referrerpolicy="no-referrer" />
 
-Ling/Ring/Ming 是模型族分工。Ling 更偏语言基础模型，Ring 和 Ming 承担多模态方向。理解这个布局有助于看后面的 Ling-lite MoE 作为语言底座。
+这一页是百灵大模型技术布局，信息量很大。上层是应用：医疗管家、金融管家、生活管家、CodeFuse、智能客服、保险助手、医生助手等；中间是语言、代码、行业和多模态模型；底座则包括算力、安全力和知识力。
+
+Ling/Ring/Ming 是模型族分工。Ling 更偏语言基础模型，Ring 强调推理与效率，Ming 承担多模态方向。理解这个布局有助于看后面的 Ling-lite MoE 作为语言底座：Ming-Omni 不是从零做一个多模态模型，而是在已有语言能力上接入视觉、音频和生成分支。
 
 ### Slide 4：模型族能力边界
 
 <img src="https://files.mdnice.com/user/59/e1d5d067-1ae9-404d-bd60-d204dbacd315.png" referrerpolicy="no-referrer" />
 
-模型族能力边界页展示不同模型覆盖的输入/输出模态。Ming-Omni 的野心在于统一理解和生成，而不是给每个模态单独挂一个服务。
+这一页把四条路线列得很清楚。Ling-lite/Ling-mini 走“小身材，大智慧”的高性价比语言路线；Ring-lite/Ring-mini 用 Joint RL 深挖难例、提升推理水平；Ring-lite-linear 走混合线性注意力，压低长文本冗余；Ming-lite-omni 则把听觉、视觉等多种能力融合起来。
+
+所以 Ming-Omni 的目标不是给每个模态单独挂一个服务，而是在一个模型体系里统一理解和生成。这个目标会带来训练难题：不同模态的 loss 收敛速度不一致，理解任务和生成任务的表示空间也容易分裂。
 
 ### Slide 5：章节过渡：Ming-Omni
 
 <img src="https://files.mdnice.com/user/59/1fcdb93c-7c2b-44df-94a6-70ba26d2c508.png" referrerpolicy="no-referrer" />
 
-过渡页把话题收束到 Ming-Omni。全模态模型最难的地方不是多接几个 encoder，而是训练目标、token 表示和生成 head 怎么同时工作。
+这一页是目录过渡，把话题从模型族布局切到多模态技术趋势。它提示后面要回答两个问题：行业为什么从“多模态理解”走向“理解与生成统一”，以及蚂蚁为什么选择 Ming-Omni 这条路线。
+
+全模态模型的工程难点在训练目标、token 表示和生成 head 如何同时工作。仅接入多个 encoder 只能解决输入问题，真正复杂的是这些模态如何共享上下文、如何路由到专家、如何把 LLM hidden states 变成图像或音频生成条件。
 
 ### Slide 6：多模态走向全模态统一
 
 <img src="https://files.mdnice.com/user/59/5a51c0cf-43ae-40c6-9306-fd6b8662353a.png" referrerpolicy="no-referrer" />
 
-趋势页列了 GPT-4o、Gemini、Qwen-Omni、Janus 等路线。共同点是理解和生成在逐渐合并：模型不仅回答图片里有什么，还要能生成图像、语音或其它模态。
+趋势页把横轴画成“理解 -> 生成 -> 理解生成统一”，纵轴是“单模态 -> 多模态”。左侧是图文理解、语音理解这些单向理解模型，中间是图像/视频/语音/3D 生成模型，右侧则是 Gemini 2.5、GPT-4o、Qwen-Omni、Janus、Bagel、Ming-lite-omni 这类理解与生成统一的方向。
+
+右边两段小字从应用和技术两侧解释原因。应用上，人的自然交互是认知和表达的闭环，超级入口需要连接数字世界和物理世界；技术上，统一理解与生成能让语言特性扩展到视觉、语音、3D，带来更深的跨模态理解和更强的生成能力。Ming-Omni 的位置就在这个右上角。
 
 ### Slide 7：Ming scaling 轨迹
 
 <img src="https://files.mdnice.com/user/59/7b3e3cbf-5425-4bcf-bdb5-d5657cbc1d8a.png" referrerpolicy="no-referrer" />
 
-Ming scaling 轨迹从 dense 到 MoE，从单一模态融合到更统一的 omni 模型。MoE 的好处是扩大总参数同时控制 active 参数，代价是训练和推理路由更复杂。
+Ming scaling 轨迹把多个模型放在一张坐标图上：从 Qwen2.5-VL、Qwen-Omni、Ming-lite-uni、Ming-lite-omni-preview，到 Ming-flash-omni、Ming-Omni、Ming-world++。右侧 Ming-Omni 的 bullet 写到：功能对齐 GPT-4o 的全模态模型，统一 tokenizer 和训练目标，通过 MoE 架构和训练策略优化实现模态统一。
+
+这页还强调 scaling 带来的工程代价：训练语料需求增加，训练算力和 AI 工程全链路迭代效率要求提升，评测数据集规模和评测效率也要提升。MoE 可以扩大总参数并控制 active 参数，但训练和推理要处理路由、专家负载和多模态数据调度。
 
 ### Slide 8：章节过渡：技术方案
 
 <img src="https://files.mdnice.com/user/59/fee97c6c-1e93-4dfb-b13c-91c9947a85d4.png" referrerpolicy="no-referrer" />
 
-技术方案过渡页提示后面要讲模态融合、训练和生成。多模态文章只讲效果展示不够，能落到实现里的问题是输入 embedding 怎么拼、生成条件怎么取。
+这一页是进入 Ming-Omni 关键技术的目录过渡。后面三张核心 slide 分别讲：模型能力与特性、全模态架构、混合训练、视觉理解与生成统一。
+
+读这部分时可以抓住三个实现问题：输入 embedding 怎么拼，模态路由怎么做，生成条件怎么从 LLM hidden states 里取。公开 Ming 代码里的 `patch_continuous_features`、audio encoder、vision projector、diffusion sample 都能对上这三件事。
 
 ### Slide 9：Ming-Omni：看、听、说、画
 
 <img src="https://files.mdnice.com/user/59/9a6fb7a1-8eea-4ed9-9cef-f1cc04dc90eb.jpg" referrerpolicy="no-referrer" />
 
-Ming-Omni 的能力页写得很满：看、听、说、画。代码里能看到 vision transformer、Whisper audio encoder、MoE LLM、image generation diffusion head 这些模块都在同一类里。
+Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基于 Ling-lite 的 MoE 架构，通过架构设计和多阶段训练统一理解与生成；Ming-lite-omni v1.5 支持音、视、图、文全模态理解和生成。第二组是跨模态融合与统一：按训练阶段、数据模态两个维度调控训练数据配比，并引入目标函数动态调权算法。第三组是理解与生成统一：生成式检测分割增强感知，多尺度可学习令牌和表征对齐统一图像理解与生成，还支持多模态对话和 TTS。
+
+代码里能看到 vision transformer、Whisper audio encoder、MoE LLM、image generation diffusion head 这些模块都在同一类里。slide 上说的“统一”，落到实现不是所有模态共用一个 head，而是统一进入 LLM 上下文，再按输出模态接不同生成分支。
 
 ### Slide 10：能力展示
 
 <img src="https://files.mdnice.com/user/59/f147802a-e703-417e-9bdf-2216f8f305c4.png" referrerpolicy="no-referrer" />
 
-能力展示页主要是样例。技术上要注意：不同输出模态不一定走同一个 head，文本走 LLM generate，图像生成走 diffusion loss sample，语音可能走 talker。
+能力展示页包含音视频交互、多模态推理、图像分割、生成式编辑、人像编辑和 ID 一致性保持。它的作用是说明 Ming-Omni 覆盖的不是单一 VQA，而是感知、推理、编辑和生成的组合任务。
+
+技术上要注意：不同输出模态不一定走同一个 head。文本走 LLM generate，图像生成走 diffusion loss sample，语音可能走 talker 或音频 token 生成。统一模型要把上下文和条件组织好，再把生成任务分发给合适的输出分支。
 
 ### Slide 11：Ming-Omni 架构
 
@@ -103,19 +123,25 @@ Ming-Omni 的能力页写得很满：看、听、说、画。代码里能看到 
 
 <img src="https://files.mdnice.com/user/59/35d7c4aa-b377-49d0-949b-4394107063fb.png" referrerpolicy="no-referrer" />
 
-开源与演进过渡页说明 Ming 已经有公开仓库、HF 和 ModelScope 权重。下面对代码时用的是当前 Ming 仓库，版本比 slides 中 v1.5 更新。
+这一页是进入“百灵大模型演进”的目录过渡。前面已经讲了 Ming-Omni 的结构和训练，后面会回到版本演进和开源资料。
+
+开源资料里有 GitHub、HuggingFace、ModelScope、technical report 和 project page。下面对代码时用的是当前 Ming 仓库，版本比 slides 中 v1.5 更新，因此正文尽量讲稳定的实现路径：vision/audio 特征接入、LLM 上下文、image generation 条件。
 
 ### Slide 15：版本演进
 
 <img src="https://files.mdnice.com/user/59/57ff0717-cd93-4b2f-a357-c9b6dd841abf.png" referrerpolicy="no-referrer" />
 
-版本演进页展示 Ming-lite-omni 到 Ming-flash-omni。公开 README 里已经写到 Ming-flash-omni 2.0，底座是 Ling-2.0 MoE，总参数和 active 参数比 slides 里的版本更大。
+版本演进页把“效率与智能的进阶之路”分成五个点：扫码级 AI、MoE、线性 Attention、多模态融合、AI 优化。它想表达的是，模型演进不只靠参数变大，还包括性价比、架构、长文本效率、模态理解和评测标准。
+
+公开 README 里已经写到 Ming-flash-omni 2.0，底座是 Ling-2.0 MoE，总参数和 active 参数比 slides 里的版本更大。写博客时需要注意版本差异：slides 解释 v1.5 的设计，源码讲解则以当前公开仓库的实现为准。
 
 ### Slide 16：论文、模型和代码链接
 
 <img src="https://files.mdnice.com/user/59/920df130-eec6-4982-9baf-b12d8af96124.png" referrerpolicy="no-referrer" />
 
-链接页给出 arXiv、GitHub、HF、ModelScope。写博客时这类链接比“模型很强”更重要，因为读者可以直接下载权重和跑 cookbook。
+链接页给出 Ming-lite-omni 1.5 和 Ming-lite-uni 的公开入口，包括 HuggingFace、ModelScope、GitHub、technical report 和 project page。它也说明用户不只能读论文，还能直接下载权重、看 cookbook、跑 demo。
+
+写博客时这类链接比抽象评价更重要。多模态模型的复现门槛高，processor、依赖、图片/音频预处理、推理参数都需要样例支撑。公开仓库里的 README 和 cookbook 是读者把这篇文章落到本地实验的入口。
 
 ### Slide 17：总结
 
