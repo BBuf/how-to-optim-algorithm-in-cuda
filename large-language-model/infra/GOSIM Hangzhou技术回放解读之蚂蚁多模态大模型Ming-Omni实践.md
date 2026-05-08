@@ -2,7 +2,7 @@
 
 # 0x0. 前言
 
-多模态模型文章很容易写成效果展示，这篇我会尽量落到结构和代码：输入模态怎么投影到 LLM，图像生成怎么拿 condition，音频 token 怎么桥接。
+多模态模型文章很容易写成效果展示，这篇尽量落到结构和代码：输入模态怎么投影到 LLM，图像生成怎么拿 condition，音频 token 怎么桥接。
 
 # 0x1. 资料和代码落点
 
@@ -25,7 +25,7 @@
 
 ![](https://files.mdnice.com/user/59/fad02339-9622-49b4-9d54-49ace65e8975.png)
 
-目录先介绍 Ling/Ring/Ming，再进入 Ming-Omni 的能力和技术细节。代码部分我会对照公开 Ming 仓库，看它如何把视觉、音频和图像生成接进同一个 `generate`。
+目录先介绍 Ling/Ring/Ming，再进入 Ming-Omni 的能力和技术细节。代码部分对照公开 Ming 仓库，看它如何把视觉、音频和图像生成接进同一个 `generate`。
 
 ### Slide 3：Ling/Ring/Ming 模型布局
 
@@ -133,6 +133,32 @@ self.model = BailingMoeV2ForCausalLM(self.config.llm_config)
 mlp_modules_img = [nn.Linear(self.vision.image_emb_dim, self.model.config.hidden_size)]
 self.linear_proj = nn.Sequential(*mlp_modules_img)
 ```
+
+模型入口先由 processor 把消息里的文本、图片、视频、音频拆开。官方 README 里的推理路径很有代表性：`apply_chat_template` 负责把多轮对话变成文本 prompt，`process_vision_info` 负责收集视觉/音频对象，最后 processor 一次性产出 `input_ids`、`pixel_values`、`pixel_values_videos`、`audio_feats` 等字段：
+
+```python
+text = processor.apply_chat_template(
+    messages,
+    sys_prompt_exp=sys_prompt_exp,
+    use_cot_system_prompt=use_cot_system_prompt,
+)
+image_inputs, video_inputs, audio_inputs = processor.process_vision_info(messages)
+
+inputs = processor(
+    text=[text],
+    images=image_inputs,
+    videos=video_inputs,
+    audios=audio_inputs,
+    return_tensors="pt",
+    audio_kwargs={"use_whisper_encoder": True},
+).to(model.device)
+
+for k in inputs.keys():
+    if k in ("pixel_values", "pixel_values_videos", "audio_feats"):
+        inputs[k] = inputs[k].to(dtype=torch.bfloat16)
+```
+
+这段可以对上 Slide 9/11：Ming-Omni 不是在 LLM 前面简单拼几个 encoder，而是先把不同模态的输入整理成统一 batch，再在模型内部用 placeholder 位置把连续特征补回 embedding 序列。
 
 视觉特征先过 vision transformer，再投影到 LLM hidden size，并做 normalize：
 

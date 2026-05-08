@@ -274,4 +274,4 @@ MoE 场景里，bucket 优化不是为了减少总字节数，而是为了减少
 
 # 0x4. 小结
 
-这一篇我会把它看成“训练系统如何控制推理 runtime”的案例：显存释放不是清 cache，而是 VA/physical memory 分离；权重更新不是简单 reload，而是跨进程、跨 TP rank 的在线同步。理解这两层，才能看懂为什么 SGLang 能在 RL colocate 里跑得起来。
+这一篇更像“训练系统如何控制推理 runtime”的案例：显存释放不是清 cache，而是 VA/physical memory 分离；权重更新不是简单 reload，而是跨进程、跨 TP rank 的在线同步。理解这两层，才能看懂为什么 SGLang 能在 RL colocate 里跑得起来。

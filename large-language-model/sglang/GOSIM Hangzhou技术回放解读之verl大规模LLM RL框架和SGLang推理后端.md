@@ -224,6 +224,27 @@ if disagg is not None and getattr(disagg, "enabled", False):
         self._pd_tp_local_rank = off % decode_tp
 ```
 
+Hybrid Controller 的 dispatch/collect 也能在源码里直接看到。`Dispatch.DP_COMPUTE_PROTO` 这类模式不是简单把 Python 参数广播出去，而是对 `DataProto` 按 worker 数切分；切不均时会自动 padding，收回来再 concat：
+
+```python
+def dispatch_dp_compute_data_proto(worker_group, *args, **kwargs):
+    assert isinstance(worker_group, WorkerGroup)
+    # enable auto padding for dp compute DataProto
+    splitted_args, splitted_kwargs = _split_args_kwargs_data_proto_with_auto_padding(
+        worker_group.world_size,
+        *args,
+        **kwargs,
+    )
+    return splitted_args, splitted_kwargs
+
+def collect_dp_compute_data_proto(worker_group, output):
+    assert BatchData(output).is_concatable()
+    output = collect_dp_compute(worker_group, output)
+    return _concat_data_proto_or_future(output)
+```
+
+这段对应 Slide 13/16。verl 想让上层写普通 Python 控制流，但底层 rollout、reward、logprob、ref logprob 都是分布式 worker 在算，所以它需要一套显式的“参数怎么分发、结果怎么收回”的语义。`DataProto` 自动 padding 的意义也很实际：RL batch 经常不是 world size 的整数倍，框架不能因为最后几个样本让用户手工补齐。
+
 release/resume 直接打到 SGLang HTTP 接口。这里的 `sleep_level` 对 LoRA 很关键，LoRA adapter 模式下可以只释放 KV cache，保留 base weights：
 
 ```python

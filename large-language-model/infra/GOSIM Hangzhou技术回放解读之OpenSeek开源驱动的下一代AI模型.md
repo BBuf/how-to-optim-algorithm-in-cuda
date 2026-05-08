@@ -217,13 +217,65 @@ OpenSeek-mid 约 10B、3-4TB token、3B init 10B、DMA/NSA 是下一阶段重点
 
 ![](https://files.mdnice.com/user/59/55ff92bf-497c-44cb-9d1b-1a7af16a5a35.png)
 
-最后是展台和联系方式。文章里就不展开活动信息了，重点还是把 OpenSeek 的公开资产和 DMA 代码讲清楚。
+最后是展台和联系方式。这页没有新的技术增量，后面还是把重点放在 OpenSeek 的公开资产和 DMA 代码上。
 
 # 0x3. 关键代码拆解
 
 OpenSeek README 里 baseline 的公开方式比较完整：100B 数据、训练代码、wandb、checkpoint、eval 都列出来了。训练配置里还能看到 MoE router 的参数，例如 group top-k、router scaling 等。这类 config 对开源复现实验很重要。
 
-DMA 的代码核心先看 mask。`topk_mask` 根据 attention bias 选出每个 query 该看的 key：
+slides 里最值得展开的是 Dynamic Mask Attention，对应公开代码在 `flash-dmattn`。先看模型层，`FlashSparseAttention` 比普通 attention 多了两个投影：`a_proj` 和 `d_proj`。Q/K/V 还是正常算，`alpha_states`、`delta_states` 则交给 gated sparse kernel 判断哪些 tile 该算：
+
+```python
+class FlashSparseAttention(nn.Module):
+    def __init__(self, config, layer_idx=None):
+        self.q_proj = nn.Linear(
+            config.hidden_size, self.num_attention_heads * self.head_dim, bias=False
+        )
+        self.k_proj = nn.Linear(
+            config.hidden_size, self.num_key_value_heads * self.head_dim, bias=False
+        )
+        self.v_proj = nn.Linear(
+            config.hidden_size, self.num_key_value_heads * self.head_dim, bias=False
+        )
+        self.a_proj = nn.Linear(
+            config.hidden_size, self.num_attention_heads, bias=False
+        )
+        self.d_proj = nn.Linear(
+            config.hidden_size, self.num_key_value_heads, bias=False
+        )
+```
+
+```python
+def forward(self, hidden_states: torch.Tensor, **kwargs):
+    query_states = self.q_proj(hidden_states).view(
+        bsz, seq_len, self.num_attention_heads, self.head_dim
+    )
+    key_states = self.k_proj(hidden_states).view(
+        bsz, seq_len, self.num_key_value_heads, self.head_dim
+    )
+    value_states = self.v_proj(hidden_states).view(
+        bsz, seq_len, self.num_key_value_heads, self.head_dim
+    )
+
+    alpha_states = self.a_proj(hidden_states)
+    delta_states = self.d_proj(hidden_states)
+
+    attn_output = flash_gated_attn_func(
+        query_states,
+        key_states,
+        value_states,
+        alpha_states,
+        delta_states,
+        is_causal=self.is_causal,
+        softmax_scale=self.scaling,
+        softmax_threshold=self.softmax_threshold,
+        gate_threshold=self.gate_threshold,
+    )
+```
+
+这段代码可以解释 Slide 20/21：DMA 不是静态 sparse pattern。模型会根据当前 hidden states 产出 gate 相关的 `alpha/delta`，kernel 再用它们决定 sparse attention 的实际计算范围。
+
+mask 路径先看 `topk_mask`。它根据 attention bias 选出每个 query 该看的 key：
 
 ```python
 def topk_mask(attention_bias, attention_mask, window_size, min_dtype, block_size=None, **kwargs):
@@ -241,11 +293,98 @@ def topk_mask(attention_bias, attention_mask, window_size, min_dtype, block_size
     ).scatter_(-1, topk_indices, topk_values != min_dtype)
 
     if block_size is not None and block_size > 1:
+        key_len = attention_mask.shape[-1]
         attention_mask = block_smooth(attention_mask, key_len, block_size)
     return attention_mask
 ```
 
-`block_smooth` 会把 token mask 平滑成 block 级选择。这样做是为了贴近 GPU kernel 的 tile 访问，不然稀疏到单 token 粒度，kernel 很难高效。
+`block_smooth` 会把 token mask 平滑成 block 级选择。这样做是为了贴近 GPU kernel 的 tile 访问，不然稀疏到单 token 粒度，kernel 很难高效。`create_mask` 则负责把普通二维 attention mask reshape 成 kernel 能消费的四维 mask，再根据 `type` 选择 top-k 或 relu mask：
+
+```python
+def create_mask(
+    attention_bias: torch.Tensor,
+    query_len: int,
+    type: str = "topk",
+    attention_mask: Optional[torch.Tensor] = None,
+    window_size: Optional[int] = None,
+    min_dtype: Optional[float] = None,
+    block_size: Optional[int] = None,
+) -> torch.Tensor:
+    if min_dtype is None:
+        min_dtype = torch.finfo(attention_bias.dtype).min
+
+    if attention_mask is not None and attention_mask.dim() == 2:
+        attention_mask = attention_mask[:, None, None, :]
+
+    if type == "topk":
+        return topk_mask(
+            attention_bias,
+            attention_mask,
+            window_size,
+            min_dtype,
+            block_size=block_size,
+        )
+```
+
+再往下是 PyTorch autograd wrapper。`FlashSparseAttnFunc.forward` 调用 Triton forward，保存 `query/key/value/out/lse` 给 backward；`FlashGatedAttnFunc` 额外保存 `alpha/delta`，因为 gate 本身也是可训练的：
+
+```python
+class FlashSparseAttnFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, query, key, value, is_causal=False,
+                softmax_scale=None, softmax_threshold=None, window_size=(None, None),
+                is_split_kv=False, pack_gqa=False, return_lse=False):
+        out, lse, softmax_scale, softmax_threshold = _flash_sparse_attn_base_forward(
+            query=query,
+            key=key,
+            value=value,
+            is_causal=False if query.shape[1] == 1 else is_causal,
+            softmax_scale=softmax_scale,
+            softmax_threshold=softmax_threshold,
+            window_size=window_size,
+            is_split_kv=is_split_kv,
+            pack_gqa=pack_gqa,
+        )
+
+        ctx.save_for_backward(query, key, value, out, lse)
+        ctx.softmax_scale = softmax_scale
+        ctx.softmax_threshold = softmax_threshold
+        ctx.window_size = window_size
+        return out
+```
+
+```python
+class FlashGatedAttnFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, query, key, value, alpha, delta, is_causal=False,
+                softmax_scale=None, softmax_threshold=None, gate_threshold=None,
+                is_logsigmoid_gate=True, is_adapt_gate=True,
+                window_size=(None, None), is_split_kv=False, pack_gqa=False,
+                return_lse=False):
+        out, lse, softmax_scale, softmax_threshold, gate_threshold = (
+            _flash_gated_attn_base_forward(
+                query=query,
+                key=key,
+                value=value,
+                alpha=alpha,
+                delta=delta,
+                is_causal=False if query.shape[1] == 1 else is_causal,
+                softmax_scale=softmax_scale,
+                softmax_threshold=softmax_threshold,
+                gate_threshold=gate_threshold,
+                is_logsigmoid_gate=is_logsigmoid_gate,
+                is_adapt_gate=is_adapt_gate,
+                window_size=window_size,
+                is_split_kv=is_split_kv,
+                pack_gqa=pack_gqa,
+            )
+        )
+
+        ctx.save_for_backward(query, key, value, alpha, delta, out, lse)
+        return out
+```
+
+这一层包装的意义是把 DMA 做成正常 PyTorch 模块可以训练，而不是只提供一个 inference kernel。Slide 21 里说 trainable dynamic mask，落到代码就是 `alpha/delta` 走进 autograd，backward 里会继续回传到 `a_proj/d_proj`。
 
 Triton sparse forward 里，先算 QK，再走 online sparse softmax。如果某个 block 贡献太小，`skip_softmax` 会让它不加载 V：
 
@@ -283,8 +422,8 @@ if not skip_gate_next:
     acc_s += tl.dot(q_tile, k_tile)
 ```
 
-这套实现和 slides 里的 O(N*w) 目标一致：mask/gate 让 attention 不必遍历所有 key，kernel 侧再把“跳过”落实为少加载 K/V、少做 softmax 和 V dot。
+这套实现和 slides 里的 O(N*w) 目标一致：mask/gate 让 attention 不必遍历所有 key，kernel 侧再把“跳过”落实为少加载 K/V、少做 softmax 和 V dot。论文或者 slides 里的“稀疏”如果停在算法图上，通常很容易漏掉这一层：真正省时间的地方不是生成了一个 mask，而是 Triton kernel 能在 tile 级少访存、少算 softmax、少算 `P @ V`。
 
 # 0x4. 小结
 
-OpenSeek 这篇我更愿意看成开源训练工程的宣言：数据、recipe、评测和系统优化一起公开。DMA/flash-dmattn 是其中最具体的技术点，它把“长上下文省算力”从论文假设落到了 mask 生成和 Triton kernel。
+OpenSeek 这篇可以看成一套开源训练工程记录：数据、recipe、评测和系统优化一起公开。DMA/flash-dmattn 是里面最具体的系统点，它把“长上下文省算力”从算法图落到四个位置：模型层的 `a_proj/d_proj`，mask 生成的 top-k/block smooth，autograd wrapper 的可训练 gate，Triton kernel 的 tile skip。

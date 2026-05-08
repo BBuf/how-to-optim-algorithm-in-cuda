@@ -129,7 +129,61 @@ LoRA 页讲的是部署现实：线上 base model 可能同时挂多个 LoRA ada
 
 # 0x3. 关键代码拆解
 
-SpecForge 的 EAGLE3 训练主循环在 `specforge/core/eagle3.py`。类注释已经把步骤写得很直白：
+下面按源码走一遍，主要看 `specforge/core/eagle3.py`、`specforge/modeling/target/eagle3_target_model.py`、`specforge/data/preprocessing.py`、`specforge/core/eagle3_adapters.py` 和 `specforge/modeling/draft/flex_attention.py`。这几个文件正好对应 slides 里的 hidden states 采集、online/offline 数据流、TTT unroll、Flex Attention 和自定义 backend。
+
+先看 target hidden states 从哪里来。HF backend 没有直接打开 `output_hidden_states=True` 去拿所有层，因为那会把显存压力抬得很高。SpecForge 在 `HFEagle3TargetModel.generate_eagle3_data` 里只给 EAGLE3 需要的三层注册 forward hook：
+
+```python
+def set_aux_hidden_states_layers(self, aux_hidden_states_layers=None):
+    if aux_hidden_states_layers is None:
+        num_layers = self.model.config.num_hidden_layers
+        aux_hidden_states_layers = [1, num_layers // 2 - 1, num_layers - 4]
+    self.aux_hidden_states_layers = aux_hidden_states_layers
+    assert len(self.aux_hidden_states_layers) == 3
+```
+
+```python
+captured_states = {}
+handles = []
+
+def get_hook(layer_idx):
+    def hook(module, input, output):
+        hidden = output[0] if isinstance(output, tuple) else output
+        captured_states[layer_idx] = hidden
+    return hook
+
+layers = self._get_transformer_layers()
+target_indices = self.aux_hidden_states_layers
+
+for idx in target_indices:
+    handles.append(layers[idx].register_forward_hook(get_hook(idx)))
+
+try:
+    outputs = self.model(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        output_hidden_states=False,
+        output_attentions=False,
+        output_router_logits=False,
+        use_cache=False,
+    )
+finally:
+    for handle in handles:
+        handle.remove()
+
+hidden_states = torch.cat(
+    (
+        captured_states[target_indices[0]],
+        captured_states[target_indices[1]],
+        captured_states[target_indices[2]],
+    ),
+    dim=-1,
+)
+```
+
+这段代码对应 Slide 8/9 里的“三层 hidden states + target logits”。EAGLE3 需要的不是完整 activation dump，而是低层、中层、高层各一份。hook 只截这三层，`output_hidden_states=False` 也能正常跑，这一点很重要：online 训练本来就要让 target model 常驻，如果再把每层 hidden states 都保留下来，显存会很快顶住。
+
+拿到三层 hidden states 后，训练主循环在 `OnlineEagle3Model.forward`。类注释写得很直接：
 
 ```python
 class OnlineEagle3Model(Eagle3Model):
@@ -143,7 +197,7 @@ class OnlineEagle3Model(Eagle3Model):
     """
 ```
 
-进入 forward 后，先把 target 分布 pad 成 TTT 需要的形状，再把三层 hidden states 投影回目标 hidden size：
+进入 `forward` 后先处理 target logits。`_compute_target_p_padded` 会把 target token 分布整理成 TTT unroll 需要的滑动窗口；随后把三层 hidden states 从 `3 * hidden_size` 投影回 `hidden_size`：
 
 ```python
 target_p_padded, position_mask = _compute_target_p_padded(
@@ -157,7 +211,33 @@ batch_size, seq_length, _ = hidden_states.shape
 hidden_states = self.draft_model.project_hidden_states(hidden_states)
 ```
 
-TTT loop 是最值得看的部分。每一步都从 adapter 取当前 step 的 view，然后重新 embed input ids、跑 draft backbone、算 loss/accuracy，并把下一步需要的 input/mask 补出来：
+draft model 侧的投影不是抽象概念，`LlamaForCausalLMEagle3.project_hidden_states` 就是一层线性层：
+
+```python
+def project_hidden_states(self, hidden_states: torch.Tensor) -> torch.Tensor:
+    # eagle 3 requires hidden states from 3 layers
+    assert hidden_states.size(-1) == self.config.hidden_size * 3
+    return self.fc(hidden_states)
+```
+
+`Eagle3DraftModel` 把 draft 侧必须实现的接口收得很窄：embedding、hidden state projection、logits 三件事。新模型接入时，最先要对齐的就是这几个函数，而不是从训练 loop 开始改。
+
+```python
+class Eagle3DraftModel(PreTrainedModel, ABC):
+    @abstractmethod
+    def embed_input_ids(self, input_ids: torch.Tensor) -> torch.Tensor:
+        ...
+
+    @abstractmethod
+    def project_hidden_states(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        ...
+
+    @abstractmethod
+    def compute_logits(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        ...
+```
+
+TTT loop 是代码里最值得看的部分。每一步都从 adapter 取当前 step 的 view，然后重新 embed input ids、跑 draft backbone、算 loss/accuracy，并把下一步需要的 input/mask 往右 pad 一格：
 
 ```python
 adapter = self._make_adapter()
@@ -184,9 +264,100 @@ for idx in range(self.length):
         past_key_values=past_key_values,
         cache_hidden=cache_hidden,
     )
+
+    hidden_states = hidden_states_out
+    logits = self.draft_model.compute_logits(hidden_states)
+    acc, loss = self._acc_and_loss(
+        logits=logits,
+        target_p=state.target_p,
+        position_mask=state.position_mask,
+        loss_mask=state.loss_mask,
+        adapter=adapter,
+    )
+
+    if not is_last:
+        global_input_ids = padding(global_input_ids, left=False)
+        position_mask = padding(position_mask, left=False)
+        loss_mask = padding(loss_mask, left=False)
 ```
 
-Flex Attention 路径对应 slide 里的内存优化。代码里当 backend 是 `flex_attention` 时改用 `DynamicCache`，mask 收缩交给 attention module：
+这就是 Slide 8 里 Training-Time Test 的代码形态。普通 LM 训练只需要一次 teacher forcing，EAGLE3 这里要模拟“draft 连续猜多步”的状态，所以每一步的 `input_ids`、`loss_mask`、`position_mask` 都会变。`hidden_states = hidden_states_out` 也说明下一步不是重新喂 target hidden states，而是接着 draft 自己的 hidden state 走，这才会逼 draft model 学会多步生成后的误差传播。
+
+adapter 负责把不同 attention backend 的 view 切出来。SDPA/FA 路径是完整序列 view：
+
+```python
+class SdpaLikeAdapter(BackendAdapter):
+    def step_view(...):
+        target_p = target_p_padded[:, idx : idx + seq_length, :].contiguous()
+        return StepState(
+            input_ids=global_input_ids,
+            hidden_states=hidden_states,
+            position_ids=position_ids,
+            attention_mask=attention_mask,
+            target_p=target_p,
+            position_mask=position_mask,
+            loss_mask=loss_mask,
+        )
+```
+
+USP 路径会按 sequence parallel rank 切本地 chunk，并保留 `ttt_length` 的 overlap。这个细节对长序列训练很关键：每张卡只看自己的 local sequence，但 TTT shift 不能把边界处的上下文直接切断。
+
+```python
+class UspAdapter(BackendAdapter):
+    def step_view(...):
+        usp_chunk_size = seq_length - ttt_length
+        target_p = target_p_padded[:, idx : idx + usp_chunk_size, :]
+        return StepState(
+            input_ids=global_input_ids[:, :usp_chunk_size],
+            hidden_states=hidden_states[:, :usp_chunk_size, :],
+            position_ids=position_ids[:, : usp_chunk_size * self.sp_ulysses_degree],
+            attention_mask=attention_mask[:, :usp_chunk_size],
+            target_p=target_p,
+            position_mask=position_mask[:, :usp_chunk_size, :],
+            loss_mask=loss_mask[:, :usp_chunk_size, :],
+        )
+
+    def reduce_loss(self, loss: torch.Tensor) -> torch.Tensor:
+        loss = dist_nn.all_reduce(loss, op=dist.ReduceOp.SUM, group=self.sp_group)
+        return loss / self.sp_world_size
+```
+
+online/offline 的差别不是训练算法变了，而是 hidden states 的来源变了。offline 数据集直接从磁盘读 `aux_hidden_state` 和 `hidden_state`，再喂给同一套 EAGLE3 训练逻辑：
+
+```python
+class OfflineEagle3Dataset(torch.utils.data.Dataset):
+    @staticmethod
+    def process_data(data, max_len, transform=None):
+        hidden_state = data["aux_hidden_state"].squeeze(0)[:max_len][None, :]
+        target = data["hidden_state"].squeeze(0)[:max_len][None, :]
+
+        input_ids = data["input_ids"][:max_len][None, :]
+        loss_mask = data["loss_mask"][:max_len][None, :]
+        loss_mask[0, -1] = 0
+
+        new_data["attention_mask"] = torch.ones_like(loss_mask, dtype=torch.long)
+        new_data["loss_mask"] = loss_mask
+        new_data["target"] = target
+        new_data["hidden_state"] = hidden_state
+        new_data["input_ids"] = input_ids
+        return new_data
+```
+
+如果打开 USP 预处理，offline 数据也会在 dataset 阶段按 SP rank 切块，并额外加上 TTT overlap：
+
+```python
+chunk_size = (global_len + sp_size - 1) // sp_size
+start = sp_rank * chunk_size
+local_len = chunk_size + ttt_length
+
+new_data["hidden_state"], _ = _slice_and_pad(data["aux_hidden_state"])
+new_data["target"], _ = _slice_and_pad(data["hidden_state"])
+new_data["input_ids"], valid_len = _slice_and_pad(input_ids)
+```
+
+所以 Slide 9/10 的 online/offline 对比可以翻译成一句代码侧判断：online 把 `generate_eagle3_data` 放进训练 step，offline 把 `aux_hidden_state` 变成 dataset 字段。前者吃 GPU，后者吃磁盘。
+
+Flex Attention 路径对应 Slide 12 的显存优化。`OnlineEagle3Model` 里当 backend 是 `flex_attention` 时改用 `DynamicCache`，mask 收缩交给 attention module：
 
 ```python
 if self.attention_backend in ["sdpa", "fa", "usp"]:
@@ -199,20 +370,102 @@ else:
     raise ValueError(f"Unknown attention backend: {self.attention_backend}")
 ```
 
-online/offline 的差别可以看文档里的定义。online 现场跑 target model：
+真正调用 Flex Attention 的地方在 `specforge/modeling/draft/flex_attention.py`。这里用了 singleton，把 `torch.compile(flex_attention)` 的编译结果缓存起来，避免每次 forward 都重新触发编译：
 
-```text
-Online training is suitable for users with limited disk space but sufficient GPUs.
+```python
+class WrappedFlexAttention:
+    _instance = None
+    _is_flex_compiled = False
+    _compiled_flex_attention = None
+
+    @torch.compiler.disable(recursive=False)
+    def __init__(self):
+        if not self._is_flex_compiled:
+            self._compiled_flex_attention = torch.compile(flex_attention)
+            self._is_flex_compiled = True
+
+def compile_friendly_flex_attention(query, key, value, **kwargs):
+    flex_attention_compiled = (
+        WrappedFlexAttention()() if not is_torchdynamo_compiling() else flex_attention
+    )
+    return flex_attention_compiled(query, key, value, **kwargs)
 ```
 
-offline 先生成 hidden states 再训练：
+这段代码能解释 slides 上“Flex Attention 降显存和提速”的来源。EAGLE3 TTT 的 mask 不是普通 causal mask，直接展开成 dense attention mask 会很难受；Flex Attention 更适合表达这种 block mask，同时 `DynamicCache` 让递归 unroll 的 KV 状态不用每步都用同一种 list cache 语义硬拼。
 
-```text
-Offline training is suitable for users with sufficient disk space but limited GPUs.
+VLM 的支持也不是在外面套一层 processor 就完了。`QwenVLOnlineEagle3Model.forward` 在训练 step 里先调用 target model 准备多模态数据，再走和文本 EAGLE3 类似的 projection/TTT：
+
+```python
+hidden_states, target, loss_mask, input_ids = self._prepare_data(
+    input_ids, attention_mask, loss_mask, pixel_values, image_grid_thw
+)
+
+target_p_padded, position_mask = _compute_target_p_padded(
+    target=target,
+    t2d=self.draft_model.t2d,
+    loss_mask=loss_mask,
+    length=self.length,
+)
+
+hidden_states = self.draft_model.project_hidden_states(hidden_states)
 ```
 
-我更建议把它理解成工程旋钮：当你有 H100 但没有几十 TB 高速盘，online 更舒服；当你只有少量 GPU 但能接受数据准备时间，offline 可以把训练门槛降下来。
+Qwen2.5-VL 还要处理 MRoPE。代码里会调用 target model 的 `get_rope_index`，用 `image_grid_thw` 和 attention mask 算 position id：
+
+```python
+position_ids, rope_deltas = self.target_model.model.get_rope_index(
+    input_ids,
+    image_grid_thw,
+    None,
+    second_per_grid_ts=None,
+    attention_mask=attention_mask_tensor,
+)
+```
+
+这对应 Slide 13：VLM 训练 draft 的难点不在“多了图片”，而是视觉 token、文本 token、MRoPE position、loss mask 必须同时对齐。只要这些错一个，训练 loss 可能还会下降，但 serving 的 acceptance length 会很差。
+
+GPT-OSS 和自定义模型接入则落在 target/draft backend 和 chat template。`template.py` 里有专门的 `gpt-oss` 模板，使用 `openai-harmony` parser：
+
+```python
+TEMPLATE_REGISTRY.register(
+    name="gpt-oss",
+    template=ChatTemplate(
+        assistant_header=None,
+        user_header=None,
+        system_prompt=None,
+        end_of_turn_token=None,
+        parser_type="openai-harmony",
+    ),
+)
+```
+
+这个点和 Slide 11/15 是连着的。GPT-OSS 的 chat format 不是普通 `<|im_start|>` 风格，训练数据的 assistant 边界、loss mask、target hidden states 都依赖 parser。SpecForge 把 template 放进 registry，至少保证“同一份数据该从哪里算 loss”这件事有一个统一入口。
+
+最后看一下训练脚本参数。GPT-OSS online 训练例子会指定 target backend 为 SGLang：
+
+```bash
+torchrun --nproc_per_node $NUM_GPUS scripts/train_eagle3.py \
+  --target-model-path openai/gpt-oss-20b \
+  --draft-model-config configs/gpt-oss-20B-eagle3.json \
+  --train-data-path cache/dataset/perfect-blend-gptoss-20B.jsonl \
+  --chat-template gpt-oss \
+  --tp-size $TP_SIZE \
+  --target-model-backend sglang
+```
+
+VLM 例子则显式打开 `--is-vlm`，并把像素范围也放进训练参数：
+
+```bash
+torchrun --nproc_per_node $NUM_GPUS scripts/train_eagle3.py \
+  --target-model-path Qwen/Qwen2.5-VL-7B-Instruct \
+  --chat-template qwen2-vl \
+  --is-vlm \
+  --min-pixels 50176 \
+  --max-pixels 802816
+```
+
+这些参数看起来琐碎，但它们正是 SpecForge 这种框架的价值所在：训练 EAGLE3 draft 不只是写一个 loss，真正麻烦的是把 target backend、template、hidden states 层选择、attention backend、VLM position 这些小齿轮都咬上。
 
 # 0x4. 小结
 
-SpecForge 的价值不在“又写了一个 EAGLE3 脚本”，而在把 target hidden states、TTT mask、VLM/LoRA/新模型 backend 这些麻烦事收进一个框架。SGLang 负责服务端验证和吞吐，SpecForge 负责让 draft model 训练变得可重复。
+SpecForge 这套代码最值得关注的是工程边界：target model 只负责产 logits 和三层 hidden states，draft model 只暴露 embedding/projection/logits/backbone，训练 loop 负责 TTT unroll，adapter 负责不同 attention/sequence parallel 的 view。边界清楚以后，GPT-OSS、Qwen2.5-VL、LoRA 和后续新模型才有接入空间。SGLang 负责把 draft model 用到 serving 侧，SpecForge 负责让这个 draft model 训练得出来、复现得了。
