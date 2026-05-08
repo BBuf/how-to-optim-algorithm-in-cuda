@@ -79,53 +79,53 @@ EAGLE3 Training-Time Test 是这场分享的技术核心。训练时不是一次
 
 online/offline 的取舍很现实。online 训练时 target model 现场产 hidden states，省磁盘但吃 GPU；offline 先把 hidden states 写盘，训练时只读数据，能低 GPU 门槛跑，但磁盘占用会非常夸张。
 
-### Slide 10：GPT-OSS EAGLE 的例子
+### Slide 10：Online & Offline Training 对比
 
 ![](https://files.mdnice.com/user/59/706d8a11-191b-4445-93e5-52a67d08a802.png)
 
-GPT-OSS 的例子说明 SpecForge 不是只服务 Llama。开源模型结构变化快，如果训练框架把 target model 细节写死，很快就不能用。SpecForge 把 GPT-OSS 的 target backend 单独适配，draft 侧保持 EAGLE3 逻辑。
+这一页把 online/offline 的代价摊开了。online 训练时直接调用 target model，磁盘占用低，但大模型必须常驻训练流程，GPU 压力更大；offline 只在数据准备阶段用 target model，把 hidden states 预先落盘，训练 draft 时甚至可以降到单卡，但 UltraChat + ShareGPT 这类数据会把磁盘推到 TB 级。
 
-### Slide 11：Flex Attention 降显存和提速
+### Slide 11：GPT-OSS EAGLE 的例子
 
 ![](https://files.mdnice.com/user/59/6b3f5677-0d2f-4b8c-9514-0f3c35fde91e.png)
 
-Flex Attention 这页对应的是 EAGLE3 特殊 mask 的成本。递归 TTT 会构造很大的 attention pattern，传统 SDPA 容易显存爆。SpecForge 用 PyTorch Flex Attention 和 DynamicCache，把 mask 压成 block 语义后再跑。
+GPT-OSS 的例子说明 SpecForge 不是只服务 Llama。开源模型结构变化快，如果训练框架把 target model 细节写死，很快就不能用。SpecForge 把 GPT-OSS 的 target backend 单独适配，draft 侧保持 EAGLE3 逻辑。图里的 acceptance length 对比也在提醒我们：draft model 训练质量会直接体现在 serving 侧吞吐上。
 
-### Slide 12：VLM 也能训练 EAGLE3 draft
+### Slide 12：Flex Attention 降显存和提速
 
 ![](https://files.mdnice.com/user/59/5a6bd810-b1cd-402a-8fa4-603949d09036.png)
 
-VLM 页最关键的是 hidden states 不只来自文本。Qwen2.5-VL 这类模型要处理 image grid、mrope position id、视觉 token 和文本 token 对齐，SpecForge 的 VLM wrapper 会把目标模型输出的多层 hidden states 接到 EAGLE3 draft。
+Flex Attention 这页对应的是 EAGLE3 特殊 mask 的成本。递归 TTT 会构造很大的 attention pattern，传统 SDPA 容易显存爆。SpecForge 用 PyTorch Flex Attention 和 DynamicCache，把 mask 压成 block 语义后再跑，目标不是换一个 attention 名字，而是把 TTT 的稀疏依赖表达清楚。
 
-### Slide 13：LoRA 与 speculative decoding 共存
+### Slide 13：VLM 也能训练 EAGLE3 draft
 
 ![](https://files.mdnice.com/user/59/cbb669a3-d453-4a4b-9f55-6f7b894090d4.png)
 
-LoRA 页讲的是部署现实：线上 base model 可能同时挂多个 LoRA adapter。如果 speculative decoding 只更新 base draft，不处理 adapter 侧差异，acceptance rate 会掉。SpecForge/SGLang 需要让 draft/base 的 LoRA 状态对齐。
+VLM 页最关键的是 hidden states 不只来自文本。Qwen2.5-VL 这类模型要处理 image grid、mrope position id、视觉 token 和文本 token 对齐，SpecForge 的 VLM wrapper 会把目标模型输出的多层 hidden states 接到 EAGLE3 draft。
 
-### Slide 14：自定义模型接入入口
+### Slide 14：LoRA 与 speculative decoding 共存
 
 ![](https://files.mdnice.com/user/59/f42be788-ad7c-41ce-95bf-d47fa235fe62.png)
 
-自定义训练入口一般从三个东西开始：target model wrapper、draft model config、data pipeline。只要能给出 input ids、mask、target logits/hidden states，EAGLE3 的主体循环可以复用。
+LoRA 页讲的是部署现实：线上 base model 可能同时挂多个 LoRA adapter。如果 speculative decoding 只更新 base draft，不处理 adapter 侧差异，acceptance rate 会掉。SpecForge/SGLang 需要让 draft/base 的 LoRA 状态对齐。
 
-### Slide 15：自定义数据和 target backend
+### Slide 15：自定义训练参数和 chat template
 
 ![](https://files.mdnice.com/user/59/df13584f-dc0c-4d99-b5e3-d1a95ed47ccd.png)
 
-自定义 target backend 的难点不是 forward 能跑，而是 hidden states 的层选择和形状约定。EAGLE3 默认取低层、中层、后部层拼接，再投影回 hidden size；模型层数变化后，这个策略要跟着调。
+自定义训练首先是把参数和数据格式接上。slides 里给的是 online 训练入口和 `--help` 参数说明，旁边的 chat template 代码说明 SpecForge 会通过 template registry 统一 prompt 格式。这里不要小看模板：target hidden states、labels、loss mask 都依赖 token 边界，chat template 一错，训练看起来能跑，acceptance length 会很难看。
 
-### Slide 16：实践中最容易踩的坑
+### Slide 16：自定义 target model 和 draft model
 
 ![](https://files.mdnice.com/user/59/16c88cf3-70ef-48ea-be8a-5b95cdeb3774.png)
 
-容易踩坑的地方有两个：offline hidden states 的存储成本，以及 TTT 中 mask/position 的错位。前者会让数据集膨胀到 TB 级，后者会让 loss 看起来正常但 acceptance length 很差。
+这一页才是模型接入入口。target 侧要提供 wrapper，把目标模型的 logits、hidden states、tokenizer 行为整理成 SpecForge 期望的格式；draft 侧要继承基础 draft model，把 backbone、embedding、lm head、projection 这些部件拼好。EAGLE3 训练主体可以复用，但 hidden states 层选择、维度、position ids 这些模型相关细节必须在 wrapper 里说清楚。
 
-### Slide 17：总结和社区计划
+### Slide 17：结束页
 
 ![](https://files.mdnice.com/user/59/dba1426a-9d8c-4b84-9560-f6d2b2b9abca.png)
 
-最后这页给出的方向是把 SpecForge 变成 speculative decoding 训练入口。我的理解是：SGLang 负责把 draft model 用好，SpecForge 负责让用户更容易训练出能用的 draft model。
+结束页没有新的技术点。回到主线看，SpecForge 的价值是把 EAGLE3 训练里最难维护的 hidden states、TTT unroll、特殊 mask 和模型适配收进框架里，让训练出来的 draft model 能更自然地进入 SGLang serving。
 
 # 0x3. 关键代码拆解
 
