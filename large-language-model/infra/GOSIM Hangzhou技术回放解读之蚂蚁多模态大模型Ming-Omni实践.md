@@ -61,7 +61,7 @@ Ming scaling 轨迹从 dense 到 MoE，从单一模态融合到更统一的 omni
 
 <img src="https://files.mdnice.com/user/59/fee97c6c-1e93-4dfb-b13c-91c9947a85d4.png" referrerpolicy="no-referrer" />
 
-技术方案过渡页提示后面要讲模态融合、训练和生成。多模态文章如果只讲效果会很虚，真正能落地的是输入 embedding 怎么拼、生成条件怎么取。
+技术方案过渡页提示后面要讲模态融合、训练和生成。多模态文章只讲效果展示不够，能落到实现里的问题是输入 embedding 怎么拼、生成条件怎么取。
 
 ### Slide 9：Ming-Omni：看、听、说、画
 

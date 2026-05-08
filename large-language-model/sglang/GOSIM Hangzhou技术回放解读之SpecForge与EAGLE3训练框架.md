@@ -113,7 +113,7 @@ LoRA 页讲的是部署现实：线上 base model 可能同时挂多个 LoRA ada
 
 <img src="https://files.mdnice.com/user/59/df13584f-dc0c-4d99-b5e3-d1a95ed47ccd.png" referrerpolicy="no-referrer" />
 
-自定义训练首先是把参数和数据格式接上。slides 里给的是 online 训练入口和 `--help` 参数说明，旁边的 chat template 代码说明 SpecForge 会通过 template registry 统一 prompt 格式。这里不要小看模板：target hidden states、labels、loss mask 都依赖 token 边界，chat template 一错，训练看起来能跑，acceptance length 会很难看。
+自定义训练首先是把参数和数据格式接上。slides 里给的是 online 训练入口和 `--help` 参数说明，旁边的 chat template 代码说明 SpecForge 会通过 template registry 统一 prompt 格式。模板会直接决定 token 边界，后面的 target hidden states、labels、loss mask 都跟着它走；chat template 一错，训练看起来能跑，acceptance length 会很难看。
 
 ### Slide 16：自定义 target model 和 draft model
 
