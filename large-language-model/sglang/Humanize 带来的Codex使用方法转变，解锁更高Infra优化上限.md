@@ -4,21 +4,21 @@
 
 之前做了几个模型 profile 调优相关的 SKILL，还有一个 kernel 优化相关的 SKILL，但效果只能说够用，谈不上惊艳。原因也简单：SKILL 本质上还是一次性注入 context，Agent 可以照着做一段时间，但很难自己长期维护目标、证据、失败记录和下一步方向。
 
-GPT-5.5 这类模型已经足够强了，问题反而变成：怎么让它一直做正确的事，而不是每隔几十分钟喊一次“已经完成”。所以最近重点看了 [Humanize](https://github.com/PolyArch/humanize)、Codex `/goal`、AVO 论文，并基于这些东西重构了 KernelPilot。
+GPT-5.5 这类模型已经足够强了，单次补代码不难。麻烦的是长任务：它需要在十几个小时里围绕同一个目标持续迭代，每轮都留下测试、benchmark、profile 和评审证据。最近重点看了 [Humanize](https://github.com/PolyArch/humanize)、Codex `/goal`、AVO 论文，并新做了 [KernelPilot](https://github.com/BBuf/kernel-pilot) 这个仓库。
 
-模型单次写代码能力已经不是主要瓶颈，更麻烦的是能不能把它放进一个长期循环里。这个循环要能读代码、跑 benchmark、看 NCU、记录 lineage、失败后自动扩资料，最后还要被另一个 reviewer 卡住。少任何一个环节，都会退化成普通 Vibe Coding。
+模型单次写代码能力已经不是主要瓶颈，更麻烦的是能不能把它放进一个长期循环里。这个循环要能读代码、跑 benchmark、看 NCU、记录版本演进关系；当连续几轮收益很低时，还要按当前瓶颈补读新的 PR、源码、测试、benchmark 和 profile 记录，并把已读来源记下来，避免下一轮重复读；最后还要通过独立审查卡住假完成。少任何一个环节，都会退化成普通 Vibe Coding：人需要手动多轮追问，不断提醒它下一步做什么，也很难稳定跑出后文这种性能优化效果。
 
 # 0x1. Humanize 改变了什么
 
-[Humanize](https://github.com/PolyArch/humanize) 这里用的是 RLCR，也就是 Ralph-Loop with Codex Review。它做的事情比较直接：把实现、总结、Review、继续迭代这些动作固定下来，让 Agent 不再靠当前对话窗口硬撑。
+[Humanize](https://github.com/PolyArch/humanize) 这里用的是 RLCR，也就是 Ralph-Loop with Codex Review。它做的事情比较直接：把实现、总结、审查、继续迭代这些动作固定下来，让 Agent 不再靠当前对话窗口硬撑。
 
 - 有 plan，有 acceptance criteria，不是想到哪改到哪。
 - 每轮实现完必须写 summary。
-- Codex 独立 review summary 和代码，不通过就继续下一轮。
-- 最后还有 code review 阶段，不能自己说完就完。
+- Codex 独立审查 summary 和代码，不通过就继续下一轮。
+- 最后还有代码审查阶段，不能自己说完就完。
 - 状态都落到 `.humanize/`，不是靠当前对话窗口硬记。
 
-Humanize 最有用的点是把“完成”变成了一个外部判定，不再由 Agent 自己判定。以前用 Codex 做推理框架优化，经常要人工盯着它：跑到一半是不是忘了 profile？是不是只修了测试？是不是 benchmark 没对齐 baseline？Humanize 至少把这些问题转成了可 review 的状态文件和下一轮 prompt。
+Humanize 最有用的点是把“完成”变成了一个外部判定，不再由 Agent 自己判定。以前用 Codex 做推理框架优化，经常要人工盯着它：跑到一半是不是忘了 profile？是不是只修了测试？是不是 benchmark 没对齐 baseline？Humanize 至少把这些问题转成了可审查的状态文件和下一轮 prompt。
 
 所以它带来的变化不只是“多一个命令”。更准确地说，使用 Codex 的姿势变了：从一问一答，变成把 Codex 放进一个带审查的工程循环。
 
@@ -34,9 +34,9 @@ Codex `/goal` 也在往这个方向走。OpenAI 文档里把 `/goal` 定义成 e
 
 | 项目 | 做什么 | 这里怎么用 |
 | --- | --- | --- |
-| Humanize | 外部 review gate + 状态机 | 防止 Agent 过早停、乱停、假完成 |
+| Humanize | 外部审查门禁 + 状态机 | 防止 Agent 过早停、乱停、假完成 |
 | Codex `/goal` | Codex 原生长目标 | 让长任务进入官方运行时能力范围 |
-| AVO | 论文里的长期优化实验 | 看 lineage + knowledge + execution feedback 能蹬到什么程度 |
+| AVO | 论文里的长期优化实验 | 看版本关系、知识库和执行反馈能蹬到什么程度 |
 | KernelPilot | 当前的落地版本 | 把 Humanize 改造成 GPU kernel 优化循环 |
 
 # 0x3. 普通 CUDA SKILL 的限制
@@ -51,7 +51,7 @@ Codex `/goal` 也在往这个方向走。OpenAI 文档里把 `/goal` 定义成 e
 - NCU 到底显示是 tensor pipe 不够、L1/L2 replay、long scoreboard、shared bank conflict，还是 launch overhead。
 - 连续两轮小于 1% 收益时，应该去读哪些新代码，而不是继续在原地抠一个参数。
 
-以前把一大堆 SGLang、vLLM、TensorRT-LLM、CUTLASS、FlashInfer、DeepGEMM、GPU Mode、CUDA blog 的知识塞进 SKILL，最后还是会碰到 context 和检索问题。一整本文档塞进去没用，更需要一个会路由的知识库：当前是 GEMM 就读 GEMM，当前是 attention 就读 attention，当前是 plateau 就扩 50 个 code-first sources，并且记住不要重复读。
+以前把一大堆 SGLang、vLLM、TensorRT-LLM、CUTLASS、FlashInfer、DeepGEMM、GPU Mode、CUDA blog 的知识塞进 SKILL，最后还是会碰到 context 和检索问题。一整本文档塞进去没用，更需要一个会路由的知识库：当前是 GEMM 就读 GEMM，当前是 attention 就读 attention，连续两轮低收益就按主题和框架去补读新的 PR diff、kernel source、tests、benchmark 和 profile 记录，并且记住哪些来源已经读过。
 
 # 0x4. KernelPilot 做了什么
 
@@ -63,8 +63,8 @@ Codex `/goal` 也在往这个方向走。OpenAI 文档里把 `/goal` 定义成 e
 - 新增 `kernel-knowledge`：本地 GPU kernel 知识库，先按 topic/framework 路由，再读 source guide、PR notes、benchmark、test。
 - 新增 `profile-evidence`：把 NCU 输出整理成 Profile Evidence Digest，最后必须落到一个具体下一步修改。
 - 强制 standalone repo：候选 kernel 不直接污染 SGLang/vLLM 这种大仓库，单独保留 binding、tests、benchmarks、ledgers、profile artifacts。
-- 强制 ledger：`attempt-ledger.md` 记录所有版本，`optimization-ledger.md` 只记录有效提速版本，`source-idea-ledger.md` 记录来源和 do-not-reread key，`lineage.jsonl` 记录父版本、动机、结果。
-- 连续两轮收益小于 1% 时触发 source expansion：至少读 50 个新的 code-first sources，再继续改。
+- 强制记录：`attempt-ledger.md` 记录所有版本，`optimization-ledger.md` 只记录有效提速版本，`source-idea-ledger.md` 记录来源和不要重复阅读的标识，版本关系记录里保存父版本、动机、结果。
+- 连续两轮收益小于 1% 时触发资料扩展：至少补读 50 个新的代码来源，再继续改。
 
 知识库目前主要覆盖这些东西：
 
@@ -106,7 +106,7 @@ cd kernel-pilot
 这次 `int8_scaled_mm` 演示用的是从零手写 prompt，不碰 baseline kernel 代码：
 
 ```text
-[$humanize-kernel-agent-loop] I want to optimize SGLang's H100 int8_scaled_mm kernel on H100. Implement the candidate kernel from scratch and use the existing SGLang/CUTLASS kernel only as the correctness/performance comparison baseline. Work in a clean standalone repo and keep provenance/lineage.
+[$humanize-kernel-agent-loop] I want to optimize SGLang's H100 int8_scaled_mm kernel on H100. Implement the candidate kernel from scratch and use the existing SGLang/CUTLASS kernel only as the correctness/performance comparison baseline. Work in a clean standalone repo and keep source provenance plus version history.
 ```
 
 这套流程自主跑了约 12 小时，从零写了一个 `int8_scaled_mm`，最后在 focused case 上比 SGLang baseline 快 `15.12%`。下面是 Humanize stop hook 和 KernelPilot ledger 的效果图：
@@ -118,7 +118,7 @@ cd kernel-pilot
 不过对于 SGLang 已经有的 kernel，不建议默认从零开始。更快的方式是用第二种 prompt：把已有 baseline kernel 作为起点，在它的基础上继续优化，这样可以跳过很多从 correctness-first 到接近 baseline 的无效路程。
 
 ```text
-[$humanize-kernel-agent-loop] I want to optimize SGLang's H100 int8_scaled_mm kernel on H100. Use the existing SGLang/CUTLASS kernel as the baseline and starting point. Work in a clean standalone repo, keep provenance/lineage, and use the most appropriate kernel language for the candidate.
+[$humanize-kernel-agent-loop] I want to optimize SGLang's H100 int8_scaled_mm kernel on H100. Use the existing SGLang/CUTLASS kernel as the baseline and starting point. Work in a clean standalone repo, keep source provenance plus version history, and use the most appropriate kernel language for the candidate.
 ```
 
 这次从零实验里，SGLang 只作为 correctness/performance baseline 和 prior art，候选实现限制为手写 CUDA C++，不用 Triton、CUTLASS、CuTe DSL、ThunderKittens、torch.compile、cuBLAS/cuBLASLt。
@@ -133,7 +133,7 @@ cd kernel-pilot
 - SGLang same-run baseline：`0.017888 ms`
 - 当前 v23：`0.015184 ms`
 
-也就是从最初手写 scalar 到 v23，大约 `39.8x`；相比同次 SGLang baseline，v23 快 `15.12%`。后面 v24-v29 又试了几轮，但是都没有过 1% selection gate，所以当前 best 仍然是 v23。Round 41 已经完成新一轮 source expansion，下一步方向是 `v30-wmma-inblock-split-k8-two-n-combined-rowmajor-acc`，还没选中。
+也就是从最初手写 scalar 到 v23，大约 `39.8x`；相比同次 SGLang baseline，v23 快 `15.12%`。后面 v24-v29 又试了几轮，但是都没有过 1% selection gate，所以当前 best 仍然是 v23。Round 41 做完了新一轮资料扩展，下一步方向是 `v30-wmma-inblock-split-k8-two-n-combined-rowmajor-acc`，还没选中。
 
 下面是主要版本记录：
 
