@@ -2,9 +2,9 @@
 
 # 0x0. 前言
 
-之前做了几个模型 profile 调优相关的 SKILL，还有一个 kernel 优化相关的 SKILL，但效果只能说够用，还没有达到长期自动优化的程度。原因也简单：SKILL 本质上还是一次性注入 context，Agent 可以照着做一段时间，但很难自己长期维护目标、证据、失败记录和下一步方向。
+之前做了几个模型 profile 调优相关的 SKILL，还有一个 kernel 优化相关的 SKILL，但效果离我自己想要的状态还有差距，没有达到长期自动优化的程度。原因也简单：SKILL 本质上还是一次性注入 context，Agent 可以照着做一段时间，但很难自己长期维护目标、证据、失败记录和下一步方向。
 
-GPT-5.5 这类模型已经足够强了，单次补代码不难。麻烦的是长任务：它需要在十几个小时里围绕同一个目标持续迭代，每轮都留下测试、benchmark、profile 和评审证据。最近重点看了 Humanize（https://github.com/PolyArch/humanize）、Codex `/goal`、AVO 论文，并新做了 KernelPilot（https://github.com/BBuf/kernel-pilot）这个仓库。
+Claude Opus 4.6, GPT-5.5 这类模型已经足够强了，单次补代码不难。麻烦的是长任务：它需要在十几个小时里围绕同一个目标持续迭代，每轮都留下测试、benchmark、profile 和评审证据。最近重点看了 Humanize（https://github.com/PolyArch/humanize）、Codex `/goal`、AVO 论文，并新做了 KernelPilot（https://github.com/BBuf/kernel-pilot）这个仓库。
 
 模型单次写代码能力已经不是主要瓶颈，更麻烦的是能不能把它放进一个长期循环里。这个循环要能读代码、跑 benchmark、看 NCU、记录版本演进关系；当连续几轮收益很低时，还要按当前瓶颈补读新的 PR、源码、测试、benchmark 和 profile 记录，并把已读来源记下来，避免下一轮重复读；最后还要通过独立审查拦住过早完成。少任何一个环节，都会退化成普通 Vibe Coding：人需要手动多轮追问，不断提醒它下一步做什么，也很难稳定跑出后文这种性能优化效果。
 
