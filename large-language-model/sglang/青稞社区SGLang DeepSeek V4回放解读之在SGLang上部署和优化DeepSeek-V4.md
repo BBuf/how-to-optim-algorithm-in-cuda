@@ -88,7 +88,7 @@ assert server_args.speculative_algorithm == "EAGLE"
 assert server_args.speculative_eagle_topk == 1
 ```
 
-所以 DeepSeek-V4 当前支持的是 EAGLE / MTP topk=1 的路线，不支持任意 speculative algorithm，也不支持 MTP topk 大于 1。
+这里的意思不是说 EAGLE 不属于 speculative decoding。相反，EAGLE 就是当前 DSv4 允许的投机解码路径。限制在于：如果开启 speculative，`speculative_algorithm` 必须是 `EAGLE`，并且 `speculative_eagle_topk` 必须是 1；其它 speculative algorithm，以及 EAGLE topk 大于 1 的多分支候选路径，当前都会被拒掉。
 
 Context Parallelism 的约束也在同一个文件里：
 
