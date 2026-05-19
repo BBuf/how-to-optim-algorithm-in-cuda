@@ -4,11 +4,11 @@
 
 ![](https://files.mdnice.com/user/59/c4c5e935-e8a1-4591-a5b4-fdd9eb2e3889.png)
 
-DeepSeek-V4 对推理系统的挑战，不只是「模型更大」或者「MoE 更重」。真正麻烦的是它把 attention runtime 的状态空间变复杂了：每层都有 SWA，同时每层还会在 CSA 和 HCA 两种压缩注意力之间切换。于是 SGLang 不能继续把 KV cache 当成一套简单的 per-layer raw KV，而是要同时维护 full-token 坐标、SWA 物理池、C4 压缩池、C128 压缩池、C4 indexer 池、compress state 池，以及这些池子在 prefix cache、CUDA Graph、PD disaggregation、HiSparse offload 里的映射关系。
+DeepSeek-V4 给推理系统带来的麻烦，主要不在「模型更大」或者「MoE 更重」，而在 attention runtime 的状态空间。每层都有 SWA，同时又会在 CSA 和 HCA 两种压缩注意力之间切换。SGLang 不能继续把 KV cache 当成一套 per-layer raw KV 来处理，它需要同时维护 full-token 坐标、SWA 物理池、C4 压缩池、C128 压缩池、C4 indexer 池、compress state 池，以及这些池子在 prefix cache、CUDA Graph、PD disaggregation、HiSparse offload 里的映射关系。
 
 ![](https://files.mdnice.com/user/59/bc7ac8b1-ff74-4e9e-8450-02cb14cef01d.png)
 
-Slides 的 Highlights 把推理、RL 训练和硬件支持都放在一起讲。本文会主要展开推理侧，因为这部分已经能在 SGLang 源码里看到比较完整的实现。核心文件可以先记住这几组：
+Slides 的 Highlights 把推理、RL 训练和硬件支持都放在一起讲。本文主要展开推理侧，因为这部分已经能在 SGLang 源码里看到比较完整的实现。先看这几组文件：
 
 ```text
 配置和启动默认值：
@@ -100,7 +100,7 @@ assert server_args.dp_size == 1
 assert server_args.tp_size <= 8
 ```
 
-这说明 DeepSeek-V4 的 CP 不是通用 CP 开关，而是当前只支持 `round-robin-split`、单机 TP 范围内的受控路径。这个限制会在后面的 metadata reindex 和 MLP/DeepEP 路径里继续出现。
+DeepSeek-V4 的 CP 当前只支持 `round-robin-split`，并且限定在单机 TP 范围内。这个限制会在后面的 metadata reindex 和 MLP/DeepEP 路径里继续出现。
 
 `python/sglang/srt/environ.py` 里还有一组 DSv4 相关默认开关。几个对源码阅读特别重要：
 
@@ -115,13 +115,13 @@ SGLANG_OPT_CACHE_SWA_TRANSLATION=True
 SGLANG_DSV4_FP4_EXPERTS=True
 ```
 
-也就是说，在最新 main 的默认路径里，DeepSeek-V4 会走 v2 compressor、topk v2、Q/KV A 投影融合、fused store cache、多流 overlap，以及 CUDA Graph 内 metadata prepare。后面解释源码时，我们也以这条默认路径为主。
+按最新 main 的默认配置，DeepSeek-V4 会走 v2 compressor、topk v2、Q/KV A 投影融合、fused store cache、多流 overlap，以及 CUDA Graph 内 metadata prepare。后面解释源码时，也以这条默认路径为主。
 
 # 0x2. 模型配置：compress_ratios 决定每层是 SWA、CSA 还是 HCA
 
 ![](https://files.mdnice.com/user/59/483420dd-42df-4bfa-b6a8-22072f75c23b.png)
 
-Slides 这页给出了 DeepSeek-V4 attention 的核心结构：
+Slides 这页给出了 DeepSeek-V4 的 attention 结构：
 
 - SWA：每层都有，窗口大小 128。
 - CSA：4:1 compressed sparse attention，top-k 默认 512。
@@ -147,7 +147,7 @@ hc_mult = 4
 hc_sinkhorn_iters = 20
 ```
 
-`compress_ratios` 是理解 SGLang 实现的关键。每一层的 attention 类型不是写死在 layer class 里，而是由 `compress_ratios[layer_id]` 决定。`MQALayer.__init__` 中会把它收敛到三个取值：
+`compress_ratios` 先决定每一层的 attention 类型。它没有写死在 layer class 里，而是由 `compress_ratios[layer_id]` 决定。`MQALayer.__init__` 中会把它收敛到三个取值：
 
 ```python
 compress_ratio = (
@@ -181,21 +181,21 @@ if self.compress_ratio == 4:
 - HCA 层需要 `Compressor(ratio=128)` 维护 C128 KV，不需要 sparse top-k indexer。
 - SWA-only 层只需要写入 SWA cache，然后通过 FlashMLA 访问最近窗口。
 
-还有一个细节容易漏掉：压缩层使用的 RoPE base 不同。`MQALayer` 对压缩层使用 `config.compress_rope_theta`，对非压缩层使用普通 `rope_theta`：
+还有一个细节：压缩层使用的 RoPE base 不同。`MQALayer` 对压缩层使用 `config.compress_rope_theta`，对非压缩层使用普通 `rope_theta`：
 
 ```python
 rope_base = config.compress_rope_theta if self.compress_ratio else rope_theta
 ```
 
-也就是说，压缩注意力并不是简单复用 raw attention 的 RoPE 参数，而是有自己的 RoPE 频率配置。
+压缩注意力没有复用 raw attention 的 RoPE 参数，它有自己的 RoPE 频率配置。
 
 # 0x3. 多级 KV pool：ShadowRadix 背后的物理存储
 
 ![](https://files.mdnice.com/user/59/456565b1-4fa4-4389-b3b9-eddfb5c1a7cb.png)
 
-Slides 里说 ShadowRadix 的核心是：Radix tree 仍然索引虚拟 full-token slot，各层共享同一套 token 坐标；真正写入 KV 时，再把 full-token slot 投影到 SWA / C4 / C128 的物理池。
+Slides 里说 ShadowRadix 的要点是：Radix tree 仍然索引虚拟 full-token slot，各层共享同一套 token 坐标；写入 KV 时，再把 full-token slot 投影到 SWA / C4 / C128 的物理池。
 
-SGLang 里这套物理池由 `DeepSeekV4TokenToKVPool` 管理。它不是一个普通的 per-layer KV pool，而是四类池子的组合：
+SGLang 里这套物理池由 `DeepSeekV4TokenToKVPool` 管理。它不是单个 per-layer KV pool，而是四类池子的组合：
 
 ```python
 self.swa_kv_pool = DeepSeekV4SingleKVPool(...)
@@ -221,9 +221,9 @@ self.token_to_kv_pool = DeepSeekV4TokenToKVPool(
 )
 ```
 
-这里的 `compression_ratios` 还有一个特殊处理：如果当前 worker 是 MTP draft worker，那么所有层都被改成 `COMPRESS_RATIO_NEXTN_LAYER=0`。也就是说 draft worker 不拥有 C4/C128/state pool，只复用 SWA 路径。
+这里的 `compression_ratios` 还有一个特殊处理：如果当前 worker 是 MTP draft worker，那么所有层都被改成 `COMPRESS_RATIO_NEXTN_LAYER=0`。draft worker 因此不拥有 C4/C128/state pool，只复用 SWA 路径。
 
-DSv4 的内存大小不是简单按 full tokens 分配，而是由 `DSV4PoolConfigurator` 拆成几类 token 容量：
+DSv4 的内存不会直接按 full tokens 分配，而是由 `DSV4PoolConfigurator` 拆成几类 token 容量：
 
 ```python
 full_token = full_token // page_size * page_size
@@ -281,7 +281,7 @@ elif ratio == 128:
 
 这里的 `compress_layer_id` 是 bucket 内局部编号。比如全模型第 10 层可能是第 4 个 C4 层，那么它在 `c4_kv_pool` 里使用的 layer id 就是 3，而不是 10。这样 C4/C128 池可以只为对应层分配 buffer。
 
-ShadowRadix 的关键投影函数是：
+ShadowRadix 的主要投影函数是：
 
 ```python
 def translate_loc_from_full_to_swa(self, kv_indices):
@@ -318,7 +318,7 @@ assert speculative_eagle_topk in [0, 1]
 
 这里有两个容易混在一起的 page 概念：backend 里的 `self.swa_page_size=128` 服务于 SWA attention metadata，和模型的 `window_size=128` 对齐；KV pool 在 paged SWA mode 下使用的物理 `swa_page_size` 会跟系统 `page_size=256` 对齐。最终 FlashMLA 读 SWA 时还会用 `swa_topk_lengths = clamp(seq_len, max=128)` 限制逻辑窗口，所以物理 page 可以是 256，但实际 SWA attention 仍然只看最近 128 个 token。
 
-`DSV4AttnMetadata` 是核心 metadata 容器。它同时保存 SWA、C4、C128 三类 attention 需要的信息：
+`DSV4AttnMetadata` 是这个后端的 metadata 容器。它同时保存 SWA、C4、C128 三类 attention 需要的信息：
 
 ```python
 page_table
@@ -393,7 +393,7 @@ target_verify  -> init_forward_metadata_target_verify
 draft_extend   -> init_forward_metadata_draft_extend
 ```
 
-这是 DeepSeek-V4 支持 MTP 和 CUDA Graph 的关键。普通 decode、prefill、verify、draft extend 对 out loc、seq lens、num tokens 的形状要求都不同，不能共用一套 metadata builder。
+这个分流用于支持 MTP 和 CUDA Graph。普通 decode、prefill、verify、draft extend 对 out loc、seq lens、num tokens 的形状要求都不同，不能共用一套 metadata builder。
 
 默认 `SGLANG_PREP_IN_CUDA_GRAPH=True`。这时 decode / verify 可以先返回一个 raw metadata：
 
@@ -426,7 +426,7 @@ elif isinstance(self.forward_metadata, DSV4RawDecodeMetadata):
 4. 调用 DeepseekV4AttnBackend.forward，最终进入 flash_mla_with_kvcache
 ```
 
-Q path 的关键是 `_compute_q_b`：
+Q path 先看 `_compute_q_b`：
 
 ```python
 q, _ = self.wq_b(q_lora)
@@ -434,7 +434,7 @@ q = q.view(-1, self.n_local_heads, self.head_dim)
 fused_q_norm_rope(q, q_out, self.eps, self.freqs_cis, positions)
 ```
 
-KV path 的关键是 `_compute_kv_to_cache`：
+KV path 先看 `_compute_kv_to_cache`：
 
 ```python
 kv, _ = self.wkv(x)
@@ -449,7 +449,7 @@ token_to_kv_pool.set_swa_key_buffer_radix_fused_norm_rope(
 )
 ```
 
-注意这里不是先产生一个完整 BF16 K，再单独 norm、RoPE、量化、写 cache。默认路径会直接调用 `fused_k_norm_rope_flashmla`，把 norm + RoPE + 写入 FlashMLA paged cache 融成一段 JIT kernel。只有 NSA prefill CP 场景需要 BF16 KV 做跨 rank all-gather，才走 `_compute_kv_bf16`。
+默认路径不会先产生一个完整 BF16 K，再单独 norm、RoPE、量化、写 cache，而是直接调用 `fused_k_norm_rope_flashmla`，把 norm + RoPE + 写入 FlashMLA paged cache 融成一段 JIT kernel。只有 NSA prefill CP 场景需要 BF16 KV 做跨 rank all-gather，才走 `_compute_kv_bf16`。
 
 多流 overlap 也在 `MQALayer` 里。默认 `SGLANG_OPT_USE_MULTI_STREAM_OVERLAP=True`，模型初始化会创建 5 条辅助 stream：
 
@@ -491,7 +491,7 @@ enable_multi_stream = (
 )
 ```
 
-也就是说，多流 overlap 主要是 CUDA Graph capture 场景下的小/中 batch 优化；Blackwell 上 batch limit 是 128，其他 CUDA 平台是 64。CP 场景因为要做跨 rank all-gather，不走这个路径。
+多流 overlap 主要服务 CUDA Graph capture 场景下的小/中 batch；Blackwell 上 batch limit 是 128，其他 CUDA 平台是 64。CP 场景因为要做跨 rank all-gather，不走这个路径。
 
 最后进入 backend forward：
 
@@ -560,7 +560,7 @@ q_fp8, weights = fused_q_indexer_rope_hadamard_quant(
 )
 ```
 
-第二，维护 C4 indexer 自己的 compressed key cache。注意这是独立于 attention C4 KV pool 的：
+第二，维护 C4 indexer 自己的 compressed key cache。这个 cache 独立于 attention C4 KV pool：
 
 ```python
 c4_indexer_kv_cache = token_to_kv_pool.get_index_k_with_scale_buffer(layer_id)
@@ -601,15 +601,15 @@ python/sglang/jit_kernel/csrc/deepseek_v4/topk_v2.cuh
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/
 ```
 
-`topk_v2.cuh` 不是简单调用 sort，而是按输入规模选择不同策略：
+`topk_v2.cuh` 没有直接调用 sort，而是按输入规模选择不同策略：
 
 - short path：小输入用更轻的 transform。
 - fused one-stage：中等 batch 尽量一阶段完成。
 - two-stage / cluster path：大输入用 cluster topk。
 
-`cluster.cuh` 的思路是先做 histogram 和 threshold 预测，再 scatter 出高于阈值的元素和必要的 tie 元素。它服务的目标非常明确：CSA 只需要 top-512 page，不需要完整排序。
+`cluster.cuh` 的思路是先做 histogram 和 threshold 预测，再 scatter 出高于阈值的元素和必要的 tie 元素。它服务的目标很明确：CSA 只需要 top-512 page，不需要完整排序。
 
-这就是 slides 里 Lightning TopK 从约 100us 降到约 15us 的工程背景。对于每层都要做 sparse selection 的 CSA 来说，top-k 不是一个外围小优化，而是 attention prep 的核心开销之一。
+Slides 里 Lightning TopK 从约 100us 降到约 15us，背景就在这里。对于每层都要做 sparse selection 的 CSA 来说，top-k 不是外围小优化，它本来就是 attention prep 的主要开销之一。
 
 # 0x7. Flash Compressor：把 C4/C128 压缩状态维护变成 all-in-one 写 cache
 
@@ -714,11 +714,11 @@ SGLANG_OPT_USE_ONLINE_COMPRESS=False
 assert mr.spec_algorithm.is_none()
 ```
 
-这说明在线 C128 压缩还处在更受限的优化路径，默认 production path 仍然是非 online。
+在线 C128 压缩目前约束更强，默认 production path 仍然是非 online。
 
 # 0x8. jit_kernel 视角：DeepSeek-V4 kernel 是一套压缩注意力 runtime
 
-上面几节是从模型 forward 往下看。为了把实现细节再压实一点，这里单独从 `python/sglang/jit_kernel` 目录看 DeepSeek-V4 的 kernel。这个目录里和 DeepSeek-V4 直接相关的文件可以分成几组：
+上面几节是从模型 forward 往下看。这里补上 `python/sglang/jit_kernel` 目录里的实现细节。DeepSeek-V4 直接相关的文件大致分成几组：
 
 ```text
 python/sglang/jit_kernel/deepseek_v4.py
@@ -755,9 +755,9 @@ python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/kvcacheio.cuh
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/*.cuh
 ```
 
-这里有一个容易被低估的点：DeepSeek-V4 的 JIT kernel 不只是“给某个 PyTorch op 加速”。它们承担的是压缩 KV 的状态维护、page 级索引、cache layout 转换、indexer topk、HiSparse 搬运、MegaMoE 预处理等一整套 runtime 工作。换句话说，DeepSeek-V4 在 SGLang 里的复杂度不只是模型结构复杂，而是模型结构把 serving runtime 的 kernel 边界也改了。
+DeepSeek-V4 的 JIT kernel 不只是给某个 PyTorch op 加速。它们要维护压缩 KV 状态，处理 page 级索引和 cache layout 转换，还要覆盖 indexer topk、HiSparse 搬运、MegaMoE 预处理等 runtime 工作。模型结构的变化直接改到了 serving runtime 的 kernel 边界。
 
-上面列表里既有当前主路径，也有旧路径和兼容路径。`dsv4/compress.py + c_plan.cuh + *_v2.cuh` 是现在更值得跟的压缩主链路；`deepseek_v4.py` 里还保留了 `common.cuh / c4.cuh / c128.cuh / c128_online.cuh / fused_norm_rope.cuh` 这些早期 wrapper。`compress.cuh / compress_v2.cuh` 放共享 plan 结构和校验，`fp8_utils.cuh` 放 FP8 pack / UE8M0 scale 这类公共工具。`rope.cuh`、`rmsnorm.cuh` 是拆开的 fallback / helper kernel；`topk.cuh`、`topk_1024.cuh` 是固定输出宽度的早期 topk；`topk_v2.cuh + include/.../topk/*.cuh` 才是现在更完整的 Lightning TopK 组合实现。`silu_and_mul_masked_post_quant_tmp.cuh` 在目录里存在，但当前 Python wrapper 实际加载的是 `silu_and_mul_masked_post_quant.cuh`。
+上面列表里既有当前主路径，也有旧路径和兼容路径。当前压缩路径主要看 `dsv4/compress.py + c_plan.cuh + *_v2.cuh`；`deepseek_v4.py` 里还保留了 `common.cuh / c4.cuh / c128.cuh / c128_online.cuh / fused_norm_rope.cuh` 这些早期 wrapper。`compress.cuh / compress_v2.cuh` 放共享 plan 结构和校验，`fp8_utils.cuh` 放 FP8 pack / UE8M0 scale 这类公共工具。`rope.cuh`、`rmsnorm.cuh` 是拆开的 fallback / helper kernel；`topk.cuh`、`topk_1024.cuh` 是固定输出宽度的早期 topk；`topk_v2.cuh + include/.../topk/*.cuh` 是现在的 Lightning TopK 组合实现。`silu_and_mul_masked_post_quant_tmp.cuh` 在目录里存在，但当前 Python wrapper 实际加载的是 `silu_and_mul_masked_post_quant.cuh`。
 
 先看 Python wrapper。`deepseek_v4.py` 里所有 JIT 模块都会用同一个命名前缀：
 
@@ -766,7 +766,7 @@ def make_name(name: str) -> str:
     return f"dpsk_v4_{name}"
 ```
 
-这不是一个很重要的逻辑点，但它能帮助定位 JIT 编译缓存。真正重要的是 wrapper 暴露出的 kernel 分工：
+这个前缀主要用于定位 JIT 编译缓存。wrapper 暴露出的 kernel 分工如下：
 
 ```python
 _jit_main_q_norm_rope_module
@@ -799,7 +799,7 @@ _jit_hisparse_transfer_module
 
 这些函数可以按执行阶段理解，而不是按文件名理解。
 
-第一类是主 MLA 路径的 norm / RoPE / cache 写入。`main_norm_rope.cuh` 里有三个关键 kernel：
+第一类是主 MLA 路径的 norm / RoPE / cache 写入。`main_norm_rope.cuh` 里有三个 kernel：
 
 ```cpp
 FusedQNormRopeKernel
@@ -807,15 +807,15 @@ FusedKNormRopeFlashMLAKernel
 FusedQIndexerRopeHadamardQuantKernel
 ```
 
-`FusedQNormRopeKernel` 做主 attention Q 侧的 rmsnorm-self + RoPE，一般是 warp-per-(token, head)。`FusedKNormRopeFlashMLAKernel` 做 K 侧的 rmsnorm + RoPE，并直接写进 FlashMLA paged cache。这个 kernel 对 layout 的假设非常具体：
+`FusedQNormRopeKernel` 做主 attention Q 侧的 rmsnorm-self + RoPE，一般是 warp-per-(token, head)。`FusedKNormRopeFlashMLAKernel` 做 K 侧的 rmsnorm + RoPE，并直接写进 FlashMLA paged cache。这个 kernel 对 layout 的假设写死为：
 
 ```cpp
 static_assert(kHeadDim == 512 && kRopeDim == 64, "FlashMLA layout requires (512, 64)");
 ```
 
-也就是说，DeepSeek-V4 的主 KV cache 写入已经不是“算完 K 再交给通用 cache writer”，而是把 norm、RoPE、FP8 layout 打包和 paged cache 地址计算都塞进同一个 JIT kernel 里。Indexer Q 的 kernel 更特殊：它做 RoPE + Hadamard + FP8 act quant，输出给 C4 indexer 后面的 MQA logits / topk 使用。
+DeepSeek-V4 的主 KV cache 写入不会“算完 K 再交给通用 cache writer”，而是在同一个 JIT kernel 里完成 norm、RoPE、FP8 layout 打包和 paged cache 地址计算。Indexer Q 的 kernel 还会做 RoPE + Hadamard + FP8 act quant，输出给 C4 indexer 后面的 MQA logits / topk 使用。
 
-第二类是 Flash Compressor。`dsv4/compress.py` 是现在更值得看的入口，它把 plan、compress、norm_rope_store 三段串起来：
+第二类是 Flash Compressor。`dsv4/compress.py` 是主要入口，它把 plan、compress、norm_rope_store 三段串起来：
 
 ```python
 plan = CompressorPrefillPlan.generate(...)
@@ -847,7 +847,7 @@ struct alignas(8) WritePlan {
 };
 ```
 
-`DecodePlan` 服务 decode，一行对应一个 batch item；`CompressPlan` 服务 prefill 的“要压缩哪些 token”；`WritePlan` 服务 prefill 的“哪些 token 只写 state 不产生 compressed output”。这里的 plan 不是普通 metadata，而是 kernel 的控制流压缩结果。`c_plan.cuh` 还专门保留了 GPU 输入路径：当 `seq_lens` 已经在 GPU 上，planner 可以直接在 device 上生成 plan，避免 CUDA Graph capture 场景里出现 host sync。
+`DecodePlan` 服务 decode，一行对应一个 batch item；`CompressPlan` 服务 prefill 的“要压缩哪些 token”；`WritePlan` 服务 prefill 的“哪些 token 只写 state 不产生 compressed output”。这些 plan 会直接控制 kernel 的读写位置。`c_plan.cuh` 还保留了 GPU 输入路径：当 `seq_lens` 已经在 GPU 上，planner 可以直接在 device 上生成 plan，避免 CUDA Graph capture 场景里出现 host sync。
 
 C4 和 C128 的数据布局差异也体现在 kernel 里。`c4_v2.cuh` 开头直接写明：
 
@@ -861,7 +861,7 @@ C4 和 C128 的数据布局差异也体现在 kernel 里。`c4_v2.cuh` 开头直
 
 C4 有 overlap，所以一个 state slot 里既有当前 window 的 KV / score，也有 overlap window 的 KV / score。Decode 时写入新 token，如果当前位置到达 C4 边界，就在 8 个候选位置上加 APE bias，做 safe online softmax 和 weighted sum，输出 compressed KV。
 
-`c128_v2.cuh` 的布局更像一整块 128-token 压缩：
+`c128_v2.cuh` 对应一整块 128-token 压缩：
 
 ```cpp
 // kv_buffer: [num_indices, 128, head_dim * 2]
@@ -887,11 +887,11 @@ C128 不需要 C4 那样的 overlap，但 block 内要处理 128 个位置的 sc
 // Cache layout: 584 bytes/token = 448 fp8 nope + 64 bf16 rope + 8 scale
 ```
 
-这就是为什么同一个 `compress_norm_rope_store` 能服务 indexer cache 和 FlashMLA cache：kernel 根据 `kHeadDim == 128` 还是 `kHeadDim == 512` 选择不同路径。Indexer 路径是一 warp 一个 token，还包含 Hadamard 和 UE8M0 scale；FlashMLA 路径是一整个 block 处理一个 token，写 584 bytes/token 的 FlashMLA layout。
+同一个 `compress_norm_rope_store` 能服务 indexer cache 和 FlashMLA cache，是因为 kernel 会根据 `kHeadDim == 128` 还是 `kHeadDim == 512` 选择不同路径。Indexer 路径是一 warp 一个 token，还包含 Hadamard 和 UE8M0 scale；FlashMLA 路径是一整个 block 处理一个 token，写 584 bytes/token 的 FlashMLA layout。
 
-如果已经提前算好了 norm / RoPE，`store.cuh` 则提供纯粹的 `fused_store_cache`，分别写 `flashmla` 和 `indexer` 两种 cache。这说明 DeepSeek-V4 的 cache writer 不是一个单一抽象，而是按 cache 消费方拆成了多个特化 kernel。
+如果已经提前算好了 norm / RoPE，`store.cuh` 则提供纯粹的 `fused_store_cache`，分别写 `flashmla` 和 `indexer` 两种 cache。DeepSeek-V4 的 cache writer 按消费方拆成了多个特化 kernel。
 
-第四类是 indexer topk。`topk.cuh` 和 `topk_1024.cuh` 是早期固定 512 / 1024 输出的 transform。现在更值得看的版本是 `topk_v2.cuh`，Python 入口是：
+第四类是 indexer topk。`topk.cuh` 和 `topk_1024.cuh` 是早期固定 512 / 1024 输出的 transform。当前主版本是 `topk_v2.cuh`，Python 入口是：
 
 ```python
 metadata = plan_topk_v2(seq_lens)
@@ -916,7 +916,7 @@ using Medium = impl::StreamingTopK<K>;
 using Small = impl::RegisterTopK<K>;
 ```
 
-短序列走 register / shared memory 的 topk；中等长度走 streaming topk；长序列走 cluster topk。`cluster.cuh` 里用了 `__cluster_dims__(1, 8, 1)`，把一个长序列的候选 page 分给 cluster 内多个 CTA，先做 histogram 和 threshold，再做 scatter。这个 kernel 解决的不是 MoE expert topk，而是“给压缩注意力从历史 page 里挑 page”。这和 DeepSeek-V3/R1 常见的 grouped topk / expert routing topk 是完全不同的对象。
+短序列走 register / shared memory 的 topk；中等长度走 streaming topk；长序列走 cluster topk。`cluster.cuh` 里用了 `__cluster_dims__(1, 8, 1)`，把一个长序列的候选 page 分给 cluster 内多个 CTA，先做 histogram 和 threshold，再做 scatter。这个 kernel 解决的不是 MoE expert topk，而是“给压缩注意力从历史 page 里挑 page”。它和 DeepSeek-V3/R1 常见的 grouped topk / expert routing topk 面向的对象不同。
 
 第五类是 paged MQA metadata。`paged_mqa_metadata.cuh` 里有一个固定参数：
 
@@ -967,21 +967,21 @@ request metadata
   -> FlashMLA paged cache / HiSparse swap
 ```
 
-所以它和普通 DeepSeek-V3 kernel 的区别不是“多了几个 fused op”，而是：
+对比 DeepSeek-V3/R1，V4 的差异主要在这里：
 
-- V3/R1 的 attention kernel 更像直接消费 KV cache；V4 的 kernel 先维护 C4/C128 压缩 state，再把结果写成 FlashMLA / indexer 可消费的 cache。
+- V3/R1 的 attention kernel 直接消费 KV cache；V4 的 kernel 先维护 C4/C128 压缩 state，再把结果写成 FlashMLA / indexer 可消费的 cache。
 - V3/R1 的 topk 多数服务 MoE expert routing；V4 的 Lightning TopK 服务 attention page selection，输入是 indexer logits 和 page table。
 - V3/R1 的 metadata 多数是调度辅助；V4 的 `DecodePlan / CompressPlan / WritePlan` 是压缩状态机本身的一部分。
 - V3/R1 的 cache layout 相对统一；V4 同时存在 C4 state、C128 state、online C128 state、FlashMLA 584 bytes/token、Indexer 132 bytes/token、HiSparse CPU linear layout。
 - V3/R1 的 kernel 通常可以复用于同类 MLA / MoE 模型；V4 的 kernel 和 `compress_ratios`、SWA page、ShadowRadix、Lightning Indexer、mHC / MTP 等模型设计强绑定。
 
-这也是为什么读 DeepSeek-V4 源码时不能只搜 `forward`。真正决定性能和正确性的部分，一大块藏在 `jit_kernel/deepseek_v4.py` 和 `jit_kernel/csrc/deepseek_v4` 下面。这里的 kernel 不只是加速模型，而是在实现模型承诺的推理形态。
+读 DeepSeek-V4 源码时不能只搜 `forward`。性能和正确性相关的一大块逻辑在 `jit_kernel/deepseek_v4.py` 和 `jit_kernel/csrc/deepseek_v4` 下面。这些 kernel 不是模型外面的加速补丁，而是推理路径本身的一部分。
 
 # 0x9. MTP / NextN：draft worker 为什么只走 SWA
 
 ![](https://files.mdnice.com/user/59/b10990a4-f93b-4eeb-96b7-e3121603ab43.png)
 
-Slides 里强调 MTP layer 使用 SWA-only attention。源码里这个设计非常直接：
+Slides 里强调 MTP layer 使用 SWA-only attention。源码里直接这样写：
 
 ```python
 # python/sglang/srt/models/deepseek_v4_nextn.py
@@ -1000,7 +1000,7 @@ self.decoder = DeepseekV4DecoderLayer(
 
 这意味着 draft layer 不创建 C4/C128 compressor，也不创建 C4 indexer。它只复用主模型的 SWA attention 形态。这样做有两个好处：
 
-- Draft token 的目标是快速预测候选，不值得承担完整 CSA/HCA metadata 和 compressor 成本。
+- Draft token 的目标是快速预测候选，不能承担完整 CSA/HCA metadata 和 compressor 成本。
 - Draft worker 不需要拥有 C4/C128/state pool，内存池初始化时也会把相关容量置零。
 
 `DeepseekV4ModelNextN.forward` 还会把 target 模型传来的 hidden states 和当前 token embedding 合起来：
@@ -1104,13 +1104,13 @@ core_metadata.c4_sparse_page_indices = (
 )
 ```
 
-这说明 HiSparse 不是在 attention 后端里简单「从 CPU 读 KV」。它更像插在 C4 indexer 和 FlashMLA 之间：indexer 先选出要访问的 C4 page，HiSparse 再保证这些 page 在 device buffer 中可访问，并把 indices 改成 device-side loc。
+HiSparse 不是在 attention 后端里简单「从 CPU 读 KV」。它位于 C4 indexer 和 FlashMLA 之间：indexer 先选出要访问的 C4 page，HiSparse 再保证这些 page 在 device buffer 中可访问，并把 indices 改成 device-side loc。
 
 # 0xB. mHC：DeepSeek-V4 模型层里另一个不能忽略的结构
 
 Slides 主要讲 attention 和 serving，但源码里 DeepSeek-V4 还有一个很重要的结构：mHC。它在 `DeepseekV4DecoderLayer` 的 attention 前后、FFN 前后都会出现。
 
-模型 hidden states 不是普通 `[tokens, hidden]`，而是会扩成：
+模型 hidden states 不是简单的 `[tokens, hidden]`，它会扩成：
 
 ```python
 hidden_states = hidden_states.unsqueeze(1).repeat(1, hc_mult, 1)
@@ -1253,7 +1253,7 @@ Cookbook 里对 MegaMoE 的限制也写得很清楚：
 - 默认 W4A8，也可以用 W4A4。
 - 需要根据 workload 调 `SGLANG_OPT_DEEPGEMM_MEGA_MOE_NUM_MAX_TOKENS_PER_RANK`。
 
-所以 MegaMoE 不是一个随便打开就通吃的开关，而是面向特定硬件和高吞吐 recipe 的 MoE 后端。
+MegaMoE 不是一个可随意开启的通用开关，它面向特定硬件和高吞吐 recipe。
 
 # 0xD. CP 和 PD：DeepSeek-V4 的并行不是简单拼 flag
 
@@ -1291,7 +1291,7 @@ c4_out_loc
 c128_out_loc
 ```
 
-原因也写在源码注释里：compressor write path 仍然需要 global out loc。也就是说 CP 只切 attention 读取相关 metadata，写 cache 的位置信息必须保持全局语义。
+原因也写在源码注释里：compressor write path 仍然需要 global out loc。因此 CP 只切 attention 读取相关 metadata，写 cache 的位置信息必须保持全局语义。
 
 模型层里 CP 会影响两个地方：
 
@@ -1321,7 +1321,7 @@ if isinstance(self.token_to_kv_pool, DeepSeekV4TokenToKVPool):
     )
 ```
 
-连接层收到这个字段后，会知道 DSv4 的 KV pointer list 不是普通 per-layer 布局，而是按 buffer type 分段：
+连接层收到这个字段后，会知道 DSv4 的 KV pointer list 不是 per-layer 布局，而是按 buffer type 分段：
 
 ```text
 kv_data layout:
@@ -1337,7 +1337,7 @@ state_data layout:
 
 `_mla_slice_ptrs_for_pp` 会根据 `compression_ratios` 和 PP stage 的 start/end layer，把 decode 侧 full-model pointer list 切成和 prefill 侧一致的子范围。
 
-这就是 `deepseek_v4_hook.py` 里限制 `PD disaggregation requires pp_size=1` 的背景之一。最新源码已经在 disaggregation common path 里支持 compressed-MLA pointer slicing，但 DSv4 的 buffer-type-organized KV 指针仍然比普通 per-layer KV 复杂很多，部署 recipe 不能随意组合。
+这个限制也解释了 `deepseek_v4_hook.py` 里为什么要求 `PD disaggregation requires pp_size=1`。最新源码已经在 disaggregation common path 里支持 compressed-MLA pointer slicing，但 DSv4 的 buffer-type-organized KV 指针仍然比普通 per-layer KV 复杂很多，部署 recipe 不能随意组合。
 
 ![](https://files.mdnice.com/user/59/cda88364-d9fc-439c-9864-318e3166029f.png)
 
@@ -1349,7 +1349,7 @@ Cookbook 把 deployment recipe 分成几类：
 - CP：TP + DeepEP + context-parallel flags。
 - PD-Disagg：Prefill / Decode 分离，通过 router 对外服务。
 
-这些 recipe 的存在很重要：DeepSeek-V4 的最优部署不是一个点，而是一条 Pareto 曲线。MTP、DeepEP、MegaMoE、CP、PD、Hopper/Blackwell、FP4/FP8 都会改变曲线位置。
+这些 recipe 给的是几条已验证的部署路线。实际选择时要看硬件和 workload：MTP、DeepEP、MegaMoE、CP、PD、Hopper/Blackwell、FP4/FP8 都会改变吞吐、延迟和显存占用。
 
 # 0xE. 部署矩阵：硬件、模型变体和量化路线
 
@@ -1360,7 +1360,7 @@ DeepSeek-V4-Flash：约 284B，总体更适合单节点部署
 DeepSeek-V4-Pro：约 1.6T，需要更强的 TP/多节点/大显存组合
 ```
 
-硬件矩阵在 `docs_new/src/snippets/autoregressive/deepseek-v4-deployment.jsx` 里维护。几个关键点：
+硬件矩阵在 `docs_new/src/snippets/autoregressive/deepseek-v4-deployment.jsx` 里维护。几个点：
 
 ```text
 B200  -> FP4 weights，Flash TP=4，Pro TP=8
@@ -1400,7 +1400,7 @@ Slides 后半段讲了 Day-0 RL Support 和 DAPO 结果，关键词包括：
 - Enhanced stability。
 - FP8 training。
 
-这部分我不展开源码，因为当前本地 SGLang 推理 repo 里最直接、最完整的是 serving runtime。训练侧 slides 更像是在说明 SGLang 生态围绕 DeepSeek-V4 做的不只是 online serving，也在追求模型刚发布后训练/后训练系统能尽快接上。读者如果关注这部分，应该把它看成路线图和能力展示，而不是和前面 `DeepseekV4AttnBackend` 一一对应的源码路径。
+这部分我不展开源码，因为当前本地 SGLang 推理 repo 里最直接、最完整的是 serving runtime。训练侧 slides 主要说明 SGLang 相关工作围绕 DeepSeek-V4 覆盖的不只是 online serving，也包括模型发布后的训练/后训练接入。读者如果关注这部分，可以把它看成路线图和能力展示，不必和前面 `DeepseekV4AttnBackend` 一一对应。
 
 # 0x10. 测试和验证入口
 
@@ -1471,7 +1471,7 @@ Slides 的 roadmap 提到几个方向：
 
 ![](https://files.mdnice.com/user/59/24579f3e-62e0-46a6-8860-0fb0cbd4331c.png)
 
-最后用一张实现图景把全文收住：
+把实现路径整理成下面这张图：
 
 ```text
 DeepSeek-V4 config
@@ -1512,4 +1512,4 @@ System features
 
 ![](https://files.mdnice.com/user/59/06216acc-50c4-46c8-b1e9-0c69d6dd4b08.png)
 
-如果只用一句话概括 SGLang 对 DeepSeek-V4 的实现：它先用 ShadowRadix 和多级 KV pool 把模型的新 attention 语义变成可管理的 serving 状态，再用 metadata planner、Flash Compressor、Lightning TopK、多流 overlap 和 FlashMLA 把这些状态变成高效执行路径，最后用 cookbook recipe 把不同硬件和 workload 下的组合边界固定下来。DeepSeek-V4 的复杂性不在某一个 kernel，而在这些层必须同时成立。
+SGLang 对 DeepSeek-V4 的实现可以按这条线理解：先用 ShadowRadix 和多级 KV pool 管住新的 attention 状态，再用 metadata planner、Flash Compressor、Lightning TopK、多流 overlap 和 FlashMLA 执行这些状态，最后通过 cookbook recipe 给不同硬件和 workload 提供可复用的组合。DeepSeek-V4 难就难在这里：单个 kernel 看起来都能解释，真正上线时这些层要一起对齐。
