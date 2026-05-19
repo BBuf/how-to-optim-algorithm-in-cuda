@@ -532,7 +532,58 @@ flash_mla.flash_mla_with_kvcache(
 )
 ```
 
-其中：
+这里能接 FlashMLA，原因要从 DeepSeek-V4 的 attention 形态看。
+
+DeepSeek-V4 在这一层已经被整理成 MLA decode 形态。模型配置里 `num_attention_heads=64`、`num_key_value_heads=1`，注意力是 MQA/MLA 风格；`qk_nope_head_dim=448`、`qk_rope_head_dim=64`，所以 query/key 的实际 head dim 是 `448 + 64 = 512`；`v_head_dim=512`。SGLang 在 `_compute_q_b` 里把 query 做成 `[num_tokens, n_local_heads, 512]`，在 `_compute_kv_to_cache` 里把 KV 写成 FlashMLA 能读的 packed FP8 cache。backend 里还有一个直接约束：
+
+```python
+assert k is v, "DeepseekV4 shares k and v"
+```
+
+也就是说，FlashMLA 接到的不是普通 Transformer 那种分开的 K cache 和 V cache，而是一份 DeepSeek-V4 的 MQA latent cache。它既参与 `QK^T` 的 key 侧计算，也作为 softmax 之后被加权求和的 value 侧数据。
+
+进入 `flash_mla_with_kvcache` 之前，主要张量形状可以这样看。设 `T` 是当前 batch 的 query token 数，`Hq` 是当前 rank 上的 query head 数，`P` 是 cache page 数：
+
+```text
+q:
+  [T, 1, Hq, 512]
+
+swa_k_cache:
+  [P_swa, 128, 1, 584]
+
+swa_page_indices:
+  [T, 1, K_swa]，最后一维按 64 对齐
+
+swa_topk_lengths:
+  [T]
+
+extra_k_cache，compress_ratio=4:
+  [P_c4, 64, 1, 584]
+
+extra_indices，compress_ratio=4:
+  [T, 1, K_c4]
+
+extra_k_cache，compress_ratio=128:
+  [P_c128, 2, 1, 584]
+
+extra_indices，compress_ratio=128:
+  [T, 1, K_c128]
+
+out:
+  [T, 1, Hq, 512] -> squeeze 后变成 [T, Hq, 512]
+```
+
+这里的 `584` 是 DeepSeek-V4 KV cache 的每 token 存储字节数，不是普通意义上的 hidden dim：
+
+```text
+584 = 448 bytes FP8 no-pe latent + 64 * 2 bytes BF16 rope latent + 8 bytes scale/pad
+```
+
+SWA 这一路的逻辑窗口是 128，所以 `swa_k_cache` 被 view 成 `[P_swa, 128, 1, 584]`。C4 压缩 cache 的 page size 是 `256 / 4 = 64`，C128 压缩 cache 的 page size 是 `256 / 128 = 2`，所以 extra cache 的第二维分别是 64 和 2。`indices` 和 `topk_length` 告诉 FlashMLA：每个 query token 这一轮要从哪些 page 里读、实际有效长度是多少。这样 FlashMLA 不需要扫描完整历史序列，只按 SGLang 前面准备好的 SWA/C4/C128 索引去 gather。
+
+FlashMLA 在这里解决的是 attention 的读侧计算问题：给定 BF16 query、FP8 packed KV cache、paged/sparse indices、`attn_sink` 和 tile scheduler metadata，在同一条 kernel 路径里完成 page gather、FP8 反量化、`QK^T`、softmax、对 shared KV latent 的加权求和，并返回 `[T, Hq, 512]` 的结果。它不负责构造 C4/C128 cache，也不负责选 TopK page；这些由前面的 compressor、ShadowRadix 和 C4 indexer 完成。FlashMLA 只吃最终的读侧计划，并把 SWA-only、CSA、HCA 三种路径统一成同一个 attention 调用。
+
+参数对应关系如下：
 
 - `k_cache=swa_k_cache` 永远存在，对应 SWA。
 - `extra_k_cache=None` 时就是 SWA-only。
