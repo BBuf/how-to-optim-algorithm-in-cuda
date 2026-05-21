@@ -1,4 +1,4 @@
-> 这篇是对青稞社区 SGLang DeepSeek V4 回放中「Deploying and Optimizing DeepSeek-V4 on SGLang」这个分享的技术解读。和单纯复述 slides 不同，这篇主要基于 SGLang 最新 main 源码来解释：SGLang 是怎么把 DeepSeek-V4 的 SWA / CSA / HCA、ShadowRadix、多级 KV pool、Flash Compressor、Lightning TopK、MTP、HiSparse、MegaMoE、CP / PD 部署串成一个可运行系统的。本文基于 `/Users/bbuf/工作目录/Common/sglang`，2026-05-19 同步到 `origin/main` 后的 commit `4c9f31b85`。
+> 这篇是对青稞社区 SGLang DeepSeek V4 回放中「Deploying and Optimizing DeepSeek-V4 on SGLang」这个分享的技术解读。和单纯复述 slides 不同，这篇主要基于 SGLang 最新 main 源码来解释：SGLang 是怎么把 DeepSeek-V4 的 SWA / CSA / HCA、ShadowRadix、多级 KV pool、Flash Compressor、Lightning TopK、MTP、HiSparse、MegaMoE、CP / PD 部署串成一个可运行系统的。本文基于 `/Users/bbuf/工作目录/Common/sglang`，2026-05-21 fetch 到 `origin/main` 后的 commit `8562d5ae9`。
 
 # 0x0. 前言
 
@@ -27,8 +27,10 @@ python/sglang/srt/models/deepseek_v4_nextn.py
 Attention backend / metadata / indexer / compressor：
 python/sglang/srt/layers/attention/deepseek_v4_backend.py
 python/sglang/srt/layers/attention/dsv4/indexer.py
+python/sglang/srt/layers/attention/dsv4/metadata.py
 python/sglang/srt/layers/attention/dsv4/compressor_v2.py
 python/sglang/srt/layers/attention/dsv4/metadata_kernel.py
+python/sglang/srt/layers/attention/dsv4/index_buf_accessor.py
 
 KV cache 和压缩状态：
 python/sglang/srt/model_executor/pool_configurator.py
@@ -37,8 +39,16 @@ python/sglang/srt/mem_cache/deepseek_v4_memory_pool.py
 python/sglang/srt/mem_cache/deepseek_v4_compress_state.py
 
 JIT/CUDA kernel：
-python/sglang/jit_kernel/deepseek_v4.py
+python/sglang/jit_kernel/dsv4/__init__.py
+python/sglang/jit_kernel/dsv4/attn.py
 python/sglang/jit_kernel/dsv4/compress.py
+python/sglang/jit_kernel/dsv4/compress_old.py
+python/sglang/jit_kernel/dsv4/elementwise.py
+python/sglang/jit_kernel/dsv4/gemm.py
+python/sglang/jit_kernel/dsv4/hisparse.py
+python/sglang/jit_kernel/dsv4/moe.py
+python/sglang/jit_kernel/dsv4/topk.py
+python/sglang/jit_kernel/dsv4/utils.py
 python/sglang/jit_kernel/csrc/deepseek_v4/
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/
 
@@ -97,6 +107,12 @@ assert server_args.speculative_eagle_topk == 1
 Context Parallelism 的约束也在同一个文件里：
 
 ```python
+if not server_args.enable_dsa_prefill_context_parallel:
+    return
+
+if server_args.dsa_prefill_cp_mode != "round-robin-split":
+    raise ValueError(...)
+
 server_args.enable_dp_attention = True
 server_args.moe_dense_tp_size = 1
 server_args.attn_cp_size = server_args.tp_size // server_args.dp_size
@@ -104,7 +120,9 @@ assert server_args.dp_size == 1
 assert server_args.tp_size <= 8
 ```
 
-DeepSeek-V4 的 CP 当前只支持 `round-robin-split`，并且限定在单机 TP 范围内。这个限制会在后面的 metadata reindex 和 MLP/DeepEP 路径里继续出现。
+DeepSeek-V4 的 CP 入口现在沿用 DSA prefill CP 这组参数名：`--enable-dsa-prefill-context-parallel` 和 `--dsa-prefill-cp-mode round-robin-split`。它当前只支持 `round-robin-split`，并且限定在单机 TP 范围内。这个限制会在后面的 metadata reindex 和 MLP/DeepEP 路径里继续出现。
+
+另外，最新 hook 里还有一个小变化：如果用户开启 EAGLE MTP 但没有显式打开 `SGLANG_ENABLE_SPEC_V2`，SGLang 会在 DeepSeek-V4 默认值 hook 中自动把 spec v2 打开。
 
 `python/sglang/srt/environ.py` 里还有一组 DSv4 相关默认开关。几个对源码阅读特别重要：
 
@@ -245,6 +263,8 @@ c128_state_pool_size = swa_tokens // swa_page_size * c128_ring_size
 
 `swa_ratio` 默认来自前面的 `swa_full_tokens_ratio=0.1`。这表示系统不会按 full token 容量给 SWA 池完整分配，而是按一定比例保留 SWA 工作集。C4/C128 则按压缩比例缩小。
 
+最新实现里 `DSV4PoolConfigurator` 还会按 PP stage 截取本 stage 的 `compress_ratios` 来估算 pool 大小；如果启用 speculative decoding，它会把 target + draft worker 的内存一起折进 `bytes_per_full_token`，避免 target 侧 profiling 低估总显存需求。
+
 具体到 KV buffer 布局，`DeepSeekV4SingleKVPool` 每 token 的存储是 584 bytes：
 
 ```python
@@ -310,6 +330,8 @@ SGLANG_OPT_CACHE_SWA_TRANSLATION=True
 ```
 
 这是因为同一个 forward batch 里很多 layer 都要把同一批 `out_cache_loc` 翻译到 SWA pool，缓存一次可以减少重复映射开销。
+
+最新 main 里这个缓存还补上了失效边界：`DeepSeekV4TokenToKVPool.register_mapping` 更新 `full_to_swa_index_mapping` 时会把 `cached_loc` 清空，另外 `invalidate_loc_cache()` 可以在 batch 级别主动清掉旧翻译。这个细节很重要，因为 SWA mapping 重建后继续复用旧 loc，会让后续 layer 写到错误的 SWA 物理位置。
 
 # 0x4. Attention metadata：把 request 状态变成 FlashMLA / compressor / indexer 所需结构
 
@@ -459,13 +481,15 @@ token_to_kv_pool.set_swa_key_buffer_radix_fused_norm_rope(
 )
 ```
 
-默认路径省掉了“先生成完整 BF16 K，再单独 norm、RoPE、量化、写 cache”的中间形态，直接调用 `fused_k_norm_rope_flashmla`，把 norm + RoPE + 写入 FlashMLA paged cache 合到一段 JIT kernel 中。只有 NSA prefill CP 场景需要 BF16 KV 做跨 rank all-gather，才走 `_compute_kv_bf16`。
+默认路径省掉了“先生成完整 BF16 K，再单独 norm、RoPE、量化、写 cache”的中间形态，直接调用 `fused_k_norm_rope_flashmla`，把 norm + RoPE + 写入 FlashMLA paged cache 合到一段 JIT kernel 中。只有 DSA prefill CP 场景需要 BF16 KV 做跨 rank all-gather，才走 `_compute_kv_bf16`。
 
 多流 overlap 也在 `MQALayer` 里。默认 `SGLANG_OPT_USE_MULTI_STREAM_OVERLAP=True`，模型初始化会创建 5 条辅助 stream：
 
 ```python
 self.alt_streams = [torch.cuda.Stream() for _ in range(5)]
 ```
+
+这 5 条 stream 不是全都直接被 `MQALayer` 外层使用：外层拿前 3 条分别跑 KV cache write、compressor 和 indexer 调用；`C4Indexer` 内部再拿后 2 条分别算 indexer Q 和 weights projection。
 
 `_forward_prepare_multi_stream` 会把 indexer、KV cache write、compressor 分到不同 stream：
 
@@ -497,7 +521,7 @@ enable_multi_stream = (
     and self.alt_streams is not None
     and get_is_capture_mode()
     and x.shape[0] <= self._multi_stream_bs_limit
-    and not nsa_prefill_cp
+    and not (self.dsa_enable_prefill_cp and dsa_use_prefill_cp(forward_batch))
 )
 ```
 
@@ -523,6 +547,12 @@ o = attn_backend.forward(
 flash_mla.flash_mla_with_kvcache(
     q=q,
     k_cache=swa_k_cache,
+    head_dim_v=self.head_dim_v,
+    block_table=None,
+    cache_seqlens=None,
+    tile_scheduler_metadata=flashmla_metadata,
+    softmax_scale=self.softmax_scale,
+    is_fp8_kvcache=True,
     indices=swa_page_indices,
     topk_length=swa_topk_lengths,
     attn_sink=attn_sink,
@@ -549,7 +579,7 @@ q:
   [T, 1, Hq, 512]
 
 swa_k_cache:
-  [P_swa, 128, 1, 584]
+  [P_swa, 256, 1, 584]
 
 swa_page_indices:
   [T, 1, K_swa]，最后一维按 64 对齐
@@ -579,7 +609,7 @@ out:
 584 = 448 bytes FP8 no-pe latent + 64 * 2 bytes BF16 rope latent + 8 bytes scale/pad
 ```
 
-SWA 这一路的逻辑窗口是 128，所以 `swa_k_cache` 被 view 成 `[P_swa, 128, 1, 584]`。C4 压缩 cache 的 page size 是 `256 / 4 = 64`，C128 压缩 cache 的 page size 是 `256 / 128 = 2`，所以 extra cache 的第二维分别是 64 和 2。`indices` 和 `topk_length` 告诉 FlashMLA：每个 query token 这一轮要从哪些 page 里读、实际有效长度是多少。这样 FlashMLA 不需要扫描完整历史序列，只按 SGLang 前面准备好的 SWA/C4/C128 索引去 gather。
+SWA 这一路的逻辑窗口是 128，但最新 paged SWA pool 的物理 page size 跟系统 `page_size=256` 对齐，所以 `swa_k_cache` 会被 view 成 `[P_swa, 256, 1, 584]`；真正参与 attention 的长度仍然由 `swa_topk_lengths = clamp(seq_len, max=128)` 和 `swa_page_indices` 限住。C4 压缩 cache 的 page size 是 `256 / 4 = 64`，C128 压缩 cache 的 page size 是 `256 / 128 = 2`，所以 extra cache 的第二维分别是 64 和 2。`indices` 和 `topk_length` 告诉 FlashMLA：每个 query token 这一轮要从哪些 cache slot 里读、实际有效长度是多少。这样 FlashMLA 不需要扫描完整历史序列，只按 SGLang 前面准备好的 SWA/C4/C128 索引去 gather。
 
 FlashMLA 在这里解决的是 attention 的读侧计算问题：给定 BF16 query、FP8 packed KV cache、paged/sparse indices、`attn_sink` 和 tile scheduler metadata，在同一条 kernel 路径里完成 page gather、FP8 反量化、`QK^T`、softmax、对 shared KV latent 的加权求和，并返回 `[T, Hq, 512]` 的结果。它不负责构造 C4/C128 cache，也不负责选 TopK page；这些由前面的 compressor、ShadowRadix 和 C4 indexer 完成。FlashMLA 消费最终的读侧计划，并把 SWA-only、CSA、HCA 三种路径统一成同一个 attention 调用。
 
@@ -656,10 +686,12 @@ topk_transform_512_v2(
 )
 ```
 
+这里的“默认路径”要加一个限定：当 HiSparse decode 或 indexer capture 需要拿到 raw indices 时，源码会回退到 `topk_transform_512`，因为 v2 路径当前不返回 raw indices；普通非 HiSparse decode 则走 `topk_transform_512_v2`。
+
 对应的 JIT/CUDA 代码在：
 
 ```text
-python/sglang/jit_kernel/deepseek_v4.py
+python/sglang/jit_kernel/dsv4/topk.py
 python/sglang/jit_kernel/csrc/deepseek_v4/topk_v2.cuh
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/
 ```
@@ -731,6 +763,8 @@ compress_norm_rope_store(
 
 它和旧路径的区别在于：旧路径会先产生 compressed KV，再经过 norm/RoPE/pack/store 等多段动作；v2 把压缩、归一化、RoPE、写 cache 合并到一条 kernel 链路里，减少 HBM round-trip。
 
+这里还有一个容易漏掉的 HiSparse 修正：v2 compressor 写的是 raw C4 KV tensor，所以当 C4 pool 被替换成 `HiSparseC4DevicePool` 时，`compressor_v2.py` 会先把 `out_loc` 通过 `translate_loc_to_hisparse_device` 转成 HiSparse device 侧物理位置，再传给 `compress_norm_rope_store`。否则 compressor 会按压缩 loc 写入，而 sparse attention 读取的是 HiSparse device loc，二者会错位。
+
 压缩计划由 `create_paged_compressor_data` 生成。它会把 full-token loc、SWA loc、ring buffer loc 之间的关系交给 C++ planner：
 
 ```python
@@ -783,11 +817,19 @@ assert mr.spec_algorithm.is_none()
 
 # 0x8. jit_kernel 视角：DeepSeek-V4 kernel 是一套压缩注意力 runtime
 
-前面几节从模型 forward 往下展开。下面看 `python/sglang/jit_kernel` 目录里的实现细节。DeepSeek-V4 直接相关的文件大致分成几组：
+前面几节从模型 forward 往下展开。下面看 `python/sglang/jit_kernel` 目录里的实现细节。最新 main 里，DSv4 的 Python JIT wrapper 已经从单文件入口拆成 `dsv4` package。DeepSeek-V4 直接相关的文件大致分成几组：
 
 ```text
-python/sglang/jit_kernel/deepseek_v4.py
+python/sglang/jit_kernel/dsv4/__init__.py
+python/sglang/jit_kernel/dsv4/attn.py
 python/sglang/jit_kernel/dsv4/compress.py
+python/sglang/jit_kernel/dsv4/compress_old.py
+python/sglang/jit_kernel/dsv4/elementwise.py
+python/sglang/jit_kernel/dsv4/gemm.py
+python/sglang/jit_kernel/dsv4/hisparse.py
+python/sglang/jit_kernel/dsv4/moe.py
+python/sglang/jit_kernel/dsv4/topk.py
+python/sglang/jit_kernel/dsv4/utils.py
 
 python/sglang/jit_kernel/csrc/deepseek_v4/c_plan.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/common.cuh
@@ -797,70 +839,59 @@ python/sglang/jit_kernel/csrc/deepseek_v4/c128.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/c128_online.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/c128_v2.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/c128_online_v2.cuh
-python/sglang/jit_kernel/csrc/deepseek_v4/rmsnorm.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/rope.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/fused_norm_rope.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/fused_norm_rope_v2.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/main_norm_rope.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/store.cuh
+python/sglang/jit_kernel/csrc/deepseek_v4/topk_v1.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/topk_v2.cuh
-python/sglang/jit_kernel/csrc/deepseek_v4/topk.cuh
-python/sglang/jit_kernel/csrc/deepseek_v4/topk_1024.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/hash_topk.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/hisparse_transfer.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/mega_moe_pre_dispatch.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/silu_and_mul_masked_post_quant.cuh
-python/sglang/jit_kernel/csrc/deepseek_v4/silu_and_mul_masked_post_quant_tmp.cuh
 python/sglang/jit_kernel/csrc/deepseek_v4/paged_mqa_metadata.cuh
 
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/compress.cuh
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/compress_v2.cuh
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/fp8_utils.cuh
 python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/kvcacheio.cuh
-python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/*.cuh
+python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/cluster.cuh
+python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/common.cuh
+python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/ptx.cuh
+python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/register.cuh
+python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/streaming.cuh
 ```
 
 DeepSeek-V4 的 JIT kernel 并非只用于加速某个 PyTorch op。它们要维护压缩 KV 状态，处理 page 级索引和 cache layout 转换，还要覆盖 indexer topk、HiSparse 搬运、MegaMoE 预处理等 runtime 工作。模型结构的变化直接影响 serving runtime 的 kernel 边界。
 
-上面列表里既有当前主路径，也有旧路径和兼容路径。当前压缩路径主要看 `dsv4/compress.py + c_plan.cuh + *_v2.cuh`；`deepseek_v4.py` 里还保留了 `common.cuh / c4.cuh / c128.cuh / c128_online.cuh / fused_norm_rope.cuh` 这些早期 wrapper。`compress.cuh / compress_v2.cuh` 放共享 plan 结构和校验，`fp8_utils.cuh` 放 FP8 pack / UE8M0 scale 这类公共工具。`rope.cuh`、`rmsnorm.cuh` 是拆开的 fallback / helper kernel；`topk.cuh`、`topk_1024.cuh` 是固定输出宽度的早期 topk；`topk_v2.cuh + include/.../topk/*.cuh` 是现在的 Lightning TopK 组合实现。`silu_and_mul_masked_post_quant_tmp.cuh` 在目录里存在，但当前 Python wrapper 实际加载的是 `silu_and_mul_masked_post_quant.cuh`。
+上面列表里既有当前主路径，也有旧路径和兼容路径。当前压缩路径主要看 `dsv4/compress.py + c_plan.cuh + *_v2.cuh`；`dsv4/compress_old.py` 保留旧 compressor 入口；`compress.cuh / compress_v2.cuh` 放共享 plan 结构和校验；`fp8_utils.cuh` 放 FP8 pack / UE8M0 scale 这类公共工具。`rope.cuh` 是拆开的 helper kernel；`topk_v1.cuh` 是早期 topk v1，`topk_v2.cuh` 加上 `include/sgl_kernel/deepseek_v4/topk/` 下的 cluster / streaming / register / common / ptx 头文件，是现在的 Lightning TopK 组合实现。当前目录里没有单独的 1024 topk 文件，也没有 `rmsnorm.cuh` 和 `silu_and_mul_masked_post_quant_tmp.cuh`；SiLU/mul/clamp/post-quant 都由 `silu_and_mul_masked_post_quant.cuh` 承接。
 
-先看 Python wrapper。`deepseek_v4.py` 里所有 JIT 模块都会用同一个命名前缀：
+先看 Python wrapper。现在所有 DSv4 JIT 模块通过 `dsv4/utils.py` 使用同一个命名前缀：
 
 ```python
 def make_name(name: str) -> str:
     return f"dpsk_v4_{name}"
 ```
 
-这个前缀主要用于定位 JIT 编译缓存。wrapper 暴露出的 kernel 分工如下：
+这个前缀主要用于定位 JIT 编译缓存。`dsv4/__init__.py` 对外重新导出这些入口：
 
 ```python
-_jit_main_q_norm_rope_module
-_jit_main_k_norm_rope_flashmla_module
-_jit_main_q_indexer_rope_hadamard_quant_module
-
-_jit_rmsnorm_head_module
-_jit_fused_rope_module
-_jit_norm_rope_module
-_jit_fused_store_module
-
-_jit_compress_module
-_jit_compress_128_online_module
-_jit_compress_plan_module
-_jit_compress_norm_rope_module
-
-_jit_topk_module
-_jit_topk1024_module
-_jit_topk_v2_module
-_jit_mask_topk_module
-_jit_hash_topk_module
-_jit_metadata_module
-
-_jit_mega_moe_pre_dispatch_module
-_jit_silu_mul_quant_varlen_module
-_jit_silu_mul_quant_contig_module
-_jit_silu_and_mul_clamp_module
-_jit_hisparse_transfer_module
+from .attn import fused_store_cache, get_paged_mqa_logits_metadata
+from .compress import CompressorDecodePlan, CompressorPrefillPlan
+from .compress import compress_forward, compress_norm_rope_store
+from .compress_old import fused_norm_rope_inplace
+from .elementwise import fused_k_norm_rope_flashmla
+from .elementwise import fused_q_indexer_rope_hadamard_quant
+from .elementwise import fused_q_norm_rope, fused_rope_inplace
+from .gemm import linear_bf16_fp32
+from .hisparse import hisparse_offload_to_host
+from .moe import hash_topk, mask_topk_ids, mega_moe_pre_dispatch
+from .moe import silu_and_mul_clamp, silu_and_mul_masked_post_quant
+from .topk import plan_topk_v2, topk_transform_512, topk_transform_512_v2
 ```
+
+拆分后的边界更清晰：`attn.py` 负责 store cache、paged MQA metadata 和旧 paged compress data helper；`elementwise.py` 负责 Q/K norm、RoPE、Hadamard、FP8 quant；`compress.py` 负责 v2 plan / compress / norm_rope_store；`gemm.py` 包 linear BF16->FP32；`hisparse.py` 包 offload transfer；`moe.py` 包 hash topk、mask topk、MegaMoE pre-dispatch 和 SiLU/mul post-quant；`topk.py` 包 v1/v2 topk transform 和 v2 metadata plan。
 
 这些函数可以按执行阶段理解，而不是按文件名理解。
 
@@ -872,10 +903,12 @@ FusedKNormRopeFlashMLAKernel
 FusedQIndexerRopeHadamardQuantKernel
 ```
 
-`FusedQNormRopeKernel` 做主 attention Q 侧的 rmsnorm-self + RoPE，一般是 warp-per-(token, head)。`FusedKNormRopeFlashMLAKernel` 做 K 侧的 rmsnorm + RoPE，并直接写进 FlashMLA paged cache。这个 kernel 对 layout 的约束固定为：
+`FusedQNormRopeKernel` 做主 attention Q 侧的 rmsnorm-self + RoPE，一般是 warp-per-(token, head)。`FusedKNormRopeFlashMLAKernel` 做 K 侧的 rmsnorm + RoPE，并直接写进 FlashMLA paged cache。这个 kernel 对 layout 的约束固定在 DSv4 的 512 维 head 和 64 维 RoPE tail 上；源码里通过模板实例化和静态断言约束 block/warp 划分：
 
 ```cpp
-static_assert(kHeadDim == 512 && kRopeDim == 64, "FlashMLA layout requires (512, 64)");
+constexpr int64_t kPageBytes = host::div_ceil(584ll << kPageBits, 576) * 576;
+static_assert(kHeadDim == kFusedKBlockSize * kVecSize);
+static_assert(kRopeDim == kWarpThreads * kVecSize);
 ```
 
 DeepSeek-V4 的主 KV cache 写入没有采用“算完 K 再交给通用 cache writer”的路径，而是在同一个 JIT kernel 里完成 norm、RoPE、FP8 layout 打包和 paged cache 地址计算。Indexer Q 的 kernel 还会做 RoPE + Hadamard + FP8 act quant，输出给 C4 indexer 后面的 MQA logits / topk 使用。
@@ -956,7 +989,7 @@ C128 不需要 C4 那样的 overlap，但 block 内要处理 128 个位置的 sc
 
 如果已经提前算好了 norm / RoPE，`store.cuh` 则提供纯粹的 `fused_store_cache`，分别写 `flashmla` 和 `indexer` 两种 cache。DeepSeek-V4 的 cache writer 按消费方拆成了多个特化 kernel。
 
-第四类是 indexer topk。`topk.cuh` 和 `topk_1024.cuh` 是早期固定 512 / 1024 输出的 transform。当前主版本是 `topk_v2.cuh`，Python 入口是：
+第四类是 indexer topk。`topk_v1.cuh` 是早期固定 512 输出的 transform，Python 侧仍通过 `topk_transform_512` 暴露给需要 raw indices 的路径；当前主版本是 `topk_v2.cuh`，Python 入口是：
 
 ```python
 metadata = plan_topk_v2(seq_lens)
@@ -1040,7 +1073,7 @@ request metadata
 - V3/R1 的 cache layout 相对统一；V4 同时存在 C4 state、C128 state、online C128 state、FlashMLA 584 bytes/token、Indexer 132 bytes/token、HiSparse CPU linear layout。
 - V3/R1 的 kernel 通常可以复用于同类 MLA / MoE 模型；V4 的 kernel 和 `compress_ratios`、SWA page、ShadowRadix、Lightning Indexer、mHC / MTP 等模型设计强绑定。
 
-读 DeepSeek-V4 源码时，仅检索 `forward` 不够。性能和正确性相关的一大块逻辑在 `jit_kernel/deepseek_v4.py` 和 `jit_kernel/csrc/deepseek_v4` 下面。这些 kernel 不是模型外部的加速补丁，而是推理路径本身的一部分。
+读 DeepSeek-V4 源码时，仅检索 `forward` 不够。性能和正确性相关的一大块逻辑在 `python/sglang/jit_kernel/dsv4/` 和 `python/sglang/jit_kernel/csrc/deepseek_v4/` 下面。这些 kernel 不是模型外部的加速补丁，而是推理路径本身的一部分。
 
 # 0x9. MTP / NextN：draft worker 为什么只走 SWA
 
@@ -1141,11 +1174,17 @@ HiSparse 的 coordinator 在 `model_runner.py` 里初始化：
 
 ```python
 if self.enable_hisparse:
+    hisparse_cfg = parse_hisparse_config(self.server_args)
+    hisparse_top_k = getattr(
+        self.model_config.hf_text_config, "index_topk", hisparse_cfg.top_k
+    )
     self.hisparse_coordinator = HiSparseCoordinator(
         req_to_token_pool=self.req_to_token_pool,
         token_to_kv_pool_allocator=self.token_to_kv_pool_allocator,
-        top_k=index_topk,
+        top_k=hisparse_top_k,
         device_buffer_size=hisparse_cfg.device_buffer_size,
+        device=self.device,
+        tp_group=(...),
         host_to_device_ratio=hisparse_cfg.host_to_device_ratio,
     )
 ```
@@ -1206,6 +1245,8 @@ hidden_states = hc_post(hidden_states, residual, post, comb)
 - DeepGEMM TF32 prenorm：`SGLANG_OPT_DEEPGEMM_HC_PRENORM=True`
 - fallback torch impl
 
+最新 main 还给 mHC pre 增加了 token-count prewarm。`DeepseekV4ForCausalLM.kernel_warmup` 会在 hybrid SWA、DeepGEMM prenorm 和 TileLang mHC pre 同时开启时，按 `chunked_prefill_size` 生成一组代表性 token count；如果用户没有设置 chunked prefill，则默认按 8192 估计。每个代表性 shape 会先跑 `hc_pre`，让 TileLang/DeepGEMM 路径提前完成编译和调度缓存，避免首个真实请求承担这段开销。
+
 最后一层还会经过 `hc_head`：
 
 ```python
@@ -1241,11 +1282,15 @@ is_deepseek_v4=True
 ```python
 def determine_num_fused_shared_experts(self):
     self.num_fused_shared_experts = 0
-    if disable_shared_experts_fusion:
+    if get_global_server_args().disable_shared_experts_fusion:
         return
 
-    disable_shared_experts_fusion = True
-    log_info("DeepSeek V4 requires different clamping for shared and routed experts.")
+    get_global_server_args().disable_shared_experts_fusion = True
+    log_info_on_rank0(
+        logger,
+        "DeepSeek V4 requires different clamping for shared and routed experts. "
+        "Shared experts fusion optimization is disabled.",
+    )
 ```
 
 原因写在日志里：DeepSeek-V4 的 shared experts 和 routed experts 需要不同 clamping，不能直接用旧的 shared experts fusion 假设。
@@ -1410,7 +1455,7 @@ state_data layout:
 
 `_mla_slice_ptrs_for_pp` 会根据 `compression_ratios` 和 PP stage 的 start/end layer，把 decode 侧 full-model pointer list 切成和 prefill 侧一致的子范围。
 
-这个限制也解释了 `deepseek_v4_hook.py` 里为什么要求 `PD disaggregation requires pp_size=1`。最新源码已经在 disaggregation common path 里支持 compressed-MLA pointer slicing，但 DSv4 的 buffer-type-organized KV 指针和普通 per-layer KV 相比有更多约束，部署 recipe 不能随意组合。
+最新源码已经在 disaggregation common path 里支持 compressed-MLA pointer slicing，但 DSv4 的 buffer-type-organized KV 指针和普通 per-layer KV 相比有更多约束。也就是说，代码层面已经有 `_mla_slice_ptrs_for_pp` 这类 PP slicing 逻辑，部署 recipe 仍然不能把 PD、PP、CP、DeepEP 随意叠加；要以 cookbook 生成器里标成 verified 的组合为准。
 
 ![](https://files.mdnice.com/user/59/cda88364-d9fc-439c-9864-318e3166029f.png)
 
@@ -1431,7 +1476,7 @@ Cookbook 把 deployment recipe 分成几类：
 DeepSeek-V4 cookbook 中当前主要有两个 instruct 变体：
 
 ```text
-DeepSeek-V4-Flash：约 284B，总体更适合单节点部署
+DeepSeek-V4-Flash：约 284B/285B 量级，总体更适合单节点部署
 DeepSeek-V4-Pro：约 1.6T，需要更强的 TP/多节点/大显存组合
 ```
 
@@ -1439,11 +1484,12 @@ DeepSeek-V4-Pro：约 1.6T，需要更强的 TP/多节点/大显存组合
 
 ```text
 B200  -> FP4 weights，Flash TP=4，Pro TP=8
+B300  -> FP4 weights，当前生成器按 B200 alias 处理
 GB200 -> FP4 weights，Flash TP=4，Pro TP=8，两节点
 GB300 -> FP4 weights，Flash TP=4，Pro TP=4
 H200  -> FP8 converted checkpoint，Flash TP=4，Pro TP=16，两节点
-H200 FP4 -> 原始 FP4 checkpoint + Marlin/FlashInfer MXFP4，TP-only
-H100 FP4 -> 原始 FP4 checkpoint + Marlin，Flash TP=8，Pro TP=16
+H200 FP4 -> 原始 FP4 checkpoint + Marlin/FlashInfer MXFP4，Flash TP=4，Pro TP=8，TP-only
+H100 FP4 -> 原始 FP4 checkpoint + Marlin，Flash TP=8，Pro TP=16，TP-only
 ```
 
 Cookbook 里有一个需要留意的说明：DeepSeek 官方 Instruct repo 是 FP4 MoE experts + FP8 attention/dense 的混合 checkpoint；Base 变体是纯 FP8 mixed，但不是 chat/tool calling 用途。Hopper 如果不使用 FP4 mixed experts，则需要 SGLang 发布的 FP8 converted checkpoint：
@@ -1486,17 +1532,32 @@ Slides 后半段讲了 Day-0 RL Support 和 DAPO 结果，关键词包括：
 如果读者想顺着源码继续验证，可以从这些测试入口开始：
 
 ```text
-test/registered/dsv4/test_deepseek_v4_flash_fp4_b200.py
-test/registered/dsv4/test_deepseek_v4_flash_fp4_h200.py
-test/registered/dsv4/test_deepseek_v4_flash_fp8_h200.py
-test/registered/dsv4/test_deepseek_v4_flash_fp4_megamoe_b200.py
+test/registered/models_e2e/test_deepseek_v4_flash_fp4_b200.py
+test/registered/models_e2e/test_deepseek_v4_flash_fp4_h200.py
+test/registered/models_e2e/test_deepseek_v4_flash_fp8_h200.py
+test/registered/models_e2e/test_deepseek_v4_flash_fp4_megamoe_b200.py
 test/registered/distributed/test_disaggregation_dsv4.py
+
+test/manual/core/test_dsv4_cached_loc_invalidation.py
+test/manual/core/test_dsv4_hicache_swa_translation_cache.py
+test/manual/core/test_dsv4_stale_loc_crash.py
+test/manual/core/test_swa_loc_translation_cache.py
 
 test/manual/dsv4/test_dsv4_flash_sanity_tp8.py
 test/manual/dsv4/test_dsv4_flash_sanity_dp4.py
 test/manual/dsv4/test_dsv4_flash_mtp_tp8.py
 test/manual/dsv4/test_dsv4_flash_mtp_dp4.py
 test/manual/dsv4/test_dsv4_pd_disagg_nixl.py
+test/manual/dsv4/test_b200_flash.py
+test/manual/dsv4/test_b200_pro.py
+test/manual/dsv4/test_b300_flash.py
+test/manual/dsv4/test_b300_pro.py
+test/manual/dsv4/test_gb300_flash.py
+test/manual/dsv4/test_gb300_pro.py
+test/manual/dsv4/test_h200_fp4_flash.py
+test/manual/dsv4/test_h200_fp4_pro.py
+test/manual/dsv4/test_h200_fp8_flash.py
+test/manual/dsv4/test_h200_fp8_pro.py
 
 python/sglang/jit_kernel/tests/deepseek_v4/test_c4_v2.py
 python/sglang/jit_kernel/tests/deepseek_v4/test_c128_v2.py
@@ -1505,11 +1566,12 @@ python/sglang/jit_kernel/tests/test_hisparse.py
 
 这些测试大致覆盖：
 
-- FP4 / FP8 模型在 B200 / H200 上的 serving。
+- FP4 / FP8 模型在 B200 / B300 / GB300 / H200 上的 serving。
 - MegaMoE recipe。
 - TP/DP 下的 sanity。
 - MTP TP8 / DP4。
 - PD disaggregation。
+- SWA loc translation cache invalidation，以及 HiCache / SWA translation cache 的 stale loc 回归。
 - C4/C128 compressor v2 kernel。
 - HiSparse JIT kernel。
 
@@ -1521,7 +1583,7 @@ python/sglang/jit_kernel/tests/test_hisparse.py
 3. 看 pool_configurator.py 算各类 pool 大小。
 4. 看 model_runner_kv_cache_mixin.py 创建 DeepSeekV4TokenToKVPool。
 5. 看 deepseek_v4_backend.py 的 init_forward_metadata。
-6. 看 deepseek_v4.py 的 MQALayer.forward。
+6. 看 python/sglang/srt/models/deepseek_v4.py 的 MQALayer.forward。
 7. 根据 compress_ratio 分别看 compressor_v2.py / indexer.py。
 8. 最后再看 JIT/CUDA kernel。
 ```
