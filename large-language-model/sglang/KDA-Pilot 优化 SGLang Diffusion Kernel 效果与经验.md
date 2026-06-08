@@ -53,11 +53,9 @@ Codex hook feature 名称变化也会让 Humanize RLCR 卡住：旧逻辑只禁�
 
 ## vs AKO
 
-开启AKO的Mode 2 — Closed-loop (default)，后续每个Round都需要我自己来点。
+从使用体验上看，AKO 的闭环模式仍然更像半自动流程：开启 Mode 2 Closed-loop 后，每个 Round 还需要人工继续触发和判断。KDA-Pilot + Humanize RLCR 的区别在于，它把任务定义、候选实现、评审、回滚和继续迭代放在同一个可追踪循环里，更适合批量优化 SGLang 这类 production kernel。
 
-考虑成本，收敛速度和可交互性来看，KDA目前更加适合优化SGLang Kernel。
-
-AKO支持外挂skill，我们也可以把kernel-wiki和ncu-report-skill挂上去，但是交互体验无法改善。
+从知识注入上看，AKO 也支持外挂 skill，理论上可以接入 KernelWiki 和 ncu-report-skill；但 KDA 的亮点是把这些知识和 NCU 证据、correctness gate、shape-specialized dispatch 放到 RLCR 迭代里，让「参考实现 / 知识点 -> candidate -> review -> promotion/no-go」成为优化过程的一部分，而不是只作为 prompt 上下文。
 
 ## 现有的开源Kernel Agent无法解决的问题
 
