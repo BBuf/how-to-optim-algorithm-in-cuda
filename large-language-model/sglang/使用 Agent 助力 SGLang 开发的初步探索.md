@@ -241,7 +241,7 @@ KDA-Pilot 的思路是把 kernel 优化拆成独立任务，避免 Agent 在 SGL
 - 每轮迭代刷新 task prompt、benchmark evidence、KernelWiki 和 ncu-report-skill。
 - 允许 shape-specialized dispatch，但必须写清楚每个 bucket 的条件、路径、latency 和 fallback。
 
-![KDA-Pilot B200 diffusion kernel results](https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/main/large-language-model/sglang/assets/kda-pilot-b200-speedups.svg)
+![KDA-Pilot B200 diffusion kernel results](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/main/large-language-model/sglang/assets/kda-pilot-b200-speedups.svg?raw=true)
 
 图 2：KDA-Pilot 在 B200 上对 7 个 SGLang diffusion kernel task 的 wall-geomean speedup。这里的 wall time 包含 Python dispatch、wrapper、kernel launch 和 `cuda.synchronize()` 能观察到的同步开销，比单纯 kernel device time 更接近真实调用路径。
 
