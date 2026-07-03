@@ -2,7 +2,7 @@
 
 日期：2026-07-02
 
-![Agent-assisted SGLang development](assets/sglang-agent-cover.png)
+![Agent-assisted SGLang development](https://files.mdnice.com/user/59/4699bcb7-4d2c-4120-8b6e-ff21fa46718e.png)
 
 SGLang 开发越来越不像一次孤立的代码修改。一个仓库里同时有 LLM serving、distributed runtime、GPU kernels、diffusion pipelines、model-specific execution paths 和 production incident handling。过去很多流程依赖开发者个人记忆：某个模型怎么启动，profile trace 怎么读，CUDA crash 先加哪类日志，一个性能 PR 应该补哪些 benchmark。Agent 工具成熟以后，这些经验可以被整理成可执行的 `SKILL.md`、脚本、benchmark contract 和 review loop。
 
@@ -133,7 +133,7 @@ Humanize 处理的是长期任务里的状态和审查问题。一个高风险�
 
 SGLang SOTA Performance Loop 是一个基于 Humanize/RLCR 的 Loop Engineering workflow。这里的 SOTA 指固定实验条件下的可复现最好结果：同一个模型、硬件、GPU 数量、precision、workload、SLA、framework commit 和 serving 参数。问题是：在这些条件不变的前提下，SGLang 能否达到当前可复现的最好结果。
 
-![SGLang SOTA Performance Loop](assets/sglang-sota-performance-loop.svg)
+![SGLang SOTA Performance Loop](https://files.mdnice.com/user/59/66b47a55-b8fe-4b8d-b6fa-9e603785ee68.png)
 
 图 1：SGLang SOTA Performance Loop。固定公平 benchmark 先给出可复现 baseline，后续 gap decision、profiling、pipeline analysis、patching 和 revalidation 由 Humanize/RLCR loop 推进。
 
@@ -271,7 +271,7 @@ KDA-Pilot 把 kernel 优化拆成隔离任务，避免 Agent 在 SGLang 大仓�
 
 关键结论不是每个 standalone kernel win 都会变成很大的端到端收益，而是同一套 KDA-Pilot evidence package 可以把 kernel task 从隔离 benchmark 推进到可审查的 SGLang serving path。这个 package 包括固定 production rows、correctness gates、same-ABI comparisons、profiler attribution 和 real-model checks。
 
-![KDA-Pilot B200 diffusion kernel results](assets/kda-pilot-b200-speedups.svg)
+![KDA-Pilot B200 diffusion kernel results](https://files.mdnice.com/user/59/ba64dd77-4226-41d5-a7ce-9ceeea9bafe4.png)
 
 图 2：KDA-Pilot 优化的 10 个 SGLang diffusion kernel task 的 B200 证据。大部分行报告 KDA-Pilot wall-geomean speedup；这里的 wall time 包含 Python dispatch、wrapper overhead、kernel launch 和 `cuda.synchronize()` 能观察到的同步开销，比单纯 kernel device time 更接近真实调用路径。
 
