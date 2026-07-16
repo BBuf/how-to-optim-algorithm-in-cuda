@@ -371,10 +371,10 @@ Tensor tCrC = thr_mma.partition_fragment_C(gC);  // (MMA, MMA_M, MMA_N)
 
 上面的代码有两处需要说明的点：
 
-**1）Tensor 的命名习惯**。在 CUTLASS 中，除上面的 mA、gA 以及在共享内存的 sA 等这些命名习惯外，我们常用 txgy、txry 等名称指代一个经过 tiling 的 tensor。其中 t 代表 tiling，x 代表按照何种方式进行 tiling，由于整个 MMA 最终产出的是 C 矩阵，tC 代表着这个 tensor 是从计算 C 矩阵的 MMA tile 出来的。第三个字母是 g/r 表示 tensor 数据的存储位置是 global memory/register file，第四个字母指代矩阵名称。许多 CUTLASS 相关代码均遵循这一套命名规范。
+1. **Tensor 的命名习惯**。在 CUTLASS 中，除上面的 mA、gA 以及在共享内存的 sA 等这些命名习惯外，我们常用 txgy、txry 等名称指代一个经过 tiling 的 tensor。其中 t 代表 tiling，x 代表按照何种方式进行 tiling，由于整个 MMA 最终产出的是 C 矩阵，tC 代表着这个 tensor 是从计算 C 矩阵的 MMA tile 出来的。第三个字母是 g/r 表示 tensor 数据的存储位置是 global memory/register file，第四个字母指代矩阵名称。许多 CUTLASS 相关代码均遵循这一套命名规范。
 
 
-**2）注释中 Tensor shape 的含义**。此处的 Tensor 的 shape 均为 (MMA, MMA_M/N, MMA_K/N) 。第一个维度 MMA 表示单个 MMA 指令（MMA Atom）所需的矩阵元素个数，本场景下，tCgA/tCrA 的 MMA 为 4，tCgB/tCrB 的 MMA 为 2。后两个维度代表了 MMA Atom 扩展后的维度，这里并没有对 MMA 做扩展，因此后两个维度均为 1。CUTLASS 代码中常常对 Tensor 的 shape 进行注解，以方便阅读代码。
+2. **注释中 Tensor shape 的含义**。此处的 Tensor 的 shape 均为 (MMA, MMA_M/N, MMA_K/N) 。第一个维度 MMA 表示单个 MMA 指令（MMA Atom）所需的矩阵元素个数，本场景下，tCgA/tCrA 的 MMA 为 4，tCgB/tCrB 的 MMA 为 2。后两个维度代表了 MMA Atom 扩展后的维度，这里并没有对 MMA 做扩展，因此后两个维度均为 1。CUTLASS 代码中常常对 Tensor 的 shape 进行注解，以方便阅读代码。
 
 
 同时，CuTe 提供了展示 Tensor 的 print 函数，可以展示特定 Tensor 的详细信息，而 print_tensor 函数可以打印出特定 Tensor 的所有数据，它们都是调试的好工具。（这里考考大家，tCgA 和 tCrA 的 stride 是什么呢？如果不清楚，可以尝试 print 一下哦）
@@ -689,13 +689,13 @@ mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32
 
 **混合数值精度计算 GEMM 的需求非常广泛，但常常被人们忽视**，有时候我们甚至不会意识到一个简单的 GEMM 会牵扯到如此多的精度。以下列举两个例子：
 
-**1）当前控制算子精度的手段有限。在数值敏感的训练场景，GEMM 的累加精度很可能会影响最终的训练效果。**
+1. **当前控制算子精度的手段有限。**在数值敏感的训练场景，GEMM 的累加精度很可能会影响最终的训练效果。
 
 例如，使用 `torch.matmul` 计算两个 BF16 的矩阵乘法，它的累加精度是 FP32，但计算两个 FP16 的矩阵乘法，累加精度却是 FP16。并且 Pytorch 并没有提供其他 API 可以让我们修改累加精度。
 
 又例如 `torch.addmm` 完成了一个 MMA 计算，但它要求输入的 A、B、C 三个 Tensor 的数值精度必须是相同的，因此我们无法直接用它完成 BF16 * BF16 + FP32 的计算。所以控制计算精度并不是直接调用 Pytorch API 就能轻松实现的。
 
-**2）低精度下的 GEMM 计算必然会使用到混合数值精度。**
+2. **低精度下的 GEMM 计算必然会使用到混合数值精度。**
 
 我们拿 DeepSeek V3 论文中展示的 FP8 Linear 计算为例：
 
@@ -833,7 +833,7 @@ STG.E desc[UR4][R14.64], R7
 
 在上篇笔记中，我们已经介绍了使用单个 MMA 指令需要注意的事项，总的来说有两大方面：
 
-**1）根据 SM 架构、MMA shape 大小、算子精度等情况，选取正确的 PTX MMA 指令。**
+1. **根据 SM 架构、MMA shape 大小、算子精度等情况，选取正确的 PTX MMA 指令。**
 
 **在 CUTLASS 中，MMA op 对象用于描述特定的 PTX MMA 指令**。以 Minimal GEMM kernel 为例，我们使用的 MMA op 为 SM80_16x8x8_F16F16F16F16_TN，在 CUTLASS 中体现为对应 PTX MMA 指令的封装。
 
@@ -879,7 +879,7 @@ struct SM80_16x8x8_F16F16F16F16_TN
 };
 ```
 
-**2）按照 MMA 指令内生的矩阵元素和每个线程中寄存器的映射关系，让每个线程拿到正确的矩阵元素，并将计算结果存放于正确的线程中。**
+2. **按照 MMA 指令内生的矩阵元素和每个线程中寄存器的映射关系，让每个线程拿到正确的矩阵元素，并将计算结果存放于正确的线程中。**
 
 在 CUTLASS 中，MMA Traits 对象用于描述特定 MMA 指令的这种内生的映射关系。还是以上面的 MMA op 为例，它对应的 MMA Traits 如下：
 
@@ -1334,7 +1334,7 @@ ptr[32b](0x7f61d9fffcc0) o ((_2,_2),_1,_1):((_1,_2),_0,_0)
 | N    | 4     | shape[M] = 2 | **2** |
 | K    | 1     | shape[M] × shape[N] = 2×4 | **8** |
 
-因此 warp\_idx 的计算公式为：
+因此 `warp_idx` 的计算公式为：
 
 ```
 warp_idx = m×1 + n×2 + k×8
@@ -2628,18 +2628,18 @@ Tensor sO = make_tensor(make_smem_ptr((OutType *)Optr_smem), SmemLayoutO{});    
 
 接下来我们分析这些指标是如何计算出来的。
 
-**1）Shared Load 对应到 LDS 相关指令，在本篇示例中和计算前 SMEM -> RMEM，以及计算后 SMEM -> GMEM 有关。**
+1. **Shared Load** 对应到 LDS 相关指令，在本篇示例中和计算前 SMEM -> RMEM，以及计算后 SMEM -> GMEM 有关。
 
 - SMEM -> RMEM 时，考虑到问题规模是 `(128, 128, 64)`，TiledMMA 规模是 `(32, 32, 32)`，总共需要拷贝 `(128x64) / (32x32) = 8` 个 A Tile 和 `(128x64) / (32x32) = 8` 个 B Tile，每个 warp 需要从每个 A Tile 拷贝 2 个 `16x16` 的 A fragment（8 个 `LDS`），从每个 B Tile 拷贝 2 个 `8x16` 的 B fragment（4 个 `LDS`）。因此每个 warp 总共需要执行 `8x8 + 8x4 = 96` 个 `LDS` 指令，8 个 warp 总共 `96x8 = 768` 个指令。
 - SMEM -> GMEM 时不受限于 MMA 的数据排布，采用的是 `LDS.128` 指令。输出的数据形状为 `(128, 128)`，因此从线程粒度看总共需要完成 `(128x128) / (128/8/2) = 2048` 次拷贝，从 warp 粒度看需要执行 `2048/32 = 64` 个 `LDS.128` 指令。
 
 因此总指令数为 `768 + 64 = 832` 个，而大多数情况一个指令对应一个请求，所以总请求数也为 832 个。注意到 SMEM -> RMEM 的每个指令都处理了 1 个 transaction，由于 bank conflict 产生了 8 个 wavefronts，SMEM -> GMEM 每个指令都处理了 4 个 transactions，对应到 4 个 wavefronts（没有 bank conflict），因此总 wavefronts 数等于 `768x8 + 64x4 = 6400`，其中由于 bank conflict 多产生了 `768x7 = 5376` 个 wavefronts，对应到表中的 Bank Conflicts 数。
 
-**2）Shared Store 对应到 STS 相关指令，在本篇示例中仅与计算后 RMEM -> SMEM 有关。**
+2. **Shared Store** 对应到 STS 相关指令，在本篇示例中仅与计算后 RMEM -> SMEM 有关。
 
 由于 RMEM 的数据排布仍受限于 MMA，因此只能使用 `STS` 指令，计算过程类似于上面的 `SMEM -> GMEM`，从 warp 粒度来看需要执行 `(128x128) / (32/8/2) / 32 = 256` 个指令，每个指令对应 1 个 transactions 和 8 个 wavefronts，总 wavefronts 数等于 `256x8 = 2048`，其中由于 bank conflict 多产生了 `256x7 = 1792` 个 wavefronts。
 
-**3）Shared Store From Global Load 对应到 LDGSTS 相关指令，在本篇示例中仅与计算前 GMEM -> SMEM 有关。**
+3. **Shared Store From Global Load** 对应到 LDGSTS 相关指令，在本篇示例中仅与计算前 GMEM -> SMEM 有关。
 
 上面我们已经知道每个 warp 会执行 8 个 `LDGSTS` 指令，因此总共执行了 64 个指令，每个指令对应 4 个 transactions 和 4 个 wavefronts，总共 256 个 wavefronts，并且没有 bank conflict。
 
@@ -2661,7 +2661,7 @@ Tensor sO = make_tensor(make_smem_ptr((OutType *)Optr_smem), SmemLayoutO{});    
 
 本篇所使用的 CUTLASS 版本为 4.5.0，硬件架构为 SM90。
 
-**本笔记系列的相关代码已全部开源，代码仓库见：**[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)**，欢迎大家多多 star～**
+本笔记系列的相关代码已全部开源，代码仓库见：[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)，欢迎大家多多 star～
 
 CUTLASS 笔记系列导读及文章列表详见：
 
@@ -2699,7 +2699,7 @@ CUTLASS 笔记系列导读及文章列表详见：
 
 显然，如果我们直接去读上面的每一个 Core Matrix，都会遭遇 8-way Bank Conflict。由于目前的 Core Matrix 都堆在特定的几个 Bank 中，为了打散到不同的 Bank，大致有这么几种解决方案：
 
-**1）Interleaving：将 Core Matrix 平铺在同一行的 32 Banks 上。**
+1. **Interleaving**：将 Core Matrix 平铺在同一行的 32 Banks 上。
 
 ![](https://pic1.zhimg.com/v2-f036f7c8c772875364f75135817bd3e4_1440w.jpg)
 
@@ -2711,7 +2711,7 @@ CUTLASS 笔记系列导读及文章列表详见：
 
 ---
 
-**2）Padding：在 SMEM 中每隔 32 Banks 就空出一段内存空间，不填入任何数据，这样原先位于同一列的同 Bank 数据现在就位于不同的 Bank 上了。**
+2. **Padding**：在 SMEM 中每隔 32 Banks 就空出一段内存空间，不填入任何数据，这样原先位于同一列的同 Bank 数据现在就位于不同的 Bank 上了。
 
 ![](https://pic1.zhimg.com/v2-f16c8563c875620461268f5f5cef3222_1440w.jpg)
 
@@ -2719,7 +2719,7 @@ CUTLASS 笔记系列导读及文章列表详见：
 
 ---
 
-**3）Swizzling：将 Core Matrix 每一行的 cell 与其他 Core Matrix 对应行的 cell 进行行间重排，最终让任意的 Core Matrix 都分布在不同的 32 Bank 上。**
+3. **Swizzling**：将 Core Matrix 每一行的 cell 与其他 Core Matrix 对应行的 cell 进行行间重排，最终让任意的 Core Matrix 都分布在不同的 32 Bank 上。
 
 ![](https://picx.zhimg.com/v2-eecb6d06050188c154142d1a5c886c0f_1440w.jpg)
 
@@ -2816,11 +2816,11 @@ struct Swizzle {
 
 应该怎么理解这个公式呢？我们首先将 offset，也就是坐标对应的 index 在 bit 层面分解为三段：
 
-**1）bits [0, M-1]**：最低的 M bits 表示一个 cell 内的元素或者 bytes 的 offset，由于我们 Swizzle 的时候是以 cell 为基本单位的，因为不会修改这段的数据；
+1. `bits [0, M-1]`：最低的 M bits 表示一个 cell 内的元素或者 bytes 的 offset，由于我们 Swizzle 的时候是以 cell 为基本单位的，因为不会修改这段的数据；
 
-**2）bits [M, M+S-1]**：M bits 上面的 S bits 表示这个 cell 在 SMEM 的第几列，其中这个 S bits 的低 B bits 是 Swizzle 过程中唯一会被修改的部分，其余部分不会被修改；
+2. `bits [M, M+S-1]`：M bits 上面的 S bits 表示这个 cell 在 SMEM 的第几列，其中这个 S bits 的低 B bits 是 Swizzle 过程中唯一会被修改的部分，其余部分不会被修改；
 
-**3）bits [M+S, ..]**：剩下的所有 bits 表示这个 cell 在 SMEM 的第几行。由于我们只需要知道 Swizzle Layout Atom 的映射，因此只需要看最低的 B bits 即可，它表示这个 cell 在一个 Atom 中是位于 SMEM 的第几行。
+3. `bits [M+S, ..]`：剩下的所有 bits 表示这个 cell 在 SMEM 的第几行。由于我们只需要知道 Swizzle Layout Atom 的映射，因此只需要看最低的 B bits 即可，它表示这个 cell 在一个 Atom 中是位于 SMEM 的第几行。
 
 如下图所示，公式主要分为三步：1）通过 AND 运算提取 YYY 部分，也就是行号；2）将行号右移，最低位与 ZZZ 对齐；3）**将行号与列号的低 B bits 做一次异或运算**。可以发现，第 3 步实际上就是 cell 在 SMEM 同一行的位置变换。
 
@@ -2907,7 +2907,7 @@ s2r_atom_b = cute.make_copy_atom(ldm_op_ab, mB.element_type)
 
 本篇所使用的 CUTLASS 版本为 4.5.0，硬件架构为 SM90。
 
-**本笔记系列的相关代码已全部开源，代码仓库见：**[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)**，欢迎大家多多 star～**
+本笔记系列的相关代码已全部开源，代码仓库见：[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)，欢迎大家多多 star～
 
 CUTLASS 笔记系列导读及文章列表详见：
 
@@ -2954,7 +2954,7 @@ Block 的大小通常是预先确定的，但是总体的 GEMM 规模是任意�
 
 ## 2. 如何处理 Shape 的越界问题？
 
-如果确定了 Block 大小为 (BLK\_M, BLK\_N, BLK\_K)，实际的 GEMM 规模 (M, N, K) 有可能比它小，有可能比它大但某个维度没法被 Block 整除，而这两种情况都指向同一个问题：**当需要计算的矩阵 Shape 至少有一个维度小于 Block 时，在边界处应当如何正确处理拷贝和计算**？
+如果确定了 Block 大小为 (`BLK_M`, `BLK_N`, `BLK_K`)，实际的 GEMM 规模 (M, N, K) 有可能比它小，有可能比它大但某个维度没法被 Block 整除，而这两种情况都指向同一个问题：**当需要计算的矩阵 Shape 至少有一个维度小于 Block 时，在边界处应当如何正确处理拷贝和计算**？
 
 从拷贝的角度分析，在 GMEM 拷贝到 SMEM 的过程中，越界部分是不能拷贝的，否则会访存越界或读入脏数据，对于 SMEM 拷贝回 GMEM 也是如此。反而是从 SMEM 和 RMEM 的相互拷贝，以及 MMA 的计算过程中，我们可以不处理越界问题，只要越界部分赋值为 0 就行。
 
@@ -2966,7 +2966,7 @@ Block 的大小通常是预先确定的，但是总体的 GEMM 规模是任意�
 
 ![](https://pica.zhimg.com/v2-21c0ece5eeea8a429623c4a64f013648_1440w.jpg)
 
-可以计算出绿色矩阵块的大小 (m\_max, n\_max)：
+可以计算出绿色矩阵块的大小 (`m_max`, `n_max`)：
 
 ```python
 bidx, bidy, _ = cute.arch.block_idx()
@@ -2979,7 +2979,7 @@ m_max = M - BLK_M * bidy
 n_max = N - BLK_N * bidx
 ```
 
-那么只要在 m 维度的坐标超出 m\_max，或者 n 维度坐标超出 n\_max，就不能执行 G2S 的拷贝指令了，所以我们需要在现有的拷贝指令上增加条件判断。
+那么只要在 m 维度的坐标超出 `m_max`，或者 n 维度坐标超出 `n_max`，就不能执行 G2S 的拷贝指令了，所以我们需要在现有的拷贝指令上增加条件判断。
 
 这里的关键点是，目前我们的拷贝指令是按线程粒度执行的，而每个线程分配到的拷贝数据块是通过 TiledCopy 的 partition 得到的，因此当 TiledCopy 的参数发生修改时，我们也需要修改计算 partition 数据块与坐标的对应关系，这会非常麻烦。
 
@@ -3002,17 +3002,17 @@ tCcC = thr_g2s_c.partition_S(cC)  # (CPY, CPY_M, CPY_N)
 
 ![](https://pic1.zhimg.com/v2-fe557fca70efa5bad25e4122a8d950d6_1440w.jpg)
 
-因此，**任给 `tCgC` 的某个元素 (cpy, cpy\_m, cpy\_n)，我们都可以将相同的坐标喂给 `tCcC`，就能获得它在原本 `gC` 上的二维坐标 (m, n) 了。**这样就解决了 partition 后元素找不到原始坐标的问题，并且当 TiledCopy 发生变化时，`tCcC` 也会相应发生变化，我们就不需要改坐标映射的代码了。
+因此，**任给 `tCgC` 的某个元素 (`cpy`, `cpy_m`, `cpy_n`)，我们都可以将相同的坐标喂给 `tCcC`，就能获得它在原本 `gC` 上的二维坐标 (m, n) 了。**这样就解决了 partition 后元素找不到原始坐标的问题，并且当 TiledCopy 发生变化时，`tCcC` 也会相应发生变化，我们就不需要改坐标映射的代码了。
 
 ---
 
-接下来我们来做实际的拷贝工作。在此之前，我们先搞清楚 (CPY, CPY\_M, CPY\_N) 这三个维度的含义和形状。回顾一下，我们在笔记（5）中指出，**CPY 是单个 Copy Tile 单线程需要拷贝的数据个数**。在笔记（6）指出，**Copy Tile 的大小由 TiledCopy 决定，且可以和 Tiled MMA 大小不同。在做拷贝循环时，(CPY\_M, CPY\_N) 是以 Copy Tile 的粒度扩展循环的**。
+接下来我们来做实际的拷贝工作。在此之前，我们先搞清楚 (`CPY`, `CPY_M`, `CPY_N`) 这三个维度的含义和形状。回顾一下，我们在笔记（5）中指出，**CPY 是单个 Copy Tile 单线程需要拷贝的数据个数**。在笔记（6）指出，**Copy Tile 的大小由 TiledCopy 决定，且可以和 Tiled MMA 大小不同。在做拷贝循环时，(`CPY_M`, `CPY_N`) 是以 Copy Tile 的粒度扩展循环的**。
 
-实际上，Copy Atom 到 Copy Tile 这个维度的扩展是包含在 CPY 中的，我们可以拆解成 **(atom\_v, rest\_v)** 两个维度，atom\_v 表示这个线程执行一个 Copy Atom 需要拷贝的元素个数，而 rest\_v 就表示一个 Copy Tile 中有几个 Copy Atom。
+实际上，Copy Atom 到 Copy Tile 这个维度的扩展是包含在 CPY 中的，我们可以拆解成 (`atom_v`, `rest_v`) 两个维度，`atom_v` 表示这个线程执行一个 Copy Atom 需要拷贝的元素个数，而 `rest_v` 就表示一个 Copy Tile 中有几个 Copy Atom。
 
-从 TiledCopy 的代码可知，当前 Copy Tile 的大小是 (NUM\_THREADS, 8)，而一个 Copy Atom 就是连续的 8 个元素，因此一个 Copy Tile 恰好对应于每个线程执行一次 Copy Atom。于是，上面的 CPY 维度的形状是 (8, 1)。
+从 TiledCopy 的代码可知，当前 Copy Tile 的大小是 (`NUM_THREADS`, 8)，而一个 Copy Atom 就是连续的 8 个元素，因此一个 Copy Tile 恰好对应于每个线程执行一次 Copy Atom。于是，上面的 CPY 维度的形状是 (8, 1)。
 
-下面的代码展示了 C 矩阵的拷贝是如何解决越界问题的。首先，我们需要对 sC 区域的元素赋 0，用于填充越界部分。随后，我们在 CPY\_M 和 CPY\_N 进行 Copy Tile 粒度的拷贝循环，每个循环拷贝一个 Copy Tile，在我们的场景等价于每次循环中，每个线程拷贝一个 Copy Atom 的 8 个连续数据。接下来是条件判断部分，其中 `tCcC[0, m, n]` 表示当前线程 Copy Atom 的第一个元素对应的二维坐标，只有当这个坐标在 (m\_max, n\_max) 之内，我们才可以执行这个 Copy Atom。因此在边界处，只有部分线程会运行拷贝指令。
+下面的代码展示了 C 矩阵的拷贝是如何解决越界问题的。首先，我们需要对 sC 区域的元素赋 0，用于填充越界部分。随后，我们在 `CPY_M` 和 `CPY_N` 进行 Copy Tile 粒度的拷贝循环，每个循环拷贝一个 Copy Tile，在我们的场景等价于每次循环中，每个线程拷贝一个 Copy Atom 的 8 个连续数据。接下来是条件判断部分，其中 `tCcC[0, m, n]` 表示当前线程 Copy Atom 的第一个元素对应的二维坐标，只有当这个坐标在 (`m_max`, `n_max`) 之内，我们才可以执行这个 Copy Atom。因此在边界处，只有部分线程会运行拷贝指令。
 
 ```python
 tCsC.fill(0)
@@ -3114,7 +3114,7 @@ for rest_v in cutlass.range_constexpr(tApA_first.shape[0]):
 
 ![](https://pic2.zhimg.com/v2-d9852080c3be5e89fc5e241c4806b4eb_1440w.jpg)
 
-相比于 `tAgA` 的形状为 ((atom\_v, rest\_v), CPY\_M, CPY\_K)，`tApA_first` 的形状为 (rest\_v, CPY\_M, CPY\_K)，毕竟我们没法在 atom\_v 指令维度内部做 predicate。对 `tApA_first`的越界判断，会 broadcast 到这个 Copy Atom 的所有元素。
+相比于 `tAgA` 的形状为 ((`atom_v`, `rest_v`), `CPY_M`, `CPY_K`)，`tApA_first` 的形状为 (`rest_v`, `CPY_M`, `CPY_K`)，毕竟我们没法在 `atom_v` 指令维度内部做 predicate。对 `tApA_first` 的越界判断，会 broadcast 到这个 Copy Atom 的所有元素。
 
 ![](https://picx.zhimg.com/v2-6914ae7a2366f77ce58e3562bfd25e9b_1440w.jpg)
 
@@ -3294,7 +3294,7 @@ kernel(params...).launch(
 )
 ```
 
-**这里我们再次强调，Occupancy 指标不是越高越好，它只反映 SM 隐藏 warp 间延迟的潜力。**提升 occupancy 通常需要付出一定的代价，毕竟每个 block/warp 能够使用的资源就更少了，编译器也有可能放弃一些优化手段，对性能来说很有可能得不偿失。而且，当各种操作的延迟已经能被良好地隐藏时，增加 warp 数对延迟隐藏的提升效果就不显著了，反而还会浪费更多的稀缺资源。**关注** **Occupancy 的目的，更多是为了让 block 充分利用 SM 上的各类资源，最终目的还是提升算子性能。**
+**这里我们再次强调，Occupancy 指标不是越高越好，它只反映 SM 隐藏 warp 间延迟的潜力。**提升 occupancy 通常需要付出一定的代价，毕竟每个 block/warp 能够使用的资源就更少了，编译器也有可能放弃一些优化手段，对性能来说很有可能得不偿失。而且，当各种操作的延迟已经能被良好地隐藏时，增加 warp 数对延迟隐藏的提升效果就不显著了，反而还会浪费更多的稀缺资源。关注 Occupancy 的目的，更多是为了让 block 充分利用 SM 上的各类资源，最终目的还是提升算子性能。
 
 > 上面提到，即便 SM 上有着很多 warp，它们也不是都可以随时发射指令。那么如何知道有多少 warp 可以执行指令，有多少 warp 还在等待，以及等待的原因是什么呢？我们在下篇笔记中再来介绍。
 
@@ -3316,7 +3316,7 @@ kernel(params...).launch(
 
 本篇所使用的 CUTLASS 版本为 4.5.0，硬件架构为 SM90。
 
-**本笔记系列的相关代码已全部开源，代码仓库见：**[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)**，欢迎大家多多 star～**
+本笔记系列的相关代码已全部开源，代码仓库见：[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)，欢迎大家多多 star～
 
 CUTLASS 笔记系列导读及文章列表详见：
 
@@ -3462,40 +3462,40 @@ MIO 在不同的场景中还可能专门指代 MIO Pipe，也可能指代整个 
 
 | 指标名称 | 含义 |
 | --- | --- |
-| l1tex\_\_data\_pipe\_lsu\_wavefronts | LSUIN 处理 data wavefronts 的吞吐 |
-| l1tex\_\_data\_bank\_reads | L1TEX 读 L1/SMEM 的吞吐 |
-| l1tex\_\_data\_bank\_writes | L1TEX 写 L1/SMEM 的吞吐 |
-| lts\_\_t\_sectors | LTS Tag Stage 吞吐 |
-| lts\_\_d\_sectors | LTS Data Stage 吞吐 |
-| lts\_\_t\_tag\_requests | LTS 的 Tag 查表吞吐 |
+| `l1tex__data_pipe_lsu_wavefronts` | LSUIN 处理 data wavefronts 的吞吐 |
+| `l1tex__data_bank_reads` | L1TEX 读 L1/SMEM 的吞吐 |
+| `l1tex__data_bank_writes` | L1TEX 写 L1/SMEM 的吞吐 |
+| `lts__t_sectors` | LTS Tag Stage 吞吐 |
+| `lts__d_sectors` | LTS Data Stage 吞吐 |
+| `lts__t_tag_requests` | LTS 的 Tag 查表吞吐 |
 
 对于**单元间带宽吞吐**，需要关注的指标有：
 
 | 指标名称 | 含义 |
 | --- | --- |
-| l1tex\_\_lsuin\_requests | LSU Pipe -> L1TEX(LSUIN) |
-| l1tex\_\_m\_l1tex2xbar\_req\_cycles\_active | L1TEX -> XBAR |
-| l1tex\_\_m\_xbar2l1tex\_read\_sectors | XBAR -> L1TEX |
-| l1tex\_\_lsu\_writeback\_active | L1TEX(LSU Data) -> MIO2RF |
-| lts\_\_lts2xbar\_cycles\_active | LTS -> XBAR |
-| lts\_\_xbar2lts\_cycles\_active | XBAR -> LTS |
-| dram\_\_cycles\_active | DRAM <-> LTS 在忙的 cycle，等于 dram\_\_bytes\_read + dram\_\_bytes\_write |
-| fbpa\_\_dram\_sectors | DRAM <-> LTS 实际搬运数据的 cycle |
-| lts\_\_d\_sectors\_fill\_device | DRAM -> LTS 单向 |
+| `l1tex__lsuin_requests` | LSU Pipe -> L1TEX(LSUIN) |
+| `l1tex__m_l1tex2xbar_req_cycles_active` | L1TEX -> XBAR |
+| `l1tex__m_xbar2l1tex_read_sectors` | XBAR -> L1TEX |
+| `l1tex__lsu_writeback_active` | L1TEX(LSU Data) -> MIO2RF |
+| `lts__lts2xbar_cycles_active` | LTS -> XBAR |
+| `lts__xbar2lts_cycles_active` | XBAR -> LTS |
+| `dram__cycles_active` | DRAM <-> LTS 在忙的 cycle，等于 `dram__bytes_read` + `dram__bytes_write` |
+| `fbpa__dram_sectors` | DRAM <-> LTS 实际搬运数据的 cycle |
+| `lts__d_sectors_fill_device` | DRAM -> LTS 单向 |
 
 对于 **SM 指令吞吐**，需要关注的指标有：
 
 | 指标名称 | 含义 |
 | --- | --- |
-| sm\_\_mio\_pq\_write\_cycles\_active | Warp Scheduler -> Pipe Queue |
-| sm\_\_mio\_pq\_read\_cycles\_active | Pipe Queue -> MIOC |
-| sm\_\_mio\_inst\_issued | MIOC -> MIO Pipe |
-| sm\_\_inst\_executed\_pipe\_lsu | MIOC -> LSU Pipe |
-| sm\_\_mio2rf\_writeback\_active | MIO2RF -> RF |
-| sm\_\_inst\_executed\_pipe\_fma | Warp Scheduler -> FMA Pipe，包含 FFMA、FMUL、FADD、IMAD 等类型的指令 |
-| sm\_\_inst\_executed\_pipe\_alu | Warp Scheduler -> ALU Pipe，包含整数和逻辑指令，如 IADD3、LOP、SHF 等 |
-| sm\_\_inst\_executed\_pipe\_xu | MIOC -> XU Pipe，也就是 MUFU 类超越函数的指令 |
-| sm\_\_inst\_executed\_pipe\_tensor\_op\_hmma | Warp Scheduler -> HMMA Pipe，包括 HMMA、HGMMA 等常规浮点数 MMA 指令 |
+| `sm__mio_pq_write_cycles_active` | Warp Scheduler -> Pipe Queue |
+| `sm__mio_pq_read_cycles_active` | Pipe Queue -> MIOC |
+| `sm__mio_inst_issued` | MIOC -> MIO Pipe |
+| `sm__inst_executed_pipe_lsu` | MIOC -> LSU Pipe |
+| `sm__mio2rf_writeback_active` | MIO2RF -> RF |
+| `sm__inst_executed_pipe_fma` | Warp Scheduler -> FMA Pipe，包含 FFMA、FMUL、FADD、IMAD 等类型的指令 |
+| `sm__inst_executed_pipe_alu` | Warp Scheduler -> ALU Pipe，包含整数和逻辑指令，如 IADD3、LOP、SHF 等 |
+| `sm__inst_executed_pipe_xu` | MIOC -> XU Pipe，也就是 MUFU 类超越函数的指令 |
+| `sm__inst_executed_pipe_tensor_op_hmma` | Warp Scheduler -> HMMA Pipe，包括 HMMA、HGMMA 等常规浮点数 MMA 指令 |
 
 ---
 
@@ -3751,7 +3751,7 @@ if k_block == 0:
 
 本篇所使用的 CUTLASS 版本为 4.5.0，硬件架构为 SM90。
 
-**本笔记系列的相关代码已全部开源，代码仓库见：**[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)**，欢迎大家多多 star～**
+本笔记系列的相关代码已全部开源，代码仓库见：[cutlass-notes](https://github.com/ArthurinRUC/cutlass-notes)，欢迎大家多多 star～
 
 CUTLASS 笔记系列导读及文章列表详见：
 
