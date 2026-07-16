@@ -5,6 +5,7 @@ CuTe Layout 代数与 CuTe 编程模型学习笔记。
 ## 笔记列表
 
 - [cute笔记.md](cute笔记.md) — CuTe Layout、Tensor、MMA 抽象，GEMM 流水线等核心概念整理
+- [HPC-Ops gemm_bf16xfp32 kernel逐行解析：从CuTe基础到Hopper warp specialization.md](HPC-Ops%20gemm_bf16xfp32%20kernel逐行解析：从CuTe基础到Hopper%20warp%20specialization.md) — 以 hpc-ops 的 bf16x2 拆分 GEMM 为样本，逐段讲解 Hopper 上 TMA/GMMA/mbarrier 流水线、warp specialization、persistent kernel 和单 kernel split-k
 
 ## 参考资源
 
