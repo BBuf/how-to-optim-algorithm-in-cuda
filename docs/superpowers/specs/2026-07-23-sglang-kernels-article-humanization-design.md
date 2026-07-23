@@ -7,12 +7,14 @@
 ## 编辑范围
 
 - 保留标题层级、代码块、图片、表格、链接、接口名称和 benchmark 环境。
-- 保留“主要由 Claude Code Fable 完成、作者负责 review 和决策”这一事实。
+- 将 `0x0. 前言` 改成真正的 `0x0. TL;DR`，用三段概括问题、设计和评测内容，而不是只替换标题。
+- 保留“主要由 Anthropic Claude Fable 5 通过 Claude Code 完成、我们负责 review 和最终决策”这一事实。
 - 精简前言中对 AI Agent 作用的重复说明。
 - 拆分过长句子，删除模板化路标句和宣传式评价。
 - 重写 `enable_fused_op_trace()` 段落，使其直接说明数据流和用途。
 - 压缩小结，避免逐段复述正文和抽象升华。
 - 将正文中的加速范围改成与文中表格一致：MoE gate 为 4.4–6.0x，per-token FP8 量化为 7.9–9.8x。
+- 文末新增 `Acknowledgements`：先感谢 SGLang team，再点名 Baizhou Zhang、`@zcnrex`、`@merrymercy`、`@DarkSharpness`，最后感谢 Anthropic Claude Fable 5。
 
 ## 文风
 
@@ -25,5 +27,7 @@
 - Markdown 结构、代码和表格完整。
 - 技术名词、版本号、链接与 benchmark 数字没有意外变化。
 - 前言和结尾不再重复同一主旨。
+- TL;DR 能独立交代重构动机、架构和评测范围。
+- 致谢顺序和姓名与已确认口径一致。
 - “需要说明”“价值在于”“不只……也……”等模板化表达显著减少。
 - 修改后的正文可直接替换原文件，无需读者参考编辑说明。
