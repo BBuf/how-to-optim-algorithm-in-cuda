@@ -3,7 +3,6 @@
 > 原文：Triton Plugin Extensions: Enabling TLX and Custom Compiler Passes Out of the Box
 > 原文地址：PyTorch Blog（https://pytorch.org/blog/triton-plugin-extensions-enabling-tlx-and-custom-compiler-passes-out-of-the-box/）
 > 作者：Corbin Robeck、Puyan Lotfi、Ian Barber、Shane Nay、Alexey Loginov、Oleksandr Stashuk、Wenyuan Chi
-> 发布时间：2026 年 7 月 15 日
 >
 > 说明：本文是面向公众号阅读的中文翻译·译述稿，保留原文的技术主线、接口、性能数据和参考资料，但不是逐句直译。外部链接统一写成“文本（链接）”形式，正文图片已转存到 mdnice 图床。
 
