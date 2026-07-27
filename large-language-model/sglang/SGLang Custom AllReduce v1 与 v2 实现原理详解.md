@@ -37,7 +37,7 @@ custom allreduce 的做法是在全 NVLink P2P 互连的前提下让 GPU 直接�
 
 custom AR 不是唯一的候选实现。`GroupCoordinator.all_reduce`（`parallel_state.py`）的完整决策链如下：
 
-![GroupCoordinator.all_reduce 的分发决策链](https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_fig1_dispatch.png)
+![GroupCoordinator.all_reduce 的分发决策链](assets/custom_ar_fig1_dispatch.png)
 
 分发链上有三处顺序需要说明。
 
@@ -113,7 +113,7 @@ rank_data   = 8 MB 本地表，存 RankData{ptrs[8]}   （graph 模式的指针�
 
 ## 0x5.2 两个 kernel：1stage 与 2stage
 
-![v1 的两个算法](https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_fig2_v1_algos.png)
+![v1 的两个算法](assets/custom_ar_fig2_v1_algos.png)
 
 **1stage**：每个 rank 把数据放进自己的公共缓冲区，barrier，然后读取全部 `ws` 份数据在本地累加并写出，再 barrier。NVLink 读流量是 `ws × N`，存在冗余，但小消息下带宽不是瓶颈，省下的是第二轮同步。
 
@@ -147,7 +147,7 @@ v2 的文件头 docstring 描述了它的结构划分：CUDA 侧分成两个部�
 
 这个划分带来两个结果：JIT 实例只按 (dtype, world_size, 是否 PDL) 编译，一次编译服务所有配置；所有尺寸、块数、阈值成为 Python 侧可调的数据，而不是编译期常量。
 
-![v2 的存储平面](https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_fig3_v2_workspace.png)
+![v2 的存储平面](assets/custom_ar_fig3_v2_workspace.png)
 
 存储侧的变化是指针交换的方式。v1 手工走 cudaIpc handle 的 all-gather；v2 调用 torch 的 `_SymmetricMemory.empty_strided_p2p` 并 rendezvous，每个 rank 分配一块布局相同的内存，句柄交换由 torch 完成，同时得到 NVLS multicast 地址（用于 0x7.4）。这块内存切成三段：
 
@@ -168,7 +168,7 @@ semaphores     : 128 B × 块数（每 block 一个 Semaphore，128 B 对齐避�
 
 v2 的算法集合是 1shot_push、1shot_pull、2shot_pull，以及 2shot_pull 的 multicast 变体档。
 
-![v2 三个算法与 multicast 变体档的数据流](https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_fig4_v2_algos.png)
+![v2 三个算法与 multicast 变体档的数据流](assets/custom_ar_fig4_v2_algos.png)
 
 ## 0x7.1 1shot_push
 
@@ -235,7 +235,7 @@ PDL（Programmatic Dependent Launch，Hopper 及以后）让后继 kernel 提前
 
 思路与 v1 的延迟注册相同，实现上换成一张集中的 `graph_params` 表（`[131072, ws]` u64）：
 
-![v2 的 graph 输入注册](https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_fig5_graph_table.png)
+![v2 的 graph 输入注册](assets/custom_ar_fig5_graph_table.png)
 
 - **capture 期**：每次 all-reduce 记下 `(input.data_ptr, nbytes)`，把 `graph_params[第 i 行]` 的地址作为 `pull_arg` 传给 kernel。行地址是固定的，因此写入图中的参数始终有效，行内容此时为 0；
 - **capture 结束**：cudaMalloc 指针走 `IPCManager.batch_get_handles` → `all_gather_object` → `batch_open_handles`，一轮批量交换；`expandable_segments` 分配的 VMM 指针走 `VmmGraphInputManager`，按 allocation base 去重后做 fabric / posix-fd 重映射。全部 peer 指针一次 `copy_` 进表，然后 `torch.cuda.synchronize()`——表必须在任何 PDL 链 replay 之前可见；
@@ -289,7 +289,7 @@ def _sm100_config(world_size: int, num_sm: int) -> AllReduceConfig:
     mc_blocks_map = {5: 64, 6: 48, 7: 48, 8: 32}
 ```
 
-![sm100 world_size=8 的尺寸→算法分段与 16 MB cap](https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_fig6_thresholds.png)
+![sm100 world_size=8 的尺寸→算法分段与 16 MB cap](assets/custom_ar_fig6_thresholds.png)
 
 几点说明。graph 与 eager 的阈值差异来自拷贝成本：eager 的 pull 系要付进出两次拷贝，ws=8 时 multicast 档在 eager 下从 0.75 MB 起就接管全段。表中 128 MB 与默认 16 MB workspace cap 的差距是有意的——workspace 是常驻显存（push 段还要 `2 × ws` 份），默认配置不为长尾大消息预留，超出部分交回 symm-mem/NCCL 这类不占常驻 workspace 的路径，`clip()` 只会把阈值往下压。sm90（H100/H200）的表形状类似但阈值小一个量级，ws=8 的 push 档只有 96 KB。
 
