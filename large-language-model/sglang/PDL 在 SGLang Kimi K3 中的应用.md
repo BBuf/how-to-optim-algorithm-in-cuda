@@ -157,7 +157,7 @@ PR #32541 中 `_set_kv_and_concat_q_fused` 的 docstring 写明了两个目的�
 
 ### `prefetch_bc` 的安全条件
 
-PR #32541 在 `_add3` 的调用点说明了 `prefetch_bc` 的使用条件：“prefetch_bc loads b/c before the PDL wait: only pass True when their producers are at least two kernels back”。`PDLWaitPrimary` 只处理与紧邻前驱 grid 的 PDL 关系，并不会回头检查 `b/c` 的 producer。对应的 CUDA 代码在 `elementwise/add3.cuh` 中：
+PR #32541 在 `_add3` 的调用点给出了 `prefetch_bc` 的使用条件：只有确认 `b/c` 在 `_add3` 提前读取时已经写完，才能将它设为 `True`。`PDLWaitPrimary` 只处理当前 kernel 与紧邻前驱 grid 之间的依赖，不会替提前读取的 `b/c` 补上同步。对应的 CUDA 代码在 `elementwise/add3.cuh` 中：
 
 ```c++
 if constexpr (kPrefetchBC) {
@@ -184,7 +184,12 @@ c 更早完成                              先 load b/c → wait → load a
 
 这里的 all-reduce 使用 plain launch，没有跨过它做 PDL 重叠，相当于同一条 stream 上的一道完整边界。后面的 norm 和 `up_proj` 能够开始时，`b` 已经写完，`c` 也早已就绪。因此 `_add3` 可以在等待 `a` 的同时先发起 `b/c` 的读取，把这部分显存访问藏在 `up_proj` 的尾部；wait 返回后只需再读取 `a` 并完成三路相加。如果关闭 `prefetch_bc`，三次读取都要等到 wait 之后才开始。
 
-“producer 至少位于前两跳”是代码中的简化判断，真正的安全条件是：wait 之前读取的输入必须已经写完，而且不会再被修改。如果以后调整调用链，让 `b` 或 `c` 的 producer 变成仍可能与 `_add3` 重叠的前驱，就必须关闭 `prefetch_bc`，或者重新建立能够证明其已完成的同步边界。
+判断 `prefetch_bc` 是否安全时，不需要机械地数中间隔了几个 kernel，只要确认两件事：
+
+1. `b/c` 的 producer 在提前 load 发生前已经执行完；
+2. 从提前 load 到 `_add3` 完成计算期间，不会再有其他 kernel 修改 `b/c`。
+
+当前 MoE 尾部满足这两个条件。如果以后调整调用链，让 `b` 或 `c` 变成由仍可能与 `_add3` 重叠的前驱写入，就必须关闭 `prefetch_bc`，或者增加一个能够保证写入已经完成的同步边界。
 
 ## 0x4. 通信 kernel 如何使用 PDL
 
