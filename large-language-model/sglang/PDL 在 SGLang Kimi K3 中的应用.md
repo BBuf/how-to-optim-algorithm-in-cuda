@@ -90,9 +90,9 @@ host 侧统一使用 `LaunchKernel(grid, block, ...).enable_pdl(kUsePDL)`，由�
 
 ## 0x2. PDL 在 K3 bs=1 decode 中解决什么问题
 
-bs=1 decode 中没有其他请求的计算可用于填充 launch gap。大 batch 下能够被并行工作掩盖的空隙，在 bs=1 的串行路径上通常会直接计入 step 时间。Day-0 博客（中文翻译见本目录《【博客翻译】SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持》）对此有一段总结：“All-reduce 是一个同步点，因此在那里节省一微秒，就会一比一地转化为 step 时间的缩短；而位于另一个 stream 的重叠空隙中的 kernel，转化比例大约只有十分之一。”
+bs=1 decode 中没有其他请求的计算可用于填充 launch gap。大 batch 下能够被并行工作掩盖的空隙，在 bs=1 的串行路径上通常会直接计入 step 时间。中文文章[**SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持**](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)对此有一段总结：“All-reduce 是一个同步点，因此在那里节省一微秒，就会一比一地转化为 step 时间的缩短；而位于另一个 stream 的重叠空隙中的 kernel，转化比例大约只有十分之一。”
 
-下面两张图来自 SGLang Kimi K3 Day-0 博客，分别给出 bs=1 优化的分类收益和吞吐变化。本目录中也有该文的中文翻译。
+下面两张图来自 SGLang Kimi K3 Day-0 博客，分别给出 bs=1 优化的分类收益和吞吐变化。相关中文文章是[**SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持**](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)。
 
 原文：
 
@@ -284,8 +284,12 @@ https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
 
 https://zhuanlan.zhihu.com/p/2067263583239533156
 
-SGLang Kimi K3 Day-0 博客（中文翻译见本目录《【博客翻译】SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持》，两张图引自该文）：
+SGLang Kimi K3 Day-0 博客（两张图引自该文）：
 
 https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
+
+相关中文文章：
+
+[**SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持**](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)
 
 本目录《SGLang Custom AllReduce v1 与 v2 实现原理详解》0x7.5 节（主线 AR v2 的 PDL）
