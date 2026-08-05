@@ -1,40 +1,26 @@
 # PDL 在 SGLang Kimi K3 中的应用
 
-## 0x0. 前言
+BBuf，2026 年 8 月 5 日
 
 Kimi K3 是一个 2.8T 参数的混合注意力模型。decode 一个 token 需要经过 93 个注意力层（69 层 KDA + 24 层 MLA）和 92 层 latent-MoE。bs=1 时，单层的计算量很小，瓶颈主要来自 kernel 数量和 launch 延迟，而不是 FLOPs。模型刚接入时，一个 decode step 会启动数百个小 kernel。
 
 SGLang 后续通过 kernel 融合、替换 NVIDIA kernel 和通信融合等方式优化了这条路径。在推测解码介入前，day-0 版本的 decode 吞吐约为 113 tok/s（PR #32541 中的最新结果约为 118 tokens/s）。下文只引用已经公开的绝对性能数据，未公开的测试结果只保留定性结论。这些优化新增或改写了不少 kernel，其中多数接入了 PDL（Programmatic Dependent Launch），用于重叠相邻 kernel 的 launch 和 prolog。
 
-本文按调用链梳理 K3 中接入 PDL 的 kernel，记录相邻依赖关系、wait/trigger 的位置、能够重叠的工作和现有性能数据，最后整理实现中遇到的问题。主要代码来自两个 PR：
+本文按调用链梳理 K3 中接入 PDL 的 kernel，记录相邻依赖关系、wait/trigger 的位置、能够重叠的工作和现有性能数据，最后整理实现中遇到的问题。
 
-K3 day-0 支持总 PR #32541：
+**TL;DR**
 
-https://github.com/sgl-project/sglang/pull/32541
+- **PDL 的作用不是让单个 kernel 算得更快，而是缩短相邻 kernel 之间的空隙。** Consumer 可以提前完成 launch 和不依赖 producer 输出的 prolog，在第一次读取依赖数据前再通过 `griddepcontrol.wait` 等待。
+- **K3 的 bs=1 decode 是 PDL 的典型使用场景。** 一次 step 要穿过 93 个注意力层和 92 层 latent-MoE，数百个小 kernel 的 launch gap 会直接进入关键路径。
+- **K3 同时在计算链和通信链中使用 PDL。** 计算 kernel 会在 wait 前预取权重或 bias；通信 kernel 则会在等待其他 rank 时放行后继 kernel 的 prolog。
+- **正确性取决于 wait、trigger 和数据依赖的位置。** Producer 必须在相关输出写回后 trigger；consumer 只能在 wait 前读取与紧邻 producer 无关的数据。错误的 trigger、`__ldg()` 重排或资源无法共驻，都可能让优化失效，甚至产生竞态。
+- **公开结果证明“融合 + PDL”有效，但还不能把收益全部归因于 PDL。** K3 Day-0 博客中包含 PDL 的“重叠与 prolog 融合”阶段合计增加 10.4 tok/s；目前没有只切换 PDL 开关的完整 e2e A/B。
 
-K3 独立 kernel 导出 PR #32890：
+本文主要基于 K3 Day-0 支持总 PR [#32541](https://github.com/sgl-project/sglang/pull/32541) 和独立 kernel 导出 PR [#32890](https://github.com/sgl-project/sglang/pull/32890)。后者增加 27,808 行，`PDL`/`griddepcontrol` 在 diff 中命中约 300 处。PDL 原理部分参考 Yifan Yang 的[《使用 Programmatic Dependent Launch（PDL）降低端到端延迟》](https://yang-yifan.github.io/blogs/pdl/pdl_cn.html)，正确性问题部分参考是小肖啊的[《PDL 遇上 __ldg()：Bug 还是 Feature？》](https://zhuanlan.zhihu.com/p/2067263583239533156)。下文分析以代码 diff 和公开性能结果为准。
 
-https://github.com/sgl-project/sglang/pull/32890
+## PDL 是什么
 
-后者增加 27808 行，`PDL`/`griddepcontrol` 在 diff 中命中约 300 处。下文对这些实现的分析以代码 diff 和公开性能结果为准。
-
-PDL 的原理部分参考以下两篇文章：
-
-yang-yifan 的 PDL 中文博客：
-
-https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
-
-是小肖啊的《PDL 遇上 __ldg()：Bug 还是 Feature？》：
-
-https://zhuanlan.zhihu.com/p/2067263583239533156
-
-## 0x1. PDL 是什么
-
-同一条 stream 上的两个 kernel 默认串行执行：前一个 grid 的所有 block 退出并完成全局内存可见性之后，后一个 kernel 才开始 launch。但 consumer 的 launch 和部分 prolog 通常不依赖 producer 的输出。yang-yifan 在博客中写道：“FC2 的 launch 开销和 prolog 并不*依赖*于 FC1 的结果，只有 FC2 的 mainloop 的执行才依赖于 FC1 的结果”。
-
-出处：
-
-https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
+同一条 stream 上的两个 kernel 默认串行执行：前一个 grid 的所有 block 退出并完成全局内存可见性之后，后一个 kernel 才开始 launch。但 consumer 的 launch 和部分 prolog 通常不依赖 producer 的输出。Yifan Yang 在博客中写道：“FC2 的 launch 开销和 prolog 并不*依赖*于 FC1 的结果，只有 FC2 的 mainloop 的执行才依赖于 FC1 的结果”。
 
 Hopper 及更新架构提供的 PDL 通过两条 PTX 指令表达这种依赖：
 
@@ -43,25 +29,25 @@ Hopper 及更新架构提供的 PDL 通过两条 PTX 指令表达这种依赖：
 
 launch 侧还要通过 extensible launch API（`cudaLaunchKernelEx`）设置 `cudaLaunchAttributeProgrammaticStreamSerialization` 属性。设置 launch attribute，并在 producer/consumer 中使用对应指令后，consumer 的 launch 和部分 prolog（初始化、加载无关数据）可以与 producer 的 mainloop 及收尾阶段（grid-ending membar）重叠。
 
-![默认串行执行与 PDL 重叠执行的时间线对比](https://files.mdnice.com/user/59/5285ca55-33a0-49e3-94bd-c32766ac997c.png)
+<p align="center">
+  <img src="https://files.mdnice.com/user/59/5285ca55-33a0-49e3-94bd-c32766ac997c.png" width="98%" alt="默认串行执行与 PDL 重叠执行的时间线对比">
+</p>
 
-图：默认串行执行与 PDL 执行的时间线。PDL 允许 FC2 的 launch 和 prolog 与 FC1 的执行重叠。来源：Yifan Yang，《使用 Programmatic Dependent Launch (PDL) 降低端到端延迟 中文版》。
-
-原文：
-
-https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
+<p align="center">
+  <em><b>默认串行执行与 PDL。</b>PDL 允许 FC2 的 launch 和 prolog 与 FC1 的执行重叠。来源：Yifan Yang，《使用 Programmatic Dependent Launch（PDL）降低端到端延迟》。</em>
+</p>
 
 在同步关系正确的前提下，trigger 的位置决定了实际重叠量。放得太晚，FC2 的 prolog 无法充分重叠；放得太早，FC2 可能提前走完 prolog，然后停在 wait 上，并与 FC1 争用执行资源。
 
-![launch_dependents 放置过晚和过早的对比](https://files.mdnice.com/user/59/498ed057-36ee-482e-9600-191d4c171553.png)
+<p align="center">
+  <img src="https://files.mdnice.com/user/59/498ed057-36ee-482e-9600-191d4c171553.png" width="98%" alt="launch_dependents 放置过晚和过早的对比">
+</p>
 
-图：`griddepcontrol.launch_dependents` 放置过晚和过早时的执行情况。来源：Yifan Yang，《使用 Programmatic Dependent Launch (PDL) 降低端到端延迟 中文版》。
+<p align="center">
+  <em><b>Trigger 的位置决定重叠量。</b><code>griddepcontrol.launch_dependents</code> 放得过晚时无法充分重叠，放得过早时 consumer 可能停在 wait 上并与 producer 争用资源。来源：Yifan Yang，《使用 Programmatic Dependent Launch（PDL）降低端到端延迟》。</em>
+</p>
 
-原文：
-
-https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
-
-yang-yifan 将 kernel 间同步分为三类：默认串行的硬件同步、PDL 这种软件辅助的硬件同步，以及由 L2 atomic 管理依赖的纯软件同步（megakernel）。SGLang K3 主要采用第二种方式。各个融合单元仍是独立 kernel，便于单独 A/B 或替换实现；相邻 kernel 之间则通过 PDL 建立依赖并重叠执行。
+Yifan Yang 将 kernel 间同步分为三类：默认串行的硬件同步、PDL 这种软件辅助的硬件同步，以及由 L2 atomic 管理依赖的纯软件同步（megakernel）。SGLang K3 主要采用第二种方式。各个融合单元仍是独立 kernel，便于单独 A/B 或替换实现；相邻 kernel 之间则通过 PDL 建立依赖并重叠执行。
 
 K3 对 PDL 的封装只有两个模板函数和一个 launch 参数：
 
@@ -88,35 +74,31 @@ __device__ __forceinline__ void PDLTriggerSecondary() {
 
 host 侧统一使用 `LaunchKernel(grid, block, ...).enable_pdl(kUsePDL)`，由内部代码设置 launch attribute。Python wrapper 通过 `is_arch_support_pdl()` 判断架构。Triton kernel 使用 `tl.extra.cuda.gdc_wait()`、`gdc_launch_dependents()` 和 `launch_pdl=True`；CuTe-DSL kernel 使用 `cute.arch.griddepcontrol_wait()` 和 `use_pdl=True`。K3 中的 CUDA C++、Triton 和 CuTe-DSL kernel 都有对应实现。
 
-## 0x2. PDL 在 K3 bs=1 decode 中解决什么问题
+## PDL 在 K3 bs=1 decode 中解决什么问题
 
 bs=1 decode 中没有其他请求的计算可用于填充 launch gap。大 batch 下能够被并行工作掩盖的空隙，在 bs=1 的串行路径上通常会直接计入 step 时间。中文文章[**SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持**](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)对此有一段总结：“All-reduce 是一个同步点，因此在那里节省一微秒，就会一比一地转化为 step 时间的缩短；而位于另一个 stream 的重叠空隙中的 kernel，转化比例大约只有十分之一。”
 
-下面两张图来自 SGLang Kimi K3 Day-0 博客，分别给出 bs=1 优化的分类收益和吞吐变化。相关中文文章是[**SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持**](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)。
+下面两张图来自 [SGLang Kimi K3 Day-0 博客](https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support)，分别给出 bs=1 优化的分类收益和吞吐变化。对应的中文文章是[《SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持》](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)。
 
-原文：
+<p align="center">
+  <img src="https://files.mdnice.com/user/59/4eb4b81d-a2f1-46d0-b4fe-6e3cde44fc94.png" width="98%" alt="batch size 1 时按优化类别划分的瀑布图">
+</p>
 
-https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
+<p align="center">
+  <em><b>bs=1 优化的分类收益。</b>按优化类别划分 K3 decode 吞吐的提升。来源：SGLang Kimi K3 Day-0 博客。</em>
+</p>
 
-![batch size 1 时按优化类别划分的瀑布图。图源：SGLang Kimi K3 Day-0 博客](https://files.mdnice.com/user/59/4eb4b81d-a2f1-46d0-b4fe-6e3cde44fc94.png)
+<p align="center">
+  <img src="https://files.mdnice.com/user/59/acdc19a8-c5f9-4117-a918-bc85b2961262.png" width="98%" alt="batch size 1 时的 decode 吞吐优化阶梯">
+</p>
 
-图：batch size 1 时按优化类别划分的吞吐收益。来源：SGLang Kimi K3 Day-0 博客。
-
-原文：
-
-https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
-
-![batch size 1 时的 decode 吞吐优化阶梯。图源：SGLang Kimi K3 Day-0 博客](https://files.mdnice.com/user/59/acdc19a8-c5f9-4117-a918-bc85b2961262.png)
-
-图：batch size 1 时的 decode 吞吐优化阶梯。来源：SGLang Kimi K3 Day-0 博客。
-
-原文：
-
-https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
+<p align="center">
+  <em><b>bs=1 decode 吞吐优化阶梯。</b>各项优化按合入顺序带来的吞吐变化。来源：SGLang Kimi K3 Day-0 博客。</em>
+</p>
 
 瀑布图中的“重叠与 prolog 融合”（P10、P11、P14、P15）合计增加 10.4 tok/s，其中 P15 明确写的是“将 MLA decode 的 prolog 融合为一个 kernel，并用 PDL 启动其后的注意力 kernel”。“消除 launch”“NVIDIA kernel”和“通信融合”中的多处新 kernel 也启用了 PDL。优化后的 trace 中可以看到负 launch gap，即后继 kernel 的启动时间戳早于前驱 kernel 的结束时间戳。
 
-## 0x3. 计算链上的 PDL
+## 计算链上的 PDL
 
 下表列出 #32890 导出的 K3 计算 kernel。“整体 A/B”表示该项收益包含在所在 PR 的整体测试中，无法单独归因。
 
@@ -191,7 +173,7 @@ c 更早完成                              先 load b/c → wait → load a
 
 当前 MoE 尾部满足这两个条件。如果以后调整调用链，让 `b` 或 `c` 变成由仍可能与 `_add3` 重叠的前驱写入，就必须关闭 `prefetch_bc`，或者增加一个能够保证写入已经完成的同步边界。
 
-## 0x4. 通信 kernel 如何使用 PDL
+## 通信 kernel 如何使用 PDL
 
 计算 kernel 通常用 PDL 重叠 launch 和 prolog。通信 kernel 还可以利用等待其他 rank 的时间运行后继 kernel 的 prolog。相关实现位于 #32890 的 `kimi_k3/comm/` 目录，几个主要文件都在头部注释中说明了同步条件。
 
@@ -236,7 +218,7 @@ MoE 层：fused-front GEMM → route_radix_v2(PDL，bias 预取)
 KDA 层：qkvg GEMM → tiny_gemm(权重预取) → kda_fused_decode(全出口 trigger) → 输出投影
 ```
 
-## 0x5. 现有性能数据
+## 现有性能数据
 
 目前没有一组完整的 e2e A/B 只切换 PDL 开关。多数改动同时包含 kernel 融合和 PDL，因此不能把全部收益单独归因于 PDL。本节只保留公开数据和可公开的定性结论，内部测试的绝对吞吐、ITL、单 kernel 延迟和 launch gap 均不展开。
 
@@ -250,7 +232,7 @@ PDL 只能重叠 launch 边界附近的工作，不能消除 launch 本身携带
 
 SGLang 主线的 custom allreduce v2 也在三个算法中使用 PDL，入口调用 `PDLWaitPrimary`，出口调用 `PDLTriggerSecondary`。eager 模式的输入输出拷贝则使用支持 PDL 的 memcpy kernel。具体实现见[**SGLang Custom AllReduce v1 与 v2 实现原理详解**](https://zhuanlan.zhihu.com/p/2065205306540531895) 的 0x7.5 节。
 
-## 0x6. 实现中遇到的问题
+## 实现中遇到的问题
 
 ### trigger-before-store 竞态
 
@@ -260,11 +242,7 @@ SGLang 主线的 custom allreduce v2 也在三个算法中使用 PDL，入口调
 
 ### ptxas 将 load 调度到 wait 前
 
-《PDL 遇上 __ldg()：Bug 还是 Feature？》（作者：是小肖啊）记录了一个 B300/CUDA 13.2 环境中的问题。
-
-原文：
-
-https://zhuanlan.zhihu.com/p/2067263583239533156
+是小肖啊在[《PDL 遇上 __ldg()：Bug 还是 Feature？》](https://zhuanlan.zhihu.com/p/2067263583239533156)中记录了一个 B300/CUDA 13.2 环境中的问题。
 
 PDL consumer 在源码和 PTX 中都先执行 `griddepcontrol.wait`，再通过 `ld.global.nc`（由 `__ldg()` 生成的非一致只读 load）读取 producer 输出；ptxas 生成 SASS 时，却可能把该 load 调度到 wait 之前。
 
@@ -274,13 +252,13 @@ PDL consumer 在源码和 PTX 中都先执行 `griddepcontrol.wait`，再通过 
 
 启用 PDL 后，torch profiler 和 Nsight Systems 中的 per-kernel duration 不再等同于 kernel 独占执行时间。后继 kernel 从被放行时开始计时，其中包含在 wait 上停留的时间；前驱的收尾又可能与后继的 prolog 重叠。
 
-![Nsight Systems 中启用和未启用 PDL 的执行对比](https://files.mdnice.com/user/59/9f87449a-7df1-4017-af14-4ccae6413c94.png)
+<p align="center">
+  <img src="https://files.mdnice.com/user/59/9f87449a-7df1-4017-af14-4ccae6413c94.png" width="98%" alt="Nsight Systems 中启用和未启用 PDL 的执行对比">
+</p>
 
-图：Nsight Systems 中启用 PDL 和未启用 PDL 时的 kernel 时间线。来源：Yifan Yang，《使用 Programmatic Dependent Launch (PDL) 降低端到端延迟 中文版》。
-
-原文：
-
-https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
+<p align="center">
+  <em><b>Profiler 中的 PDL。</b>Nsight Systems 中启用和未启用 PDL 时的 kernel 时间线。来源：Yifan Yang，《使用 Programmatic Dependent Launch（PDL）降低端到端延迟》。</em>
+</p>
 
 K3 的调试记录也验证了这一点：启用 PDL 后，per-kernel duration 会混入 wait 时间，不能直接用来衡量单个 kernel 的收益。性能判断应以 e2e ITL（或 tok/s）和 NCU cycle 计数为准。trace 中的 kernel duration 更适合用来检查调用链，例如是否出现负 gap 或意外断链。
 
@@ -288,36 +266,24 @@ K3 的调试记录也验证了这一点：启用 PDL 后，per-kernel duration �
 
 PDL 只有在两个 kernel 能够同时驻留在 SM 上时才能产生执行重叠。两个 kernel 的 smem、寄存器和线程需求之和不能超过 SM 容量。K3 的 `gemm_ar` 要求 100% smem carveout、smem 不超过 113KB，并保持 2 CTA/SM。设计此类 kernel 时，occupancy 需要按相邻 kernel 共驻计算，而不是只计算单个 kernel 的占用。
 
-## 0x7. 小结
+## 小结
 
 K3 在 bs=1 decode 路径中主要用 PDL 做两件事：计算 kernel 在 wait 前预取不依赖前驱的数据；通信 kernel 在等待远端数据时允许后继执行 prolog。producer 应在相关输出写回后 trigger，consumer 则在第一次读取依赖数据前 wait。`spin_add3` 不使用 PDL wait，它的正确性由 phase counter 维护。
 
 PDL 不能消除通信实现本身的固定 launch 成本，重叠还受到 smem、寄存器和线程数的限制。实现时需要检查 trigger 后是否仍有写回，并留意 ptxas 对 `.nc` load 的重排。性能测试应以 e2e 指标和 NCU cycle 为主，trace 主要用于检查 PDL 链是否连续。
 
-参考链接：
+## 参考资料
 
-SGLang K3 day-0 支持总 PR：
+- [SGLang PR #32541：Kimi K3 Day-0 支持](https://github.com/sgl-project/sglang/pull/32541)
+- [SGLang PR #32890：独立 Kimi K3 kernel 导出](https://github.com/sgl-project/sglang/pull/32890)
+- [Yifan Yang：《使用 Programmatic Dependent Launch（PDL）降低端到端延迟》](https://yang-yifan.github.io/blogs/pdl/pdl_cn.html)
+- [是小肖啊：《PDL 遇上 __ldg()：Bug 还是 Feature？》](https://zhuanlan.zhihu.com/p/2067263583239533156)
+- [SGLang Kimi K3 Day-0 博客](https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support)
+- [《SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持》中文翻译](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)
+- [《SGLang Custom AllReduce v1 与 v2 实现原理详解》](https://zhuanlan.zhihu.com/p/2065205306540531895)，参见 0x7.5 节中主线 Custom AllReduce v2 的 PDL 实现。
 
-https://github.com/sgl-project/sglang/pull/32541
+## 致谢
 
-K3 独立 kernel 导出 PR：
+感谢 Liangsheng Yin 以及 SGLang、Moonshot AI 和 NVIDIA 团队完成 Kimi K3 的 Day-0 支持与性能优化，也感谢所有参与 PR #32541 和 PR #32890 实现、验证与评审的贡献者；这些公开代码、讨论和性能数据构成了本文分析的基础。
 
-https://github.com/sgl-project/sglang/pull/32890
-
-yang-yifan，《Programmatic Dependent Launch (PDL)》中文版：
-
-https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
-
-是小肖啊，《PDL 遇上 __ldg()：Bug 还是 Feature？》：
-
-https://zhuanlan.zhihu.com/p/2067263583239533156
-
-SGLang Kimi K3 Day-0 博客（两张图引自该文）：
-
-https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
-
-相关中文文章：
-
-[**SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持**](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)
-
-[**SGLang Custom AllReduce v1 与 v2 实现原理详解**](https://zhuanlan.zhihu.com/p/2065205306540531895) 0x7.5 节（主线 AR v2 的 PDL）
+感谢 Yifan Yang 对 PDL 原理与性能分析方法的系统讲解，也感谢是小肖啊对 `__ldg()`、ptxas 指令重排和 PDL 正确性问题的深入记录。
