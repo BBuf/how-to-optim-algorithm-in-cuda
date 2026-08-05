@@ -124,7 +124,7 @@ https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
 |---|---|---|---|
 | `tiny_gemm`（n/k 两变体） | qkvg GEMM/norm → KDA 窄投影、router gate | 权重在 wait 前预取 | kernel 级 B200：bfa 2.11→1.23µs、forget 2.23→1.01µs、router 7.71→3.79µs |
 | `route_radix_v2` | fused-front GEMM → MoE 路由 | bias 在 wait 前预取；选完 topk 即 trigger | 6.10→3.01µs @M=1 |
-| `route_quant_fused` | fused-front GEMM → {路由 + FP8 量化} | 量化 CTA 自带独立 wait/trigger | e2e 112.3→114.5 tok/s（后被 revert） |
+| `route_quant_fused` | fused-front GEMM → {路由 + FP8 量化} | 量化 CTA 自带独立 wait/trigger | e2e 112.3→114.5 tok/s |
 | `align_single_token` | route → grouped GEMM | 3 launch+memset 折成 1×32 线程 launch 并入链 | 与 topk_sum 合测 ITL 17.86→17.31ms |
 | `topk_sum` | marlin MoE 输出 → top-k 求和 | 入口 wait / 尾部 trigger | kernel 2.1µs vs torch.sum 6.7µs |
 | `add3` / `moe_tail_add` | up_proj + shared + prefix_sum 三路加 | **开头就 trigger**；可选 b/c 预取 | 打包（tail fusions 16.92→16.33ms） |
@@ -133,8 +133,6 @@ https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
 | `attn_res_*`（score/combine/fused_tma） | o_proj/AR → 注意力残差链 | fused_tma 只对 prefix_sum 精确 wait | 打包 |
 | `set_mla_kv_concat_q` | q/kv 投影 → trtllm-gen fmha | 融合省 1 launch/层且不断链 | 8.66→8.57ms/step |
 | `kda_packed_decode` / `kda_fused_decode` | KDA 投影 → 状态更新 | 入口 wait，**所有出口分支都 trigger** | packed kernel 级 24.7→15.2µs（注明 PDL 污染） |
-| `kda_decode_mtp`（CuTe-DSL） | MTP 路径 KDA decode | 状态 tile 预取后才 wait | 未单独测试 |
-| `pack_topk_ids`（Triton） | topk → 打包 | gdc_wait/gdc_launch_dependents | 未单独测试 |
 | TGV bf16 GEMM（CuTe-DSL） | bs=1 skinny GEMM | `pdl=True`，trace 里 303 次/步 | e2e 71.0→73.0 tok/s |
 
 下面看几个具体实现。
