@@ -2,7 +2,7 @@
 
 # 0x0. 前言
 
-![](https://files.mdnice.com/user/59/8fe0d2c2-6ba6-4d94-81ed-02f17ef4200f.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8fe0d2c2-6ba6-4d94-81ed-02f17ef4200f.jpg)
 
 我读这套 slides 的感受是，它不是在讲「怎么调用一个更快的 AllReduce」，而是在讲一个更底层的问题：如果 Tensor Parallel 里的 `RowParallelLinear` 每层都要做一次 GEMM 后的 AllReduce，那么这个 AllReduce 能不能不要作为一个独立阶段裸露在 timeline 上？更具体一点，能不能让 GEMM 写回结果之后，马上由同一个 persistent kernel 里的通信 warp 去发起 multimem reduce/broadcast，让通信和后续 tile 的计算重叠起来？
 
@@ -19,7 +19,7 @@ We do GEMM+AllReduce overlap during TensorParallel via cutlass based fused kerne
 
 这套内容很偏底层。slides 后面出现的术语基本都在 CUTLASS/CuTe DSL、NVSHMEM、NVLS、多播地址、TMA store、persistent scheduler 这些东西附近打转。它跟上一篇 DeepSeek 部署优化不太一样，那篇更多是 SGLang server 层和模型执行路径的组合拳；这篇几乎是顺着一条 kernel 的 pipeline 往里钻。
 
-![](https://files.mdnice.com/user/59/3859b993-496f-488f-9cff-e9aaca103df4.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3859b993-496f-488f-9cff-e9aaca103df4.jpg)
 
 目录只有三块：
 
@@ -31,7 +31,7 @@ We do GEMM+AllReduce overlap during TensorParallel via cutlass based fused kerne
 
 # 0x1. 为什么不是简单开两个 kernel
 
-![](https://files.mdnice.com/user/59/0339b3f0-ab61-47dc-a373-5ba40cec5850.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0339b3f0-ab61-47dc-a373-5ba40cec5850.png)
 
 这页先把通信计算重叠方案分成两类：Inter-SM 和 Intra-SM。
 
@@ -72,7 +72,7 @@ gemm_ar_attn_op = GemmARLayer(
 
 # 0x2. 粒度：tile 还是 chunk
 
-![](https://files.mdnice.com/user/59/38491e21-33c2-4d08-a5a8-0ca26025c074.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/38491e21-33c2-4d08-a5a8-0ca26025c074.png)
 
 通信计算重叠还有一个很关键的问题：重叠粒度到底多大？
 
@@ -86,7 +86,7 @@ GEMM+AR 更适合 tile grain。原因也简单：RowParallelLinear 的输出矩�
 
 # 0x3. 为什么 Blackwell 上更适合做 GEMM+AR fused kernel
 
-![](https://files.mdnice.com/user/59/61649a51-30f2-49c4-9b17-ce28bbf77f2d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/61649a51-30f2-49c4-9b17-ce28bbf77f2d.png)
 
 这页是前面两页的结论：GEMM+AR 融合算子很适合用 tile-grain 的 fused kernel，尤其是 SM100/Blackwell。
 
@@ -131,7 +131,7 @@ if self.all_reduce != "none":
 
 # 0x4. Multimem 地址和三条指令
 
-![](https://files.mdnice.com/user/59/17fb9334-b37a-4a25-9ffa-1fc575e52004.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/17fb9334-b37a-4a25-9ffa-1fc575e52004.png)
 
 从这页开始进入 multimem。这里我先把概念说白一点。
 
@@ -164,7 +164,7 @@ utils.distributed.multimem_st_4xb32(mc_ptr, x, y, z, w)
 
 这段代码要配合后面的 task partition 看：每个线程只处理自己负责的 128bit 数据。`ld_reduce` 把这一小段从各 rank 聚合回来，`st` 再广播回所有 rank 的对应位置。
 
-![](https://files.mdnice.com/user/59/6fcf8256-35c9-49d3-9f74-a5dda8f58b25.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6fcf8256-35c9-49d3-9f74-a5dda8f58b25.png)
 
 `multimem.ld_reduce` 是 reduce 读。slide 里的流程是：
 
@@ -196,7 +196,7 @@ multimem_ld_reduce_16xe5m2(...)
 
 slide 上写的是 `sys.relaxed` 形式，官方 helper 里有些版本用了 `.weak`。这里不用纠结拼写差异，核心语义是一样的：对 MC address 做一次 reduce load，结果落到寄存器。
 
-![](https://files.mdnice.com/user/59/f62c4748-d581-4a2d-a4c8-38d69d67e670.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f62c4748-d581-4a2d-a4c8-38d69d67e670.png)
 
 `multimem.st` 是广播写。它接在 `ld_reduce` 后面用最自然：既然某个 rank 已经拿到了这 128bit 的 reduce 结果，就顺手把它广播回所有 rank 的输出地址。
 
@@ -214,7 +214,7 @@ def multimem_st_4xb32(mc_ptr: cute.Pointer, val0, val1, val2, val3):
 
 名字里写 `4xb32` 是因为 inline asm 按 4 个 32bit register 传参。对于 FP16/BF16/FP8，前面的 `ld_reduce` 已经把若干个低精度元素打包到了这四个 32bit register 里，store 阶段不用再关心原始 dtype。
 
-![](https://files.mdnice.com/user/59/ccfce5cb-7b7c-4d0b-9447-57a6acdbc8be.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ccfce5cb-7b7c-4d0b-9447-57a6acdbc8be.png)
 
 `multimem.red` 更像一个跨 rank 原子操作。slide 里说它可以拿来做 multi-rank sync，这正是 GEMM+AR kernel 里的用法。
 
@@ -243,7 +243,7 @@ def multimem_red_add1(lock_ptr: cute.Pointer, order: cutlass.Constexpr, scope: c
 
 # 0x5. 怎么拿到 MC address
 
-![](https://files.mdnice.com/user/59/c054f647-14d5-4f25-ab17-1852041e3069.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c054f647-14d5-4f25-ab17-1852041e3069.png)
 
 这页讲初始化。要用 multimem 指令，首先得有 MC address。slides 里列了两种方式：
 
@@ -331,7 +331,7 @@ else:
 
 # 0x6. Kernel workflow：多塞一个 AR warp group
 
-![](https://files.mdnice.com/user/59/c9e0ca37-1f4a-4ac5-9a3e-7b8e7cdb9b74.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c9e0ca37-1f4a-4ac5-9a3e-7b8e7cdb9b74.png)
 
 这页给出 kernel 的主流程。原来的 persistent GEMM kernel 里已经有 TMA load、MMA、epilogue。现在多加一个 AR warp group：
 
@@ -387,7 +387,7 @@ def spin_lock_multimem_arrive(lock_ptr: cute.Pointer):
 
 # 0x7. 任务划分：每个 rank 只负责 tile 的一块
 
-![](https://files.mdnice.com/user/59/32c12604-52e8-4adf-8f4f-9c63ee76ace5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/32c12604-52e8-4adf-8f4f-9c63ee76ace5.png)
 
 这页讲 task partition。two-shot 算法的通信量能不能降下来，主要就看这里的分工。
 
@@ -441,7 +441,7 @@ atom_thr_m = len(self.all_reduce_warp_id) * (WARP_SIZE // atom_thr_n)
 
 # 0x8. Workflow 细节：pre-sync、tile AR、final sync
 
-![](https://files.mdnice.com/user/59/252e5c14-5782-4bee-bd30-fe4bc726b9bd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/252e5c14-5782-4bee-bd30-fe4bc726b9bd.png)
 
 这页把流程画得更细。按我的理解，它有三层同步。
 
@@ -493,9 +493,9 @@ def sm_wise_inter_gpu_multimem_barrier(barrier, barrier_mc, num_ranks):
 
 # 0x9. Memory order：能 relax 的地方就 relax
 
-![](https://files.mdnice.com/user/59/7102210e-06e1-4c3c-b4c8-6cc1381f5701.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7102210e-06e1-4c3c-b4c8-6cc1381f5701.png)
 
-![](https://files.mdnice.com/user/59/b530b233-6173-4f45-962c-fb552d6b7283.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b530b233-6173-4f45-962c-fb552d6b7283.png)
 
 slides 里有两页 memory order，内容基本一样。核心观点是：memory order 要尽量弱，但不能弱错地方。
 
@@ -660,7 +660,7 @@ this pr adds gemm overlapped with two-shot allreduce (with multimem instructions
 
 # 0xC. 性能结果
 
-![](https://files.mdnice.com/user/59/20baf866-2b3e-4afc-9eb9-c8e2c821a546.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/20baf866-2b3e-4afc-9eb9-c8e2c821a546.png)
 
 slides 给的结论是：大约 60% 的通信时间可以被隐藏，SGLang `bench_serving` 端到端吞吐提升 `+6.42%`。
 

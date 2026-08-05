@@ -103,13 +103,13 @@ HFU数值是使用PyTorch FLOP计数器(https://github.com/pytorch/pytorch/blob/
 ## 模型细节
 训练的损失曲线如下图所示。
 
-![](https://files.mdnice.com/user/59/a75ae192-f38d-4d05-ad95-d5841e346be3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a75ae192-f38d-4d05-ad95-d5841e346be3.png)
 
 图1：LlamaT训练损失曲线
 
 2T checkpointing 通过仓库中提供的脚本转换为Hugging Face格式，然后我们使用lm-evaluation-harness计算关键学术基准，并通过在Llama2-7B上运行来进行比较。这些结果在下表中捕获。
 
-![](https://files.mdnice.com/user/59/63bbfb3b-9f28-40eb-91af-f546604f7fd3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/63bbfb3b-9f28-40eb-91af-f546604f7fd3.png)
 
 表1: LM评估工具得分
 
@@ -157,11 +157,11 @@ Selective activation checkpointing的概念由IBM的Linsong Chu、Davis Wertheim
 
 下图显示了FSDP中的三个步骤，图像下半部分底部是节点之间的通信，顶部是计算流。对于没有激活重计算的7B模型，我们观察到重叠是完整的。在实践中，可能的重叠百分比是90%，因为前向传播期间的第一个块和反向传播期间的最后一个块无法重叠。
 
-![](https://files.mdnice.com/user/59/39d5353a-928c-4f37-b063-389f9659be1d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/39d5353a-928c-4f37-b063-389f9659be1d.png)
 
 上述三步过程的单个步骤的放大视图如下所示。我们可以清楚地看到计算和通信的粒度，以及它们如何以交错的方式重叠。
 
-![](https://files.mdnice.com/user/59/91edbee5-8af9-4726-b03d-5231f04aafb2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/91edbee5-8af9-4726-b03d-5231f04aafb2.png)
 
 
 

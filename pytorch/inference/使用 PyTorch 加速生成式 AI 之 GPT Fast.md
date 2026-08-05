@@ -30,7 +30,7 @@ GPT Fast 的代码很短，然后它应用了`torch.compile`等比较先进的�
 
 如果这让你兴奋到想直接查看代码,请访问 https://github.com/pytorch-labs/gpt-fast!
 
-![](https://files.mdnice.com/user/59/f3f62980-56b0-4c8a-87b3-172c41b34e3e.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f3f62980-56b0-4c8a-87b3-172c41b34e3e.jpg)
 
 > 注意:在所有这些基准测试中,我们将重点关注延迟(即 batch size=1)。除非另有说明,所有基准测试都在功率限制为 330W 的 A100-80GB 上运行。
 
@@ -38,15 +38,15 @@ GPT Fast 的代码很短，然后它应用了`torch.compile`等比较先进的�
 
 让我们从一个极其基础和简单的实现开始。
 
-![](https://files.mdnice.com/user/59/20d70458-bd55-43df-a102-dfa9a3d4ee78.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/20d70458-bd55-43df-a102-dfa9a3d4ee78.png)
 
 遗憾的是,这个性能并不理想。为什么呢?通过查看跟踪信息可以发现答案 - 它严重受到了 **CPU 开销的限制!** 这意味着我们的 CPU 无法足够快地告诉 GPU 该做什么,导致 GPU 无法被充分利用。
 
-![](https://files.mdnice.com/user/59/91f8daab-4e99-4b3a-a3aa-03727800798a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/91f8daab-4e99-4b3a-a3aa-03727800798a.png)
 
 把 GPU 想象成一个拥有大量计算能力的超级工厂。然后,把 CPU 想象成一个在 GPU 之间来回传递指令的信使。记住,在大规模深度学习系统中,GPU 负责完成 100% 的工作!在这样的系统中,CPU 的唯一作用就是告诉 GPU 应该做什么工作。
 
-![](https://files.mdnice.com/user/59/09e1896f-49eb-4187-9b19-36cf5d60897e.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/09e1896f-49eb-4187-9b19-36cf5d60897e.jpg)
 
 所以,CPU 跑过来告诉 GPU 执行一个"加法"操作,但当 CPU 能够给 GPU 下一块工作时,GPU 早就完成了前一块工作。
 
@@ -54,7 +54,7 @@ GPT Fast 的代码很短，然后它应用了`torch.compile`等比较先进的�
 
 无论如何,我们现在处于 **CPU 开销限制** 的状态。那么,我们能做什么呢?一种方法是重写我们的实现为 C++,甚至完全抛弃框架,直接写 CUDA。或者……我们可以一次发送更多的工作给 GPU。
 
-![](https://files.mdnice.com/user/59/ee1d10ef-1aea-4ffb-bf7f-365fb95f6dbd.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ee1d10ef-1aea-4ffb-bf7f-365fb95f6dbd.jpg)
 
 通过一次发送大量工作,我们可以让 GPU 忙个不停!尽管在训练时,这可能只是通过增加批量大小来实现,但在推理时,我们该怎么做呢?
 
@@ -76,17 +76,17 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 为了解决这个问题,我们使用了一个"静态"的 kv-cache(https://github.com/pytorch-labs/gpt-fast/blob/0afae1ace441ce4c5d02ef11a72da28cf7ca4795/generate.py#L154),这意味着我们静态分配 kv-cache 的最大大小,然后在注意力计算部分中屏蔽掉未使用的值。
 
-![](https://files.mdnice.com/user/59/5c2e0df6-da4c-419e-beec-e28a64d15f89.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5c2e0df6-da4c-419e-beec-e28a64d15f89.png)
 
 第二个障碍是预填充阶段。Transformer 文本生成可以被视为两个阶段: 1. 预填充阶段,整个 prompt 被处理,2. 解码阶段,每个 token 被自动回归生成。
 
 尽管解码可以完全静态化,一旦 kv-cache 被静态化,预填充阶段仍然需要显著更多的动态性,因为 prompt 长度是可变的。因此,我们实际上需要用不同的编译策略编译这两个阶段。
 
-![](https://files.mdnice.com/user/59/56e613ef-c295-4227-906f-35fb4579971e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/56e613ef-c295-4227-906f-35fb4579971e.png)
 
 尽管这些细节有点复杂,但实际实现并不困难(请参见 gpt-fast)!而且性能提升是显著的。
 
-![](https://files.mdnice.com/user/59/1986feed-a278-42d6-a05e-e590d777b7a2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1986feed-a278-42d6-a05e-e590d777b7a2.png)
 
 所有这些加起来,我们的性能提高了 4 倍以上!这种性能提升在处理开销限制的工作负载时通常很常见。
 
@@ -102,26 +102,26 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 这意味着计算完全受内存带宽限制,因此,它们完全在编译器的范围内。事实上,当我们基准测试 `torch.compile` 的矩阵向量乘法与 CuBLAS 时,我们发现 `torch.compile` 的内核实际上要快得多!
 
-![](https://files.mdnice.com/user/59/06bdc843-643e-4f1f-a620-4f1a7bcdab79.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/06bdc843-643e-4f1f-a620-4f1a7bcdab79.png)
 
-![](https://files.mdnice.com/user/59/2f063659-5bd0-429e-9fb3-9a7fefd64fe0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2f063659-5bd0-429e-9fb3-9a7fefd64fe0.png)
 
 
 # 第二步: 通过 int8 权重量化缓解内存带宽瓶颈 (157.4 tok/s)
 
 所以,鉴于我们已经从应用 `torch.compile` 中看到了巨大的性能提升,是否有可能做得更好?一种思考这个问题的方法是计算我们离理论峰值有多近。在这种情况下,最大的瓶颈是加载权重从 GPU 全局内存到寄存器的成本。换句话说,每个前向 Pass 要求我们"接触"GPU 上的每个参数。那么,我们理论上可以多快"接触"模型中的每个参数呢?
 
-![](https://files.mdnice.com/user/59/fbd51862-059b-40f6-8637-89d4efe0a70d.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fbd51862-059b-40f6-8637-89d4efe0a70d.jpg)
 
 为了测量这一点,我们可以使用**模型带宽利用率(MBU)**。这测量了我们推理期间可以使用的内存带宽百分比。
 
 计算它很简单。我们只需将模型的大小(参数数量 * 每个参数的字节数)乘以每秒可以执行的推理次数。然后,我们将这个值除以 GPU 的峰值带宽,以获得 MBU。
 
-![](https://files.mdnice.com/user/59/f42c56c5-9002-4e7b-a99b-f49de14a0e05.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f42c56c5-9002-4e7b-a99b-f49de14a0e05.png)
 
 例如,对于我们上面的案例,我们有一个 7B 参数的模型。每个参数以 fp16 格式存储(每个参数 2 字节),我们达到了 107 tokens/s 的速度。最后,我们的 A100-80GB 有 2 TB/s 的理论内存带宽。
 
-![](https://files.mdnice.com/user/59/03da0500-4b4a-4d64-9683-145b6fc830cc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/03da0500-4b4a-4d64-9683-145b6fc830cc.png)
 
 将所有这些加在一起,我们得到 **72% MBU!** 这相当不错,考虑到即使只是复制内存也难以突破 85%。
 
@@ -129,45 +129,45 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 让我们再看一遍上面的等式。我们实际上无法改变模型中的参数数量。我们无法真正改变 GPU 的内存带宽(除非花更多的钱)。但是,我们可以改变每个参数存储的字节数!
 
-![](https://files.mdnice.com/user/59/1334bdd1-f3ee-47d7-a33f-107f722c75e2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1334bdd1-f3ee-47d7-a33f-107f722c75e2.png)
 
 因此,我们得出了下一个技术 - int8 量化。这里的想法很简单。如果从内存加载权重是我们的主要瓶颈,为什么不直接使权重变小呢?
 
-![](https://files.mdnice.com/user/59/aee7068e-9c3b-4ffb-b852-08bf5a1a7c6c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/aee7068e-9c3b-4ffb-b852-08bf5a1a7c6c.png)
 
 请注意,这仅量化权重 - 计算本身仍在 bf16 中进行。这使得这种形式的量化非常容易应用,并且几乎没有精度下降。
 
 此外,`torch.compile` 还可以轻松生成高效的 int8 量化代码。让我们再看一遍上面的基准测试,这次包括了 int8 权重量化。
 
-![](https://files.mdnice.com/user/59/bc4c8d54-a28a-47b8-a314-f71943f30582.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bc4c8d54-a28a-47b8-a314-f71943f30582.png)
 
-![](https://files.mdnice.com/user/59/0fe2087b-28f0-487f-b2de-41b47012bba6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0fe2087b-28f0-487f-b2de-41b47012bba6.png)
 
 从深蓝色线(torch.compile + int8)可以看出,使用 torch.compile + int8 权重量化时性能有显著提升!此外,浅蓝色线(没有 torch.compile + int8)甚至比 fp16 性能还差!这是因为为了利用 int8 量化的性能优势,我们需要将 kernel 融合。这展示了 `torch.compile` 的一个好处 - 这些 kernel 可以自动为使用者生成!
 
 将 int8 量化应用于我们的模型(https://github.com/pytorch-labs/gpt-fast/blob/main/quantize.py#L314),我们看到了 50% 的性能提升,将我们提升到 157.4 tokens/s!
 
-![](https://files.mdnice.com/user/59/949a1533-dabe-4802-96a3-bcae6d69d2e2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/949a1533-dabe-4802-96a3-bcae6d69d2e2.png)
 
 # 第三步: 使用推测解码重新表述问题 (157.4 tok/s)
 
 即使使用了量化技术,我们仍然面临另一个问题。为了生成 100 个 token,我们必须加载我们的权重 100 次。
 
-![](https://files.mdnice.com/user/59/1470fef6-f60a-4ab5-8dec-cab8f47d3607.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1470fef6-f60a-4ab5-8dec-cab8f47d3607.png)
 
 即使权重被量化,我们仍然必须一遍又一遍地加载权重,每次生成一个 token!有没有办法绕过这个问题?
 
 乍一看,答案似乎是否定的 - 我们的自回归生成有一个严格的序列依赖性。然而,事实证明,通过利用推测解码(https://arxiv.org/abs/2211.17192),我们能够打破这个严格的序列依赖性并获得性能提升!
 
-![](https://files.mdnice.com/user/59/bb1d8bff-1dc4-4298-ae51-25eee1ced7e6.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bb1d8bff-1dc4-4298-ae51-25eee1ced7e6.jpg)
 
 想象一下,你有一个高级工程师(称为 Verity),他做出了正确的技术决策,但写代码很慢。然而,你也有一个初级工程师(称为 Drake),他有时会做出错误的技术决策,但写代码比 Verity 快得多(而且便宜得多!)。我们如何利用 Drake(初级工程师)来更快地写代码,同时确保我们仍然做出正确的技术决策?
 
-![](https://files.mdnice.com/user/59/195d67db-d571-4fbe-90e4-82b46e1d3c00.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/195d67db-d571-4fbe-90e4-82b46e1d3c00.png)
 
 首先,Drake 通过劳动密集型的过程编写代码,并在过程中做出技术决策。接下来,我们将代码交给 Verity 审查。
 
-![](https://files.mdnice.com/user/59/1fa7bb58-90d9-4ccf-a187-c2a9495c8d4c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1fa7bb58-90d9-4ccf-a187-c2a9495c8d4c.png)
 
 
 在审查代码时,Verity 可能会决定 Drake 的前 3 个技术决策是正确的,但最后 2 个需要重做。因此,Drake 回到起点,丢弃他的最后 2 个决策,并从那里重新开始编写代码。
@@ -180,7 +180,7 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 使用原生 PyTorch 实现这一点的优点是,这种方法实际上非常容易实现(https://github.com/pytorch-labs/gpt-fast/blob/main/generate.py#L76)!这是整个实现,大约 50 行原生 PyTorch 代码。
 
-![](https://files.mdnice.com/user/59/af0c3077-3f74-49f1-a156-6113e0fdd664.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/af0c3077-3f74-49f1-a156-6113e0fdd664.png)
 
 
 尽管推测解码保证了我们与常规生成相比具有数学上相同的结果,但它确实具有运行时性能取决于生成文本的属性,以及草稿模型和验证模型对齐的程度。例如,当使用 CodeLlama-34B + CodeLlama-7B 运行时,我们能够获得 2x 的性能提升。另一方面,当使用 Llama-7B + TinyLlama-1B 时,我们只能获得大约 1.3x 的性能提升。
@@ -189,7 +189,7 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 如上所述,解码中的每个 kernel 都是由 torch.compile 从头开始生成的,并转换为 OpenAI Triton。由于 AMD 有 torch.compile 后端(https://pytorch.org/blog/experience-power-pytorch-2.0/) (也有 Triton 后端),我们可以简单地通过所有上述优化……但使用 AMD GPU!使用 int8 量化,我们能够在 MI250x 的一半(即一个 GCD)上实现 102.5 tokens/s!
 
-![](https://files.mdnice.com/user/59/a7742f24-5c3e-4314-8157-ebbdc51dd3fa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a7742f24-5c3e-4314-8157-ebbdc51dd3fa.png)
 
 # 第四步: 使用 int4 量化和 GPTQ 进一步减小权重大小 (202.1 tok/s)
 
@@ -197,7 +197,7 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 不幸的是,当将权重降到 4 位时,模型的精度开始成为一个更大的问题。从我们的初步评估来看,虽然使用 int8 权重量化没有明显的精度下降,但使用 int4 权重量化会导致精度下降。
 
-![](https://files.mdnice.com/user/59/7f4d0fd7-76f1-45eb-b346-71736d5dacad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7f4d0fd7-76f1-45eb-b346-71736d5dacad.png)
 
 有两种主要方法可以限制 int4 量化的精度下降。
 
@@ -209,13 +209,13 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 这些技术需要一些额外的工作,但将它们结合起来可以获得更好的性能!
 
-![](https://files.mdnice.com/user/59/63ed5e87-2e01-49da-827f-fde87a2c6b4f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/63ed5e87-2e01-49da-827f-fde87a2c6b4f.png)
 
 # 第五步: 将所有技术结合起来 (244.7 tok/s)
 
 最后,我们可以将所有这些技术结合起来,以获得更好的性能!
 
-![](https://files.mdnice.com/user/59/37ad2b21-7a47-4ba8-8551-1059b1a3740e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/37ad2b21-7a47-4ba8-8551-1059b1a3740e.png)
 
 # 第六步: 使用张量并行
 
@@ -223,7 +223,7 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 为了直观地理解为什么这会允许我们提高延迟,让我们看看之前的 MBU 方程,特别是分母。在多个 GPU 上运行使我们能够访问更多的内存带宽,从而提高潜在的性能。
 
-![](https://files.mdnice.com/user/59/0f73ed4c-4685-4002-8970-5ab7e39bd2cd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0f73ed4c-4685-4002-8970-5ab7e39bd2cd.png)
 
 至于选择哪种并行策略,请注意,为了减少一个示例的延迟,我们需要能够同时利用多个设备上的内存带宽。这意味着我们需要将一个 token 的处理拆分到多个设备上。换句话说,我们需要使用张量并行。
 
@@ -231,11 +231,11 @@ torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
 
 然而,即使没有更高级别的 API,实现张量并行实际上仍然相当容易。我们的实现只有 150 行代码(https://github.com/pytorch-labs/gpt-fast/blob/main/tp.py),并且不需要任何模型更改。
 
-![](https://files.mdnice.com/user/59/cb084969-fb4e-416c-8d21-e655ba5e72d7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cb084969-fb4e-416c-8d21-e655ba5e72d7.png)
 
 我们仍然能够利用之前提到的所有优化,这些优化都可以与张量并行一起使用。将这些结合起来,我们能够在 int8 量化下以 55 tokens/s 的速度为 Llama-70B 提供服务!
 
-![](https://files.mdnice.com/user/59/9d62629c-d025-4205-8964-ee675a4d9f5b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9d62629c-d025-4205-8964-ee675a4d9f5b.png)
 
 # 结论
 

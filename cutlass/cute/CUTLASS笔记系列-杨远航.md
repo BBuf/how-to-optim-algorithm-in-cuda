@@ -2,7 +2,7 @@
 
 # CUTLASS 笔记：导读
 
-![](https://files.mdnice.com/user/59/8c3adf94-000a-4a09-a0dd-2573176d6f9d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8c3adf94-000a-4a09-a0dd-2573176d6f9d.png)
 
 本 CUTLASS 笔记系列将从一个最小的 Minimal GEMM 开始，逐步扩展 CuTe、CUTLASS 各类组件和 Hopper、Blackwell 等新架构的特性，最终实现一个高性能的 GEMM 融合算子。
 
@@ -14,7 +14,7 @@
 
 一句话介绍：**CUTLASS 以模板库和众多可复用组件的形式，提供了围绕 GEMM 的算法开发和优化的解决方案。**
 
-![图1: CUTLASS GEMM Hierarchy](https://files.mdnice.com/user/59/8c3adf94-000a-4a09-a0dd-2573176d6f9d.png)
+![图1: CUTLASS GEMM Hierarchy](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8c3adf94-000a-4a09-a0dd-2573176d6f9d.png)
 
 
 由于 NV 硬件下的 Tensor Core 性能强大，且当前主流的计算任务均离不开基础的 GEMM 算子，如何方便开发者实现高效的 GEMM 运算，以及 GEMM 和其他计算的 overlap 和融合，发挥出硬件的算力上限，从而在各种上层任务上提质增效，就是 CUTLASS 要解决的问题。
@@ -90,7 +90,7 @@ CUTLASS 笔记 (14)：Warp Specialization
 
 NV GPU 中的 SM 架构经过了若干代的演进。下图展示了从 Pascal 架构到最新 Blackwell 架构的 SM 结构：
 
-![图2: 从 Volta 到 Blackwell 的 SM 架构演进](https://files.mdnice.com/user/59/102c3f46-f964-4be0-99ca-212b080e3f47.jpg)
+![图2: 从 Volta 到 Blackwell 的 SM 架构演进](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/102c3f46-f964-4be0-99ca-212b080e3f47.jpg)
 
 我们重点关注其计算单元：
 - Pascal 架构的计算单元是 Unified Int32 & FP32 Core，单 Core 可以执行整数和浮点计算；
@@ -127,7 +127,7 @@ CUDA Core 是较为通用的计算单元，可以用于执行各类计算任务�
 
 第一代 Tensor Core（Volta）在一个时钟周期内可计算 4*4 规模的 FP16 MMA 运算，算力为 2*4*4*4 = 128 FLOPs/cycle。后续每一代的 Tensor Core 相比前一代的算力都翻一倍。最新的 Blackwell 架构的Tensor Core 已经发展到第五代了，单个 TC 算力为 2048 FLOPs/cycle。
 
-![图2: Volta 架构下的单指令 Tensor Core 计算](https://files.mdnice.com/user/59/9d2347e2-1b8c-4e42-b71b-c6c492ea16f9.png)
+![图2: Volta 架构下的单指令 Tensor Core 计算](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9d2347e2-1b8c-4e42-b71b-c6c492ea16f9.png)
 
 实际上，我们可以根据公开数据，手动计算出当前 NVIDIA 硬件的理论算力，也就是所有 Tensor Core 最大算力之和，计算公式为：
 
@@ -135,7 +135,7 @@ CUDA Core 是较为通用的计算单元，可以用于执行各类计算任务�
 
 以下是几种常用硬件的性能指标（其中 B200 硬件具体 spec 未公开，数据仅供参考）：
 
-![](https://files.mdnice.com/user/59/2b5eaab1-b86e-449d-8988-6a3e757575c1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2b5eaab1-b86e-449d-8988-6a3e757575c1.png)
 
 此外在使用 CUTLASS 的过程中，我们常会遇到 PTX 相关指令。一般而言，涉及 CUDA Core 的计算会使用通用的计算指令集，如 add、sub、sin、cos、ex2 等，而涉及 Tensor Core 的张量计算则使用与 SM 架构强相关的特殊指令集，如 mma、wgmma、tcgen05 等。我们会在后续的笔记中分析代码使用了哪些特殊的 PTX 指令，以及它们的具体功能。
 
@@ -155,17 +155,17 @@ CuTe 中的 Tensor 和 Pytorch 的 Tensor 非常类似，都表示了一个张�
 
 一般而言，CuTe 中的 Layout 是一种**映射关系**，在不同的语境下有不同的含义。**Tensor Layout 是我们接触的第 1 种 Layout，它表达了 tensor 坐标与内存地址 offset 之间的映射关系。**
 
-![图1: CuTe 的第 1 种 Layout —— Tensor Layout](https://files.mdnice.com/user/59/35df7f28-250f-4fed-96fb-5ba5d787200d.png)
+![图1: CuTe 的第 1 种 Layout —— Tensor Layout](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/35df7f28-250f-4fed-96fb-5ba5d787200d.png)
 
 
 在 CuTe 中，我们将 Layout 表示为 **shape : stride** 的格式，其中 shape 和 stride 可以是一个 tuple，也可以是嵌套着 tuple 的 tuple。**Layout 的可嵌套性是它不同于 Pytorch Tensor 的重要特点**。有了嵌套表示，我们可以创建许多更为复杂的 Tensor pattern。
 
-![图2: CuTe 中的嵌套 Layout](https://files.mdnice.com/user/59/1d6312e5-c2a4-48d0-928c-1ad9c6de76c7.png)
+![图2: CuTe 中的嵌套 Layout](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1d6312e5-c2a4-48d0-928c-1ad9c6de76c7.png)
 
 
 我们遇到的第 1 个 CuTe API 就是创建一个 Tensor 的方法：`make_tensor`，传入的三个参数分别为 data_ptr, shape, stride（也可以不提供 shape 和 stride，直接传入 layout）。**当不提供 stride 时，CuTe 会默认创建 left-major 的 stride，而 Pytorch 默认是 right-major 的，这是 CuTe Tensor 与 Pytorch Tensor 的第二个不同点。**
 
-![图3: CuTe API —— make_tensor](https://files.mdnice.com/user/59/832151f4-0e32-458a-b52e-533df5e2fe77.png)
+![图3: CuTe API —— make_tensor](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/832151f4-0e32-458a-b52e-533df5e2fe77.png)
 
 
 CuTe Tensor 的维度习惯地称为 mode，例如最左侧的维度就是 first mode / 0th mode，而嵌套 Layout 的各个维度称为 sub mode。我们可以通过 size<mode>(tensor) 的方式获取 tensor 各个维度的大小。
@@ -174,7 +174,7 @@ CuTe Tensor 的维度习惯地称为 mode，例如最左侧的维度就是 first
 
 在较大规模的 GEMM 计算中，我们需要将其分块处理，在各层级存储大小的约束下高效地实现并行计算，一般我们将这种分块处理称为 tiling。在 CuTe 中也有对 Tensor 进行分块的 API：`local_tile`。
 
-![图4: CuTe API —— local_tile](https://files.mdnice.com/user/59/fba3aed3-6842-4d99-9948-1712323fe21b.png)
+![图4: CuTe API —— local_tile](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fba3aed3-6842-4d99-9948-1712323fe21b.png)
 
 给定每个 tile 的 shape 大小，我们可以将一个 Tensor 切分为若干小 Tensor（tile），并用一个坐标 coord 来获取其中一个 tile。
 
@@ -224,7 +224,7 @@ mma.sync.aligned.m16n8k8.row.col.f16.f16.f16.f16
 
 我们可以用 CuTe 打印出这个 16x8x8 mma 指令的映射关系如下：
 
-![图5: Minimal GEMM kernel 中的 Tiled MMA](https://files.mdnice.com/user/59/0f1499bf-3b23-4132-adde-9fbd33a523c2.png)
+![图5: Minimal GEMM kernel 中的 Tiled MMA](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0f1499bf-3b23-4132-adde-9fbd33a523c2.png)
 
 其中左下矩阵为 A，右上矩阵为 B，右下矩阵为 C/D。每个矩阵元素中的 TxVy 表示该元素是线程 x 的第 y 个数据。注意在上图中，矩阵 A 的 shape 为 MxK，矩阵 B 的 shape 为 KxN，所有矩阵均为 K-major。
 
@@ -259,7 +259,7 @@ auto copy_atom = AutoVectorizingCopy{};
 copy(copy_atom, tCgA, tCrA);
 ```
 
-![图6：GMEM 到 Register 的拷贝](https://files.mdnice.com/user/59/7baad795-2988-40ad-8fbc-64caec770b2f.png)
+![图6：GMEM 到 Register 的拷贝](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7baad795-2988-40ad-8fbc-64caec770b2f.png)
 
 其中 copy_atom 对应了数据拷贝所使用的指令。为了最大化访存效率，我们希望一条拷贝指令能拷贝尽可能多的连续内存（即**向量化访存**），常规单条拷贝指令最多可拷贝 128 bits 的数据，但很多情况下需要拷贝的数据并不连续，因此 AutoVectorizingCopy 可以让 CuTe 根据 MMA 自动选取最大的连续数据长度，以此确定具体的拷贝指令。
 
@@ -275,7 +275,7 @@ gemm(tiled_mma, tCrD, tCrA, tCrB, tCrC);
 copy(copy_atom, tCrD, tCgD);
 ```
 
-![图7：Register 到 GMEM 的拷贝](https://files.mdnice.com/user/59/42139c80-059f-4667-855b-a5f480669e39.png)
+![图7：Register 到 GMEM 的拷贝](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/42139c80-059f-4667-855b-a5f480669e39.png)
 
 接下来我们将使用上面的基础 API，实现一个单指令的 16x8x8 规模的 MMA 计算。
 
@@ -286,7 +286,7 @@ copy(copy_atom, tCrD, tCgD);
 
 本场景下的算子详情如下表所示：
 
-![](https://files.mdnice.com/user/59/bf5b70a0-7329-4173-a138-c90004f3e1f6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bf5b70a0-7329-4173-a138-c90004f3e1f6.png)
 
 由于我们仅用单条指令计算 MMA，因此只需要启动一个 block 的 32 个线程即可。在本场景下无需做分级 tiling，因此所有 tile shape 均等于单指令 MMA atom shape。
 
@@ -579,25 +579,25 @@ ncu -o ncu_prof_1 --import-source 1 --set full --kernel-name "minimal_gemm" -f p
 
 打开软件后，我们可以看到所有算子 profile 后的总览界面。重要的观测指标有运行时间（Duration）、计算和访存利用率（Compute/Memory Throughput），使用的寄存器数量（#Registers），以及 Grid/Block size。
 
-![图8：Nsight Compute 概览界面](https://files.mdnice.com/user/59/a0b8b717-6a23-44f2-8374-260470d8bdfc.png)
+![图8：Nsight Compute 概览界面](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a0b8b717-6a23-44f2-8374-260470d8bdfc.png)
 
 关于运行时间，可以发现 ncu profile 的时间（~3us）要小于通过 CUDA Event 计算的时间（~8us）。通过 nsys profile 进一步确认，发现 ncu 计算的 kernel 运行时间更准确。个人认为原因可能是：CUDA Event 记录的是把当前 Event 插入到 stream 队列后，Event 开始执行的时间。这意味着，当 kernel launch 到 Event launch 之间的 CPU 时间大于 kernel 实际执行时间时，Event 的计时是不准的。
 
-![图9-1：Event 的计时原理](https://files.mdnice.com/user/59/c3774d2f-161b-4004-91d6-42b560bb0f73.png)
+![图9-1：Event 的计时原理](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c3774d2f-161b-4004-91d6-42b560bb0f73.png)
 
-![图9-2：nsys 中的 CUDA Event](https://files.mdnice.com/user/59/4c5862db-f06d-41f2-a997-c43c3dda10ba.png)
+![图9-2：nsys 中的 CUDA Event](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4c5862db-f06d-41f2-a997-c43c3dda10ba.png)
 
 详细的利用率指标可以在 Details 选项卡的第一个列表下找到，它可以从宏观层面帮助我们观测和比较 kernel 性能。如果计算利用率高而访存利用率低，通常说明算子的计算是瓶颈（Compute bound），反之则说明算子的访存为瓶颈，需要进一步分析访存受限的原因。
 
-![图10：计算与访存的利用率](https://files.mdnice.com/user/59/394b7fe1-893c-4542-b47a-4044c0c97416.png)
+![图10：计算与访存的利用率](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/394b7fe1-893c-4542-b47a-4044c0c97416.png)
 
 在实际应用中，许多算子都是访存瓶颈的。如果希望优化访存效率，在 Nsight Compute 中，我们可以从 Memory Chart 中直观分析哪里是访存链路的瓶颈，哪些地方的访存效率不及预期等等。
 
-![图11：Kernel Memory Chart](https://files.mdnice.com/user/59/15a6dd9f-8993-473b-8196-0ac48935a25f.png)
+![图11：Kernel Memory Chart](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/15a6dd9f-8993-473b-8196-0ac48935a25f.png)
 
 我们也可以从表格形式观察单个 kernel 使用了多少访存指令，传输的数据量有多少，以及硬件执行了多少 memory transaction。读者可以尝试分析这里的数据是如何计算出来的。
 
-![图12：Kernel Memory Table](https://files.mdnice.com/user/59/0f82fbf8-ac71-4913-85fa-09848c77074a.png)
+![图12：Kernel Memory Table](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0f82fbf8-ac71-4913-85fa-09848c77074a.png)
 
 Nsight Compute 还有许多常用的组件，我们会在后续的笔记中进一步介绍，并结合 profile 的数据进行算子分析。
 
@@ -613,7 +613,7 @@ SASS code 是交给 GPU 硬件实际执行的机器码，不同的 SM 架构下�
 
 在 Source 选项卡中，可以选择 View PTX and SASS，就可以看到左侧的 PTX code 和右侧的 SASS code。
 
-![图13：Nsight Compute 的 Source 界面](https://files.mdnice.com/user/59/279ea09a-1ae5-4c2a-8ff5-b8f31aa3978f.png)
+![图13：Nsight Compute 的 Source 界面](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/279ea09a-1ae5-4c2a-8ff5-b8f31aa3978f.png)
 
 回忆下，一个 Minimal GEMM kernel 主要完成了 4 项工作：
 
@@ -637,7 +637,7 @@ st.global.u32 	[%rd15], %r2;
 
 Minimal GEMM kernel 的 SASS code 则更为简洁，除末尾的 BRA 指令外，整个程序仅有 34 条指令：
 
-![图14：Minimal GEMM 的 SASS 代码（SM90 架构）](https://files.mdnice.com/user/59/04abc2a4-4245-473b-9630-bcc228b71044.png)
+![图14：Minimal GEMM 的 SASS 代码（SM90 架构）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/04abc2a4-4245-473b-9630-bcc228b71044.png)
 
 除去读取传参、读取常量和计算地址外，核心的指令也只有 6 条：
 
@@ -647,13 +647,13 @@ Minimal GEMM kernel 的 SASS code 则更为简洁，除末尾的 BRA 指令外�
 
 这些指令和 PTX 可以形成对应关系（实际 PTX 和 SASS 指令无法一一对应，表格仅供展示）。
 
-![](https://files.mdnice.com/user/59/f9aa158f-47cd-4e65-9327-57bc80c3d831.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f9aa158f-47cd-4e65-9327-57bc80c3d831.png)
 
 SASS 指令相关的资料较少，但 PTX 指令的行为在 NV 的文档中有详细记录，因此我们在后续的笔记中更关注 PTX 层面的编程，况且 CUTLASS 中也大量使用了 PTX 内联。有兴趣的读者可以从 Minimal GEMM kernel 的 CuTe API 入手，去找到最内层的访存和计算的 PTX 命令，看看是否和我们展示的结果一致。
 
 此外，Nsight Compute 还可以展示相关指令的地址操作和寄存器数据的生命周期：
 
-![图15：SASS 指令访存信息与寄存器生命周期](https://files.mdnice.com/user/59/132b9720-833d-45f6-a264-707f677f37d8.png)
+![图15：SASS 指令访存信息与寄存器生命周期](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/132b9720-833d-45f6-a264-707f677f37d8.png)
 
 ## 4. 总结
 
@@ -673,7 +673,7 @@ SASS 指令相关的资料较少，但 PTX 指令的行为在 NV 的文档中有
 
 考虑 MMA 场景下的 `D = A * B + C` 的计算，其中输入数据精度包括 A、B、C 三种，我们分别记为 **ComputeTypeA**、**ComputeTypeB**、**ComputeTypeC**，累加器精度即为 A*B 的结果与 C 进行加法后产出数据的精度（注意它并不是 Tensor Core 实际的累加精度），我们记为 **AccType**，这也是 A*B+C 计算结果。如果我们需要的 D 的精度就是 AccType，则算子可以直接返回 A*B+C 的结果，反之则需要额外做一步精度转换操作，将 AccType 转换成我们需要的输出精度，这个输出精度记为 **OutType**。
 
-![图1: MMA 场景下的数值精度](https://files.mdnice.com/user/59/e448feca-0fac-4a2f-a575-e6370e5de8bb.png)
+![图1: MMA 场景下的数值精度](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e448feca-0fac-4a2f-a575-e6370e5de8bb.png)
 
 PTX 的 MMA 指令一般会标明该指令所对应的数值精度，例如 
 
@@ -699,7 +699,7 @@ mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32
 
 我们拿 DeepSeek V3 论文中展示的 FP8 Linear 计算为例：
 
-![图2: DeepSeek V3 中的 FP8 精度计算](https://files.mdnice.com/user/59/4867f2b0-2af3-4612-8e3b-5e36cd49f60a.png)
+![图2: DeepSeek V3 中的 FP8 精度计算](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4867f2b0-2af3-4612-8e3b-5e36cd49f60a.png)
 
 
 以前向 Linear 计算为例，模型权重的精度是 FP8（带量化参数），输入数据的精度是 BF16。在执行算子之前，首先需要在算子外，将 BF16 的输入量化为 FP8，随后将 FP8 的输入和 FP8 的模型权重交给算子计算 GEMM，累加精度为 FP32，最后在算子内将计算结果转换为 BF16 并输出，因此这里需要完成一个 BF16 = FP8 * FP8 + FP32 的 GEMM。显然，我们仅靠 Pytorch 没有简便的方法完成这样的计算。
@@ -710,7 +710,7 @@ mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32
 
 首先，我们列出本篇要实现的 2 个算子详情：
 
-![](https://files.mdnice.com/user/59/d483ae55-5126-4cd9-92c5-a0c2dfaa4bdb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d483ae55-5126-4cd9-92c5-a0c2dfaa4bdb.png)
 
 Kernel 1 要求输入的 A、B 矩阵精度为 BF16，C 矩阵精度、累加精度和 D 矩阵精度为 FP32，而 Kernel 2 要求 D 矩阵的精度为 BF16。那么我们应该如何实现这两种精度的计算呢？
 
@@ -805,7 +805,7 @@ cvt.rn.bf16.f32 %rs3, %f3;
 
 其中 `.rn` 表示 rounds to nearest even，如果希望使用其他舍入方式，我们可以换用不同的指令，具体可参考 PTX 文档：
 
-![图3: PTX 浮点数 rounding 方式](https://files.mdnice.com/user/59/ba7defdf-5a3e-4905-8382-00336c706cdc.png)
+![图3: PTX 浮点数 rounding 方式](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ba7defdf-5a3e-4905-8382-00336c706cdc.png)
 
 不同于 PTX，SASS 侧仅多出 2 条指令，含义是将 4 个寄存器存放的 4 个 FP32 数据转换精度，打包后存放在 2 个寄存器中，每个寄存器存 2 个 BF16 数据。
 
@@ -827,7 +827,7 @@ STG.E desc[UR4][R14.64], R7
 
 自 Ada 架构起，NV 提供了 FP8 精度的 MMA 指令，我们可以来尝试写一个最小的 FP8 GEMM kernel，参考 PTX 文档，其最小的 shape 为 (16, 8, 32)。这里我们假定一个 fancy 的场景，即混合 FP8 的两种 format 精度（E4M3、E5M2）做 GEMM。实际上 PTX 指令是支持这种精度的，但 CUTLASS 没有对应的 MMA op，所以我们就来自己写吧！
 
-![](https://files.mdnice.com/user/59/410f173e-bc5f-4f9a-a124-529d3cb9cfcc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/410f173e-bc5f-4f9a-a124-529d3cb9cfcc.png)
 
 ### 4.1 揭开 MMA Atom 的面纱
 
@@ -929,13 +929,13 @@ struct MMA_Traits<SM80_16x8x8_F16F16F16F16_TN>
 
 一般而言，TV Layout 是一个双射，即（T，V）和（M，N）具有一一对应关系，因此它也有对应的逆映射，这也是我们接触的第 3 种 Layout：**MN Layout**，它表示了（M，N）->（T，V）的映射关系。我们在上篇笔记中展示的 MMA 映射关系（见下图），其实就是这个 MMA 指令对应的 MN Layout。
 
-![图4: MMA 指令的 MN Layout 示意图](https://files.mdnice.com/user/59/b55cd492-6a34-4d50-95a1-288209675e4b.png)
+![图4: MMA 指令的 MN Layout 示意图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0f1499bf-3b23-4132-adde-9fbd33a523c2.png)
 
 我们以 ALayout = ((4, 8), (2, 2)) : ((32, 1), (16, 8)) 为例，说明线程是如何找到需要的矩阵元素的。
 
 **TV Layout 的两个 mode 分别为线程 idx 和矩阵元素 idx**。参考 MN Layout 示意图，对于 A 矩阵而言，总共有 16 x 8 = 128 个元素，MMA 共有 32 个线程参与，因此每个线程需要拿到 4 个 A 矩阵的元素。故线程 idx 的取值范围是 0-31，矩阵元素 idx 的取值范围是 0-3，而 A 矩阵对应的 TV Layout 的 shape 就是 (32, 4)，与 ALayout 的 shape 是一样的。
 
-![图5: TV Layout 映射关系的含义](https://files.mdnice.com/user/59/e90146f0-ce0a-4c32-8ea3-328a17d66b3c.png)
+![图5: TV Layout 映射关系的含义](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e90146f0-ce0a-4c32-8ea3-328a17d66b3c.png)
 
 假设我们已经知道了 ALayout = ((4, 8), (2, 2)) : ((32, 1), (16, 8))，那么线程 11 的第 2 个元素应该从矩阵的哪个坐标拿数据呢？
 
@@ -997,7 +997,7 @@ struct SM90_16x8x32_F32E4M3E5M2F32_TN
 写 MMA Traits 会麻烦一些。首先需要从 PTX 文档中找到该指令对应的所有矩阵的 MN Layout。这里以 A 矩阵为例，其 MN Layout 如下：
 
 
-![图6: FP8 A 矩阵 MN Layout 示意图](https://files.mdnice.com/user/59/e483b9f8-c5e4-4138-bf44-df244e6fa90c.png)
+![图6: FP8 A 矩阵 MN Layout 示意图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e483b9f8-c5e4-4138-bf44-df244e6fa90c.png)
 
 然后我们需要从这个 MN Layout 反推出 TV Layout。不难从上图中推导出 A 矩阵的 TV Layout 为 ((4, 8), (4, 2, 2)) : ((64, 1), (16, 8, 256))。
 
@@ -1110,7 +1110,7 @@ HMMA.16816.F32 R4, R8, R20, R4
 
 因此，只要我们有处理矩阵运算的单条 MMA 指令，就可以在 SM 间并行计算矩阵分块，**在 SM 中循环执行若干条 MMA 指令**，从而实现任意规模的矩阵运算。
 
-![图1: 单指令扩展至任意规模的矩阵运算](https://files.mdnice.com/user/59/9a8618b6-b6fc-4457-ae14-bb74a1aab80a.png)
+![图1: 单指令扩展至任意规模的矩阵运算](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9a8618b6-b6fc-4457-ae14-bb74a1aab80a.png)
 
 现实层面上，我们不仅要考虑运算的可行性，还要考虑如何高效地完成运算。写一个正确的 GEMM 算子并不难，难的是如何利用硬件和指令集的特性，写出性能最佳的 GEMM 算子。
 
@@ -1152,14 +1152,14 @@ Flash Attention 等算法利用了 GMEM 和 SMEM 访存效率的差异，通过 
 
 对于一个任意规模的 GEMM 任务 D = AB，我们当然可以只做一级 Tiling，仅在一个 block 中通过循环执行 16x8x8 的 MMA 指令，完成任意规模的 GEMM 运算。
 
-![图2: 单 Block 完成一个 GEMM](https://files.mdnice.com/user/59/b66be4b8-ef80-42a4-acc0-f60e5da08d4e.png)
+![图2: 单 Block 完成一个 GEMM](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b66be4b8-ef80-42a4-acc0-f60e5da08d4e.png)
 
 
 这种实现的问题显然不少，其中最明显的问题是没有利用 GPU 多 SM 并行的能力。
 
 为了让计算任务可并行，我们可以将 D 矩阵以 16x8 的大小切分成若干个 tile，由于 tile 间可以并行计算，一个 tile 的计算任务就可以交给一个 block 完成。在 block 内部，我们可以沿着 k 维度循环执行，从 GMEM 拷贝 16x8 的 A 矩阵分片和 8x8 的 B 矩阵分片，存至寄存器中，随后执行 MMA 指令，完成 tile 的计算，并将结果写回 GMEM。
 
-![图3: SM 间并行的实现](https://files.mdnice.com/user/59/18e8c736-dce1-4369-a820-e3823df0ef11.png)
+![图3: SM 间并行的实现](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/18e8c736-dce1-4369-a820-e3823df0ef11.png)
 
 
 ### 2.1 扩展 Tile 的规模
@@ -1175,7 +1175,7 @@ SM 并行起来了，但每个 SM 的算力并没有充分利用。上面的一�
 
 于是，我们可以将单个 mma 指令扩展至更大的 tile，例如将线程扩展至 8 倍（M 维度 2 倍，N 维度 4 倍），每个 warp 的 mma 指令向 K 维度扩展至 2 倍，这样一个 tile 的大小变为 32x32x16，共有 256 个线程执行一个 tile 的计算。
 
-![图4: Tile Tiling](https://files.mdnice.com/user/59/29528f44-78ea-46a0-be4b-60cf6f9a4d3f.png)
+![图4: Tile Tiling](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/29528f44-78ea-46a0-be4b-60cf6f9a4d3f.png)
 
 一个 tile 的大小可以无限扩展吗？理论上可以，但在考虑效率的情况下不能。首先，单个 block 的线程数量不能大于 2048 个；其次，无论是扩展线程数还是 mma 指令都需要更多的寄存器，那么就会遇到 RMEM 的存储限制。我们当然希望能充分利用寄存器空间，但一旦扩展规模过大，就会产生 register spilling，造成性能损失和大量的 GMEM 显存使用（还有非常长的编译时间）。因此合理选择线程数量和 tile 的规模是非常重要的。
 
@@ -1187,7 +1187,7 @@ SM 并行起来了，但每个 SM 的算力并没有充分利用。上面的一�
 
 因此，我们可以将单个 tile 向 (M, N, K) 三个维度分别扩展 (4, 4, 2) 倍，从而将一个 block 的计算规模扩展至 128x128x32。
 
-![图5: Block Tiling](https://files.mdnice.com/user/59/0fda9597-0f13-4601-bb7f-ef2895f3c2f5.jpg)
+![图5: Block Tiling](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0fda9597-0f13-4601-bb7f-ef2895f3c2f5.jpg)
 
 一个 block 的大小可以无限扩展吗？理论上可以，但在**考虑效率的情况下不能** 。由于单个 block 的 SMEM 存储大小有限，在大 block 的情况下，我们没法一次性将 A/B 矩阵的分片完全放到 SMEM 中。即使我们能够分批拷贝数据，过大的 block 会减少总 block 数量，从而影响 SM 维度的并行计算效率。因此合理调整 block size 也是算子优化的重要环节。
 
@@ -1197,7 +1197,7 @@ SM 并行起来了，但每个 SM 的算力并没有充分利用。上面的一�
 
 考虑到 block 的 SMEM 限制，我们通常要对参与计算的 A/B 矩阵分片做进一步的分块，每一轮计算仅拷贝一对 A/B 分块，计算得到的结果在前一轮的基础上进行累加，从而通过 K 维度的循环来完成一个 block 的完整计算。
 
-![图6: GEMM 三级 Tiling](https://files.mdnice.com/user/59/ec878284-400a-4c1b-8d99-5a6eb66ca51f.png)
+![图6: GEMM 三级 Tiling](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ec878284-400a-4c1b-8d99-5a6eb66ca51f.png)
 
 至此，GEMM 运算被细分成了 Global 到 Block、Block 到 Tile、Tile 到 MMA Atom 的三级 Tiling。值得注意的是，**每一级 Tiling 都和 GPU 硬件特性紧密相关** ：
 
@@ -1209,13 +1209,13 @@ SM 并行起来了，但每个 SM 的算力并没有充分利用。上面的一�
 
 本 CUTLASS 笔记系列的宗旨是“自底向上”。在本篇中，我们着重解析如何在 CUTLASS 中扩展 MMA Atom，将单指令计算扩展至一个 Tile 的计算。
 
-![图7: 我们先来关注 Tile 级别的计算](https://files.mdnice.com/user/59/36f0e0ed-2f10-45cf-b7b7-e73362656198.png)
+![图7: 我们先来关注 Tile 级别的计算](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/36f0e0ed-2f10-45cf-b7b7-e73362656198.png)
 
 ## 3. Tiled MMA 实现
 
 首先写出本篇实现的算子详情，此处单指令规模仍为 16x8x8，单个 Tile 的规模扩展至 32x32x16，同时线程数也从 32 扩展至 256。
 
-![](https://files.mdnice.com/user/59/d85126c6-9823-4675-bac0-b99c98a9a012.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d85126c6-9823-4675-bac0-b99c98a9a012.png)
 
 ## 3.1 make_tiled_mma API
 
@@ -1227,7 +1227,7 @@ using TiledMMA = decltype(make_tiled_mma(MMA_op{}));
 
 上面提到，单指令扩展至 Tile 有两个思路，一是扩展 warp 数量，二是扩展每个 warp 计算的 mma 指令数量。因此，我们需要增加两个新的参数，来表示线程的扩展和 mma 指令的扩展。
 
-![图8: make_tiled_mma API 图解](https://files.mdnice.com/user/59/4c4132e3-fb2c-456d-ac61-643a8e6af77a.jpg)
+![图8: make_tiled_mma API 图解](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4c4132e3-fb2c-456d-ac61-643a8e6af77a.jpg)
 
 代码如下所示。可以看到 `make_tiled_mma` 新增的两个参数分别为 `MMAThrLayout` 和 `MMATileLayout`，也就是线程在 (M, N, K) 维度的扩展方式和单 Tile 的总规模。其中 `kMmaThrExpandM/N/K` 控制了线程在 `(M, N, K)` 维度的扩展规模，`kMmaValExpandM/N/K` 控制了 mma 指令在 `(M, N, K)` 维度的扩展规模。
 
@@ -1257,7 +1257,7 @@ using TiledMMA = decltype(make_tiled_mma(MMA_op{}, MMAThrLayout{}, MMATileLayout
 
 此时我们可以打印出经过扩展后的 TiledMMA，可以清晰地看到，相比于单指令 MMA Atom，我们实现的 Tiled MMA 在 (M,N,K) 三个维度分别扩展了 (2,4,2) 倍。其中 **M、N 维度的扩展是线程扩展**，因此线程编号从 T0-T31 扩展至 T0-T255（图中部分矩阵元素只展示了一个 T，但实际上可能会被多个线程读取），K 维度是 mma 指令扩展，对于线程来说其实就是寄存器扩展，因此 K 维度的 T 不变，而 V 的范围扩大了 1 倍。
 
-![图9: Tiled MMA 图示](https://files.mdnice.com/user/59/37e55435-0a90-496a-85bc-f388fc24c9c6.jpg)
+![图9: Tiled MMA 图示](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/37e55435-0a90-496a-85bc-f388fc24c9c6.jpg)
 
 `make_tiled_mma` 新增的两个参数分别为 `MMAThrLayout`和`MMATileLayout`，接下来我们详细解析它们的一些细节。
 
@@ -1268,7 +1268,7 @@ using TiledMMA = decltype(make_tiled_mma(MMA_op{}, MMAThrLayout{}, MMATileLayout
 
 > 这里有一个小问题请读者思考：为什么我们一般让 MMAThrLayout 的 K 维度为 1，即不在 K 维度扩展线程？
 
-![](https://files.mdnice.com/user/59/52802c28-3386-4e0d-9b93-7ab127781167.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/52802c28-3386-4e0d-9b93-7ab127781167.png)
 
 `MMATileLayout` 是一个长度为 3 的 tuple，分别代表 M、N、K 三个维度的排列，其中每个维度排列都用一个 Layout 表示。调整某个维度的 Layout，就可以改变各个 MMA Atom 在这个维度的排列次序（Permutation）。
 
@@ -1515,7 +1515,7 @@ D 寄存器是 F32，但输出 C 矩阵是 BF16，需要先转换再存储。K �
  ↑提前发出，掩盖内存延迟   ↑等数据就绪后串行累积      ↑转换写回
 ```
 
-![图10: Tiled MMA 的部分 SASS code](https://files.mdnice.com/user/59/9670a9de-d5f7-4685-bcf0-6d7ec51ff210.png)
+![图10: Tiled MMA 的部分 SASS code](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9670a9de-d5f7-4685-bcf0-6d7ec51ff210.png)
 
 ## 4. 总结
 

@@ -38,7 +38,7 @@ Output throughput: 1998.856 token/s
 
 # 0x2. 原理
 
-![](https://files.mdnice.com/user/59/0aff5839-70da-41bd-9cbf-4a5c459bd164.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0aff5839-70da-41bd-9cbf-4a5c459bd164.png)
 
 如图1所示，DeepSeek的MoE结构会将所有输入的token都送入共享专家(shared experts)，同时也会将每个token路由到由路由器选择的top-k个专家(routed experts)中，最后基于权重将所有专家的输出进行聚合。具体来说，DeepSeek R1使用了256个路由专家和1个共享专家，对于每个token，它会选择top 8个路由专家。在VLLM和SGLang的实现中，token的隐藏状态首先通过共享专家，然后再通过FusedMoE kernel中的路由专家。最后将这两个输出相加作为最终输出。
 
@@ -65,7 +65,7 @@ def forward_normal(self, hidden_states: torch.Tensor) -> torch.Tensor:
 
 普通的experts的计算结果需要乘以 `self.routed_scaling_factor` ，为了把shared expert融合到普通的expert中一起计算，我们需要在grouped_topk模块中把`top9`也就是shared experts对应的`topk_weights`提前除一下这个`self.routed_scaling_factor` 参数，这样就可以保证数值等价，请看下面的关于`grouped_topk`中的修改。
 
-![](https://files.mdnice.com/user/59/3e561405-beb6-4c1a-9d9f-4cf07168a2ed.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3e561405-beb6-4c1a-9d9f-4cf07168a2ed.png)
 
 
 # 0x3. 实现细节

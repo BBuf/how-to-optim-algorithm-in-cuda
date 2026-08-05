@@ -486,7 +486,7 @@ decode_throughput  = decode_tokens_len  / decode_time
 
 在每次生成新token之前重新计算所有之前的KV（Key Value）值会非常昂贵，因此它们被缓存到加速器的内存中。新计算的KV值被附加到现有缓存中。
 
-![](https://files.mdnice.com/user/59/68030f90-3e95-45f2-890a-cc49bba5c7e1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/68030f90-3e95-45f2-890a-cc49bba5c7e1.png)
 
 ([source](https://developer.nvidia.com/blog/accelerated-inference-for-large-transformer-models-using-nvidia-fastertransformer-and-nvidia-triton-inference-server/))
 
@@ -512,7 +512,7 @@ KV缓存大小与输入序列长度和批量大小直接成正比。过去的查
 
 如果Meta-Llama-3.1-8B使用MHA，每个token将需要4倍多的内存，如果使用MQA，每个token将需要8倍少的内存。从这张图中很容易看出原因：
 
-![](https://files.mdnice.com/user/59/893fa3ee-6fd2-43b8-9c03-83cdba477eb1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/893fa3ee-6fd2-43b8-9c03-83cdba477eb1.png)
 
 source(https://arxiv.org/abs/2305.13245)
 
@@ -606,7 +606,7 @@ MLC-LLM(https://github.com/mlc-ai/mlc-llm)
 
 例如，以下是2024-08-24时vLLM(https://github.com/vllm-project/vllm)的统计数据，这是目前最受欢迎的推理框架之一。
 
-![](https://files.mdnice.com/user/59/f7e05c50-f2d4-421f-b827-a1978c26b8b4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f7e05c50-f2d4-421f-b827-a1978c26b8b4.png)
 
 您可以看到它被许多github仓库使用，有许多贡献者，主要用Python编写。因此，应该很容易找到关于您可能考虑的任何推理框架的信息。这只是一个例子，并不是对vLLM的推荐。
 

@@ -12,7 +12,7 @@
 
 知识是通过在一个迁移集上训练来从教师模型转移到学生模型的,在这个过程中学生模型被训练来模仿教师模型的 token 级别概率分布。这里的假设是教师模型的分布与迁移数据集相似。下图是知识蒸馏工作原理的简化表示。
 
-![图1: 从教师模型到学生模型的知识迁移示意图](https://files.mdnice.com/user/59/91703a27-3f74-4b98-995e-d6819677204e.png)
+![图1: 从教师模型到学生模型的知识迁移示意图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/91703a27-3f74-4b98-995e-d6819677204e.png)
 
 由于LLM的知识蒸馏是一个活跃的研究领域,目前有许多论文在研究不同的损失函数方法,比如MiniLLM(https://arxiv.org/pdf/2306.08543)、DistiLLM(https://arxiv.org/pdf/2402.03898)、AKL(https://arxiv.org/pdf/2404.02657)和Generalized KD(https://arxiv.org/pdf/2306.13649)。在这个案例研究中,我们将重点关注标准交叉熵(CE)损失和前向Kullback-Leibler(KL)散度损失(https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence)作为基线。前向KL散度的目标是通过强制学生模型的分布与教师模型的所有分布对齐来最小化差异。
 
@@ -20,11 +20,11 @@
 
 知识蒸馏的理念是,相比从头开始训练或有监督微调,一个较小的模型可以通过使用教师模型的输出作为额外信号来获得更好的性能。例如,Llama 3.2轻量级1B和3B文本模型(https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/)在剪枝后通过整合Llama 3.1 8B和70B的logits来恢复性能。此外,在指令跟随任务的微调中,LLM蒸馏的研究表明,知识蒸馏方法可以优于单独使用有监督微调(SFT)。
 
-![表1: 知识蒸馏方法与有监督微调的比较](https://files.mdnice.com/user/59/12b7ad02-f12d-4780-a4ec-6bb2d8505cd6.png)
+![表1: 知识蒸馏方法与有监督微调的比较](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/12b7ad02-f12d-4780-a4ec-6bb2d8505cd6.png)
 
 下面是一个简化的例子,展示了知识蒸馏与有监督微调的区别。
 
-![](https://files.mdnice.com/user/59/bd7f507c-fb57-4e84-b822-23e8c428612d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bd7f507c-fb57-4e84-b822-23e8c428612d.png)
 
 ## torchtune中的知识蒸馏配方
 
@@ -60,11 +60,11 @@ tune run knowledge_distillation_single_device --config llama3_2/knowledge_distil
 
 从损失来看,使用基线8B作为教师模型比使用微调后的教师模型会导致更高的损失。KD损失也保持相对恒定,这表明教师模型应该与迁移数据集具有相同的分布。
 
-![图2: (从左到右)前向KL散度的KD损失、交叉熵的分类损失、总损失:KD损失和分类损失的均匀组合](https://files.mdnice.com/user/59/3de5df0b-5f74-4eb9-87c1-bdf6131ae386.png)
+![图2: (从左到右)前向KL散度的KD损失、交叉熵的分类损失、总损失:KD损失和分类损失的均匀组合](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3de5df0b-5f74-4eb9-87c1-bdf6131ae386.png)
 
 在我们的基准测试中,可以看到1B模型的有监督微调比基线1B模型获得了更好的准确率。通过使用微调后的8B教师模型,我们在truthfulqa上看到了相当的结果,并且在hellaswag和commonsense上有所改进。当使用基线8B作为教师模型时,我们看到所有指标都有提升,但低于其他配置。
 
-![表2: 使用基线和微调后的8B作为教师模型的对比](https://files.mdnice.com/user/59/1589cc9a-1895-42dc-b6e9-e7812290df8b.png)
+![表2: 使用基线和微调后的8B作为教师模型的对比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1589cc9a-1895-42dc-b6e9-e7812290df8b.png)
 
 ### 使用微调的学生模型
 
@@ -72,11 +72,11 @@ tune run knowledge_distillation_single_device --config llama3_2/knowledge_distil
 
 根据损失图表,使用微调后的教师模型会导致更低的损失,无论学生模型是否经过微调。有趣的是,当使用微调后的学生模型时,分类损失开始增加。
 
-![图3: 比较不同教师和学生模型初始化的损失](https://files.mdnice.com/user/59/c57bb43f-0783-4fc1-8713-7af4fdc069d4.png)
+![图3: 比较不同教师和学生模型初始化的损失](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c57bb43f-0783-4fc1-8713-7af4fdc069d4.png)
 
 使用微调后的学生模型可以进一步提高truthfulqa的准确率,但在hellaswag和commonsense上的准确率有所下降。使用微调后的教师模型和基线学生模型在hellaswag和commonsense数据集上取得了最好的结果。基于这些发现,最佳配置会根据你要优化的评估数据集和指标而改变。
 
-![表3: 使用基线和微调后的教师和学生模型的对比](https://files.mdnice.com/user/59/9cf3fda4-0c83-4aa0-8e0f-3db3c60a50dc.png)
+![表3: 使用基线和微调后的教师和学生模型的对比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9cf3fda4-0c83-4aa0-8e0f-3db3c60a50dc.png)
 
 ### 超参数调优：学习率
 
@@ -84,11 +84,11 @@ tune run knowledge_distillation_single_device --config llama3_2/knowledge_distil
 
 根据损失图表,除了1e-5会导致更高的KD损失和分类损失外,所有学习率都产生了类似的损失。
 
-![图4: 比较不同学习率的损失](https://files.mdnice.com/user/59/ca48a156-6307-45d3-8a8a-0e3798122bdd.png)
+![图4: 比较不同学习率的损失](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ca48a156-6307-45d3-8a8a-0e3798122bdd.png)
 
 根据我们的基准测试,最优学习率会根据你要优化的评估指标和任务而变化。
 
-![表4: 调整学习率的效果](https://files.mdnice.com/user/59/fb235277-ee45-4ad7-bc45-28c8172722f0.png)
+![表4: 调整学习率的效果](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fb235277-ee45-4ad7-bc45-28c8172722f0.png)
 
 ### 超参数调优：KD比率
 
@@ -96,7 +96,7 @@ tune run knowledge_distillation_single_device --config llama3_2/knowledge_distil
 
 总的来说,基准测试结果表明,对于这些任务和指标,较高的KD比率表现略好。
 
-![表5: 调整KD比率的效果](https://files.mdnice.com/user/59/249de42c-db36-4005-8d42-383579d88efa.png)
+![表5: 调整KD比率的效果](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/249de42c-db36-4005-8d42-383579d88efa.png)
 
 ## 展望未来
 

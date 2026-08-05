@@ -47,7 +47,7 @@ B200使用TP=4测试，H100使用TP=8和triton attention测试。
 AMD MI350的结果使用triton后端测试，该后端尚未完全优化，更多使用AMD AITER的优化将很快发布。
 </span>
 
-![](https://files.mdnice.com/user/59/1480db89-7e39-42a6-bc0e-4b5ed63d3eb2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1480db89-7e39-42a6-bc0e-4b5ed63d3eb2.png)
 
 ## 性能深度解析 🚀
 
@@ -91,11 +91,11 @@ python3 -m sglang.launch_server --model openai/gpt-oss-120b --speculative-algori
 
 对于`openai/gpt-oss-120b`模型，我们使用SpecForge(https://github.com/sgl-project/SpecForge)训练了一个EAGLE3草稿模型`lmsys/EAGLE3-gpt-oss-120b-bf16`(https://huggingface.co/lmsys/EAGLE3-gpt-oss-120b-bf16)，这是一个用于推测草稿模型训练的高效框架。我们训练的草稿模型相比NVIDIA的GPT-OSS草稿模型(https://huggingface.co/nvidia/gpt-oss-120b-Eagle3)实现了更高的平均接受长度。
 
-![](https://files.mdnice.com/user/59/0d319353-c3ba-4391-acb5-d0e33a47c672.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0d319353-c3ba-4391-acb5-d0e33a47c672.png)
 
 我们还在H200 TP4上对带有EAGLE3的`openai/gpt-oss-120b`进行了基准测试，在几个标准基准数据集上观察到了有前景的结果：
 
-![](https://files.mdnice.com/user/59/c841d80e-372c-423d-89bb-8d3a9365a041.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c841d80e-372c-423d-89bb-8d3a9365a041.png)
 
 这实现了：
 - 使用`steps=3, topk=1, num_draft_tokens=4`设置的**1.39倍**加速。

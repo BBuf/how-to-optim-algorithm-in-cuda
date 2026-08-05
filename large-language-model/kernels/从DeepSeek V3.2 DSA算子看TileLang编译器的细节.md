@@ -26,7 +26,7 @@ DSA算子更详细的原理可以参考Zarbot的公众号文章：[学习一下D
 
 DeepSeek V3.2的DeepSeek Sparse Attention由三个核心模块组成：
 
-![DeepSeek V3.2 Architecture](https://files.mdnice.com/user/59/fe892c57-7980-43e0-9a8e-bb8897c8f6e8.png)
+![DeepSeek V3.2 Architecture](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fe892c57-7980-43e0-9a8e-bb8897c8f6e8.png)
 
 **1. Lightning Indexer（快速索引器）**
 - 输入：Query和Key的低维压缩表示（Index Vectors）

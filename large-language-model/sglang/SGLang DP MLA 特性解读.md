@@ -10,7 +10,7 @@ SGLang 在 v0.4 版本中针对 DeepSeek V2/V3/R1 引入了一个 Data Paralleli
 
 为了克服这个问题，我们为 DeepSeek 模型实现了数据并行 (DP) 的多头潜在注意 (MLA) 机制，以提高推理的吞吐量。通过对注意力组件采用 DP，我们可以大大减少 KV 缓存，从而允许使用更大的批量大小。在我们的 DP 注意力实现中，每个 DP worker都独立处理不同类型的批处理 (prefill、decode、idle)，然后将注意力处理后的数据在所有worker之间 all-gather，以便在 Mixture-of-Experts (MoE) 层中使用。最后，在 MoE 层中处理完毕后，数据将被重新分配回每个worker。下图展示了这个想法。
 
-![](https://files.mdnice.com/user/59/d207afbd-a1bf-4c98-ae88-6efd2750736d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d207afbd-a1bf-4c98-ae88-6efd2750736d.png)
 
 
 如果你看这个描述还没有理解到或者不太清楚怎么实现，你可以继续阅读本文的剩下部分。MLA Data Parallelism Attention 在单节点上的的核心实现由 https://github.com/sgl-project/sglang/pull/1970 这个PR完成，我下面就以高到低的视角来理解下这个feature对应的工程实现。
@@ -266,8 +266,8 @@ class DeepseekV2ForCausalLM(nn.Module):
 
 ## `python/sglang/srt/model_executor/forward_batch_info.py` 的改动
 
-![](https://files.mdnice.com/user/59/ab9d52c2-1636-4e3e-a2ed-edb5556204eb.png)
-![](https://files.mdnice.com/user/59/28d32563-7c17-4728-9af7-1af50d884686.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ab9d52c2-1636-4e3e-a2ed-edb5556204eb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/28d32563-7c17-4728-9af7-1af50d884686.png)
 
 首先，这里在`ForwardMode`类新增了一个新的模式`IDLE`，用于数据并行注意力机制。注释说明当某些worker没有序列做forward时，worker将处于IDLE状态（可以看文章开头那个图）。
 
@@ -279,7 +279,7 @@ class DeepseekV2ForCausalLM(nn.Module):
 
 ## `python/sglang/srt/model_executor/model_runner.py` 的改动
 
-![](https://files.mdnice.com/user/59/56021a9b-9b23-4578-a0a7-3116f0a20690.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/56021a9b-9b23-4578-a0a7-3116f0a20690.png)
 
 这里只是增加了对`idel`模式的判断。
 
@@ -289,17 +289,17 @@ class DeepseekV2ForCausalLM(nn.Module):
 
 ## `python/sglang/srt/managers/data_parallel_controller.py` 的改动
 
-![](https://files.mdnice.com/user/59/f370af6c-65cf-45fc-a1ad-5f1f9b590c9c.png)
-![](https://files.mdnice.com/user/59/b9eec329-7d0d-4888-a1b7-847ac7a6874b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f370af6c-65cf-45fc-a1ad-5f1f9b590c9c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b9eec329-7d0d-4888-a1b7-847ac7a6874b.png)
 
 
 从修改的流程来看，首先最外面的循环为每个数据并行(DP)等级创建一个专门的进程，这些进程同时处理数据并行和张量并行的计算。然后，每个进程被分配一个唯一的GPU（通过`base_gpu_id`递增实现）确保不同的数据并行rank使用不同的GPU资源。在通信上，使用`mp.Pipe`建立进程间的通信管道，并使用ZMQ套接字进行消息传递，最后所有reader都被收集到scheduler_pipe_readers列表中，用于后续的通信。
 
 ## `python/sglang/srt/managers/scheduler.py` 的改动
 
-![](https://files.mdnice.com/user/59/3c45c5cb-7364-48fb-b22d-53af24c1f250.png)
-![](https://files.mdnice.com/user/59/9f20fa67-a80b-4383-84e9-35f033f9ffad.png)
-![](https://files.mdnice.com/user/59/e26e9442-72f4-49b1-b67c-222da8905e22.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3c45c5cb-7364-48fb-b22d-53af24c1f250.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9f20fa67-a80b-4383-84e9-35f033f9ffad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e26e9442-72f4-49b1-b67c-222da8905e22.png)
 
 这里需要关注的是新增的`prepare_dp_attn_batch`函数，它用来对每个DP worker的`local_num_tokens`进行allgather通信获得`global_num_tokens`，最后这个信息将用于我们在第一节提到在Fused MoE层之后把数据重新split开。
 

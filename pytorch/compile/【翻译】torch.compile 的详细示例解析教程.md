@@ -195,7 +195,7 @@ output = function(shape_10_inputs)
 
 以下过程描述了 Dynamo 对我们的函数所做的操作：
 
-![](https://files.mdnice.com/user/59/48fcf697-335c-4880-8d45-87c0ba298fb7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/48fcf697-335c-4880-8d45-87c0ba298fb7.png)
 
 > 图片解释：
 
@@ -347,11 +347,11 @@ assert torch.allclose(grad_input1, grad_input3)
 
 以下计算图显示了朴素实现的细节：
 
-![](https://files.mdnice.com/user/59/b17a88b4-da1a-4622-b549-d386c9382712.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b17a88b4-da1a-4622-b549-d386c9382712.png)
 
 以下计算图显示了转换后实现的细节：
 
-![](https://files.mdnice.com/user/59/15e9cab7-3836-4bea-9ce3-53727461ae81.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/15e9cab7-3836-4bea-9ce3-53727461ae81.png)
 
 我们只需保存一个值，并重新计算第一个 ``cos`` 函数以获得反向所需的另一个值。请注意，额外的计算并不意味着更多的计算时间：现代设备如 GPU 通常受内存限制，即内存访问时间主导了计算时间，稍微多一些计算并不重要。
 
@@ -431,7 +431,7 @@ run_autograd_ahead_of_time(f, [input], [grad_output])
 
 下表显示了 ``torch.compile`` 中几个 ``backend`` 选项的区别。如果我们想要适应我们的代码到 ``torch.compile``，建议首先尝试 ``backend="eager"`` 来看看我们的代码如何转换为计算图，然后尝试 ``backend="aot_eager"`` 来看看我们是否满意反向图，最后尝试 ``backend="inductor"`` 来看看我们是否能获得任何性能提升。
 
-![](https://files.mdnice.com/user/59/933488bc-3a0b-4793-a805-c02bcdf6a28a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/933488bc-3a0b-4793-a805-c02bcdf6a28a.png)
 
 
 

@@ -90,7 +90,7 @@ def biased_grouped_topk_impl(
 
 ## kernel PR的测试 (https://github.com/sgl-project/sglang/pull/4530)
 
-![](https://files.mdnice.com/user/59/cf3c122e-9436-4718-8f1c-2af7d148f90e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cf3c122e-9436-4718-8f1c-2af7d148f90e.png)
 
 这里的`seq_length`就是上面的`num_tokens`，假设`bs=1`。从这里的结果来看，在不同的token数下，CUDA kernel fuse后的性能相比于`torch.compile`的版本都有数量级的领先。
 
@@ -104,11 +104,11 @@ python3 -m sglang.bench_serving --backend sglang --num-prompts 2 --request-rate 
 
 ### 主分支
 
-![](https://files.mdnice.com/user/59/48768a1d-4d88-46af-9959-e61358300e10.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/48768a1d-4d88-46af-9959-e61358300e10.png)
 
 ### 替换moe_fused_gate kernel后的分支
 
-![](https://files.mdnice.com/user/59/39a3952b-e905-4f1f-bad2-c7a452549bc3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/39a3952b-e905-4f1f-bad2-c7a452549bc3.png)
 
 
 现在只有一个kernel了。

@@ -6,9 +6,9 @@
 
 # 0x1. 效果
 
-![](https://files.mdnice.com/user/59/73d8d3bb-245f-4648-b4be-edf78b088152.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/73d8d3bb-245f-4648-b4be-edf78b088152.png)
 
-![](https://files.mdnice.com/user/59/7c493259-3248-4150-a988-b9109898be81.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7c493259-3248-4150-a988-b9109898be81.png)
 
 从Llama3的end2end测试结果来看基于Flash Attention V3的Backend和使用默认的FlashInfer的Backend差距不是很大，不过FA3支持FP8的Attention，后面可以期待一下支持后的性能。此外，这个支持比较早期，只支持Page Size=1，没有支持FP8和多模态模型等，可以关注Roadmap：https://github.com/sgl-project/sglang/pull/4680 ，感兴趣的话也可以参与。
 
@@ -18,11 +18,11 @@
 
 此外为了理解实现Flash Attention Backend时用到的一些 KV Cache 相关的数据结构，请提前阅读 https://github.com/zhaochenyang20/Awesome-ML-SYS-Tutorial/blob/main/sglang/kvcache-code-walk-through/readme-CN.md#kv-cache%E4%B8%8E%E5%86%85%E5%AD%98%E6%B1%A0 这个 SGLang KV Cache Walk Through文档。
 
-![](https://files.mdnice.com/user/59/22b56a5d-e446-4a2c-9c63-d886b0a7e2a9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/22b56a5d-e446-4a2c-9c63-d886b0a7e2a9.png)
 
 然后支持Flash Attention V3的入口部分如下：
 
-![](https://files.mdnice.com/user/59/33b08f9c-fcff-43fc-a2b9-2e23f1baf31f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/33b08f9c-fcff-43fc-a2b9-2e23f1baf31f.png)
 
 从这张图可以看到SGLang FA3 Backend的一些限制。
 
@@ -349,7 +349,7 @@ def get_cuda_graph_seq_len_fill_value(self):
 需要指出的是这几个函数都是在为CUDA Graph的捕获和重放做准备，真正的CUDA Graph捕获是在 https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/model_executor/cuda_graph_runner.py#L165 这里的 CudaGraphRunner 完成的。而针对Decode应用捕获后的CUDA Graph也就是replay是在 https://github.com/sgl-project/sglang/blob/d89c0e4b7ed3b9d4b119cf66544765cc4c7adadb/python/sglang/srt/model_executor/model_runner.py#L90C7-L90C18 这个ModelRunner类的`forward`中完成的。下面红框部分：
 
 
-![](https://files.mdnice.com/user/59/3983926e-4d49-4f8c-b74a-9e8f5a2a35b1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3983926e-4d49-4f8c-b74a-9e8f5a2a35b1.png)
 
 
 # 0x4. 总结

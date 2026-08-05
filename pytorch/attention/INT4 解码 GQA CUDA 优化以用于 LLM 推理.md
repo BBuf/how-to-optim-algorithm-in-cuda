@@ -41,36 +41,36 @@
 
 GQA 只是 $bmm(softmax(bmm(Q, K^T) / sqrt(D)), V)$ 。这将生成一个单一的输出张量（用 $O$ 表示），它是一个形状与 $Q$ 相同的 4D BF16 张量。请注意，矩阵乘法是使用 BF16 执行的，但是累加和 softmax 是在 FP32 中执行的。我们将其称为“BF16 GQA”，因为 KV 缓存是 BF16。
 
-![图 1 用于 LLM 推理的 BF16 GQA 的简化工作流程](https://files.mdnice.com/user/59/280fe9b0-daf6-4657-bd0e-ad8ef760590c.png)
+![图 1 用于 LLM 推理的 BF16 GQA 的简化工作流程](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/280fe9b0-daf6-4657-bd0e-ad8ef760590c.png)
 
 ### INT4 GQA
 
 为了进一步减小 KV Cache的大小，我们探索了使用 INT4 而不是 BF16 来存储 KV Cache的可能性。我们通过计算 INT4 GQA 的计算强度 (CI) 并将其与 BF16 GQA 的计算强度进行比较来估计潜在的性能改进，因为 CI 代表每字节的 FLOPS。我们计算了 $QK^T$ 和 $PV$（如等式 1 所示）的 CI，因为它们将 KV Cache作为操作数。请注意，我们忽略了 Q 加载，因为它与 KV Cache相比微不足道。我们还忽略了任何不在全局内存上的中间数据加载/存储。因此，CI 仅考虑计算 FLOPS 和 KV Cache加载。
 
-![等式1](https://files.mdnice.com/user/59/704eefec-d9be-4531-af44-065af5cb5665.png)
+![等式1](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/704eefec-d9be-4531-af44-065af5cb5665.png)
 
 假设 $H_Q = 8$ 且 $H_{KV} = 1$，BF16 KV Cache 的 CI 为 8，而 INT4 KV Cache 的 CI 为 32。CI 表明，BF16 和 INT4 GQA 都是内存受限的（A100 和 H100 的 BF16 Tensor Core的峰值 CI 为 312 TF / 2 TB/s = 141(https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/a100-80gb-datasheet-update-nvidia-us-1521051-r2-web.pdf) 和 990 TF / 3.35 TB/s = 269(https://www.nvidia.com/en-us/data-center/h100/)；请注意，这些 TF 数字不包括稀疏性）。此外，使用 INT4 KV Cache，我们应该期望与 BF16 GQA 相比性能提高 4 倍。
 
 为了在 GQA 中启用 INT4 KV Cache 支持，我们可以在将 KV Cache 传递给 BF16 GQA 运算符之前，将其从 INT4 反量化为 BF16。但是，由于 KV Cache 通常很大，因此从/向全局内存复制它可能代价高昂。此外，Decoding GQA 是一个内存受限的操作（内存单元的使用比计算单元更频繁）。图 2 显示了 xFormers 中的 FMHA CUTLASS BF16 GQA kernel(https://github.com/facebookresearch/xformers/blob/9f6abadabdec17cd4b5c301632a44bf8216a7f35/xformers/csrc/attention/cuda/fmha/autogen/impl/cutlassF_bf16_aligned.cu#L33) 的 NCU 配置文件，它是 GQA 的最先进实现之一。从图中可以明显看出，内存是一个瓶颈。
 
-![图 2 xFormers FMHA CUTLASS BF16 kernel 的 NCU profile结果 ](https://files.mdnice.com/user/59/aaa767f0-f8b1-44c4-8799-6cd33d342aff.png)
+![图 2 xFormers FMHA CUTLASS BF16 kernel 的 NCU profile结果 ](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/aaa767f0-f8b1-44c4-8799-6cd33d342aff.png)
 
 一种更有效的替代方案是将 INT4 反量化与 GQA 操作融合（如图 3 所示）。换句话说，让 GQA 直接读取 INT4 KV Cache，并在 kernel 中执行 INT4 到 BF16 的转换。这种变化可能会减少 KV Cache 所需的全局内存读取量，从而导致延迟降低。我们将其称为“INT4 GQA”。
 
-![图 3 融合 INT4 GQA 的工作流程](https://files.mdnice.com/user/59/c34b72c6-22bb-4278-a458-afadaa31f923.png)
+![图 3 融合 INT4 GQA 的工作流程](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c34b72c6-22bb-4278-a458-afadaa31f923.png)
 
 我们在下表中列出了 GQA 的最先进实现，以及它们在表 1 中的功能。
 
 **表 1** 最先进的 GQA 实现
 
-![](https://files.mdnice.com/user/59/85d114a5-8441-4898-a096-4c9f78e29fb1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/85d114a5-8441-4898-a096-4c9f78e29fb1.png)
 
 除 CU 外，所有实现都支持 split-K 和非 split-K。CU 只有 split-K 实现。只有 FA 在后端有一个启发式方法来确定是否运行 split-K 或非 split-K kernel。对于其他实现，用户必须显式选择要运行的版本。在本说明中，我们重点关注较长的上下文长度（在我们的实验中，我们使用 8192 的上下文长度），因此尽可能选择 split-K 版本。
 
 作为基线，我们在 NVIDIA A100 和 H100 GPU 上测量了最先进的 GQA 实现的性能。表 2 中报告了延迟（以微秒为单位）和达到的带宽（GB/s）。请注意，我们运行了一系列 split-K（从 2 到 128 个splits），并报告了每个实现的最佳性能。对于所有实验，我们使用 8192 的上下文长度。对于 INT4 GQA，我们使用按行量化（即，量化组数量 = 1）。
 
-![](https://files.mdnice.com/user/59/3c7e1cec-1d15-4b5e-9e59-f52d96709f7f.png)
-![](https://files.mdnice.com/user/59/d0f434f0-ece0-4731-bad3-220203dd3b98.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3c7e1cec-1d15-4b5e-9e59-f52d96709f7f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d0f434f0-ece0-4731-bad3-220203dd3b98.png)
 
 
 首先，让我们讨论 BF16 GQA 性能：在所有实现中，CU 的性能排名最后。FD 和 FA 的性能相当。当批次大小小于或等于 64 时，FA 使用 split-K kernel，性能略好于 FD。但是，当批次大小大于 64 时，FD 的性能更好。
@@ -83,7 +83,7 @@ INT4 GQA 的趋势相同。但是，我们没有测量 FA 的性能，因为它�
 
 在本节中，我们简要介绍我们的基线实现，即使用 Tensor Core 的 CUDA INT4 GQA (CU)。每个线程块只处理一个 KV 头和来自一个输入提示的一组查询头。因此，每个线程块执行 $mm(softmax(mm(Q, K^T) / sqrt(D))$, V)；请注意，$mm$ 正在执行，而不是 $bmm$。此外，由于这是一个 split-K 实现，因此 KV Cache 中的 token 在不同的线程块之间拆分。请注意，每个线程块包含 4 个 warp（每个 warp 包含 32 个线程，适用于 NVIDIA A100 和 H100 GPU）。每个线程块中的工作在 warp 之间拆分。在每个 warp 中，我们使用 WMMA API 在 Tensor Core 上计算矩阵乘法。图 4 演示了 CU 中的工作分区。
 
-![图四：工作分区](https://files.mdnice.com/user/59/30e632aa-b9b6-4488-9126-025ff0a49c04.jpg)
+![图四：工作分区](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/30e632aa-b9b6-4488-9126-025ff0a49c04.jpg)
 
 
 

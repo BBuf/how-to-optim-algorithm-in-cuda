@@ -927,7 +927,7 @@ if self.compilation_config.cudagraph_mode != CUDAGraphMode.NONE:
 这里细节实在有点多，写不动了，感兴趣可以直接看这里的源码：https://github.com/vllm-project/vllm/blob/main/vllm/compilation/backends.py#L401
 
 
-![](https://files.mdnice.com/user/59/3a63d52d-c78c-485d-b6af-abb929cd6f53.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3a63d52d-c78c-485d-b6af-abb929cd6f53.png)
 
 
 # 0x8. vLLM Compilation Pass管理系统

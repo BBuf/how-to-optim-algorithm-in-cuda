@@ -33,7 +33,7 @@ $$C = \alpha \text{op}(A)\text{op}(B) + \beta C$$
 
 其中 $\alpha$ 和 $\beta$ 是标量，$A$、$B$ 和 $C$ 是以列主序格式存储的矩阵，$\text{op}(A)$ 的维度为 $m \times k$，$\text{op}(B)$ 的维度为 $k \times n$，$C$ 的维度为 $m \times n$。对于矩阵 $A$：
 
-![](https://files.mdnice.com/user/59/04b8b317-d67b-4a0b-a338-745c9b441793.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/04b8b317-d67b-4a0b-a338-745c9b441793.png)
 
 ### cuBLAS GEMM 和行主序矩阵
 

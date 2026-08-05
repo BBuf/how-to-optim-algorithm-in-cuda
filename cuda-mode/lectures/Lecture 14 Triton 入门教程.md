@@ -19,7 +19,7 @@
 
 **Triton vs Cuda**
 
-![](https://files.mdnice.com/user/59/dda26356-ad90-415d-8cbe-5b5b4bad930d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dda26356-ad90-415d-8cbe-5b5b4bad930d.png)
 source: https://zhuanlan.zhihu.com/p/672086654
 
 CUDA 是一个高端工具，有许多设置供专业人士使用。
@@ -178,7 +178,7 @@ def add_cuda_k(x, y, z, n, bs):
 
 为了说明，这里是每个kernel的变量：
 
-![](https://files.mdnice.com/user/59/29863a80-c092-4d8d-a7de-0ecdb2a9213c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/29863a80-c092-4d8d-a7de-0ecdb2a9213c.png)
 
 现在让我们看一下相应的Triton kernel，大致如下所示：
 
@@ -208,7 +208,7 @@ def add_triton_k(x, y, z, n, bs):
 
 再次说明，这里是每个kernel的变量：
 
-![](https://files.mdnice.com/user/59/8dd01a33-89cc-4587-8376-b2471600c63a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8dd01a33-89cc-4587-8376-b2471600c63a.png)
 
 术语说明：在Triton术语中，每个处理块的kernel被称为“program”。也就是说，我们上面的例子运行了2个program。因此，“block_id”通常被称为“pid”（“program id”的缩写），但它们是相同的。
 
@@ -402,11 +402,11 @@ ch,h,w,h*w
 show_img(img)
 ```
 
-![](https://files.mdnice.com/user/59/63ac6c00-a993-40aa-aa01-afe0a887e153.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/63ac6c00-a993-40aa-aa01-afe0a887e153.png)
 
 要处理二维数据，我们将构建二维偏移量和掩码。以下是如何工作的示例，例如对于一个 `4x7` 矩阵和每个维度的大小为 `2` 的块。
 
-![](https://files.mdnice.com/user/59/d5f75553-8b7f-4308-a46e-a9af30a0a70e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d5f75553-8b7f-4308-a46e-a9af30a0a70e.png)
 
 在代码中，长这样:
 
@@ -456,7 +456,7 @@ grey_img = rgb2grey(img.to('cuda'), bs=(32, 32)).to('cpu')
 show_img(grey_img, cmap='gray')
 ```
 
-![](https://files.mdnice.com/user/59/8f39e5a8-7222-4011-94e2-d0f91d214dd4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8f39e5a8-7222-4011-94e2-d0f91d214dd4.png)
 
 
 # 示例 3: 矩阵乘法
@@ -487,7 +487,7 @@ from triton_util import cdiv, breakpoint_if, print_if, check_tensors_gpu_ready
 - 沿着 n 轴 - 我们将使用块维度 1 来表示这一点
 - 沿着共享的 k 轴 - 这将不会由块表示。所有计算块将在同一个块中完成。
 
-![](https://files.mdnice.com/user/59/f5a44c41-0d5f-49dc-b1c3-e0770cf61884.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f5a44c41-0d5f-49dc-b1c3-e0770cf61884.png)
 
 由于我们经常创建一维或二维偏移量和掩码，让我们将这些功能放入实用函数中。只要这些函数被 `triton.jit` 编译，它们就可以在kernel中使用。
 
@@ -624,7 +624,7 @@ Triton 处理块内的内存访问顺序，但不处理跨块的内存访问顺�
 
 这张图（改编自 [Triton 文档](https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html)）展示了我们如何做到这一点。如果按朴素顺序排列，输出矩阵的第一行将“连续”计算，这需要 90 次不同的块读取（矩阵 A 中 9 次，矩阵 B 中 81 次）。如果我们使用“分组排序”，输出矩阵的 3x3 块将“连续”计算，这需要 54 次不同的块读取（矩阵 A 中 27 次，矩阵 B 中 27 次）。
 
-![](https://files.mdnice.com/user/59/5496ef37-6b0c-4cfc-b836-94e9c83ee1f1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5496ef37-6b0c-4cfc-b836-94e9c83ee1f1.png)
 
 注意：在文档中，分组称为“super-grouping”。
 好的，我们如何告诉 Triton 以何种顺序处理块？答案是：我们获取 pids，改变它们，并将它们用作原始 pids。
@@ -663,7 +663,7 @@ I'm processing item 1
 
 那么，用于更快矩阵乘法的 pid 变换函数应该是什么样的？它应该将左矩阵转换为右矩阵。
 
-![](https://files.mdnice.com/user/59/c6b84de9-6cca-4393-83b1-747e80b78eea.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c6b84de9-6cca-4393-83b1-747e80b78eea.png)
 
 在左侧，显示了默认的顺序（称为“行优先”）。请注意，我们处理的是块。我们无法安排单个单元格的处理顺序，只能安排块的顺序。在图中，我们的输出矩阵 C 有 `5x7 = 35` 个单元格，但只有 `cdiv(5,1) x cdiv(7,2) = 5x4 = 20` 个块。
 
@@ -867,13 +867,13 @@ def benchmark(square_matrix_size, provider):
 
 > 个人感觉这里的gbps公式有错误，应该是12 * sz^2 / ms * 1e-6 才对？下面给出了Deepseek v2.5的推导：
 
-![](https://files.mdnice.com/user/59/b5c9cade-b0b5-4fe9-b39e-7ae1ed8d0d21.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b5c9cade-b0b5-4fe9-b39e-7ae1ed8d0d21.png)
 
 ```python
 benchmark.run(print_data=True, show_plots=True)
 ```
 
-![](https://files.mdnice.com/user/59/6d39aaa8-8b02-4587-9a4a-f9ea211ac010.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6d39aaa8-8b02-4587-9a4a-f9ea211ac010.png)
 
 ```shell
 matmul-performance:
@@ -913,7 +913,7 @@ def benchmark(batch_size, provider):
 benchmark.run(print_data=True, show_plots=True)
 ```
 
-![](https://files.mdnice.com/user/59/d6839175-8259-4a99-9ff8-c75b2ea74f4d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d6839175-8259-4a99-9ff8-c75b2ea74f4d.png)
 
 ```shell
 matmul-performance:
@@ -947,7 +947,7 @@ def benchmark(square_matrix_size, provider):
 benchmark.run(print_data=True, show_plots=True)
 ```
 
-![](https://files.mdnice.com/user/59/eb9d5d16-376d-4cbc-b575-be02d3b5997d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/eb9d5d16-376d-4cbc-b575-be02d3b5997d.png)
 
 ```shell
 matmul-performance:
@@ -1096,7 +1096,7 @@ def benchmark(square_matrix_size, provider):
 benchmark.run(print_data=True, show_plots=True)
 ```
 
-![](https://files.mdnice.com/user/59/d5f8a2ad-2729-47db-9db1-2201271bdd63.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d5f8a2ad-2729-47db-9db1-2201271bdd63.png)
 
 ```shell
 matmul-performance:

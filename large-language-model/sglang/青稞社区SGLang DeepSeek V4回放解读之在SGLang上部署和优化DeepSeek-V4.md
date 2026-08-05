@@ -2,13 +2,13 @@
 
 # 0x0. 前言
 
-![](https://files.mdnice.com/user/59/c4c5e935-e8a1-4591-a5b4-fdd9eb2e3889.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c4c5e935-e8a1-4591-a5b4-fdd9eb2e3889.png)
 
 封面页没有技术信息，但题目里的两个词要放在一起看：deploying 和 optimizing。DeepSeek-V4 在 SGLang 里不是新增一个模型类即可完成，后面每一页基本都在回答同一个问题：这个模型的新 attention 结构怎么落到可部署、可调参、可复用的 serving 路径上。
 
 DeepSeek-V4 给推理系统带来的挑战，主要不在「模型更大」或者「MoE 更重」，而在 attention runtime 的状态空间。每层都有 SWA，同时又会在 CSA 和 HCA 两种压缩注意力之间切换。SGLang 不能继续把 KV cache 当成一套 per-layer raw KV 来处理，它需要同时维护 full-token 坐标、SWA 物理池、C4 压缩池、C128 压缩池、C4 indexer 池、compress state 池，以及这些池子在 prefix cache、CUDA Graph、PD disaggregation、HiSparse offload 里的映射关系。
 
-![](https://files.mdnice.com/user/59/bc7ac8b1-ff74-4e9e-8450-02cb14cef01d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bc7ac8b1-ff74-4e9e-8450-02cb14cef01d.png)
 
 Highlights 页可以当作全文目录。Inference 这一行列出的 ShadowRadix、HiSparse、Flash Compressor、Lightning TopK、DP/TP/CP attention，是本文后面展开源码的主线；RL training 和 Hardware 两行说明 SGLang 的覆盖面更宽，但它们不是本文源码分析的主路径。
 
@@ -141,7 +141,7 @@ SGLANG_DSV4_FP4_EXPERTS=True
 
 # 0x2. 模型配置：compress_ratios 决定每层是 SWA、CSA 还是 HCA
 
-![](https://files.mdnice.com/user/59/483420dd-42df-4bfa-b6a8-22072f75c23b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/483420dd-42df-4bfa-b6a8-22072f75c23b.png)
 
 这页图的重点是 SWA 与 CSA/HCA 的组合关系。最上面的 raw query 和绿色 SWA 表示“每层都有最近 128 个 raw token 的窗口”；下面两条分支才是每层二选一的部分：CSA 走 4:1 压缩后的 sparse top-k，HCA 走 128:1 压缩后的 dense 访问。图里的 “+ one of” 表示 SWA 始终存在，CSA/HCA 只是在 SWA 之外补充长上下文信息。
 
@@ -215,7 +215,7 @@ rope_base = config.compress_rope_theta if self.compress_ratio else rope_theta
 
 # 0x3. 多级 KV pool：ShadowRadix 背后的物理存储
 
-![](https://files.mdnice.com/user/59/456565b1-4fa4-4389-b3b9-eddfb5c1a7cb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/456565b1-4fa4-4389-b3b9-eddfb5c1a7cb.png)
 
 ShadowRadix 这页上方的 Source 是统一的 full-token 坐标，下面三条 Shadow 对应物理存储。绿色 Shadow A 对应 SWA pool，只保留最近窗口；橙色 Shadow B 对应 C4 pool，按 4:1 压缩后再做 sparse selection；紫色 Shadow C 对应 C128 pool，按 128:1 压缩后做 dense 访问。图里虚线箭头表达的是同一个 full-token slot 到不同 pool index 的投影关系，后面源码里的 `full_to_swa`、`translate_loc_from_full_to_swa`、`compression_ratios` 都在实现这层映射。
 
@@ -445,7 +445,7 @@ elif isinstance(self.forward_metadata, DSV4RawDecodeMetadata):
 
 # 0x5. MQA forward：Q、KV cache、compressor、indexer、FlashMLA 的执行顺序
 
-![](https://files.mdnice.com/user/59/bae2b5ca-806d-48fe-a429-e355fd2ebc01.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bae2b5ca-806d-48fe-a429-e355fd2ebc01.png)
 
 这张多流 overlap 图描述的是 decode 小 batch 时的流水线，而不是 attention 公式本身。图里第一层 fan-out 把 attention prep、Q/KV 投影、indexer 等工作放到不同 stream；第二层再用 `q_lora_ready`、`q_scale_ready` 这类 event 串起依赖。读源码时可以把这张图对应到 `MQALayer` 里 5 条辅助 stream，以及 CUDA Graph capture 下 raw metadata 到正式 metadata 的升级。
 
@@ -624,7 +624,7 @@ SGLang 用这种方式把 SWA + CSA/HCA 组织成 FlashMLA 的一次调用：SWA
 
 # 0x6. C4 Indexer 和 Lightning TopK：CSA sparse page 的选择流程
 
-![](https://files.mdnice.com/user/59/7731e674-d316-4690-8cfe-00f6448785eb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7731e674-d316-4690-8cfe-00f6448785eb.png)
 
 Lightning TopK 这页的流程从上到下看：输入是大量候选 C4 page 的分数，而不是 expert logits；每个 CTA 先做局部 histogram；cluster reduce 把多个 CTA 的 histogram 合并，估出 top-k 阈值；最后 scatter 出满足阈值的 page index。它避免了对 256K 级候选做全局 sort，所以才会有图里 100us 到 15us 的量级变化。
 
@@ -708,7 +708,7 @@ Slides 里 Lightning TopK 从约 100us 降到约 15us，背景就在这里。对
 
 # 0x7. Flash Compressor：C4/C128 压缩状态维护和 fused 写 cache
 
-![](https://files.mdnice.com/user/59/69da0a74-e6de-4bf4-8865-c41bf8323a23.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/69da0a74-e6de-4bf4-8865-c41bf8323a23.png)
 
 Flash Compressor 这页上半部分是 naive pipeline：load KV+score、加 bias、softmax、scale-dot、store，每一段之间都可能回到 HBM。下半部分把 bias、softmax、scale-dot 尽量留在寄存器/共享内存里，一次 kernel 完成压缩和写回。图里 “5 HBM round-trips -> 2 HBM round-trips” 对应 `c4_v2.cuh / c128_v2.cuh` 中 plan、读 state、算 softmax、写 compressed KV 的融合路径。
 
@@ -1077,7 +1077,7 @@ request metadata
 
 # 0x9. MTP / NextN：draft worker 为什么只走 SWA
 
-![](https://files.mdnice.com/user/59/b10990a4-f93b-4eeb-96b7-e3121603ab43.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b10990a4-f93b-4eeb-96b7-e3121603ab43.png)
 
 MTP 这页需要结合三个 bullet 和柱状图一起看：MTP layer 只走 SWA-only attention，metadata prepare 放进 CUDA Graph，并且要和 overlap scheduling 兼容。下面的柱状图展示的是不同上下文长度下 draft 对吞吐的影响，重点不是某个单独数字，而是说明 SGLang 把 draft worker 的额外成本控制在可接受范围内。
 
@@ -1135,7 +1135,7 @@ max-throughput: MTP disabled
 
 # 0xA. HiSparse：C4 pool 的 CPU offload 和 indexer swap-in
 
-![](https://files.mdnice.com/user/59/2384a3cb-2ec0-4073-975c-b6e492db2aef.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2384a3cb-2ec0-4073-975c-b6e492db2aef.png)
 
 HiSparse 这页需要关注箭头关系：C4 indexer 先选出 sparse attention 要访问的 page，HiSparse coordinator 再判断这些 page 在 GPU device buffer 还是 CPU host pool。图里绿色块是 GPU 上的 hot KV，蓝色块是 CPU 上的 inactive KV；swap-in 之后，sparse attention kernel 看到的是已经改写成 device-side loc 的 indices。
 
@@ -1267,7 +1267,7 @@ hidden_states_before_norm=pre_hc_head
 
 # 0xC. MoE、FP4 和 MegaMoE
 
-![](https://files.mdnice.com/user/59/ed675f32-1519-4d2a-b6da-6553b4b6b35a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ed675f32-1519-4d2a-b6da-6553b4b6b35a.png)
 
 MegaMoE 这页用三条时间线对比 Naive、Comet 和 Ours。Naive 里 Dispatch、Expert GEMM、Combine 是分开的；Comet 已经把部分阶段并起来；Ours 进一步把 dispatch / compute / combine 合并到 MegaMoE kernel，图里的多段蓝色小块表示多个 expert GEMM window 被排进同一条执行流。这也是后面源码里会出现 MegaMoE symmetric buffer、FP8/FP4 layout、topk id/weight 预处理的原因。
 
@@ -1373,7 +1373,7 @@ MegaMoE 不是一个可随意开启的通用开关，它面向特定硬件和高
 
 # 0xD. CP 和 PD：DeepSeek-V4 并行配置的约束
 
-![](https://files.mdnice.com/user/59/b3e7fb87-c6d3-49d0-b0f7-f40067d89f91.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b3e7fb87-c6d3-49d0-b0f7-f40067d89f91.png)
 
 Parallelism 这页列出的不是互相独立的启动参数。DP/TP/CP/EP 分别作用在不同模块上：CP 改 attention metadata 和 token 切分，TP 影响 FlashMLA head padding，EP/DeepEP 影响 MoE A2A，PD disaggregation 又要求 KV pointer layout 能被跨进程传输。后面看 cookbook recipe 时，可以先把这页当作约束清单。
 
@@ -1457,7 +1457,7 @@ state_data layout:
 
 最新源码已经在 disaggregation common path 里支持 compressed-MLA pointer slicing，但 DSv4 的 buffer-type-organized KV 指针和普通 per-layer KV 相比有更多约束。也就是说，代码层面已经有 `_mla_slice_ptrs_for_pp` 这类 PP slicing 逻辑，部署 recipe 仍然不能把 PD、PP、CP、DeepEP 随意叠加；要以 cookbook 生成器里标成 verified 的组合为准。
 
-![](https://files.mdnice.com/user/59/cda88364-d9fc-439c-9864-318e3166029f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cda88364-d9fc-439c-9864-318e3166029f.png)
 
 Pareto 曲线页把不同 deployment recipe 放到同一张吞吐/交互性图里。读这张图时，不应把目标放在寻找“唯一最优命令”上，而要看不同曲线怎么移动：低延迟 recipe 会牺牲一部分满载吞吐，max-throughput recipe 更适合连续高并发，MTP、CP、DeepEP、MegaMoE 会把点移动到不同区域。
 
@@ -1510,11 +1510,11 @@ Recipe 生成器里还对 MegaMoE 做了显式 gating：
 
 # 0xF. RL slides：训练侧信息的定位
 
-![](https://files.mdnice.com/user/59/89b93932-c4d5-4464-a9ce-c9a9a8cd5e2a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/89b93932-c4d5-4464-a9ce-c9a9a8cd5e2a.png)
 
 Day-0 RL 这页对应的源码路径和前面的 serving runtime 不同。三个卡片分别说 reward 增长可验证、全参数 RL 可以运行、在 Hopper/Blackwell 上验证过。放在这里主要是说明 SGLang 围绕 DeepSeek-V4 的 day-0 支持除在线推理外，也覆盖训练/后训练工作流。
 
-![](https://files.mdnice.com/user/59/a19e83fe-b44f-4fc6-b0cd-627c70cbac8b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a19e83fe-b44f-4fc6-b0cd-627c70cbac8b.png)
 
 DAPO 结果页左边是 rollout raw reward，右边是 AIME eval 曲线。左图波动较大，但总体上升；右图更接近最终效果指标，能看到若干阶段后的提升。本文不展开训练源码，但这页能帮助理解 slides 为什么把 RL support 放进 Highlights。
 
@@ -1592,7 +1592,7 @@ python/sglang/jit_kernel/tests/test_hisparse.py
 
 # 0x11. Roadmap 和小结
 
-![](https://files.mdnice.com/user/59/57573dff-9ee6-48c1-8124-4c37eb28bf2b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/57573dff-9ee6-48c1-8124-4c37eb28bf2b.png)
 
 Roadmap 页里的每一项都能在当前源码里找到对应压力点。PP + PD 对应 buffer-type-organized KV pointer slicing，FP4 Indexer 对应 C4 indexer 的低 bit 化，SWA offload 对应 HiSparse 从 C4 扩到更高频的 SWA pool，DeepEP v2 对应 MoE 通信后端，SM120/SM80 则是 kernel 和 recipe 的硬件覆盖。
 
@@ -1612,7 +1612,7 @@ Slides 的 roadmap 提到几个方向：
 - DeepEP v2：CP、DP attention、MoE A2A、MegaMoE 都和 MoE 通信后端强相关。
 - SM120 / SM80：DeepSeek-V4 目前很多默认优化面向 Blackwell/Hopper，老卡和新卡都需要单独 kernel/recipe 适配。
 
-![](https://files.mdnice.com/user/59/24579f3e-62e0-46a6-8860-0fb0cbd4331c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/24579f3e-62e0-46a6-8860-0fb0cbd4331c.png)
 
 这页是四个入口的二维码：Cookbook、Miles DeepSeek V4 roadmap & recipe、SGLang DeepSeek V4 roadmap、DeepSeek V4 technical blog。本文主要把 Cookbook 和源码对齐；如果后续 recipe 更新，建议优先回到这几个入口确认最新说明。
 
@@ -1649,19 +1649,19 @@ System features
   -> CP / PD rely on DSv4-specific metadata and pointer layout
 ```
 
-![](https://files.mdnice.com/user/59/15fb7233-2d08-4ad3-91cb-d233fc6c8f5b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/15fb7233-2d08-4ad3-91cb-d233fc6c8f5b.png)
 
 社区页提供 GitHub 和 X 入口。它没有新增技术内容，但对 day-0 模型支持有参考价值：DeepSeek-V4 这类模型的 recipe、硬件支持和限制条件会频繁更新，很多变更会先在仓库、文档和社区渠道出现。
 
-![](https://files.mdnice.com/user/59/04d020a2-d41c-4b3a-b192-1f3b71625065.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/04d020a2-d41c-4b3a-b192-1f3b71625065.png)
 
 Luma Calendar 页是线下/线上活动入口。对读者来说，它的作用是找到 office hour 和 meetup，在新 recipe 或新硬件支持有疑问时，可以参考社区讨论。
 
-![](https://files.mdnice.com/user/59/e2587c9c-1b6d-492e-b6b2-c15d50126680.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e2587c9c-1b6d-492e-b6b2-c15d50126680.png)
 
 Thanks 页是结束页，技术上只保留一个信息：SGLang 当时 GitHub star 数已经到 27.5K。这里不再承载 DeepSeek-V4 的实现细节。
 
-![](https://files.mdnice.com/user/59/06216acc-50c4-46c8-b1e9-0c69d6dd4b08.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/06216acc-50c4-46c8-b1e9-0c69d6dd4b08.png)
 
 Q&A 页是现场问答占位。文章里已经把 slides 暗含的几个常见问题拆到前面：为什么 page size 固定 256，为什么 MTP 只走 SWA，为什么 HiSparse 先 offload C4，为什么 PD/CP 不能任意组合。
 

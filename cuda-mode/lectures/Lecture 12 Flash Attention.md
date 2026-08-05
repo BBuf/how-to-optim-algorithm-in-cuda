@@ -6,7 +6,7 @@
 
 这节课的演讲者也是之前[CUDA-MODE 课程笔记 第四课: PMPP 书的第4-5章笔记](https://mp.weixin.qq.com/s/P87c8LRJ1CEOOyaQw8L-cA) 这节课的演讲者，第四课的最后介绍了一下矩阵乘法的Tiling技术，最后还提到Tiling的经典应用就是Flash Attention。所以这一节课他来讲解下Flash Attention。
 
-![](https://files.mdnice.com/user/59/7d78b5f9-628c-4ead-8b62-7b0a6c85febd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7d78b5f9-628c-4ead-8b62-7b0a6c85febd.png)
 
 这张Slides讨论了为什么在某些计算操作中使用分块（Tiling）技术，并展示了内存层次结构。
 - Tiling（分块）的原因：
@@ -24,7 +24,7 @@
 
 总的来说，这里解释了为什么在某些计算密集型操作中使用分块技术很重要。通过重用数据和利用更快的内存层（如GPU SRAM），可以显著提高计算效率。同时，Slides中展示的内存层次结构清楚地说明了不同级别内存之间在速度和容量上的权衡，这进一步强调了优化内存访问模式的重要性。
 
-![](https://files.mdnice.com/user/59/0036022f-e58a-42a3-97f4-2b5610245c51.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0036022f-e58a-42a3-97f4-2b5610245c51.png)
 
 作者提出了一个新的观点，那就是把注意力机制视为分类问题。slides的详细解释为：
 
@@ -44,14 +44,14 @@
 
 > slides的第一个符号q应该写成Q感觉才正确。
 
-![](https://files.mdnice.com/user/59/5a83371e-8c7e-46e3-9640-ae90ca6add51.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a83371e-8c7e-46e3-9640-ae90ca6add51.png)
 
 这张Slides讲解了Multi-head Attention（多头注意力机制），主要内容包括：
 - 多头注意力机制可以同时处理多个注意力分类任务，每个任务的维度较小（用 d 表示）。这意味着模型能在多个“头”上并行计算，使得不同的注意力头可以关注输入的不同部分。
 - 引用了 Vaswani 等人在Transformer论文《Attention is All You Need》中的描述：多头注意力机制允许模型同时关注输入的不同位置，且能够从不同的表示子空间中获取信息。如果仅使用单个注意力头，信息可能会被平均化，从而抑制这种能力。
 - 多头注意力的每个头是完全独立的，因此它们的计算可以并行化，类似于批处理操作（batch），这种并行性使得计算非常高效，几乎没有复杂的相互依赖。
 
-![](https://files.mdnice.com/user/59/1fc11340-e7d4-4692-80a5-042a631d5239.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1fc11340-e7d4-4692-80a5-042a631d5239.png)
 
 这张Slides讨论了注意力机制的数学表示，以及如何在计算中进行并行化优化。包括：
 1. **假设条件**
@@ -67,7 +67,7 @@
     - 提出了一个问题：如何并行化计算并在一次操作中完成？fuse
     - **P 矩阵是中间结果**，是否可以避免显式地存储它？这部分涉及数值线性代数和高性能计算（HPC）中的经典问题。
 
-![](https://files.mdnice.com/user/59/1f498b11-ee6c-4bd7-80a3-0ff53efd699a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1f498b11-ee6c-4bd7-80a3-0ff53efd699a.png)
 
 这张slides开始引入 **Tiling Strategy（分块策略）**，用于优化注意力机制的计算，尤其是在计算矩阵乘法时通过分块来提高效率和内存利用率。
 
@@ -91,30 +91,30 @@
 
 > 我觉得这张slides没有写清楚，结合Tiling来说这里计算的并不是t这个token的注意力结果，真正算的是前t个token的注意力结果。具体可以看下面2张图，这个Tiling的过程讲的很清晰，来源：https://zhuanlan.zhihu.com/p/669926191 
 
-![](https://files.mdnice.com/user/59/291cb1f4-aa5d-400d-be00-06387bcc6bd9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/291cb1f4-aa5d-400d-be00-06387bcc6bd9.png)
 
-![](https://files.mdnice.com/user/59/0cfa0d85-61d5-47f9-a211-342f15a62382.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0cfa0d85-61d5-47f9-a211-342f15a62382.png)
 
 
 上面提到归一化前后的$P_{ij}$，在这张图解释：
 
-![](https://files.mdnice.com/user/59/ba2f0338-b564-4080-bfce-2795fec77005.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ba2f0338-b564-4080-bfce-2795fec77005.png)
 
-![](https://files.mdnice.com/user/59/d86a3627-2eb1-4154-b8ee-5b1f82a45918.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d86a3627-2eb1-4154-b8ee-5b1f82a45918.png)
 
 然后视频里面下一张Slides就是讲解Safe Softmax的，内容和上面2张图讲的一样。
 
-![](https://files.mdnice.com/user/59/8b775ead-ad71-4ca8-86df-a32fce9e0100.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8b775ead-ad71-4ca8-86df-a32fce9e0100.png)
 
-![](https://files.mdnice.com/user/59/03cdd113-e340-4247-a808-d6d60d07a7f1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/03cdd113-e340-4247-a808-d6d60d07a7f1.png)
 
 这张Slides讲的是由于要做Tiling，所以我们要使用Online stabilized softmax，这部分作者讲得感觉比较一般，还是截图 https://zhuanlan.zhihu.com/p/669926191 这里的讲解来说明这个算法：
 
-![](https://files.mdnice.com/user/59/52b99a3f-5472-4292-a824-f64f7cbf3e99.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/52b99a3f-5472-4292-a824-f64f7cbf3e99.png)
 
 > 这里需要注意上面图片中的[]为max操作。作者slides中的m和m_new就对应了上面讲解中的当前Tiling之前的局部最大值和当前Tiling上的最大值。
 
-![](https://files.mdnice.com/user/59/96c72bc1-9caa-4e0e-afce-33386f52e2d2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/96c72bc1-9caa-4e0e-afce-33386f52e2d2.png)
 
 这张Slides讨论了一些与实现和优化相关的技术细节，主要内容为：
 - 使用掩码会导致非矩形块布局

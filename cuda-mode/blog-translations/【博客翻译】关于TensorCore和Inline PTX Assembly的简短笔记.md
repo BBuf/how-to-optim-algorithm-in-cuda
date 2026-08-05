@@ -55,7 +55,7 @@ mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32
 
 下面我们可以看到累加器矩阵的布局：
 
-![](https://files.mdnice.com/user/59/ffb80b81-a89e-4daa-838b-e1ce15d84cc8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ffb80b81-a89e-4daa-838b-e1ce15d84cc8.png)
 
 每个线程处理4个元素`c0`, `c1`, `c2`, `c3`。`c1`和`c2`之间的距离是8 * 8个元素。`c0`和`c1`一起是`8 bytes = 2 * sizeof(float)`
 

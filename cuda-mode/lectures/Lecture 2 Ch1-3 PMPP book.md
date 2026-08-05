@@ -6,11 +6,11 @@
 
 ### PMPP 第一章
 
-![](https://files.mdnice.com/user/59/6d74a444-8832-46a2-93db-02d09dac937a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6d74a444-8832-46a2-93db-02d09dac937a.png)
 
 这一页没什么好说的，就是介绍一些大模型和AI的背景，CPU和GPU的架构区别，以及GPU的出现是为了解决CPU无法通过硬件技术解决的大规模计算性能问题。
 
-![](https://files.mdnice.com/user/59/7b8b26cf-d8b2-42b0-9e04-d7415a92bc23.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7b8b26cf-d8b2-42b0-9e04-d7415a92bc23.png)
 
 这张图名为"The Power Wall"（功耗墙），展示了从1970年到2020年间计算机芯片技术的两个关键参数的发展趋势：
 
@@ -19,7 +19,7 @@
 
 "功耗墙"现象：图表底部的注释解释了为什么频率不再持续增长 —— "进一步提高频率会使芯片变得太热而无法有效散热"。
 
-![](https://files.mdnice.com/user/59/e6b81392-0f5d-4209-82df-ad58811997a1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e6b81392-0f5d-4209-82df-ad58811997a1.png)
 
 这张slides介绍了CUDA的兴起及其关键特性：
 
@@ -33,7 +33,7 @@
 - 在 CUDA 出现前，使用图形 API（如 OpenGL 或 Direct3D）进行计算。
 - 由于 GPU 的广泛可用性，GPU 编程对开发者变得更具吸引力。
 
-![](https://files.mdnice.com/user/59/fdf3c907-8e7e-4f79-a607-b11b06d39f49.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fdf3c907-8e7e-4f79-a607-b11b06d39f49.png)
 
 这张slides介绍了CUDA编程中的一些挑战：
 
@@ -43,7 +43,7 @@
 - 并行程序的性能可能因输入数据的特性而显著变化。（比如LLM推理有不同长度的序列）。
 - 并非所有应用都能轻松并行化，很多需要同步的地方会带来额外的开销（等待时间）。例如有数据依赖的情况。
 
-![](https://files.mdnice.com/user/59/55ca7714-6dfa-4fc5-bd94-db7f92f198e1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/55ca7714-6dfa-4fc5-bd94-db7f92f198e1.png)
 
 《Programming Massively Parallel Processors》这本书的三个主要目标是：
 
@@ -56,7 +56,7 @@
 
 ### PMPP 第二章
 
-![](https://files.mdnice.com/user/59/4ff01aec-7940-44c1-ac86-9e8c392ae511.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4ff01aec-7940-44c1-ac86-9e8c392ae511.png)
 
 题目是 CH2: 异构数据并行编程
 - 异构（Heterogeneous）：结合使用CPU和GPU来进行计算，利用各自的优势来提高处理速度和效率。
@@ -65,11 +65,11 @@
     - 向量加法：这是并行计算中常见的例子，通过将向量的每个元素分别相加，可以并行处理，提高计算速度。
     - 将RGB图像转换为灰度图：这个过程通过应用一个核函数，根据每个像素的RGB值计算其灰度值。公式为 `L = r*0.21 + g*0.72 + b*0.07`，其中L代表亮度（Luminance）。这个转换是基于人眼对不同颜色的感光敏感度不同，其中绿色部分权重最高。
 
-![](https://files.mdnice.com/user/59/9bad0b05-ba27-44e1-8109-03a10e9af79e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9bad0b05-ba27-44e1-8109-03a10e9af79e.png)
 
 这张Slides可以看到所有像素点的计算都是独立的。
 
-![](https://files.mdnice.com/user/59/a5f9ceea-e103-42b4-9ab0-79e9a41e4505.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5f9ceea-e103-42b4-9ab0-79e9a41e4505.png)
 
 这张Slides介绍了CUDA C的一些特点：
 - 扩展了ANSI C的语法,增加了少量的新的语法元素。
@@ -82,7 +82,7 @@
 - 对于输出张量的每一个元素启动一个线程是很正常的。
 
 
-![](https://files.mdnice.com/user/59/0da939ef-4d56-4217-a5f5-66615a686802.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0da939ef-4d56-4217-a5f5-66615a686802.png)
 
 这张Slides给出了一个向量加法的CUDA C编程示例:
 
@@ -95,11 +95,11 @@
     - 释放设备内存
 - 保持数据在GPU上尽可能长的时间,以支持并发的内核启动。这可以最大限度地提高性能。
 
-![](https://files.mdnice.com/user/59/6abe12fa-9a40-406f-9aa0-9011f2064f79.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6abe12fa-9a40-406f-9aa0-9011f2064f79.png)
 
 这张Slides展示了每个线程处理一个输出元素的计算，并且是相互独立的。
 
-![](https://files.mdnice.com/user/59/80292cf8-90fc-4950-baf0-9df586b533e5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/80292cf8-90fc-4950-baf0-9df586b533e5.png)
 
 这张Slides介绍了CUDA编程中内存分配的重要概念:
 
@@ -112,12 +112,12 @@
     - cudaMalloc((void**)&A_d, size);//在设备上分配内存
     - cudaFree(A_d);//释放设备内存
 
-![](https://files.mdnice.com/user/59/ae818eb4-9c6c-48a5-9d25-deb9069257d0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ae818eb4-9c6c-48a5-9d25-deb9069257d0.png)
 
 这张Slides介绍了CUDA中内存搬运的API，包括D2H和H2D。一般来说，CUDA程序会先执行H2D的Memcpy把数据搬运到GPU上，然后kernel执行完之后再把结果通过D2H的Memcpy搬运回主机端。
 
 
-![](https://files.mdnice.com/user/59/88dceae7-b037-49a5-bf7c-85e40e685ba8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/88dceae7-b037-49a5-bf7c-85e40e685ba8.png)
 
 这张Slides介绍了CUDA编程中的错误处理机制:
 
@@ -168,7 +168,7 @@ void vecAdd(float *A, float *B, float *C, int n) {
 }
 ```
 
-![](https://files.mdnice.com/user/59/5b14e221-ef96-42a0-8857-b0952043ab2d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5b14e221-ef96-42a0-8857-b0952043ab2d.png)
 
 这张Slides介绍了CUDA编程中内核函数(kernel)的基本特点:
 
@@ -177,7 +177,7 @@ void vecAdd(float *A, float *B, float *C, int n) {
 - 线程以分层的方式组织,分为网格块(grid blocks)和线程块(thread blocks)。
 - 每个线程块最多可以包含1024个线程。
 
-![](https://files.mdnice.com/user/59/1c2b0000-aa4a-4da2-8fc1-7a16d750d951.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1c2b0000-aa4a-4da2-8fc1-7a16d750d951.png)
 
 这张Slides讲解了Kernel坐标的几个点：
 - 内核中可用的内置变量：blockIdx, threadIdx：这些是CUDA编程中用来标识线程位置的内置变量。blockIdx表示当前线程块的索引，而threadIdx表示当前线程在其所在块中的索引。
@@ -187,12 +187,12 @@ void vecAdd(float *A, float *B, float *C, int n) {
 - 内置的blockDim告诉我们块中的线程数：blockDim表示每个线程块中包含的线程数。这个变量对于计算每个线程的全局索引是必要的。
 - 对于向量加法，我们可以计算线程的数组索引：示例代码：int i = blockIdx.x * blockDim.x + threadIdx.x; 这行代码展示了如何计算每个线程在整个数据数组中的位置。blockIdx.x * blockDim.x计算的是当前块之前所有线程的总数，加上threadIdx.x得到当前线程的全局索引。
 
-![](https://files.mdnice.com/user/59/d52dfd78-ebc6-417e-a835-c67ebc50cb84.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d52dfd78-ebc6-417e-a835-c67ebc50cb84.png)
 
 这张Slides是对Kernel坐标定位的可视化。我们可以看到每个线程执行相同的代码，仅仅是数据的位置不同。
 
 
-![](https://files.mdnice.com/user/59/42d6e8c0-09da-463f-a0bf-5b7c56099a70.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/42d6e8c0-09da-463f-a0bf-5b7c56099a70.png)
 
 这张Slides解释了CUDA C中的几个关键函数声明修饰符：`__global__`，`__device__`和`__host__`，以及它们的用法和特性。
 
@@ -212,7 +212,7 @@ void vecAdd(float *A, float *B, float *C, int n) {
 - 组合使用：
     - 如果在函数声明中同时使用`__host__`和`__device__`修饰符，编译器会为该函数生成CPU和GPU两个版本。
 
-![](https://files.mdnice.com/user/59/549eaeae-45c3-4df9-a2b6-cff4549cd7c6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/549eaeae-45c3-4df9-a2b6-cff4549cd7c6.png)
 
 这张Slides讲解了在CUDA编程中进行向量加法的一个示例，并提供了一些重要的策略和注意事项：
 
@@ -228,7 +228,7 @@ void vecAdd(float *A, float *B, float *C, int n) {
     - 进行边界检查，确保不会访问超出向量范围的元素
     - 执行实际的加法操作
 
-![](https://files.mdnice.com/user/59/5055ae4e-c8f0-4219-ba1d-37d8b1197e1c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/5055ae4e-c8f0-4219-ba1d-37d8b1197e1c.png)
 
 这张Slides讲解了CUDA调用kernel的一些注意的点。
 
@@ -236,7 +236,7 @@ void vecAdd(float *A, float *B, float *C, int n) {
 - 代码块中，设置每个块的线程数为256：dim3 numThreads(256); 计算所需的块数：dim3 numBlocks((n + numThreads - 1) / numThreads); 这个计算方式确保了即使n不能被numThreads整除，也能覆盖所有的数据。
 - 后续将会学习其他启动参数，如共享内存大小（shared-mem size）和CUDA流（cudaStream）。
 
-![](https://files.mdnice.com/user/59/1833a93b-a21c-4127-b48d-5000a669ce6e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1833a93b-a21c-4127-b48d-5000a669ce6e.png)
 
 这张Slides介绍了CUDA编程中的编译器和相关概念：
 - NVCC是NVIDIA的C编译器，它用于将CUDA内核代码编译成PTX (Parallel Thread Execution)
@@ -245,15 +245,15 @@ void vecAdd(float *A, float *B, float *C, int n) {
 
 ### PMPP 第三章
 
-![](https://files.mdnice.com/user/59/99ab44cb-a44d-4a5a-a611-03df08752c1c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/99ab44cb-a44d-4a5a-a611-03df08752c1c.png)
 
 这张Slides和Lecture 2是几乎重复的。
 
-![](https://files.mdnice.com/user/59/9316a593-771a-4099-81b1-3ba427249560.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9316a593-771a-4099-81b1-3ba427249560.png)
 
 这张Slides为我们展示了启动kernel的2D线程网格（Grid）和3D线程块（Block）的结构，我们可以在同一个设备上启动多个kernel。
 
-![](https://files.mdnice.com/user/59/47478350-4416-47fb-9be9-b885509ddab5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/47478350-4416-47fb-9be9-b885509ddab5.png)
 
 这张Slides继续讨论了CUDA中的网格(Grid)概念：
 
@@ -265,12 +265,12 @@ void vecAdd(float *A, float *B, float *C, int n) {
 - 例如：1D用于序列处理，2D用于图像处理等。
 - 代码例子展示了如何定义一个1D的网格和块配置，总共启动4096个线程。
 
-![](https://files.mdnice.com/user/59/00ebef68-f6e7-47c3-8a55-a04b3ce93fcd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/00ebef68-f6e7-47c3-8a55-a04b3ce93fcd.png)
 
 CUDA已经有了这些内置变量在里面了，第二章反复提到过。
 
 
-![](https://files.mdnice.com/user/59/5b8dce0b-486d-4afe-99dc-730033727eff.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5b8dce0b-486d-4afe-99dc-730033727eff.png)
 
 这张Slides讲解了多维数组在内存中的存储方式，主要内容如下：
 
@@ -282,7 +282,7 @@ CUDA已经有了这些内置变量在里面了，第二章反复提到过。
 - Torch tensors 和 NumPy ndarrays 这些库使用步长（strides）来指定元素在内存中的布局方式。
 - 理解内存布局对于优化数据访问和提高计算效率非常重要，特别是在并行计算和GPU编程中。
 
-![](https://files.mdnice.com/user/59/3d48ac1c-1ca0-4dbe-a557-a52ca7a949b8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3d48ac1c-1ca0-4dbe-a557-a52ca7a949b8.png)
 
 这张Slides讲解了一个图像模糊（Image blur）的例子，主要内容如下：
 
@@ -294,18 +294,18 @@ CUDA已经有了这些内置变量在里面了，第二章反复提到过。
 - 在kernel的第5行和第25行处理了边界条件。具体看下面截图里面的两个红色框部分，代码在 https://github.com/cuda-mode/lectures/blob/main/lecture_002/mean_filter/mean_filter_kernel.cu 。
 - 实际效果：Slides展示了原始图像（左）和模糊处理后的图像（右）。原图是一束秋季花卉，模糊后的图像显示了典型的模糊效果。
 
-![](https://files.mdnice.com/user/59/6e6709f2-d0d4-4701-8893-47fec07f9c1a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6e6709f2-d0d4-4701-8893-47fec07f9c1a.png)
 
-![](https://files.mdnice.com/user/59/ab90cb25-c15f-4830-a5da-e40c6c7365e2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ab90cb25-c15f-4830-a5da-e40c6c7365e2.png)
 
 这张Slides展示了边界处理的示意图，对于图中不同位置的像素，实际有效的需要平滑的像素点数也有可能不一样。
 
 
-![](https://files.mdnice.com/user/59/e9c41091-9adb-4afb-94b4-cd2b27a9ee6d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e9c41091-9adb-4afb-94b4-cd2b27a9ee6d.png)
 
 这里展示了一个仍然一个线程计算一个输出元素的矩阵乘cuda kernel实现例子。
 
-![](https://files.mdnice.com/user/59/0c973acf-29de-4e9d-b8f2-31466b389792.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0c973acf-29de-4e9d-b8f2-31466b389792.png)
 
 这张图展示了启动kernel的Tiling策略，相比于naive的启动方式可以有更好的数据cache。关于矩阵乘法，这节课就不再深入了。
 

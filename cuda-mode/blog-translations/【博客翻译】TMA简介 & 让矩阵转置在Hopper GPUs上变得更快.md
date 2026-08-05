@@ -302,7 +302,7 @@ smem_buffer[row * BLOCK_SIZE + col] = (row * BLOCK_SIZE + col) % 32;
 
 我们可以可视化这个： 
 
-![](https://files.mdnice.com/user/59/6b841656-2b64-46cb-8e17-ff04ba3ae233.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6b841656-2b64-46cb-8e17-ff04ba3ae233.jpg)
 
 我们看到每一列都被分配给一个Bank。这意味着如果同一warp中的线程访问相同的列，我们将有一个Bank冲突。我们现在可以修改布局，使我们使用128B交织模式
 
@@ -332,7 +332,7 @@ assert(res == CUDA_SUCCESS);
 
 对SMEM中的值进行相同的赋值将产生以下图片： 
 
-![](https://files.mdnice.com/user/59/fd7f44ae-c37a-4bc0-82ed-0d81b06344f0.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fd7f44ae-c37a-4bc0-82ed-0d81b06344f0.jpg)
 
 我们可以看到我们现在有显著更少的潜在Bank冲突。交织模式是周期性的，在矩阵中每`8 * 32 * sizeof(int) = 128`个元素重复一次。
 
@@ -340,7 +340,7 @@ assert(res == CUDA_SUCCESS);
 
 TMA在从全局内存传输数据到共享内存时会自动为我们进行数据交织。那么我们如何恢复这些被交织的索引呢？虽然NVIDIA的官方文档(https://docs.nvidia.com/cuda/cuda-c-programming-guide/#tma-swizzle)中并没有详细说明TMA交织的具体实现，但在Igor Terentyev的GTC Talk(https://www.nvidia.com/en-us/on-demand/session/gtc24-s62192/)中提供了相关的计算公式。具体公式如下：
 
-![](https://files.mdnice.com/user/59/84e4d706-5651-4461-ba88-129d4eb65d63.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/84e4d706-5651-4461-ba88-129d4eb65d63.png)
 
 
 > 图片解析开始
@@ -402,7 +402,7 @@ smem_buffer[row * BLOCK_SIZE + col_swizzle] = (row * BLOCK_SIZE + col) % 32;
 
 使用交织布局，我们可以得到以下结果：
 
-![](https://files.mdnice.com/user/59/c58ba2e8-75ee-4c3e-b572-f25ae9765950.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c58ba2e8-75ee-4c3e-b572-f25ae9765950.jpg)
 
 ## 应用：矩阵转置
 
@@ -410,7 +410,7 @@ smem_buffer[row * BLOCK_SIZE + col_swizzle] = (row * BLOCK_SIZE + col) % 32;
 
 以下图片来自NVIDIA博客(https://developer.nvidia.com/blog/efficient-matrix-transpose-cuda-cc/)，非常清楚地说明了如何在共享内存中执行转置：
 
-![](https://files.mdnice.com/user/59/ddea2f2f-df91-4088-8de0-6e9620658ec0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ddea2f2f-df91-4088-8de0-6e9620658ec0.png)
 
 我们取一个矩阵块，转置该块，并将其放置在矩阵的另一端。下面我们概述了如何使用TMA和布局实现这种朴素算法，而不使用交织。完整代码可以在我的github仓库中找到，链接在博客末尾。我们需要两个布局，它们是转置的：
 

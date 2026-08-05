@@ -6,7 +6,7 @@
 
 - 论文链接：https://arxiv.org/pdf/2208.11174
 
-![](https://files.mdnice.com/user/59/d49bdbb7-5c2b-45ff-a2a8-623471d1abf6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d49bdbb7-5c2b-45ff-a2a8-623471d1abf6.png)
 
 论文题目为"通过微基准测试(Microbenchmarking)和指令级分析(Instruction-level Analysis)揭秘英伟达Ampere架构"。下面列出了4位作者的相关信息，他们分别来自新墨西哥州立大学(New Mexico State University)和洛斯阿拉莫斯国家实验室(Los Alamos National Laboratory)。
 
@@ -51,13 +51,13 @@ Paper提供了对Nvidia Ampere GPU架构的微基准分析[11]。Paper中提供�
 
 我们每个块只使用一个线程来测量指令延迟。我们有两个步骤。首先，我们运行一段代码，计算所研究的指定数据类型指令的时钟周期。例如，图1中的代码计算了操作数为32位寄存器的add指令的延迟。通常，测量延迟可以通过在指令执行前后读取时钟来完成，如图1的第13行和第17行所示。然后，我们将两次时钟读数相减（第18行）来计算差值或所需的延迟。我们执行三个独立的add指令（第14-16行）。我们还使用了相关指令，发现相比独立指令，延迟增加了。最后，我们将延迟值返回到主CUDA函数，并除以3来计算每条指令的周期数。我们使用3条指令来克服首次启动开销。我们发现只执行一条指令会导致意外的高周期数。表1显示了add.u32指令的示例。第一条指令大约需要5个周期。然而，当我们使用超过3条指令时，每条指令的平均周期数（CPI）为2。
 
-![](https://files.mdnice.com/user/59/6893ef28-c84f-4a82-b0cf-250bbd0e15db.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6893ef28-c84f-4a82-b0cf-250bbd0e15db.png)
 
-![](https://files.mdnice.com/user/59/a8a29c74-70f6-42eb-8b9f-789ad4b1a9c8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a8a29c74-70f6-42eb-8b9f-789ad4b1a9c8.png)
 
 第二，我们使用PPT-GPU [18]的动态Tracing Tool检查sass指令，以确保从PTX到SASS的映射是正确的，且编译器在运行时没有添加额外的开销或指令。图4(a)中显示的PTX代码在将时钟存储到32位寄存器时，为add指令提供了不准确的延迟。动态SASS指令跟踪显示在两次时钟读取之间有一个Barrier，如SASS部分的第二条指令所示。这个Barrier导致结果发生显著变化（在这种情况下增加了约33个周期）。克服这个Barrier的一种方法是使用64位寄存器来存储时钟，这样可以消除Barrier并提供准确的测量，如图4(b)所示。第一种和第二种情况的CPI分别为13和2个周期。最后，我们使用两个连续的时钟读取指令计算时钟开销，发现它等于2个周期。
 
-![](https://files.mdnice.com/user/59/34eb0871-b063-42d3-ab89-dec1968c570b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/34eb0871-b063-42d3-ab89-dec1968c570b.png)
 
 > 这里的测试代码实现对应：https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/cuda-mode/cudabmk/clock.cu ，这个地方的代码比较简单这里就不分析了。
 
@@ -65,13 +65,13 @@ Paper提供了对Nvidia Ampere GPU架构的微基准分析[11]。Paper中提供�
 
 为了计算全局内存、L2缓存和L1缓存的延迟，我们使用指针追逐技术，其中每个数组元素依赖于前一个元素。这种技术强制读取操作串行化，以正确计算延迟。否则，许多读取操作可能会同时发出，这会使延迟测量不准确。图2显示了用于内存延迟计算的PTX微基准测试。第1行将数组地址移动到%r19寄存器。然后，我们用%r40寄存器中的零值开始一个计数器。这个计数器用于遍历元素数组。第3行和第9-11行表示循环指令。第4到7行用于存储数组元素，其中每个元素依赖于前一个元素。存储结果后，我们使用第14到24行的指令来读取时钟，同时读取数组中的每个元素。从第16到19行，我们有4条加载指令来加载4个值，这些指令重复执行以读取所有数组元素。
 
-![](https://files.mdnice.com/user/59/a33d76b3-9000-4f99-823b-cbbe0572ee65.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a33d76b3-9000-4f99-823b-cbbe0572ee65.png)
 
 ld指令可以与许多操作符一起使用，如`cv`、`ca`和`cg`，每个操作符都有其用途。`cg`用于缓存所有可用级别（全局-L1-L2），而`cg`仅缓存L2。另一方面，我们使用`cv`因为它绕过缓存，这是我们计算全局内存延迟时所需要的。我们使用4条指令是因为我们发现在许多情况下，当我们检查一些Cuda应用程序的动态跟踪时，编译器会将循环展开4次。全局内存代码和L2缓存代码之间的区别在于ld指令使用的操作符以及数组中元素的数量。对于L2缓存，我们使用`cg`操作符，数组元素的总大小必须小于L2大小，而对于全局内存代码，它必须大于L2缓存以避免L2缓存驻留。同样，我们对L1缓存延迟重复相同的方法，使用`ca`操作符。
 
 对于共享内存，我们在读取时钟之间发射load和save指令，如图3的第3-12行所示。然而，我们需要添加另一条依赖于ld或st指令的指令，以防止编译器在完成之前执行时钟读取指令，如第4-13行所示。
 
-![](https://files.mdnice.com/user/59/de13807a-f347-4f68-82e4-7606f24e6066.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/de13807a-f347-4f68-82e4-7606f24e6066.png)
 
 #### C. Tensor Core指令延迟和吞吐量
 
@@ -79,11 +79,11 @@ Tensor Core（TC）单元是加速机器学习应用的一个非常重要的单�
 
 Ampere架构引入的一些新数据类型仍处于实验阶段，如PTX和CUDA文档[28]所述。此外，由于每种数据类型都有其特定的形状、步幅和布局，我们使用不同的函数来计算每种类型的延迟。图5展示了用于计算U8数据类型TC指令延迟的代码。第5至7行创建了fragment，其中寄存器被准备用于存储矩阵元素。我们创建4个fragment，但不全部写入以使形状更小。然后，我们从内存加载数据（第10-12行），其它fragment也是如此。如前所述，我们在TC WMMA执行前后读取时钟（第15至22行），并在打印前进行减法，如第28-29行所示。从第16到21行，我们多次运行4个TC指令（每个TC一个）。我们使用4条指令是因为我们发现用一个TC的一条指令计算延迟会导致不准确的测量。
 
-![](https://files.mdnice.com/user/59/2ecf2f02-d62f-42c8-944d-a7d8155438c9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2ecf2f02-d62f-42c8-944d-a7d8155438c9.png)
 
 例如，图6显示了在一个TC上运行一条指令的动态SASS指令。NOP指令指的是PTX中的线程束同步，我们发现这里的延迟与白皮书中提到的不同。当我们多次运行一条指令时也会出现这种情况。最后，我们计算每条指令的延迟并通过第28-29行打印出来。类似的方法用于计算TC的WMMA吞吐量。
 
-![](https://files.mdnice.com/user/59/66188e77-e6c7-40f7-ba4d-cc0cb4c04724.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/66188e77-e6c7-40f7-ba4d-cc0cb4c04724.png)
 
 ### 结果
 
@@ -93,16 +93,16 @@ Ampere架构引入的一些新数据类型仍处于实验阶段，如PTX和CUDA�
 
 我们发现依赖关系直接影响指令时钟周期延迟。因此，我们使用依赖指令序列（如图1所示）重新运行微基准测试，并将依赖序列替换为另一个独立指令序列。表II显示了一些指令的依赖和独立序列的CPI（每指令周期数）。例如，单精度和双精度浮点指令分别显示4和2个周期。我们还发现，在没有依赖关系的情况下，图1中提到的3个add.u32指令被映射到同一个sass指令（IADD），如图4(a)所示。然而，当我们使用三个依赖指令时，PTX指令可能会被转换为不同的指令。例如，add.u32 PTX指令可能会被映射到IADD3或IMAD.IADD，具体取决于依赖关系。
 
-![](https://files.mdnice.com/user/59/ce91787f-6b56-4e08-b7df-ae192c8758ae.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ce91787f-6b56-4e08-b7df-ae192c8758ae.png)
 
-![](https://files.mdnice.com/user/59/3b349eb9-e443-4357-88be-3bdf1ff90fdb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3b349eb9-e443-4357-88be-3bdf1ff90fdb.png)
 
-![](https://files.mdnice.com/user/59/f30088b2-1e4e-4710-9de2-94c9e0e3ec5d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f30088b2-1e4e-4710-9de2-94c9e0e3ec5d.png)
 
 
 表V描述了各种PTX-SASS指令及其测量的时钟周期延迟。我们为表中的每个字段都有一个单独的微基准测试。
 
-![](https://files.mdnice.com/user/59/dbc2df24-eab3-4b31-af3d-464524d79fbb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dbc2df24-eab3-4b31-af3d-464524d79fbb.png)
 
 > 指令的测试可以在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/cuda-mode/cudabmk/instructions.h & https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/cuda-mode/cudabmk/pipeline.cu 这里看到。
 
@@ -128,7 +128,7 @@ Ampere架构引入的一些新数据类型仍处于实验阶段，如PTX和CUDA�
 
 不同类型内存的观察到的延迟如表IV所示。全局内存延迟约为290个周期。这个值不包括缓存未命中的延迟，因为我们在所有级别上阻止了缓存。与Turing架构的434个周期相比，这个数字有所改善[13]。L2访问延迟为200个周期，而Turing架构为188个周期。此外，对于Ampere和Turing架构，L1缓存命中的延迟分别为33和32个周期。对于共享内存，我们发现存储访问延迟比加载指令的值更小，加载和存储分别为23和19个周期。
 
-![](https://files.mdnice.com/user/59/1e7e71a1-76cb-4629-958f-ee8019aecd9e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1e7e71a1-76cb-4629-958f-ee8019aecd9e.png)
 
 #### Tensor Core 延迟和吞吐
 

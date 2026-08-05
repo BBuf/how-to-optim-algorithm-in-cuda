@@ -7,11 +7,11 @@
 
 利用第一性原理方法，我们展示了一个逐步过程，旨在将当前的Triton GPTQ kernel加速3倍（core GPTQ）和6倍（AutoGPTQ）。例如：在典型的Llama风格推理输入上，将处理时间从275微秒降低到47微秒。我们的目标是提供一个有用的模板，用于加速任何给定的Triton kernel。我们提供了Triton和GPTQ量化及反量化过程的背景信息，展示了合并内存访问对改善共享和全局内存吞吐量的影响，强调了为减少线程束停滞以提高总体吞吐量所做的更改，并概述了将Triton kernel集成到PyTorch代码中的方法。长期来看，我们希望我们的Triton kernel能够超越现有的CUDA原生GPTQ kernel。
 
-![图1：在H100上对优化后的AutoGPTQ kernel与当前AutoGPTQ kernel进行性能基准测试](https://files.mdnice.com/user/59/e2dbf951-576e-4735-8303-88cf160f5bb6.png)
+![图1：在H100上对优化后的AutoGPTQ kernel与当前AutoGPTQ kernel进行性能基准测试](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e2dbf951-576e-4735-8303-88cf160f5bb6.png)
 
-![图2：在A100上对新优化的AutoGPTQ内核与当前AutoGPTQ内核进行性能基准测试](https://files.mdnice.com/user/59/7ae34ac2-c23b-4624-ad9c-00dbb0bcd98a.png)
+![图2：在A100上对新优化的AutoGPTQ内核与当前AutoGPTQ内核进行性能基准测试](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7ae34ac2-c23b-4624-ad9c-00dbb0bcd98a.png)
 
-![图3：即使有这些改进，我们优化的Triton内核与A100上的CUDA原生AutoGPTQ内核之间仍然存在差距。更多进展即将到来...](https://files.mdnice.com/user/59/13b0734f-465f-4fbc-8ad6-2870913848b2.png)
+![图3：即使有这些改进，我们优化的Triton内核与A100上的CUDA原生AutoGPTQ内核之间仍然存在差距。更多进展即将到来...](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/13b0734f-465f-4fbc-8ad6-2870913848b2.png)
 
 ## 1.0 对Triton的介绍
 
@@ -29,13 +29,13 @@ GPTQ（https://arxiv.org/abs/2210.17323） 是一种量化算法，能够通过�
 
 INT量化的基本过程如下所示，涉及确定比例和零点，然后使用比例和零点计算量化的4位权重：
 
-![](https://files.mdnice.com/user/59/4f70c4bd-83f8-4f05-9fce-fd585faecffa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4f70c4bd-83f8-4f05-9fce-fd585faecffa.png)
 
 我们因此存储4位权重以及每组权重的比例和零点元信息。
 
 要"反量化"这些权重，我们执行以下操作：
 
-![](https://files.mdnice.com/user/59/884a7179-2770-4c74-86bc-6dda5250eba6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/884a7179-2770-4c74-86bc-6dda5250eba6.png)
 
 然后进行**矩阵乘法**，将反量化的权重与该线性层的dense输入特征矩阵相乘。
 
@@ -45,9 +45,9 @@ INT量化的基本过程如下所示，涉及确定比例和零点，然后使�
 
 我们通过运行未优化的Triton kernel，使用Nvidia Nsight Compute工具开始优化过程，并记录一些重要的指标和警告：
 
-![图表显示GPU吞吐量，包括计算(SM)和内存使用百分比](https://files.mdnice.com/user/59/e9c0b976-22b5-4d78-ab13-d31ebdbf4f2c.png)
+![图表显示GPU吞吐量，包括计算(SM)和内存使用百分比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e9c0b976-22b5-4d78-ab13-d31ebdbf4f2c.png)
 
-![nsight compute 的未合并的共享访问警告](https://files.mdnice.com/user/59/c3320ce7-3c8d-4df1-abba-76eee193981c.png)
+![nsight compute 的未合并的共享访问警告](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c3320ce7-3c8d-4df1-abba-76eee193981c.png)
 
 
 我们首先注意到计算和内存吞吐量都很低，分别为7.40%和21.19%。考虑到典型的推理矩阵问题规模，我们处于内存受限的状态，我们将尝试通过应用针对A100 GPU内存子系统的代码更改来优化kernel。
@@ -70,7 +70,7 @@ INT量化的基本过程如下所示，涉及确定比例和零点，然后使�
 
 让我们从朴素地构建我们kernel开始，首先是从全局内存进行"线性"加载，然后将其与更优化的"swizzled"加载进行比较。线性与交错决定了我们在GPU上工作网格的执行顺序。让我们看看Nvidia Nsight Compute工具在朴素情况下提供的关于我们kernel共享内存访问模式的提示：
 
-![未合并的共享访问，估计本地加速：30.83%；该kernel有未合并的共享访问，导致总共524288个过多wavefronts（占总wavefronts 1572864的33%）。查看L1 Wavefronts Shared Excessive表以了解主要源码位置。《CUDA最佳实践指南》中有一个优化共享内存访问的示例。](https://files.mdnice.com/user/59/f5f33a50-d0b6-4b4c-865c-3b7d88cf8735.png)
+![未合并的共享访问，估计本地加速：30.83%；该kernel有未合并的共享访问，导致总共524288个过多wavefronts（占总wavefronts 1572864的33%）。查看L1 Wavefronts Shared Excessive表以了解主要源码位置。《CUDA最佳实践指南》中有一个优化共享内存访问的示例。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f5f33a50-d0b6-4b4c-865c-3b7d88cf8735.png)
 
 
 为了解决这个问题，我们可以使用一种称为"tile-swizzling"的方法。这种方法的想法是以更友好于L2缓存的顺序启动我们的线程块。
@@ -81,15 +81,15 @@ INT量化的基本过程如下所示，涉及确定比例和零点，然后使�
 
 这个2D网格位置在Triton中由pid_m和pid_n确定。我们希望在分配我们的工作网格时利用GPU的L2缓存中的数据和缓存局部性。为此，我们可以在Triton中进行以下更改：
 
-![](https://files.mdnice.com/user/59/c0386854-e858-4957-8228-0127d129a34e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c0386854-e858-4957-8228-0127d129a34e.png)
 
 红色高亮的代码是朴素的"线性"tile排序，绿色高亮的代码是"交错"tile排序。这种启动方式改善了局部性。这里有一个可视化图帮助来更好地理解这一点。
 
-![](https://files.mdnice.com/user/59/e2779623-74b2-4ca3-90c2-ba8d8f1c07ae.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e2779623-74b2-4ca3-90c2-ba8d8f1c07ae.png)
 
 在合并这个更改后，ncu profiler不再抱怨未合并的内存访问。让我们看看我们的内存吞吐量如何变化：
 
-![图表显示了内存吞吐量的变化，交错方法达到58.22%，增加了112.07%](https://files.mdnice.com/user/59/ce021adc-0c6e-4feb-a3d6-5cc1bc43267d.png)
+![图表显示了内存吞吐量的变化，交错方法达到58.22%，增加了112.07%](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ce021adc-0c6e-4feb-a3d6-5cc1bc43267d.png)
 
 这个更改在一个简单的加载存储 kernel 上进行了测试。查看分析器中的GPU速度统计部分，我们还看到简单加载kernel的内存吞吐量增加了112.07%，这正是我们通过此优化想要达到的目标。
 
@@ -104,19 +104,19 @@ INT量化的基本过程如下所示，涉及确定比例和零点，然后使�
 
 现在，回到我们未优化 kernel 的原始问题。我们想要优化 kernel 的全局内存访问模式。从Nvidia Nsight计算工具的详细页面中，我们看到以下注释，其中分析器抱怨未合并的全局内存访问。让我们深入研究一下未优化内存读取的SASS（汇编）代码加载：
 
-![图片显示了未优化的内存读取代码和相应的SASS指令](https://files.mdnice.com/user/59/030760d4-8d0c-4cc1-8e57-25a55fdcbc69.png)
+![图片显示了未优化的内存读取代码和相应的SASS指令](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/030760d4-8d0c-4cc1-8e57-25a55fdcbc69.png)
 
 这个加载操作导致了32个16位宽的全局加载操作，这并不理想。
 
 我们希望以向量化的方式进行全局内存加载，以使其产生最少的加载指令。为了解决这个问题，我们可以给Triton编译器一些帮助。
 
-![代码块显示了优化后的内存加载代码](https://files.mdnice.com/user/59/7b6e65fc-a53a-4191-b9f4-d3699010d73f.png)
+![代码块显示了优化后的内存加载代码](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7b6e65fc-a53a-4191-b9f4-d3699010d73f.png)
 
 上面绿色高亮的行作为编译器提示。它告诉编译器这些元素在内存中是连续的，并且这个加载操作可以被合并。
 
 让我们看看添加这些行后在汇编中的效果。
 
-![图片显示了优化后的汇编代码](https://files.mdnice.com/user/59/3a526b2c-fcdc-4c95-9887-48e0525d68f1.png)
+![图片显示了优化后的汇编代码](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3a526b2c-fcdc-4c95-9887-48e0525d68f1.png)
 
 加载现在通过4个每个128位宽的全局加载操作来执行，而不是32个16位的全局加载操作。这意味着减少了28个内存获取指令，更重要的是实现了合并的内存访问。这可以从单个线程不再访问连续内存地址的事实中看出，而没有编译器提示时则是这种行为。
 
@@ -124,7 +124,7 @@ INT量化的基本过程如下所示，涉及确定比例和零点，然后使�
 
 ## 5.0 线程束停滞
 
-![](https://files.mdnice.com/user/59/f6ec8f60-9d62-4935-94ce-e87a659ef473.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f6ec8f60-9d62-4935-94ce-e87a659ef473.png)
 
 现在将所有更改重新应用到我们的完整反量化kernel中，我们看到以下性能限制因素：线程束停滞。
 
@@ -142,12 +142,12 @@ INT量化的基本过程如下所示，涉及确定比例和零点，然后使�
 
 这些更改对计算和内存吞吐量都产生了直接影响。
 
-![图表显示了性能改进的百分比](https://files.mdnice.com/user/59/53d60c7a-e5c1-45bf-8025-24dfb6806eef.png)
+![图表显示了性能改进的百分比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/53d60c7a-e5c1-45bf-8025-24dfb6806eef.png)
 
 
 我们还看到在我们shift和scale量化权重的步骤中，长记分板等待时间显著下降，这是我们在源代码中识别的原始瓶颈。虽然在这一行仍然存在停滞，但只有68%是由长记分板停滞引起的，相比之前的92%。理想情况下，我们不希望观察到任何停滞，所以这里还有工作要做，但长记分板停滞数量的减少告诉我们，此时数据在指令执行时以更高的频率准备好被使用（在L1TEX内存中）。
 
-![最后一张图片显示了更多代码和性能统计](https://files.mdnice.com/user/59/532863a5-59a9-4b0f-9e3d-f6c854b2c6cd.png)
+![最后一张图片显示了更多代码和性能统计](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/532863a5-59a9-4b0f-9e3d-f6c854b2c6cd.png)
 
 相应的影响是我们kernel执行时间的1.4倍加速。
 
@@ -177,13 +177,13 @@ Triton通过允许在比CUDA编程更高的抽象层次上进行低级GPU优化�
 
 Triton kernel将至少包含两个部分 - 实际的Triton kernel代码（将由Triton编译器编译）：
 
-![](https://files.mdnice.com/user/59/6dcc0c08-a4fb-4c0c-81de-f26b5b7fc986.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6dcc0c08-a4fb-4c0c-81de-f26b5b7fc986.png)
 
 除了实际的kernel代码之外，还有一个Python wrapper，它可能会也可能不会继承PyTorch autograd类 - 这取决于它是否要支持反向传播（即用于训练目的还是仅用于推理目的）。
 
 你只需将Python类导入到你的PyTorch代码中，在你想使用它的地方就像使用任何其他Python/PyTorch函数一样。
 
-![](https://files.mdnice.com/user/59/ad814fe0-5d97-44b1-9647-371a58dcff64.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ad814fe0-5d97-44b1-9647-371a58dcff64.png)
 
 在这种情况下，只需导入然后使用'fast_qlinear'就会调用底层的Triton kernel，将我们上面展示的加速应用到你的PyTorch模型中。
 

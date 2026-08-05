@@ -4,14 +4,14 @@
 
 # 0x1. 上层的接口
 
-![](https://files.mdnice.com/user/59/048c23b5-fdef-4a7c-9e59-ee7bd679e567.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/048c23b5-fdef-4a7c-9e59-ee7bd679e567.png)
 
-![](https://files.mdnice.com/user/59/74f8f5c3-5dfb-4b6d-94dc-b99b47b391a0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/74f8f5c3-5dfb-4b6d-94dc-b99b47b391a0.png)
 
 首先我们可以看到server_args.py中的改动，Expert Parallel接管了Tensor Parallel的位置，以Deepseek V3为例子，有256个Expert，现在打开Expert Parallel并且把`expert_parallel_size`设置为8的话，那么每张卡上分得完整的32个Expert。另外可以看到在初始化参数的时候，如果开启了Expert Paralle会先把`expert_parallel_size`设置为TP的大小。
 
 
-![](https://files.mdnice.com/user/59/e3077157-44df-450d-9aa4-b1117dcd5da6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e3077157-44df-450d-9aa4-b1117dcd5da6.png)
 
 接着看一下Mixtral模型实现上的修改，值得注意的是在调用EPMoE接口的时候没有`reduce_results=True,`这个参数了，但是在EPMoE计算完成之后对结果调用了`tensor_model_parallel_all_reduce` 。去掉`reduce_results=True,`参数比较好理解，在EP中我们没有对Expert的参数做切分，只需要把token分到对应的expert上，做的矩阵乘都是完整的，所以获得的结果也是完整的。为什么要对结果使用`tensor_model_parallel_all_reduce`？继续读一下代码寻找答案，我在之后的0x4节给出了原因。
 

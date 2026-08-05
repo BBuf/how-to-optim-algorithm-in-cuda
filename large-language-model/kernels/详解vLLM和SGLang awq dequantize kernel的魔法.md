@@ -167,36 +167,36 @@ asm [volatile] ("汇编指令" : 输出操作数 : 输入操作数 : 可能被�
 ## FasterTransformer 高效的Int8/Int4 快速Convert为FP16
 
 
-![](https://files.mdnice.com/user/59/ab073488-6c85-4a85-b03a-de5db52f825d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ab073488-6c85-4a85-b03a-de5db52f825d.png)
 
 这张slides展示了FP16的IEEE 754标准，一个16bit的数里面包含1个符号位，5个基码位，10个尾数。
 
-![](https://files.mdnice.com/user/59/882dac4f-c95b-437b-b097-c1fdef7efd02.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/882dac4f-c95b-437b-b097-c1fdef7efd02.png)
 
 假设我们有一个uint8的数143，如果我们把它放到实际的FP16的尾数位里面去，那么我们是否有办法通过合理的设置基码位把143表达出来呢？那我们按照已知的FP16的数值计算方法，拿基码位的二进制前面加上一个1.x，然后去乘以2的（基码位的值-15）次方，我们已知143对应的实际上对应的是下面的值。假设我们想用这个FP16的值来表达Int8，我们可以发现如果x=25的话，我们把上面的FP16的值减去1024就是下面的143了。因此，我们只需要把int8的值放到尾数位，然后把它的基码位设置成25，然后再把FP16的数值结果减去1024就可以得到UINT8转换到FP16的值。
 
-![](https://files.mdnice.com/user/59/25bd4276-52ae-41bd-910f-4902fa906628.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/25bd4276-52ae-41bd-910f-4902fa906628.png)
 
 总结一下就是直接把UINT8的数值放在FP16的尾数位，
 
 
-![](https://files.mdnice.com/user/59/07eb89f6-80a8-411f-8855-ba4c5a53924e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/07eb89f6-80a8-411f-8855-ba4c5a53924e.png)
 
 然后再把FP16的基码位设置成25，这个25对应的十六进制表示就是0x64，
 
-![](https://files.mdnice.com/user/59/b825516e-3f43-4622-8ee1-018e8e9460e6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b825516e-3f43-4622-8ee1-018e8e9460e6.png)
 
 随后再把最终的这个值减去FP16形式的1024，就完成了从UINT8到FP16的转换。
 
-![](https://files.mdnice.com/user/59/595714af-95e1-4244-8bb3-28801e3bed0e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/595714af-95e1-4244-8bb3-28801e3bed0e.png)
 
 如果是Int8的话，应该怎么做呢？可以注意到UINT8和INT8只是数值范围的区别，那么我们需要把INT8的数据加上128，就能把它转换成UINT8的形式。这样转换出来的FP16的结果，只需要在减去1024的时候多减去128，就恢复到了对应的原始INT8的数值。
 
-![](https://files.mdnice.com/user/59/226f9ba6-4d93-48cd-9bf4-c15fe79f8047.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/226f9ba6-4d93-48cd-9bf4-c15fe79f8047.png)
 
 那么我们怎么实际的去用指令完成上面描述的这个操作呢？可以注意到有一种叫作prmt的PTX指令，这个指令做的事情就是从2个32bit的寄存器A,B中抽出4个8bit组成最终的d。而这4个8bit怎么抽取，就是每个8bit对应到c寄存器里面的低4bit，就是说c寄存器的低4bit每个bit都是一个索引，假设A，B两个32位寄存器里面存放的是上方左图这样的数据形式，即ABCDEFGH。那么在c寄存器中，索引的4个数字分别是1，3，5，7，那么最终这个D寄存器里面的4个8bit数据就是GECA。通过这种指令就可以实现从32bit寄存器里面抽取对应想要的一个字节出来的效果。
 
-![](https://files.mdnice.com/user/59/0601aec4-ce89-4bc8-9632-fae3e603b4a6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0601aec4-ce89-4bc8-9632-fae3e603b4a6.png)
 
 对应到TRT-LLM的转换代码就是这样的形式，我们可以注意到它用permute指令从输入的UINT8数据和magic number组成的这两个32位寄存器中去抽取4个8bit，抽取的索引放在这个mask_for_elt_01/23中。这里的两个掩码值 `mask_for_elt_01 = 0x5250` 和 `mask_for_elt_23 = 0x5351` 是用于CUDA的PRMT（Permute）指令的控制参数，它们决定了如何重排字节。
 
@@ -218,9 +218,9 @@ prmt.b32 d, a, b, c;
 
 将掩码转换为二进制 (我用计算器算的)：
 
-![](https://files.mdnice.com/user/59/9fed3d4e-3b32-4fd2-8924-bb53f80a085e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9fed3d4e-3b32-4fd2-8924-bb53f80a085e.png)
 
-![](https://files.mdnice.com/user/59/1edabe1f-3cbf-496f-9416-e0bdacc323c2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1edabe1f-3cbf-496f-9416-e0bdacc323c2.png)
 
 ### 掩码的工作原理
 
@@ -277,19 +277,19 @@ asm volatile("sub.f16x2 %0, %1, %2;\n" : "=r"(h[1]) : "r"(h[1]), "r"(I8s_TO_F16s
 
 我们可能会注意到，这里为什么要分别抽取01和23，而不是抽取0123呢？这主要是为了和之后的INT4的实现保持一致，在INT4的实现里不得不按照02，13的方式去抽取。
 
-![](https://files.mdnice.com/user/59/2e8ce807-9e25-42fb-b5ec-5459cf41105e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2e8ce807-9e25-42fb-b5ec-5459cf41105e.png)
 
 前面介绍了INT8到FP16的转换，如果是INT4应该怎么转呢？permute指令只能以8Bit为单位进行数据的操作，但是在4Bit的转换中，我们知道4Bit就是一个8Bit里面高4Bit存一个数据，低4Bit存另外一个数据。那么，我们就需要一种形式能把实际的8Bit里面的高低4个Bit给抽取出来。
 
-![](https://files.mdnice.com/user/59/c59483ff-39fc-40c1-8aff-bea51931895b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c59483ff-39fc-40c1-8aff-bea51931895b.png)
 
 抽取出来之后我们应该怎么做呢？先看低4个bit，假设我们以位运算的方式把8Bit中的低4个Bit给抽取出来放到一个FP16的尾数里面去，然后前面也在基码位上赋值和Int8相同的25，也就是16进制的64。我们再把这个得到的值减去（1024+8），就得到了最终这个低4Bit对应的FP16的值。
 
-![](https://files.mdnice.com/user/59/8003a256-ab85-45d1-bc45-9437629adb18.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8003a256-ab85-45d1-bc45-9437629adb18.png)
 
 那如果是高4个Bit应该怎么做呢？我们注意到低4个Bit是直接放到最低的4个Bit位，高4个Bit同样用位运算抽取出来之后这高4个Bit是存在于一个Int8的高4Bit里面，那放到尾数位的话那么它就需要去进行一个额外的除以16的操作，相当于右移了4位，最后就移到了黄色的位置。移动到这里之后，就可以进行和刚才一样的那些操作了，减去对应的值就得到了实际对应的FP16的值。这里减去的值是1024/16=64，因为移位的原因还要减掉8。
 
-![](https://files.mdnice.com/user/59/c8bfa3c9-000e-4ad4-a59a-1d3adf68755c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c8bfa3c9-000e-4ad4-a59a-1d3adf68755c.png)
 
 注意到在提取Int4数据的时候是用这张Slides的形式去提取的，而刚好有一种叫lop3的PTX指令可以完成这件事情。lop3这个PTX指令的大概描述就是他会在输入a, b, c三个寄存器作为输入，然后有一个Lut值，这个Lut值是怎么确定的呢？假设a，b，c分别对应了0xF0，0xCC，0xAA，我们把这三个值进行我们想要的操作得到的值作为Lut值，把这个Lut值放进去之后指令就会自动对a, b, c进行相应的操作，把结果写到d。所以，我们就可以利用这个指令把Lut值给它，它就可以帮我们高效完成Int4数据的提取了。最后，我们就把Int4转成FP16的过程转换成了一条lop3指令加上一条fma（或者sub）指令。
 
@@ -303,11 +303,11 @@ asm volatile("lop3.b32 %0, %1, %2, %3, %4;\n"
 
 这里LOP3指令实现了类似 `(i4s & BOTTOM_MASK) | I4s_TO_F16s_MAGIC_NUM` 的操作，但只用一条指令就完成了，大大提高了效率。
 
-![](https://files.mdnice.com/user/59/649239c9-0dcd-4d2c-a27e-043a0c2a136c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/649239c9-0dcd-4d2c-a27e-043a0c2a136c.png)
 
 这张Slides展示了Int4到FP16的具体代码实现，我们注意到它提取的时候会用到0x0f或者0xf0来提取Int4，这样的话假如我们有连续的Int4的话，那被提取出来的分别是第0个Int4和第4个Int4以及第1个Int4和第5个Int4。所以它的奇偶被分别提取了出来。实际上我们是用8个连续的Int4来进行类型转换，因此它每次先把第0个Int4和第4个Int4提取出来，放到两个连续的FP16里面去，然后再去把第1和第5个Int4提取出来，放到两个连续的FP16里面去，以此类推。我们之前在做Int8的时候也分奇偶提取就和这里不得不做的这个数据提取动作保持一致。
 
-![](https://files.mdnice.com/user/59/982501f1-3377-4d7f-be30-9043a3cda1de.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/982501f1-3377-4d7f-be30-9043a3cda1de.png)
 
 为了实际计算的时候去逆转这个元素排布的变化，我们需要在计算之前把Layout进行相应的调整。就是说以Int4位例的话就分别把它的奇偶位元素分别提取出来，这样在我们真正做计算把它从INT4转成FP16的时候，就会通过上一页Slides介绍的操作完成对这个Layout的逆运算，还原回了真实的连续排布的layout。
 

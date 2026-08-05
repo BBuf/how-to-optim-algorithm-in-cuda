@@ -45,7 +45,7 @@ Kimi K3（https://platform.kimi.ai/docs/guide/kimi-k3-quickstart）是首个参�
 其次，唯一会离开请求的移动操作并不传输任何字节。快照会落入一对采用乒乓方式工作的 slot 中，我们称之为额外缓冲区（extra buffer）：一个 slot 保存最新快照，另一个 slot 接收下一份快照；第二个 slot 只在需要它的边界处分配，并在之后立即释放。在每个 prefill chunk 之后、从 prefill 交接到 decode 时，以及请求结束时，缓存系统会把最新快照的 slot 索引移交给基数树。随后由一个新 slot 补入缓冲区，因此快照的写入目标和移交操作的读取来源永远不会是同一个物理 slot。
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/463af039-42fd-49d0-ba2b-d11eaf3fa57f.png" width="98%" alt="KDA 状态的三种移动：写时复制、快照和移交，以及每种移动相对于串行 forward stream 的位置。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/463af039-42fd-49d0-ba2b-d11eaf3fa57f.png" width="98%" alt="KDA 状态的三种移动：写时复制、快照和移交，以及每种移动相对于串行 forward stream 的位置。">
 </p>
 
 <p align="center">
@@ -59,7 +59,7 @@ Kimi K3（https://platform.kimi.ai/docs/guide/kimi-k3-quickstart）是首个参�
 循环状态无法在任意 token 位置进行切分，因为你不能让它反向运行到更早的位置，所以系统只在 chunk 边界创建 checkpoint，而且即使在这些边界上也只稀疏地创建。每条路径的数量上限和 LRU 机制让每条路径上只有少量 checkpoint 保持有效；一个 checkpoint 也可以独立于它所标注的 KV 被驱逐，使对应节点成为墓碑节点。分支点会得到特殊处理，这个思路来自 Marconi（https://arxiv.org/abs/2411.19379）。分叉点是所有未来分支都必然共享的前缀，因此，当一个请求在某条边的中间位置发生分叉时，它会从上方最近的 checkpoint 开始重放，并在与 chunk 对齐的分叉点放置一个新 checkpoint。下一个分支可以直接从这里恢复，无需重放。
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/70431d55-d1cc-4902-9b4e-8f8745f987d9.png" width="98%" alt="叠加在基数树上的稀疏 KDA 状态 checkpoint，以及新请求偏离已缓存前缀时的分支点。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/70431d55-d1cc-4902-9b4e-8f8745f987d9.png" width="98%" alt="叠加在基数树上的稀疏 KDA 状态 checkpoint，以及新请求偏离已缓存前缀时的分支点。">
 </p>
 
 <p align="center">
@@ -77,7 +77,7 @@ Kimi K3（https://platform.kimi.ai/docs/guide/kimi-k3-quickstart）是首个参�
 统一内存将两个池替换为一个：KDA 状态从一端向内填充，MLA KV 块从另一端向内填充，两者之间尚未使用的字节构成一整块空闲区域。
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/da33f826-4a2e-458c-9c71-029006659099.png" width="98%" alt="统一内存：两个静态池与一个同时保存两种状态的内存池，以及释放过程。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/da33f826-4a2e-458c-9c71-029006659099.png" width="98%" alt="统一内存：两个静态池与一个同时保存两种状态的内存池，以及释放过程。">
 </p>
 
 <p align="center">
@@ -101,7 +101,7 @@ DSpark 每一步都会提出一个由草稿 token 组成的 block，目标模型
 解决这个问题所需的组件其实已经存在于系统中。草稿模型带有一个经过训练的置信度头，它会逐位置预测每个 token 通过验证的概率。另一方面，通过对服务器进行一次性 profile，可以记录在不同负载水平下，多验证一个 token 实际需要付出多少成本。逐 step planner 将二者结合起来：对于每个请求，只有当验证 token 的期望价值足以覆盖边际成本时，才保留这些 token；窗口的其余部分则会在目标模型 forward 启动之前被裁掉。保留下来的部分仍以与之前完全相同的方式验证，因此输出依然无损。这里的取舍是：用略短的接受序列换取成本更低的 step。
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/647a05a4-97e8-4057-9867-34c8587d3960.png" width="98%" alt="decode 吞吐随 batch size 的变化：在聊天面板和 few-shot 数学面板上，对比验证全部位置和按置信度调度裁剪。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/647a05a4-97e8-4057-9867-34c8587d3960.png" width="98%" alt="decode 吞吐随 batch size 的变化：在聊天面板和 few-shot 数学面板上，对比验证全部位置和按置信度调度裁剪。">
 </p>
 
 <p align="center">
@@ -123,7 +123,7 @@ batch size 小于 8 时，需要缓解的压力很小，因此裁剪的收益持
 这项优化在 batch size 较小和较大时都能带来收益。batch size 较小时，以原始输入代替快照可以减少 verify kernel 的内存访问，而且重放本身只使用一个融合 kernel，从而降低 kernel launch 开销，因此每个 step 的耗时已经有所改善。batch size 较大时，效果则显著得多。快照暂存区完全是推测产生的额外开销，并且会随 batch size 和 γ 一起增长，因此恰恰在 γ 大到值得使用时，对状态池造成的挤压最严重。归还这部分内存后，并发上限可以提升数倍。一旦 baseline 开始让请求排队，ReplaySSM 仍能继续接纳请求，差距也正是在此时拉开。
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/a55404b6-4115-457d-a847-5c5996d024b5.png" width="98%" alt="KDA ReplaySSM：verify kernel 读取已提交的 checkpoint，并把每个 draft step 的原始输入保存在一个较小的逐 slot 缓冲区中；接受结果确定后，一个 fold kernel 只重放被接受的前缀，并原地推进状态。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a55404b6-4115-457d-a847-5c5996d024b5.png" width="98%" alt="KDA ReplaySSM：verify kernel 读取已提交的 checkpoint，并把每个 draft step 的原始输入保存在一个较小的逐 slot 缓冲区中；接受结果确定后，一个 fold kernel 只重放被接受的前缀，并原地推进状态。">
 </p>
 
 <p align="center">
@@ -134,7 +134,7 @@ batch size 小于 8 时，需要缓解的压力很小，因此裁剪的收益持
 
 在一个 2.8T 混合模型上，对单个序列执行一次 decode step 并不受计算量限制——问题在于 kernel launch 的数量和延迟：每个 token 都要经过 93 个注意力层（69 层 KDA + 24 层 MLA）以及 92 层 latent-MoE；刚完成接入时，一个 step 会触发数百个小 kernel。整个优化过程由 profile 驱动：融合一个部分，按照固定流程做 A/B 测试，用 GSM8K 做门禁，然后重复这一过程。
 
-![batch size 1 时按优化类别划分的瀑布图](https://files.mdnice.com/user/59/4eb4b81d-a2f1-46d0-b4fe-6e3cde44fc94.png)
+![batch size 1 时按优化类别划分的瀑布图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4eb4b81d-a2f1-46d0-b4fe-6e3cde44fc94.png)
 
 **消除 launch 和复制（P1–P4，+19.9 tok/s）。** 重点是让 step 更小，而不是让 kernel 更快：将 MoE 前端合并为一次 GEMM，并合并 KDA 中成对的窄投影（P1）；由 profile 引导的全面排查消除了逐层 upcast、复制和多余的 launch（P2、P3）；路由则变成对 `[M, 896]` logits 执行的一趟式、常驻寄存器的基数选择（P4）。
 
@@ -146,7 +146,7 @@ batch size 小于 8 时，需要缓解的压力很小，因此裁剪的收益持
 
 四个柱形背后的按时间排序的优化阶梯如下：
 
-![batch size 1 时的 decode 吞吐优化阶梯](https://files.mdnice.com/user/59/acdc19a8-c5f9-4117-a918-bc85b2961262.png)
+![batch size 1 时的 decode 吞吐优化阶梯](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/acdc19a8-c5f9-4117-a918-bc85b2961262.png)
 
 **可以推广的经验。** All-reduce 是一个同步点，因此在那里节省一微秒，就会一比一地转化为 step 时间的缩短；而位于另一个 stream 的重叠空隙中的 kernel，转化比例大约只有十分之一。在编写 kernel 之前，先检查它是否位于 trace 的关键路径上，是这次优化过程中杠杆率最高的单个习惯。
 
@@ -163,7 +163,7 @@ batch size 小于 8 时，需要缓解的压力很小，因此裁剪的收益持
 在 TP prefill 中，每层末尾都有一次 AllReduce，这是一个无法与计算重叠的屏障。流水线并行则按层切分模型：K3 的 93 层被划分为 8 个 stage，prompt 也被切分为多个 chunk，并以流式方式通过这些 stage：
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/ba087a67-471c-431d-bcf1-8323aab43b7e.png" width="98%" alt="分块流水线并行 prefill：长 prompt 被切成多个 chunk，并以流式方式通过流水线 stage；P2P 交接箭头在下一个 chunk 的计算期间执行。下方为 TP 对照，其中每层末尾都有 AllReduce 屏障。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ba087a67-471c-431d-bcf1-8323aab43b7e.png" width="98%" alt="分块流水线并行 prefill：长 prompt 被切成多个 chunk，并以流式方式通过流水线 stage；P2P 交接箭头在下一个 chunk 的计算期间执行。下方为 TP 对照，其中每层末尾都有 AllReduce 屏障。">
 </p>
 
 <p align="center">
@@ -175,7 +175,7 @@ batch size 小于 8 时，需要缓解的压力很小，因此裁剪的收益持
 在 2×4 GB300 上测量 8K prefill，唯一变量为拓扑：
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/710c965f-e263-46fe-be41-4c63c437f2db.png" width="98%" alt="左：单 GPU prefill 吞吐随并发度的变化，对比 TEP8 和 PP8xTP1。右：每 1k token 的成本分解，包括 TP8、PP4xTP2、TEP8 和 PP8xTP1 的计算与暴露通信成本。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/710c965f-e263-46fe-be41-4c63c437f2db.png" width="98%" alt="左：单 GPU prefill 吞吐随并发度的变化，对比 TEP8 和 PP8xTP1。右：每 1k token 的成本分解，包括 TP8、PP4xTP2、TEP8 和 PP8xTP1 的计算与暴露通信成本。">
 </p>
 
 <p align="center">
@@ -189,7 +189,7 @@ PP8 只在单个请求时落后，而 prefill worker 如果空闲到这种程度
 decode 阶段的瓶颈是被复制的 KV cache：在 TP 下，多接纳一个请求或多增加一千个 token 的上下文，都会在每个 rank 上消耗同样多的字节。Decode Context Parallelism（DCP，decode 上下文并行）不按 head 切分 MLA 的 KV，而是按 token 位置进行切分。当 `p mod N = r` 时，rank r 负责位置 p，因此每个 rank 都以交错方式保存每个请求上下文的 1/N，而且这种切分对于注意力 kernel 之上的部分是不可见的：
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/2a3ba15b-960f-4bba-9791-793a2427c9c3.png" width="98%" alt="TP 在每个 rank 上复制相同的 token 位置；DCP 以轮询方式对它们进行条带化切分，因此同样数量的 GPU 可以保存 N 倍的逻辑上下文。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2a3ba15b-960f-4bba-9791-793a2427c9c3.png" width="98%" alt="TP 在每个 rank 上复制相同的 token 位置；DCP 以轮询方式对它们进行条带化切分，因此同样数量的 GPU 可以保存 N 倍的逻辑上下文。">
 </p>
 
 <p align="center">
@@ -199,7 +199,7 @@ decode 阶段的瓶颈是被复制的 KV cache：在 TP 下，多接纳一个请
 按位置切分会破坏 softmax，因为每个 rank 只能看到 1/N 的 key，而局部 softmax 无法直接相加。解决方案与 FlashAttention 自身采用的方法相同：每个 rank 返回自己的局部注意力输出，以及每个 head 对应的 log-sum-exp；每层通过一次 all-to-all 交换它们，使每个 rank 最终获得覆盖完整上下文的 1/N head。随后，在本地按 log-sum-exp 进行精确合并，而结果已经是 TP 下 output projection 所期望的 head 布局。每层只需一次 collective，这就是全部通信成本：
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/f239adce-3d71-4381-aeef-c6e247a8581b.png" width="98%" alt="两个 DCP rank 上逐层执行 MLA decode 的数据流：复制 query projection，对各自负责的位置执行局部注意力并产生局部输出和 LSE，进行一次打包后的 all-to-all，再在本地合并 LSE。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f239adce-3d71-4381-aeef-c6e247a8581b.png" width="98%" alt="两个 DCP rank 上逐层执行 MLA decode 的数据流：复制 query projection，对各自负责的位置执行局部注意力并产生局部输出和 LSE，进行一次打包后的 all-to-all，再在本地合并 LSE。">
 </p>
 
 <p align="center">
@@ -211,7 +211,7 @@ decode 阶段的瓶颈是被复制的 KV cache：在 TP 下，多接纳一个请
 这项能力在 agent 流量上的收益最为明显，因为长达数十万 token 的会话会不断堆积在 cache 中。我们在 2×4 GB300 上重放真实的编码 agent 会话，两组方案都使用 host memory KV 层，唯一的区别是是否使用 DCP：
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/25da0e73-b7af-4ddf-8c65-58e8f656dfd1.png" width="98%" alt="聚合 decode 吞吐随并发 agent 会话数量的变化：对比 TP8 + hicache 和 DCP8 + hicache。当活跃集合超出设备 KV 容量时，TP8 在 16 个会话处崩塌；DCP8 则继续提升，在 48 个会话时达到 541 tok/s。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/25da0e73-b7af-4ddf-8c65-58e8f656dfd1.png" width="98%" alt="聚合 decode 吞吐随并发 agent 会话数量的变化：对比 TP8 + hicache 和 DCP8 + hicache。当活跃集合超出设备 KV 容量时，TP8 在 16 个会话处崩塌；DCP8 则继续提升，在 48 个会话时达到 541 tok/s。">
 </p>
 
 <p align="center">
@@ -225,7 +225,7 @@ DCP 可以与服务栈的其他部分组合。DSpark verify step 本身就是一
 各个组件组合后的效果最终要通过测量来确定。把 PD 分离加入测试，并改变 prefill 拓扑、decode 拓扑以及 prefill:decode 比例，可以得到如下服务前沿：
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/3d68adb4-9456-4a2a-9da9-8edd6659c327.png" width="98%" alt="PD 分离下的 K3 服务前沿：单 GPU 总吞吐与单用户 decode 速度之间的关系。PP8 和 TP8 prefill 分别为 TP8、DCP8、EP 以及多实例 TP8 decode 方案供给数据；前沿从吞吐端的 PP8 到 TP8，一直延伸至交互端由 TP8 为三个 TP8 实例供给数据的方案。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3d68adb4-9456-4a2a-9da9-8edd6659c327.png" width="98%" alt="PD 分离下的 K3 服务前沿：单 GPU 总吞吐与单用户 decode 速度之间的关系。PP8 和 TP8 prefill 分别为 TP8、DCP8、EP 以及多实例 TP8 decode 方案供给数据；前沿从吞吐端的 PP8 到 TP8，一直延伸至交互端由 TP8 为三个 TP8 实例供给数据的方案。">
 </p>
 
 <p align="center">
@@ -277,7 +277,7 @@ engine 会直接按 checkpoint 发布时的形式提供服务，从不改写 che
 本文报告的实验是在 16 个节点 × 每节点 4 个 GB300 上运行 DAPO math：TP8 / PP8 / EP8 的 BF16 trainer 与原生 MXFP4 rollout engine 共置；response 长度为 4096 token；每次 rollout 采样 64 个样本；每次 rollout 执行一个 optimizer step；使用 rank-32 / α-64 LoRA，学习率为 1e-5；采用不含 KL 项的 GRPO；运行到 12 小时 wall-clock time 上限。在 60 个 step 中，AIME-2024 greedy eval 从 43.3% 提升到 76.7%，即答对题数从 30 道中的 13 道增加到 23 道，并且在截止时仍在上升；与此同时，train/rollout KL 在整个运行期间都稳定保持在约 2e-3 的 MXFP4 下限。
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/71b6e5d8-1faf-4530-8b09-4ab45148cbf4.png" width="100%" alt="并列的三条 RL 训练曲线：rollout 原始 reward 呈上升趋势，AIME-2024 eval 准确率不断提高，train/rollout KL 则稳定保持在 MXFP4 量化下限。">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/71b6e5d8-1faf-4530-8b09-4ab45148cbf4.png" width="100%" alt="并列的三条 RL 训练曲线：rollout 原始 reward 呈上升趋势，AIME-2024 eval 准确率不断提高，train/rollout KL 则稳定保持在 MXFP4 量化下限。">
 </p>
 
 <p align="center">

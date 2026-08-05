@@ -20,7 +20,7 @@ notebook 任务只是一个示例。只要 agent 的输出可以通过可信反�
 验证负责闭环。修复后的 notebook 必须满足真正重要的检查项，任何遗留问题都会成为下一轮 repair 的输入。
 
 <p align="center">
-  <img src="https://files.mdnice.com/user/59/b8c15595-a0be-4824-b32d-0edf0d166107.png" alt="迭代式 repair loop workflow" />
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b8c15595-a0be-4824-b32d-0edf0d166107.png" alt="迭代式 repair loop workflow" />
 </p>
 
 ## 设置

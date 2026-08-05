@@ -2,25 +2,25 @@
 
 # 0x0. 前言
 
-![](https://files.mdnice.com/user/59/8c5ccd59-675b-48d0-b655-e84ba48fa0f5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8c5ccd59-675b-48d0-b655-e84ba48fa0f5.png)
 
 这次分享的主角是蚂蚁 Theta 团队在 H20-96G 上做 DeepSeek 系列模型推理优化的实践。它不是单点 kernel 优化，而是从部署形态、Prefill、Decode、MoE 通信、Expert Load Balance、投机解码、观测诊断，到 DeepSeek-V3.2 DSA 支持的一整套方案。
 
 把 slides 和公开 PR 放在一起看，这套优化的主线不在某一个 trick，而在它把 H20 的硬件特性吃得很细：H20 算力弱于 H800，但显存容量、带宽、NVLink 都不差，所以 Prefill 和 Decode 不能按一个固定套路去做，必须拆开部署，再按瓶颈分别优化。
 
-![](https://files.mdnice.com/user/59/4faacfe1-ed81-4160-9606-9a26affa1ad2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4faacfe1-ed81-4160-9606-9a26affa1ad2.png)
 
 从公开 PR 看，这次 slides 里的不少优化都能在 SGLang 和蚂蚁 fork 的 PR 里找到对应实现。一个很重要的入口是 AntGroup 这个部署汇总 PR：[Deploying DeepSeek-R1 on H20-96G with SGLang: Best Practices](https://github.com/antgroup/sglang/pull/4)。它不是为了 merge，而是把复现实验的镜像、启动参数、profile 链接和相关 PR 都放在一起，后面很多线索都是从这里展开的。
 
 这套优化也对应 LMSYS 上的那篇博客：[Together with SGLang: Best Practices for Serving DeepSeek-R1 on H20-96G](https://www.lmsys.org/blog/2025-09-26-sglang-ant-group/)。博客里把 H20 的挑战、Prefill/Decode 分离、FP8 FlashMLA、SwapAB、SBO、Expert Affinity EPLB、DeepXTrace 这些点按生产部署视角串了一遍；这篇文章则主要沿着 slides 和 PR 代码，把实现细节展开。
 
-![](https://files.mdnice.com/user/59/9892fed6-51c3-460f-9a6a-604cab09432c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9892fed6-51c3-460f-9a6a-604cab09432c.png)
 
 Slides 的目录分成四块：Challenges、Methodology、Evaluation & Conclusion、DeepSeek V3.2。下面我也按这个顺序来讲，但重点会放在 Methodology 里面的代码实现。
 
 # 0x1. H20-96G 的约束
 
-![](https://files.mdnice.com/user/59/41b557a8-d38a-4916-924d-cba07392b333.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/41b557a8-d38a-4916-924d-cba07392b333.png)
 
 这页先把 H20 和 H800 的硬件差异摆出来。H20-96G 相比 H800-80G 的核心特点是：
 
@@ -39,9 +39,9 @@ Slides 的目录分成四块：Challenges、Methodology、Evaluation & Conclusio
 
 # 0x2. Prefill/Decode 分离
 
-![](https://files.mdnice.com/user/59/561462d0-d4da-441e-a1e1-0fed15175e16.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/561462d0-d4da-441e-a1e1-0fed15175e16.png)
 
-![](https://files.mdnice.com/user/59/c8a934ae-e642-4f74-bde4-8f752003f477.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c8a934ae-e642-4f74-bde4-8f752003f477.png)
 
 这里的部署策略是典型的 PD disaggregation：
 
@@ -96,7 +96,7 @@ python3 -m sglang.launch_server \
 
 # 0x3. Prefill 优化
 
-![](https://files.mdnice.com/user/59/4aace48a-3ee3-4ecd-bacb-9e5fa94cbb8a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4aace48a-3ee3-4ecd-bacb-9e5fa94cbb8a.png)
 
 Prefill 这页列了三个主要瓶颈：
 
@@ -326,7 +326,7 @@ invoke_fused_moe_kernel(
 
 这就是这页 slides 里「MoE down_proj with TMA, tuned configs」背后的关键。不是单纯加一个 TMA flag，而是先用真实 expert 分布做 tuning，再让 up kernel 的输出布局服务于 down kernel 的 TMA 访问。
 
-![](https://files.mdnice.com/user/59/b96daf49-3cfd-485e-bdcc-e76d49887db9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b96daf49-3cfd-485e-bdcc-e76d49887db9.png)
 
 Prefill 评测这页的提升也和前面的三类优化能对上：输入越长，attention 和 MoE 在 TTFT 里的占比越大，所以收益越明显。Slides 给出的整体提升是：
 
@@ -336,7 +336,7 @@ Prefill 评测这页的提升也和前面的三类优化能对上：输入越长
 
 # 0x4. Decode 优化一：SwapAB GEMM
 
-![](https://files.mdnice.com/user/59/e5249b49-ddcd-4aa1-9e57-32eed33095d7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e5249b49-ddcd-4aa1-9e57-32eed33095d7.png)
 
 Decode 的 MoE 和 Prefill 不一样。Prefill 往往 token 多，GEMM 的 M 比较大；Decode 是小 batch，每次进 MoE 的 token 数很少。Hopper WGMMA 的 `block_m` 常见粒度是 64，当实际 M 小于 64 时，会做很多无效计算。
 
@@ -418,7 +418,7 @@ PR 给的 H20 数据里，cache length=8196、head_num=64 时，batch size 32/48
 
 # 0x5. Decode 优化二：为什么不用 TBO，为什么换成 SBO
 
-![](https://files.mdnice.com/user/59/193194d9-dc59-4e08-af1d-f8e1f4f31c50.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/193194d9-dc59-4e08-af1d-f8e1f4f31c50.png)
 
 这页左半边解释为什么 H20 Decode 上 Two-Batch Overlap(TBO) 不理想。Hopper 架构下 WGMMA 的 `block_m` 通常固定在 64，小 batch Decode 的 MLP GEMM 会有冗余计算；TBO 需要 batch size 大于 64 时才更容易拿到吞吐收益，但 H20 算力弱，大 batch 又会把 TPOT SLA 顶上去。所以 slides 里才写 TBO unsuitable for online serving。
 
@@ -554,7 +554,7 @@ PR [#9660](https://github.com/sgl-project/sglang/pull/9660) 的端到端评测�
 
 # 0x7. Expert Affinity EPLB
 
-![](https://files.mdnice.com/user/59/526bf9fd-6452-4c1b-9651-4ac9b134b074.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/526bf9fd-6452-4c1b-9651-4ac9b134b074.png)
 
 DeepSeek 这类 MoE 模型的 Expert Load Balance 不只是「每张卡算力均衡」的问题。标准 EPLB 会尽量把 expert 的计算负载打平，但如果经常一起被激活的 experts 被放到了不同节点，就会制造更多跨节点通信。H20 的 RDMA 带宽又是短板，这个问题就会被放大。
 
@@ -630,7 +630,7 @@ if best_gain > 0 and best_swap:
 
 # 0x8. Hierarchical Dispatch
 
-![](https://files.mdnice.com/user/59/79e5ef2a-cc88-42f3-a7ca-4a2a7db7e232.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/79e5ef2a-cc88-42f3-a7ca-4a2a7db7e232.png)
 
 这页 slides 讲的是 Hierarchical Low-latency Dispatch：原始低延迟 dispatch 是所有 rank 直接走 inter-node RDMA，高流量 RDMA 会把延迟打高；hierarchical dispatch 的想法是先跨节点 RDMA 做一级转发，再在节点内通过 NVLink 做二级转发。结合前面 H20 的硬件特性，这个方向非常自然，RDMA 是短板，NVLink 是长板。
 
@@ -659,7 +659,7 @@ return DeepEPBuffer.get_deepep_buffer(
 
 # 0x9. Simple Eagle
 
-![](https://files.mdnice.com/user/59/8937b768-28fe-4d03-83ed-7fd4e0d50049.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8937b768-28fe-4d03-83ed-7fd4e0d50049.png)
 
 Slides 里的 Simple Eagle 说了两个问题：
 
@@ -719,7 +719,7 @@ class EAGLEDraftExtendCudaGraphRunner:
 
 # 0xA. DeepXTrace
 
-![](https://files.mdnice.com/user/59/0cd87d1c-4d2c-49ca-85c9-2fdd536570f7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0cd87d1c-4d2c-49ca-85c9-2fdd536570f7.png)
 
 这页讲的是观测。MoE 分布式推理最烦的一类问题是「慢 rank」：你看到的是某个 dispatch/combine 变慢，但真正原因可能是发送端算慢、接收端热点、网络链路问题，或者三者混在一起。
 
@@ -766,9 +766,9 @@ _buffer.low_latency_combine(
 
 # 0xB. Decode 评测和结论
 
-![](https://files.mdnice.com/user/59/1a4e5fd9-ec23-4e3b-8a24-bdfd03d6b19e.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1a4e5fd9-ec23-4e3b-8a24-bdfd03d6b19e.jpg)
 
-![](https://files.mdnice.com/user/59/cf635c63-5ec6-40b4-9470-a2c35f739c49.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cf635c63-5ec6-40b4-9470-a2c35f739c49.png)
 
 Decode 评测的配置是 input=4096、output=1536，Decode 侧 DP16 + EP16，开启 DP attention、MTP=(1,1,2) 之类的 decode 优化。Slides 给出的提升随着 batch 从小到大逐步变化：
 
@@ -779,7 +779,7 @@ Decode 评测的配置是 input=4096、output=1536，Decode 侧 DP16 + EP16，�
 
 这和前面的优化方向也吻合。小 batch 时 SwapAB/SBO 对无效计算和通信等待的改善最明显；batch 变大后，GEMM 自身利用率上来，收益比例自然会下降。
 
-![](https://files.mdnice.com/user/59/c17a7087-da50-4cb1-926d-e4f945debb66.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c17a7087-da50-4cb1-926d-e4f945debb66.png)
 
 结论页里说 Ant 在 H20 上对 DeepSeek-R1/V3/V3.1 累积了比较完整的一套优化，Prefill 和 Decode 都做到了比较强的水平。公开入口主要有两个：
 
@@ -788,9 +788,9 @@ Decode 评测的配置是 input=4096、output=1536，Decode 侧 DP16 + EP16，�
 
 # 0xC. DeepSeek-V3.2：DSA 带来的新问题
 
-![](https://files.mdnice.com/user/59/bbe8ad1b-c4df-4614-9bcb-879ab8fdd1d5.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bbe8ad1b-c4df-4614-9bcb-879ab8fdd1d5.jpg)
 
-![](https://files.mdnice.com/user/59/cb45c553-be9d-4f2f-a36d-d5f249fcfc20.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cb45c553-be9d-4f2f-a36d-d5f249fcfc20.png)
 
 DeepSeek-V3.2 的新变量是 DSA，也就是 Dynamic Sparse Attention。Slides 里把它拆成两个部分：
 
@@ -906,7 +906,7 @@ def set_nsa_prefill_impl(self, forward_batch: Optional[ForwardBatch] = None):
 
 PR [#12094](https://github.com/sgl-project/sglang/pull/12094) 和 [#17205](https://github.com/sgl-project/sglang/pull/17205) 都是 Indexer 侧的优化。前者把 `wk` 和 `weight_proj` 在 FP4 模型里融合成一次 GEMM，后者把 `weights_proj` 的计算从 FP32 调整为 BF16 权重计算再把输出转回 FP32，解决 indexer 里相对耗时的 `weight_proj-mma`。
 
-![](https://files.mdnice.com/user/59/09a65a4e-025b-4da7-81e0-e013efa19b2f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/09a65a4e-025b-4da7-81e0-e013efa19b2f.png)
 
 Slides 给出的 DeepSeek-V3.2 Prefill 最终方案是：
 
@@ -915,7 +915,7 @@ Slides 给出的 DeepSeek-V3.2 Prefill 最终方案是：
 
 这里最关键的是把 attention 的 context parallel 和 MoE 的 TP 拆开看。Attention 需要按序列切，MoE 需要按 hidden/expert 组织；两者强行用同一个 parallel 维度，往往会让一边很别扭。
 
-![](https://files.mdnice.com/user/59/f8f9b20c-ac81-4e01-989c-9d06b307c571.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f8f9b20c-ac81-4e01-989c-9d06b307c571.png)
 
 Future Work 里提了几件事：
 

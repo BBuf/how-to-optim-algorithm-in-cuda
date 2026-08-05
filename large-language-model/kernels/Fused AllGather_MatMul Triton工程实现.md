@@ -2,7 +2,7 @@
 
 yifuwang 在 https://github.com/yifuwang/symm-mem-recipes 中实现了一个 `triton_all_gather_matmul.py` ，也就是可以把AllGather和MatMul kernel fuse起来变成一个kernel，在有NVLink 连接的 H100 对LLama3 各个规模的矩阵乘进行测试都取得了可观的加速。下面是对这个fuse算子的描述
 
-![](https://files.mdnice.com/user/59/a15fa24d-211f-4bfc-b195-17d95a79e219.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a15fa24d-211f-4bfc-b195-17d95a79e219.png)
 
 
 为什么这里要读一下这个工作？
@@ -105,7 +105,7 @@ https://github.com/facebookexperimental/triton/tree/ws
 
 不久前相关工作也进了 Triton 的主分支。
 
-![](https://files.mdnice.com/user/59/444e2a46-770b-4be8-a947-4865d67b729c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/444e2a46-770b-4be8-a947-4865d67b729c.png)
 
 
 ## Persistent Matmul

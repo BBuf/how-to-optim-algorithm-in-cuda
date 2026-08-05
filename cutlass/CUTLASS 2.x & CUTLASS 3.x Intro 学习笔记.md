@@ -1,8 +1,8 @@
 > CUTLASS GEMM模板中有大量可以调节和设置的模板参数，这些参数的设置会高度影响Kernel性能。这个分享将为大家介绍从2.x到3.x，CUTLASS kernel实现的变化，这些参数的原理和选择的最佳实践。Slides来自BiliBili NVIDIA英伟达频道 上传的《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》视频讲解。这里参考视频并更详细记录了每一页Slides的要点，通过这个视频初步宏观了解了CUTLAS。我将其作为CUDA-MODE的CUTLASS课程的前置学习内容。
 
-![](https://files.mdnice.com/user/59/0f5fa6fa-d376-4e53-b314-581a99e43758.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0f5fa6fa-d376-4e53-b314-581a99e43758.png)
 
-![](https://files.mdnice.com/user/59/c1ad8dcf-f981-4f4c-97af-69e9dd098b08.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c1ad8dcf-f981-4f4c-97af-69e9dd098b08.png)
 
 这张Slides展示了CUTLASS会话的整体结构,主要包含三个部分:
 
@@ -32,9 +32,9 @@ Slides中还显示了各部分之间的联系:
 
 这里还提到CUTLASS主要是为了做自定义算子的，但它的学习曲线非常陡峭，从了解和学习CUTLASS到使用CUTLASS做出work的东西之间有很大的gap。第二部分会介绍对于Hopper架构之前的GPU，CUTLASS是怎么做MixedGEMM的。第三部分介绍Hopper以及Hopper之后的GPU，CUTLASS 3x的MixedGEMM。
 
-![](https://files.mdnice.com/user/59/98e04e45-ebdc-4522-bafb-ff159ca506fb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/98e04e45-ebdc-4522-bafb-ff159ca506fb.png)
 
-![](https://files.mdnice.com/user/59/f06cd6f3-f26f-4808-88f4-a2e46d9089f6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f06cd6f3-f26f-4808-88f4-a2e46d9089f6.png)
 
 这张Slides概述了CUTLASS（CUDA Templates for Linear Algebra Subroutines）从2.x版本到3.x版本的主要特性和进展：
 
@@ -56,7 +56,7 @@ CUTLASS 3.x 特性:
 
 > CUTLASS 3.x 的代码风格有很大变化。
 
-![](https://files.mdnice.com/user/59/7e5b5500-207d-4995-88b2-2e30c7789c85.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7e5b5500-207d-4995-88b2-2e30c7789c85.png)
 
 这张Slides讲解了关于CUTLASS库版本选择的指导原则。
 
@@ -66,7 +66,7 @@ CUTLASS 3.x 特性:
     - 大多数Pre-Hopper（即Hopper之前的架构）的特性在Hopper芯片上仍然受支持，这意味着CUTLASS 2.x可以在Hopper芯片上运行。
     - 如果你想使用CUTLASS 2.x的所有扩展和kernel变体。
 
-![](https://files.mdnice.com/user/59/9fe8de40-e579-42a2-84cb-441fab14a66a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9fe8de40-e579-42a2-84cb-441fab14a66a.png)
 
 这张是CUTLASS GEMM的核心概念图。我们以C矩阵为视角，我们把矩阵C切成小块让每个BLOCK去认领一块做计算。接着要指定WARP去做计算，WARP会认领这个小块中的某一块，比如图中Thread Block Tile的绿色块。每个WARP有32个线程，每个线程又应该做哪一部分计算呢？Warp Tile这个图进一步放大细节，其中4个绿色块代表其中一个线程需要负责计算矩阵C的的部分。最后到线程级别，每个线程都有自己的寄存器去负责做自己的工作。再往右就是Epilogue，这个是很多人使用CUTLASS的第一步比如在GEMM后面做一个Activation后处理。最后把数据写回Global Memory完成整个运算过程。分块的关键参数以及Epilogue的操作类型由图上的using语句所指定。
 
@@ -76,7 +76,7 @@ CUTLASS 3.x 特性:
 
 通过上面的参数，我们就可以完整的配置出来一个CUTLASS的Kernel了。
 
-![](https://files.mdnice.com/user/59/b4ac1d5e-a532-4ad4-b39b-3ac4077d9de3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b4ac1d5e-a532-4ad4-b39b-3ac4077d9de3.png)
 
 
 这张Slides展示了如何在CUTLASS 2.x中构建一个GEMM（通用矩阵乘法）操作，标题强调了CUTLASS 2.x的编码风格："All about is Template Configuration"（一切都是关于模板配置）。
@@ -102,11 +102,11 @@ CUTLASS 3.x 特性:
 
 最后通过一个Gemm类型的定义，将所有这些配置项组合在一起成为一个可以被实例化的Type。
 
-![](https://files.mdnice.com/user/59/8a68759b-a6b7-4b96-90a5-955f8e72514a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8a68759b-a6b7-4b96-90a5-955f8e72514a.png)
 
 这张Slides展示了如何通过选择合适的GEMM变体和配置参数来满足不同的需求。同时，它也指出了CUTLASS提供了丰富的GEMM实现，可以处理各种特殊情况和优化场景。通过这种方式，开发者可以根据具体需求选择最合适的GEMM实现，并进行细粒度的性能优化。
 
-![](https://files.mdnice.com/user/59/e184b42f-ba45-4746-b8c0-53c38fb93fae.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e184b42f-ba45-4746-b8c0-53c38fb93fae.png)
 
 这张Slides讲解了在CUTLASS 2.x中构建GEMM（通用矩阵乘法）时的关键优化选项。主要内容包括：
 - 核心思想：调优（Tunning）是关键。
@@ -127,7 +127,7 @@ CUTLASS 3.x 特性:
     - 例如：在Ampere架构上有两种FP16 MMA指令变体：`mma.fp16.16.8.8`和`mma.fp16.16.16.16`。
     - 选择最大的一个，这样可以让编译器更容易重叠MMA指令和非MMA指令。
 
-![](https://files.mdnice.com/user/59/f2abfd5f-a62d-40e0-ad7e-6b4afa97f201.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f2abfd5f-a62d-40e0-ad7e-6b4afa97f201.png)
 
 这张Slides继续讲解了在CUTLASS 2.x中构建GEMM时的更多优化选项。主要内容包括：
 - Option 4: Stage number（阶段数）
@@ -149,12 +149,12 @@ CUTLASS 3.x 特性:
 
 
 
-![](https://files.mdnice.com/user/59/bbc79863-54ec-46a1-b890-2e1b0bcf3698.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bbc79863-54ec-46a1-b890-2e1b0bcf3698.png)
 
 这张Slides展示了CUTLASS2.x到CUTLASS3.x的架构变化。在CUTLASS 2.0（类Ampere架构风格）中提到，除了Tiling和复用内存层级，我们还希望使用软流水的方法把global memory读写latency和计算隐藏起来。也就是做当前计算的时候去读后续计算轮次需要的数据，这个过程可以流水起来。在进入稳定流水之前，也就是图中的Main loop body会有一个建立流水的过程。做了计算预取，当前计算的数据肯定在上几轮计算就取出来了，数据预取叫Prologue，GEMM的整个计算过程分为Prologue, Main Loop和Epilogue部分，Tensor Core的计算发生在Main Loop部分。
 
 
-![](https://files.mdnice.com/user/59/8e61fdfe-64ae-409d-a106-0a6977d0523c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8e61fdfe-64ae-409d-a106-0a6977d0523c.png)
 
 
 这张Slides对比了CUTLASS 2.x和CUTLASS 3.x在配置GEMM操作时的主要区别。
@@ -178,14 +178,14 @@ CUTLASS 3.x 特性:
         - TileShape（BlockShape）和ClusterShape
     - 不需要明确指定WarpShape和InstShape，因为WGMMA（Warp级分组矩阵乘累加）指令是由warp group构成的。
 
-![](https://files.mdnice.com/user/59/18b31bcb-194a-4858-bf4a-ab7b062d3a7d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/18b31bcb-194a-4858-bf4a-ab7b062d3a7d.png)
 
 在CUTLASS 3.x中，重点关注配置主循环（Mainloop）和后处理（Epilogue）部分。具体来说，使用CollectiveEpilogue类型定义后处理操作。包含架构、tile形状、累加器类型等参数。使用CollectiveMainloop类型定义主循环。包含架构标签、操作类、矩阵配置、tile形状等参数。定义GemmKernel，组合Mainloop和Epilogue。最后定义Gemm，使用GemmUniversalAdapter。
 
 CUTLASS 3.x相比2.x版本提供了更高层次的抽象，简化了用户需要手动指定的参数。
 
 
-![](https://files.mdnice.com/user/59/125d4077-348c-4cb6-8982-41ddafa9bdeb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/125d4077-348c-4cb6-8982-41ddafa9bdeb.png)
 
 这张Slides展示了从CUTLASS 2.x到CUTLASS 3.x的演进原因，主要通过比较不同GPU架构（Ampere和Hopper）上GEMM操作的执行效率来说明。
 
@@ -203,7 +203,7 @@ CUTLASS 3.x相比2.x版本提供了更高层次的抽象，简化了用户需要
     - 充分利用SMEM进行延迟隐藏。
     - 在一个warp组中的epilog可以与其他warp组的数学计算重叠。
 
-![](https://files.mdnice.com/user/59/7661e302-22dc-44d7-bc66-7aa1e4226913.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7661e302-22dc-44d7-bc66-7aa1e4226913.png)
 
 这张Slides提供了CUTLASS库中使用的一些关键术语和缩写的解释：
 
@@ -220,7 +220,7 @@ CUTLASS 3.x相比2.x版本提供了更高层次的抽象，简化了用户需要
 
 > 下面是Construct CUTLASS 3.x GEMM & Guidelines
 
-![](https://files.mdnice.com/user/59/7f951a64-0f17-44f8-9b2b-3b60eebba81f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7f951a64-0f17-44f8-9b2b-3b60eebba81f.png)
 
 这张Slides主要讲解了在CUTLASS 3.x中构建Hopper架构的GEMM操作时，关于CollectiveMainloop中的Stage配置选项。CUTLASS 3.x中Stage可以是固定的常数，如_2, _3, _4等。也可以通过Epilogue Smem使用情况自动计算。警告：小的Stage数量可能会导致全局内存（gmem）延迟暴露。
 
@@ -229,11 +229,11 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
 - 计算每个stage所需的字节数，包括A和B矩阵的数据。
 - 最后根据总容量和每个stage的大小计算可用的stage数量。
 
-![](https://files.mdnice.com/user/59/d03ccb41-ff1a-4ad5-872f-495699116532.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d03ccb41-ff1a-4ad5-872f-495699116532.png)
 
 这张Slides展示了CollectiveMainloop的配置代码，特别强调了KernelScheduleAuto参数。指出Mainloop kernel Scheduler选项定义在cutlass/gemm/dispatch_policy.hpp文件中。Kernel Scheduler类型包含LDGSTS和UTMALDG两种类型的异步指令，分别针对的是Ampere和Hopper架构。在UTMALDG类型指令可用的情况下，选用它会更快。
 
-![](https://files.mdnice.com/user/59/f33c9705-9c0f-41d8-89be-0944cd50c942.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f33c9705-9c0f-41d8-89be-0944cd50c942.png)
 
 这张Slides介绍了在CUTLASS 3.x中构建Hopper架构GEMM操作时，CollectiveMainloop中Kernel Scheduler的配置选项和自动选择机制。要点如下：
 - KernelSchedulerAuto:
@@ -249,7 +249,7 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
     - KernelTmaWarpSpecializedCooperative 要求 TileShape_M 至少为 128。
     ...
 
-![](https://files.mdnice.com/user/59/d1b2889d-b450-41ea-9072-8f9a33466a91.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d1b2889d-b450-41ea-9072-8f9a33466a91.png)
 
 这张Slides主要讲解了在CUTLASS 3.x中构建Hopper架构GEMM操作时，CollectiveEpilogue的配置选项。强调了EpilogueScheduleAuto参数，这是Epilogue的Kernel调度器。指出Epilogue kernel Scheduler选项定义在cutlass/epilogue/dispatch_policy.hpp文件中。另外，还强调Epilogue Scheduler需要与Mainloop Scheduler配对使用。在CUTLASS 3.x中，使用EpilogueScheduleAuto一定能得到一个合法的Kernel。Epilogue Scheduler选项列出了几种可用的Epilogue Scheduler类型：
 
@@ -258,11 +258,11 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
 - TmaWarpSpecialized
 - TmaWarpSpecializedCooperative
 
-![](https://files.mdnice.com/user/59/91c1117a-0d23-46f7-97bd-8cd60d9966b3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/91c1117a-0d23-46f7-97bd-8cd60d9966b3.png)
 
 这张Slidesz指出，EpilogueScheduleAuto的选择会推断出NoSmemWarpSpecialized的Epilogue Scheduler类型，效率会偏低。
 
-![](https://files.mdnice.com/user/59/376b777d-e1c6-4c24-8f87-091cfeb29f8b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/376b777d-e1c6-4c24-8f87-091cfeb29f8b.png)
 
 这张Slides讲解了CUTLASS 3.x中Hopper架构GEMM操作的CollectiveEpilogue配置，特别是关于EpilogueTile的设置。特别指出我们可以始终使用EpilogueTileAuto，这代表整个CTile。它会根据Mainloop Scheduler类型计算合理的epilogue tile。
 
@@ -274,7 +274,7 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
     - 如果ElementD是8字节，返回Shape<64, N_tile>
     - 否则返回Shape<64, N_tile>（但N_tile的计算方式不同）
 
-![](https://files.mdnice.com/user/59/05610102-b09c-4b77-856c-83e1423e68ce.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/05610102-b09c-4b77-856c-83e1423e68ce.png)
 
 这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Kernel Scheduler，特别是KernelMultistage调度器。
 
@@ -293,7 +293,7 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
 
 > 每个WARP做一样的事情，并且图中蓝色块之前的绿色小块表示的数据预取的num_stages数。
 
-![](https://files.mdnice.com/user/59/6648ccb9-a251-4ab5-b5aa-7ab5d6724c57.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6648ccb9-a251-4ab5-b5aa-7ab5d6724c57.png)
 
 这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Kernel TMA (Tensor Memory Accelerator) 调度器。
 - 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss.hpp
@@ -311,7 +311,7 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
     - 主要区别在于使用TMA替代了LDGSTS操作。
     - TMA操作集中在Warp0中执行，而不是每个warp都执行。
 
-![](https://files.mdnice.com/user/59/d43824eb-192d-47c6-84a4-6bb2551a48a4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d43824eb-192d-47c6-84a4-6bb2551a48a4.png)
 
 
 这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Warp Specialized调度器。
@@ -333,14 +333,14 @@ Slides下方的代码片展示了compute_stage_count_or_override函数的实现�
 
 > Warp Specialized调度器的Tensor Core计算和Epilogue还是没有Overlap在一起，无法充分发挥Tensor Core的能力。
 
-![](https://files.mdnice.com/user/59/002eda2a-46da-4264-bb9e-0bb9f223f9f2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/002eda2a-46da-4264-bb9e-0bb9f223f9f2.png)
 
 这张Slides补充了寄存器分析，TMA warps (Warp0和Warp1)：每个线程使用32个寄存器，总共128 x 32 = 4K个寄存器。TC warps (Warp4到Warp7)：每个线程最多可以使用255个寄存器，总共128 x 255 = 32K个寄存器。
 
 Slides还指出"This is not optimal for the SOL impl."（这对于SOL实现来说不是最优的）。Epilogue延迟仍然暴露，即使使用持久化编程且寄存器文件（RF）利用率较低。
 
 
-![](https://files.mdnice.com/user/59/7306b2ee-7d8a-4381-af29-f71e9c90fe00.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7306b2ee-7d8a-4381-af29-f71e9c90fe00.png)
 
 这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Warp Specialized + Cooperative (Persistent) 调度器。
 - 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma_warpspecialized_cooperative.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized.hpp
@@ -352,7 +352,7 @@ Slides还指出"This is not optimal for the SOL impl."（这对于SOL实现来�
     - 持久化风格（Persistent style）。
 - 性能上Epilogue延迟仍然暴露，但有更好的RF利用率。
 
-![](https://files.mdnice.com/user/59/f0a9abff-4ad1-45f0-91ef-8686fb2474bf.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f0a9abff-4ad1-45f0-91ef-8686fb2474bf.png)
 
 这张Slides介绍了CUTLASS库中Hopper架构GEMM操作的Warp Specialized + Pingpong (Persistent) 调度器。
 - 相关代码文件：cutlass/gemm/kernel/sm90_gemm_tma_warpspecialized_pingpong.hpp & cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized.hpp
@@ -364,7 +364,7 @@ Slides还指出"This is not optimal for the SOL impl."（这对于SOL实现来�
     - Warp0和Warp1执行TMA操作（绿色），但以pingpong方式交替进行。
     - Warp4到Warp11执行TC（浅蓝色和深蓝色）和Epilogue（灰色）操作，同样以交替方式进行。
 
-![](https://files.mdnice.com/user/59/ee00936a-5a53-43ad-aa69-f10a39863f03.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ee00936a-5a53-43ad-aa69-f10a39863f03.png)
 
 这张Slides介绍了一下Hopper架构上的Warp Specialized GEMM实现，采用了生产者-消费者模型。内容如下：
 - 源代码位置：cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized_mixed_input.hpp
@@ -392,7 +392,7 @@ Slides还指出"This is not optimal for the SOL impl."（这对于SOL实现来�
     - 多个stage (0 到 N-1) 用于流水线操作
     - 循环执行直到完成所有tile的计算
 
-![](https://files.mdnice.com/user/59/0d8b9a3f-84a0-4fdc-8d1d-041f1e58a923.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0d8b9a3f-84a0-4fdc-8d1d-041f1e58a923.png)
 
 这张Slides展示了Hopper架构上不同GEMM kernel调度器的性能基准测试结果。
 
@@ -411,11 +411,11 @@ Slides还指出"This is not optimal for the SOL impl."（这对于SOL实现来�
 - 配置信息：
     - FP16输入，FP32累加，D = alpha x A x B 运算，CTA tile大小 = 128x128x64，Cluster shape = 2x1x1，使用H800 NVL*硬件，预热10次，迭代20次，NVCC版本12.3。
 
-![](https://files.mdnice.com/user/59/4edbf258-2598-4088-837c-f15385f01845.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4edbf258-2598-4088-837c-f15385f01845.png)
 
 这张Slides比较了Hopper架构上CPAsync和TMA两种不同内存访问方式在GEMM操作中的性能表现。主要结论为：TMA方法在几乎所有情况下都优于CPAsync方法，在TMA方法中，Pingpong_TMA通常表现最好，尤其是对于大型矩阵。"CPAsync is the reluctant choice. Always use TMA if the alignment requirement is satisfied."（CPAsync是不得已的选择。如果满足对齐要求，总是使用TMA。）
 
-![](https://files.mdnice.com/user/59/8d280271-4589-4a31-964f-07ff06489d1c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8d280271-4589-4a31-964f-07ff06489d1c.png)
 
 这张Slides总结了在Hopper架构上构建GEMM（通用矩阵乘法）时的几个关键决策点和建议。
 - Option 1: CpAsync vs TMA
@@ -425,9 +425,9 @@ Slides还指出"This is not optimal for the SOL impl."（这对于SOL实现来�
 - Option 3: Warp Specialized vs Pingpong vs Cooperative
     - 选择取决于问题的形状，如果C Tile数量小于SM数量（1个wave），epilogue延迟暴露不可避免，三种方法都可以。如果C Tile数量超过1个wave，推荐使用Pingpong方法。
 
-![](https://files.mdnice.com/user/59/e9e7ea0e-efc5-4fd6-9699-c97bb08bf167.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e9e7ea0e-efc5-4fd6-9699-c97bb08bf167.png)
 
-![](https://files.mdnice.com/user/59/7208b3ee-ebc0-4142-983a-b53310abd9b7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7208b3ee-ebc0-4142-983a-b53310abd9b7.png)
 
 最后这张Slides继续讨论了构建Hopper GEMM (通用矩阵乘法) 的2个关键点:
 

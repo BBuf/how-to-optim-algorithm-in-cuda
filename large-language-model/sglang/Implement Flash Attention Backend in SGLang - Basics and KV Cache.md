@@ -6,7 +6,7 @@
 
 在过去几周里,我们在 SGLang 中完整实现了 Flash Attention 后端,并且从 SGLang 0.4.6 版本(https://github.com/sgl-project/sglang/releases/tag/v0.4.6)开始,它已经成为默认的 attention 后端。
 
-![](https://files.mdnice.com/user/59/1b054251-efde-46c6-9f1c-a4ea9d12dd15.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1b054251-efde-46c6-9f1c-a4ea9d12dd15.png)
 
 在整个旅程中,我们学到了很多关于现代 LLM 服务引擎中的 Attention Backend 如何工作,以及对 Flash Attention 本身有了更深入的理解。
 
@@ -31,7 +31,7 @@
 
 ### Benchmark Results
 
-![](https://files.mdnice.com/user/59/a71eb808-9ece-40a9-b4ae-85d66b552fd4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a71eb808-9ece-40a9-b4ae-85d66b552fd4.png)
 
 基准测试结果表明,FA3 在所有测试场景中都表现出最高的吞吐量,尤其是在输入或输出大小增加时,明显优于 FlashInfer 和 Triton。
 
@@ -44,7 +44,7 @@
 
 Flash Attention[^1] 是一种 IO-aware 的精确注意力算法,它使用分块来减少 GPU 高带宽内存 (HBM) 和 GPU 片上 SRAM 之间的高带宽内存 (HBM) 和 GPU 片上 SRAM 之间的内存读写次数。
 
-![](https://files.mdnice.com/user/59/1363956d-5093-4ce8-834e-6fc0dbeafa48.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1363956d-5093-4ce8-834e-6fc0dbeafa48.png)
 
 在 LLM 推理和训练中,它已经成为现代服务引擎(如 SGLang、vLLM 等)的默认注意力后端。
 
@@ -56,7 +56,7 @@ Flash Attention[^1] 是一种 IO-aware 的精确注意力算法,它使用分块�
 
 #### SGLang 架构
 
-![](https://files.mdnice.com/user/59/8413fd2c-895d-467d-b36c-3f7672273fe3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8413fd2c-895d-467d-b36c-3f7672273fe3.png)
 
 SGLang, 作为一个现代的 LLM 服务引擎,有三个主要的组件(在逻辑视图中)[^3]:
 
@@ -74,7 +74,7 @@ SGLang, 作为一个现代的 LLM 服务引擎,有三个主要的组件(在逻�
 
 以下是注意力变体的继承关系:
 
-![](https://files.mdnice.com/user/59/2e1973a6-ae44-493c-afb9-0147eb212cbc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2e1973a6-ae44-493c-afb9-0147eb212cbc.png)
 
 让我们通过 `AttentionBackend` 类中的方法来看看 SGLang 中的注意力后端是什么:
 
@@ -94,7 +94,7 @@ SGLang, 作为一个现代的 LLM 服务引擎,有三个主要的组件(在逻�
 
 KV Cache 管理有两个层次的内存池[^4]
 
-![](https://files.mdnice.com/user/59/ddeac147-1504-475c-81ac-2fa10fd656fc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ddeac147-1504-475c-81ac-2fa10fd656fc.png)
 
 
 #### req_to_token_pool
@@ -346,7 +346,7 @@ CUDA Graph 是 NVIDIA CUDA 平台的一个功能,它允许你捕获一系列 GPU
 
 使用 CUDA Graph,你可以将一系列操作(如图中的 A、B、C、D、E)记录到一个图中,然后一次性启动整个图。这种方法消除了重复的 CPU 启动开销,并使 GPU 能够更高效地执行操作,从而节省大量时间。下图说明了这个概念:上半部分显示了传统方法,每个 kernel 启动都会产生 CPU 开销。下半部分显示了 CUDA Graph 方法,整个序列作为单个图启动,减少了 CPU 时间并提高了整体吞吐量。
 
-![](https://files.mdnice.com/user/59/740fd9ff-8306-4194-a6c2-d432a8e71219.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/740fd9ff-8306-4194-a6c2-d432a8e71219.png)
 
 事实上,我发现现代 LLM 服务引擎中的许多显著加速都来自于并行化多个工作负载并重叠它们的执行。我可以轻松列举几个例子:
 
@@ -366,7 +366,7 @@ CUDA Graph 是 NVIDIA CUDA 平台的一个功能,它允许你捕获一系列 GPU
 
 你可以在下面的图表中找到 CUDAGraphRunner 如何与 attention 后端一起工作的详细流程:
 
-![](https://files.mdnice.com/user/59/e7e62c42-0c82-4eda-b0d3-ba06079915e2.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e7e62c42-0c82-4eda-b0d3-ba06079915e2.jpg)
 
 
 ### 初始化 CUDA Graph 状态

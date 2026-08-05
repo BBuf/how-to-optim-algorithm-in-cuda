@@ -45,15 +45,15 @@ Hardware: NVIDIA Blackwell B200 (sm_100a)
 
 图 1：不同 batch size 下的有效 TFLOPS。`SGLang` 始终领先，并且在小 batch 下优势更明显。
 
-![](https://files.mdnice.com/user/59/0e3575b0-d737-47cf-b6bb-db445ffea1ca.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0e3575b0-d737-47cf-b6bb-db445ffea1ca.png)
 
-![top k = 2](https://files.mdnice.com/user/59/77e5bac8-caf8-4475-b5e3-0b0cb460b2f3.png)
+![top k = 2](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/77e5bac8-caf8-4475-b5e3-0b0cb460b2f3.png)
 
 ### 时延拆解（Batch Size = 128）
 
 图 2：batch size = 128（decode 的“甜点区间”）时，每层的时延分解。
 
-![](https://files.mdnice.com/user/59/486980b2-19ce-43c4-80f7-abf4886f38f5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/486980b2-19ce-43c4-80f7-abf4886f38f5.png)
 
 在 batch = 128 的情况下生成 1000 个 token：
 
@@ -387,9 +387,9 @@ Hidden: 2560 (scaled from 7168)
 Intermediate: 8960 (scaled from 18432)
 ```
 
-![](https://files.mdnice.com/user/59/7a09cc85-d033-402b-8107-b3895c112848.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a09cc85-d033-402b-8107-b3895c112848.png)
 
-![](https://files.mdnice.com/user/59/532c9d7c-19f2-4f52-8eab-21a69a56a557.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/532c9d7c-19f2-4f52-8eab-21a69a56a557.png)
 
 ### 为什么专家更多时差距会缩小
 

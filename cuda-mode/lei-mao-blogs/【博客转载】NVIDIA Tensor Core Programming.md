@@ -6,17 +6,17 @@
 
 NVIDIA Tensor Core 是自Volta架构以来NVIDIA GPU上专门用于通用矩阵乘法（GEMM）运算的专用加速器。由于人工智能计算通常由GEMM运算主导，NVIDIA Tensor Core对于加速人工智能应用至关重要。
 
-![NVIDIA Tensor Core GEMM Math](https://files.mdnice.com/user/59/2ea087bb-9da0-4f01-986d-f53ebcfca03a.png)
+![NVIDIA Tensor Core GEMM Math](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2ea087bb-9da0-4f01-986d-f53ebcfca03a.png)
 
 由于NVIDIA Tensor Core专门为GEMM设计，使用NVIDIA Tensor Core的GEMM吞吐量比使用更适合通用并行编程的NVIDIA CUDA Core能够实现的吞吐量要高得多。
 
-![NVIDIA GEMM Throughput Tuning Tensor Core VS Pascal CUDA Core](https://files.mdnice.com/user/59/f0090b29-08cb-4a00-b27e-495f80b9df24.jpg)
+![NVIDIA GEMM Throughput Tuning Tensor Core VS Pascal CUDA Core](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f0090b29-08cb-4a00-b27e-495f80b9df24.jpg)
 
 对于NVIDIA Ampere架构，每个SM有4个Tensor Core。特别是，NVIDIA A100 GPU(https://www.nvidia.com/en-us/data-center/a100/) 有108个流多处理器（SM），总共有432个Tensor Core。
 
-![NVIDIA GA100 Full GPU with 128 SMs](https://files.mdnice.com/user/59/0402c26b-f6ab-40d0-bd42-222d6e3d51d7.jpg)
+![NVIDIA GA100 Full GPU with 128 SMs](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0402c26b-f6ab-40d0-bd42-222d6e3d51d7.jpg)
 
-![Each NVIDIA Ampere SM Has 4 Tensor Cores](https://files.mdnice.com/user/59/5cd7136e-574c-40ec-b657-2fa441f0e7a5.png)
+![Each NVIDIA Ampere SM Has 4 Tensor Cores](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5cd7136e-574c-40ec-b657-2fa441f0e7a5.png)
 
 NVIDIA Tensor Core是完全可编程的。Warp级别的Tensor Core编程API已在`nvcuda::wmma`命名空间下的`mma.h`头文件中声明。
 

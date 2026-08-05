@@ -8,16 +8,16 @@
 - 其次，Agent改的任何函数代码自己都要完全理解，思考漏洞，如果你提交的Agent写出来代码连你自己都没完全理解将是非常危险的炸弹。我举个例子就是如果你让Agent写一个nvfp4/fp8 quant的测试，它可能会写出比较错误的测试方法出来比如直接做数值比较，你去仔细看了之后才能发现然后让他改成正确的精度对比方式，例如DeepGEMM那种cosine similarity的方式。CI监控和测试方面的要求也更高了，我们只能不断加强这方面的能力才能把Agent可能引入的漏洞拒之门外。
 - 最后，涉及到性能优化和重大feature时尽量找专家Review。目前的现状对框架开发者Review的能力提出了更高的要求，例如之前Review是和一个人或者几个人搏斗，现在还要和Claude Code/Codex等搏斗，你甚至都不知道你回复一些Review意见之后你收到的回复是真人还是Claude Code/Codex写的。可能想了半天觉得回复好像是对的，结果对方根本就没有人工思考的过程了，是直接让Agent回复的。并且Agent带来的巨量PR已经让Review变得雪上加霜。目前比较流行的方式是Claude Code Review Codex的代码，这个也可以为我们提供很大的帮助。目前我在Codex里面连接了Github，如果涉及到Agent来回复头像旁边会自动多一个logo方便区分。
 
-![](https://files.mdnice.com/user/59/418edf61-44d7-425e-9f47-dcb874d2a13f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/418edf61-44d7-425e-9f47-dcb874d2a13f.png)
 
 时代到这里了，也不能拒绝Agent带来的生产力，大势所趋，怎么都挡不住了。比如看下方的vLLM/SGLang的PR数量图，一天上百个怎么Review呢？
 
-![](https://files.mdnice.com/user/59/0ed0b274-17b6-4183-a4a2-85bbb940230d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0ed0b274-17b6-4183-a4a2-85bbb940230d.png)
 
 我自己是充分肯定和赞同Agent编程的，只是我们需要更加小心潜在的风险，特别是在大型的开源项目上知道自己在做什么是非常重要的。
 
 
-![](https://files.mdnice.com/user/59/0879478b-c712-4411-acff-b64606dc720b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0879478b-c712-4411-acff-b64606dc720b.png)
 
 但200美金的计划显然是不够的。
 
@@ -54,17 +54,17 @@
 
 # 为什么不尝试Claude Code
 
-![](https://files.mdnice.com/user/59/030f41d0-d3e1-4347-b4ad-ba0f54b0ee90.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/030f41d0-d3e1-4347-b4ad-ba0f54b0ee90.png)
 
 上周在邮箱里面看到我也入选了Claude for Open Source Program.
 
 但是我用邮箱登陆Claude Code的时候发现我的邮箱被Anthropic Ban掉了
 
-![](https://files.mdnice.com/user/59/13412923-78e4-4b5e-a511-e79add4ef49f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/13412923-78e4-4b5e-a511-e79add4ef49f.png)
 
 然后今天收到A➗要使用反馈的邮件：
 
-![](https://files.mdnice.com/user/59/9879fb40-d4c0-4247-8f4a-01fd69285f84.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9879fb40-d4c0-4247-8f4a-01fd69285f84.png)
 
 纯被溜着玩属于是。后续要身份验证对国内小伙伴来说就更难搞了，还好Codex目前大部分我要Vibe Coding做事情都能接住且没这么多限制。
 

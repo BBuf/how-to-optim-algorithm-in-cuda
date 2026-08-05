@@ -441,7 +441,7 @@ watch -n 0.5 "curl http://localhost:9400/metrics"
 
 这是一个快速的方法，但是目的是使用 Prometheus（https://prometheus.io/） ，它将为你提供漂亮的图表。例如，文章中包括了一个示例，其中你可以在图表的第二行中看到 SM 占用率、Tensor core、FP16 和 FP32 Core 利用率：
 
-![dcgm-metrics](https://files.mdnice.com/user/59/19616292-c1c5-4123-baab-6879b460d458.png)
+![dcgm-metrics](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/19616292-c1c5-4123-baab-6879b460d458.png)
 
 (来源(https://arthurchiao.art/blog/understanding-gpu-performance/))
 

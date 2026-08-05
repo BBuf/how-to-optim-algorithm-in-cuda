@@ -1588,7 +1588,7 @@ python -m sglang.launch_server \
 这个优化的知识点总结：通过异步动态批处理tokenizer，减少多请求并发到达时的tokenization开销。使用asyncio.Queue收集并发请求，智能等待机制平衡延迟和吞吐，仅在参数相同时批处理避免错误，特别适用于高并发在线推理服务场景。
 
 
-![](https://files.mdnice.com/user/59/76a57f64-0e28-407b-8ba1-87cb3fc45fce.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/76a57f64-0e28-407b-8ba1-87cb3fc45fce.png)
 
 ## 25. Generative Score API Prefill-Only优化：跳过不必要的Sampling和Logprobs计算
 

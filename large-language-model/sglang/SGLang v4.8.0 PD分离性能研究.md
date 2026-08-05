@@ -17,7 +17,7 @@
 
 为了解决这个问题，[PR#3130](https://github.com/vllm-project/vllm/issues/3130) 中引入了 chunk-prefill 功能 [^4]，使得新请求的 prefill token 在被切块后，能与正在运行请求的 decode token 一同批处理。该功能在同构部署系统中如图所示，有助于改善 ITL 并提升 GPU 利用率：
 
-![耦合推理架构中的 chunked-prefill 调度](https://files.mdnice.com/user/59/c2507f13-9bad-45e7-94cf-cc730e602398.png)
+![耦合推理架构中的 chunked-prefill 调度](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c2507f13-9bad-45e7-94cf-cc730e602398.png)
 
 
 然而，chunked-prefill 并未真正考虑到 prefill 和 decode 两个阶段在计算特性上的本质差异。
@@ -72,7 +72,7 @@ $$1314 = 168 * 1e^{10} / (24 * 3600 * 14.8 * 1e^3)$$
 
 在我们的测试中，(P3x3)D4 和 P4D6 配置在 TTFT 上明显优于 P9D4，主要因为其采用更小的 TP 设置，同时 prefill 计算能力更强:
 
-![](https://files.mdnice.com/user/59/c94a2cd5-53dd-4a98-b741-a2d2e5d042cf.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c94a2cd5-53dd-4a98-b741-a2d2e5d042cf.png)
 
 我们在 SGLang v0.4.8 中，使用我们自己微调的类 DeepSeek V3（0324）模型，进行了聚合式和解耦式推理部署的实验，并在较大规模下验证了效果。
 
@@ -98,14 +98,14 @@ $$1314 = 168 * 1e^{10} / (24 * 3600 * 14.8 * 1e^3)$$
 
 在 `H800 x 2 (DGX SuperPod)` 测试配置中，每个节点通过 InfiniBand 互联，输入吞吐量（input throughput）最大值约为 20k toks/sec：
 
-![aggregated input throughput achieve max at specific batch_size x output_length](https://files.mdnice.com/user/59/ec82def1-5e4a-463b-9ca9-f748308fd86b.png)
+![aggregated input throughput achieve max at specific batch_size x output_length](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/51e6b0fb-7778-4b08-88e3-48bea2036dbb.png)
 
 
 当批大小与输出长度的乘积超过 128(bs)×128(OSL) 时，我们观察到输入吞吐量显著下降，同时 TTFT（首次响应时间）突然且急剧上升。相比之下，输出吞吐量则随着批大小的增加逐渐上升，并最终达到峰值:
 
-![input throughput - ttft (a)](https://files.mdnice.com/user/59/51e6b0fb-7778-4b08-88e3-48bea2036dbb.png)
+![input throughput - ttft (a)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/51e6b0fb-7778-4b08-88e3-48bea2036dbb.png)
 
-![input throughput - ttft (b)](https://files.mdnice.com/user/59/137850a6-9534-441b-9d84-f3497846030b.png)
+![input throughput - ttft (b)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/137850a6-9534-441b-9d84-f3497846030b.png)
 
 
 所有这些统计数据表明，要分别达到预填和解码的最大吞吐量，所需的工作负载模式是不同的。
@@ -195,7 +195,7 @@ SGLang 负载均衡器的问题在于：它在选择一对 prefill 服务器和 
 
 参考 Dynamo 的工作流程 [^11]，我们草拟了一个基于 SGLang RustLB 的 P/D 架构简化流程图，以便后续优化工作流程时有更清晰的理解：
 
-![SGLang v4.8.0 P/D 工作流程](https://files.mdnice.com/user/59/6015c3b9-2c56-4704-965b-acf130844cfc.png)
+![SGLang v4.8.0 P/D 工作流程](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6015c3b9-2c56-4704-965b-acf130844cfc.png)
 
 
 每个 P/D 进程都会启动一个后台线程，运行一个永久的事件循环，用于收集请求，将其输入以及必要的 KV cache 组成一个 batch，以开始执行推理任务。
@@ -224,7 +224,7 @@ SGLang 负载均衡器的问题在于：它在选择一对 prefill 服务器和 
 
 本次实验所使用的 H800 SuperPod 硬件按机架（racks）组织部署：
 
-![H800 SuperPod 示意图](https://files.mdnice.com/user/59/4520a5f0-e017-4f2e-8614-096208e13511.png)
+![H800 SuperPod 示意图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4520a5f0-e017-4f2e-8614-096208e13511.png)
 
 
 NVIDIA H800 DGX 在计算性能方面与 H100 DGX 相当，唯一区别在于 FP64/FP32 数据类型的处理能力较弱，以及由于 NVLINK 配置减少，其通信带宽大约为后者的一半。每张 H800 卡连接一张 Mellanox CX-7（MT2910）网络卡，通过 InfiniBand 交换机互连，峰值双向带宽可达 50 GB/s。
@@ -305,7 +305,7 @@ export NCCL_SOCKET_IFNAME=ibp24s0,ibp41s0f0,ibp64s0,ibp79s0,ibp94s0,ibp154s0,ibp
 
 成功调优后应看到如下表现：
 
-![deepep 测试快照](https://files.mdnice.com/user/59/a91be92f-f198-465f-94cf-58609a8383a4.png)
+![deepep 测试快照](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/a91be92f-f198-465f-94cf-58609a8383a4.png)
 
 在 SGLang v0.4.8 中，默认情况下 DeepGEMM 未启用，且没有针对 H800 上运行的融合 MoE Triton 内核的调优配置。
 
@@ -629,7 +629,7 @@ memory_fraction_static=${memory_fraction_static:-0.81}
 
 在我们的初步尝试中（感谢 Yujie Pu），使用 DeepSeek 草案模型的 MTP 解码并未提升整体吞吐率，我们会在后续继续调查这个问题。
 
-![p4d9-MTP](https://files.mdnice.com/user/59/ebe0ff76-2ff7-43c7-9524-43ca2b387b49.png)
+![p4d9-MTP](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ebe0ff76-2ff7-43c7-9524-43ca2b387b49.png)
 
 
 ## Benchmarking of P/D
@@ -638,7 +638,7 @@ memory_fraction_static=${memory_fraction_static:-0.81}
 
 对于 P2D2 配置，由于 KV 缓存保留空间有限（P 节点 HBM 利用率为 65 GB / 79 GB，D 节点为 70 GB / 79 GB），我们在客户端经常遇到批量大小为 1024 时的 KV 缓存内存溢出（OOM）问题。当批量大小 × 输入长度超过 128 时，我们观察到 TTFT 急剧增长，并且 SGLang 中的输出吞吐率测量变得不可靠：
 
-![](https://files.mdnice.com/user/59/d5523c60-6eab-4164-bb49-14ae9db4bb2a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d5523c60-6eab-4164-bb49-14ae9db4bb2a.png)
 
 基于以上观察，我们后来将用户侧在线测试的输入分为两类：
 
@@ -662,17 +662,17 @@ Mooncake 开发团队在 [PR#499](https://github.com/kvcache-ai/Mooncake/pull/49
 
 值得注意的是，当输入序列长度与输出序列长度的比率为 4:1 时，在这台 H800 SuperPod 机器上，GPU 利用率达到最佳，且最后一个 token 的生成速度达到最大值：
 
-![P2D2 stat (ctx_p=4096, ctx_d=2048)](https://files.mdnice.com/user/59/27a135c6-a73d-4070-81ca-32d18b554526.png)
+![P2D2 stat (ctx_p=4096, ctx_d=2048)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/27a135c6-a73d-4070-81ca-32d18b554526.png)
 
 #### P2D4/P4D2
 
 在 P2D4 和 P4D2 测试中，目标之一是确定扩展方向，以减少 TTFT 并提升最大吞吐率。正如我们在动机部分讨论的，减少 TTFT 的一个方法是减小 Chunk-prefill 大小，同时降低 Prefill 节点的数据并行度。
 
-![](https://files.mdnice.com/user/59/cffd3271-b4a7-4ffa-83a9-39890c894793.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cffd3271-b4a7-4ffa-83a9-39890c894793.png)
 
 数据并行（Data Parallel）和数据并行注意力机制（DP Attention，DP > 1）必须开启，否则我们会观察到 TTFT 和吞吐率显著下降：
 
-![P4D2 vs P2D4 (ctx_p=4096, ctx_d=2048)](https://files.mdnice.com/user/59/d957259c-e185-41fd-be67-30f0c02259c7.png)
+![P4D2 vs P2D4 (ctx_p=4096, ctx_d=2048)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d957259c-e185-41fd-be67-30f0c02259c7.png)
 
 
 根据上述统计数据，我们得出结论：在 P2D4 配置下，要支持超过 1024 的输入序列长度，大部分运行时间都花费在预填充（prefill）阶段，因此 TTFT 非常接近整体延迟。
@@ -685,7 +685,7 @@ Mooncake 开发团队在 [PR#499](https://github.com/kvcache-ai/Mooncake/pull/49
 
 #### P4D6
 
-![P4D6 (ctx_p=8192, ctx_d=6144)](https://files.mdnice.com/user/59/85da8ea9-911f-466d-9d13-d3fa9e304e95.png)
+![P4D6 (ctx_p=8192, ctx_d=6144)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/85da8ea9-911f-466d-9d13-d3fa9e304e95.png)
 
 在 P4D6 解耦测试中，平均首个生成token时间（TTFT）升高至 10 秒左右；当批次大小 × 输入长度超过 2048 × 1024 时，TTFT 以陡峭的斜率迅速增长。
 
@@ -693,15 +693,15 @@ Mooncake 开发团队在 [PR#499](https://github.com/kvcache-ai/Mooncake/pull/49
 
 P4D9 是 SGLang 团队推荐的黄金配置 [^8]，但在我们的测试中，它未能产生令人满意的吞吐率，且在输入长度为 4K、输出长度为 256 时，其整体吞吐量被限制在 8 万token/s。
 
-![P4D9 (ctx_p=8192, ctx_d=4096)](https://files.mdnice.com/user/59/988dc6d7-a1eb-4905-ad98-1dc7b6f440ee.png)
+![P4D9 (ctx_p=8192, ctx_d=4096)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/988dc6d7-a1eb-4905-ad98-1dc7b6f440ee.png)
 
 我们在用户侧的在线测试中验证了 P4D9 解耦配置。对于短查询，用户侧（用户的 SDK）观察到的总输出token吞吐量仅为 8 千token/s:
 
-![Short Query User Observation](https://files.mdnice.com/user/59/00a891c6-1698-4cd8-bf9d-d5edd4e73e2d.png)
+![Short Query User Observation](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/00a891c6-1698-4cd8-bf9d-d5edd4e73e2d.png)
 
 对于长查询，用户侧（用户的 SDK）仅观察到最大 400 token/s的吞吐量:
 
-![Long Query User Observation](https://files.mdnice.com/user/59/117bfe6c-624f-405d-b8e1-9cc37e41e809.png)
+![Long Query User Observation](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/117bfe6c-624f-405d-b8e1-9cc37e41e809.png)
 
 ## 结论
 
@@ -747,7 +747,7 @@ P4D9 是 SGLang 团队推荐的黄金配置 [^8]，但在我们的测试中，�
 
 #### Prefill decode nodes Colocated H800 X 2 test full reference
 
-![](https://files.mdnice.com/user/59/872cada2-5f80-4b39-8b11-55dfbafdd13f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/872cada2-5f80-4b39-8b11-55dfbafdd13f.png)
 
 ## 参考文献
 

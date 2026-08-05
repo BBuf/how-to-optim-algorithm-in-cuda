@@ -2,13 +2,13 @@
 
 ## 第四课: 计算和内存基础（基于PMPP 书的第4-5章）
 
-![](https://files.mdnice.com/user/59/226f775a-9061-4639-81f9-56ad86a8cb67.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/226f775a-9061-4639-81f9-56ad86a8cb67.png)
 
 ### 第4章：计算架构和调度，如何保持整个GPU繁忙
 
 接下来2张Slides展示了一下书中对CPU，GPU结构的对比，由于这两页Slides很过时，这里就不截图了。
 
-![](https://files.mdnice.com/user/59/31ebb230-1e25-42e9-b3f7-566eea7814fa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/31ebb230-1e25-42e9-b3f7-566eea7814fa.png)
 
 RTX 3090有82个流式多处理器（SM, Streaming Multiprocessor），每个SM包含多个RT Core（光线追踪核心）和Tensor Core（张量核心）。所有SM共用L2缓存。
 
@@ -21,7 +21,7 @@ GA102 GPU实际上有168个FP64单元（每个SM两个），但Slides中未显�
 
 从Slides中可以数一下，RTX 3090的完整SM个数应该是12x7=84个，但是其中2个没有启用，所以可以工作的SM个数是82。
 
-![](https://files.mdnice.com/user/59/587238e3-22c8-4867-817c-229b02627003.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/587238e3-22c8-4867-817c-229b02627003.png)
 
 这张Slides描述了NVIDIA GA10x GPU架构中的流式多处理器(Streaming Multiprocessor, SM)的结构和特性：
 - SM结构：
@@ -48,7 +48,7 @@ GA102 GPU实际上有168个FP64单元（每个SM两个），但Slides中未显�
     - 共享内存可以配置为0/8/16/32/64/100KB
     - L1缓存使用剩余空间（至少28KB）
 
-![](https://files.mdnice.com/user/59/17911374-e434-40fa-b7d9-4f1d370b5969.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/17911374-e434-40fa-b7d9-4f1d370b5969.png)
 
 这张图解释了CUDA编程中的线程(Threads)、线程束(Warps)和线程块(Blocks)的概念和关系：
 
@@ -60,14 +60,14 @@ GA102 GPU实际上有168个FP64单元（每个SM两个），但Slides中未显�
 - 右侧图表展示了线程块如何分配到不同的SM上。
 
 
-![](https://files.mdnice.com/user/59/b5194fcb-7a6a-4198-9b8e-8a96a2bea574.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b5194fcb-7a6a-4198-9b8e-8a96a2bea574.png)
 
 
 这张slides解释了CUDA中线程的线性化和分组为线程束（warps）的过程。使用T(x,y,z)表示线程索引，其中x、y、z表示三个维度的索引。将多维的线程索引转换为一维的线性索引的公式为：threadId = threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z)。线性化后的线程被分组为32个线程一组的线程束，图底部显示了线程如何被分组成连续的线程束。
 
-![](https://files.mdnice.com/user/59/31d7ca1e-e618-4458-810e-c7fa0445f6e6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/31d7ca1e-e618-4458-810e-c7fa0445f6e6.png)
 
-![](https://files.mdnice.com/user/59/5f8d46d3-4ed8-4ab4-8296-55d0e8400253.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5f8d46d3-4ed8-4ab4-8296-55d0e8400253.png)
 
 这个kernel的目的是为3D空间中的每个点计算其在warp内的32个"邻居"的索引。它利用了CUDA的warp级别shuffle操作来高效地在线程间交换数据。输出是一个5D张量，维度为(8, 8, 8, 32, 3)，其中：
 
@@ -98,7 +98,7 @@ int sharedValue = __shfl_sync(0xffffffff, value, 9, 32);
 这里，`sharedValue`将会被设置为第9个线程的`value`变量的值，对于所有其它线程而言。
 
 
-![](https://files.mdnice.com/user/59/fd1e20b0-6640-4be3-839c-fe3be10a8ec7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fd1e20b0-6640-4be3-839c-fe3be10a8ec7.png)
 
 这张Slides解释了CUDA中的线程束分歧（Warp Divergence）现象，特别是在Pascal及之前的GPU架构中。这段代码展示了一个条件语句，根据线程ID执行不同的操作。执行执行流程为：
 - 所有线程首先到达分歧点。
@@ -119,7 +119,7 @@ int sharedValue = __shfl_sync(0xffffffff, value, 9, 32);
 
 > 关键点为<=Pascal架构时，warp内的所有线程共享程序计数器。
 
-![](https://files.mdnice.com/user/59/a3daada4-9206-4bfa-9899-a765fe45c31d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a3daada4-9206-4bfa-9899-a765fe45c31d.png)
 
 这张Slides描述了NVIDIA Volta及之后架构中处理线程束分歧（Warp Divergence）的新方法。
 
@@ -139,7 +139,7 @@ int sharedValue = __shfl_sync(0xffffffff, value, 9, 32);
 
 > 注意线程分化时不再有自动重新汇合：开发者需要更加注意同步点。
 
-![](https://files.mdnice.com/user/59/f538ee2e-210b-46d1-8efb-cda5e476ca59.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f538ee2e-210b-46d1-8efb-cda5e476ca59.png)
 
 这张Slides展示的代码与之前相同，但在最后添加了__syncwarp()函数。关键变化和概念：
 
@@ -148,11 +148,11 @@ int sharedValue = __shfl_sync(0xffffffff, value, 9, 32);
 - 线程间通信：像shuffle这样的操作也会同步参与的线程。
 - 块级同步：__syncthreads()函数同步整个线程块，而不仅仅是线程束。
 
-![](https://files.mdnice.com/user/59/21f1681e-26c9-431c-aab2-e3593110adba.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/21f1681e-26c9-431c-aab2-e3593110adba.png)
 
 这张Slides展示了CUDA编程中由于循环上限不同导致的线程束分歧（Warp Divergence）情况。
 
-![](https://files.mdnice.com/user/59/f1719439-3fff-471d-b5af-c9922dbd57b5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f1719439-3fff-471d-b5af-c9922dbd57b5.png)
 
 这张Slides讨论了在CUDA编程中如何获得良好的GPU占用率（occupancy）和平衡资源使用。要点为：
 - 有82个SM（流多处理器）是很好的，因为这意味着可以运行多个块。作为对比，Jetson Xavier有8个Volta SM。
@@ -164,15 +164,15 @@ int sharedValue = __shfl_sync(0xffffffff, value, 9, 32);
 - 使用`torch.cuda.get_device_properties(<gpu_num>)`来获取设备属性（如`max_threads_per_multi_processor`）。
 
 
-![](https://files.mdnice.com/user/59/dbeb96ff-b639-41ca-933f-b7c98a12608b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dbeb96ff-b639-41ca-933f-b7c98a12608b.png)
 
 
-![](https://files.mdnice.com/user/59/feba35b3-c412-4b51-bd82-348621035c5f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/feba35b3-c412-4b51-bd82-348621035c5f.png)
 
 
 ### 第5章：内存架构和数据局部性（也是获得fast kernel的基础）
 
-![](https://files.mdnice.com/user/59/cc6a5fc0-32a8-46e5-8e0d-281710f48f7a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cc6a5fc0-32a8-46e5-8e0d-281710f48f7a.png)
 
 这张Slides讨论了PyTorch程序如何分配其运行时间，以及一些优化建议。
 
@@ -192,7 +192,7 @@ Thomas的经验法则：
 - 当处理的Tensor只有几百个元素时，"Python很慢"，数据管理开销占比为个位数百分比
 - 算法选择也很重要（后续章节会讨论并行算法）
 
-![](https://files.mdnice.com/user/59/15c38f04-e8dc-42d9-8dd2-1bcf3aa84a1f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/15c38f04-e8dc-42d9-8dd2-1bcf3aa84a1f.png)
 
 
 这张Slides讨论了内存访问作为性能瓶颈的问题：
@@ -205,15 +205,15 @@ Thomas的经验法则：
     - 当前的inductor/Triton基础优化也部分针对这点，但支持更复杂的操作。
 - 内存访问优化也是flash attention的核心组成部分。图片右侧展示了内存层次结构，包括带宽和内存大小。图来自FLash Attention的Paper。
 
-![](https://files.mdnice.com/user/59/36579dc8-a90f-4d62-ae11-9587f8ccc357.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/36579dc8-a90f-4d62-ae11-9587f8ccc357.png)
 
 接着举了这个GeLU fuse前后执行时间对比的例子，说明我们把所有的elementwise操作fuse之后的有效性。
 
-![](https://files.mdnice.com/user/59/2208e6cf-5317-456a-b9ab-8f38d32fb266.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2208e6cf-5317-456a-b9ab-8f38d32fb266.png)
 
 这里还展示了一下如何使用CUDA手动编写这个fuse cuda kernel。
 
-![](https://files.mdnice.com/user/59/7744f25a-052d-4450-a71a-464683a2ee81.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7744f25a-052d-4450-a71a-464683a2ee81.png)
 
 这张Slides讨论了内存访问和计算在图像处理中的性能影响：
 
@@ -235,10 +235,10 @@ Thomas的经验法则：
 
 这里说的27us就是 https://github.com/cuda-mode/lectures/blob/main/lecture_004/cuda-mode-session-4.ipynb 这里的第一个cuda kernel的输出，如下图红色框所示。
 
-![](https://files.mdnice.com/user/59/9cd24fb1-f4f0-41a0-bb42-50ba6d609834.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9cd24fb1-f4f0-41a0-bb42-50ba6d609834.png)
 
 
-![](https://files.mdnice.com/user/59/62bf05d4-28de-45ca-9ab8-39b25091b2ab.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/62bf05d4-28de-45ca-9ab8-39b25091b2ab.png)
 
 这张Slides介绍了带有延迟隐藏的屋顶线模型（Roofline Model with latency hiding）。
 这是一个性能分析模型，用于评估计算密集型应用在特定硬件上的性能上限。横轴表示计算密度（Computational intensity），单位是FLOP/B（每字节内存传输的浮点运算数）。纵轴表示计算吞吐量（Computational throughput），单位是GFLOP/s（每秒十亿次浮点运算）。
@@ -251,7 +251,7 @@ Thomas的经验法则：
 
 A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的点，表示性能越接近硬件极限。对于内存受限区域：优化内存访问模式，减少数据传输。对于计算受限区域：提高计算效率，如使用更高效的算法。此外，通过并行执行多个warps，可以有效隐藏内存访问延迟，使得实际性能曲线更接近理论上限。
 
-![](https://files.mdnice.com/user/59/4c46f94b-3cdd-46d0-88d0-14496b12853e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4c46f94b-3cdd-46d0-88d0-14496b12853e.png)
 
 这张Slides描述了CUDA设备内存模型的概览：
 
@@ -276,7 +276,7 @@ A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的�
 
 纹理内存（Texture memory）：Slides中未显示，因为这个教材未涵盖其用途。
 
-![](https://files.mdnice.com/user/59/72559adb-e67e-4eea-b3c3-466762bf18d2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/72559adb-e67e-4eea-b3c3-466762bf18d2.png)
 
 - 数组以外的自动变量：Register（寄存器），Thread（线程作用域），Grid（网格生命周期）
 - 自动数组变量：Local（本地内存），Thread（线程作用域），Grid（网格生命周期）
@@ -285,7 +285,7 @@ A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的�
 - ConstVar：Constant（常量内存），Grid（网格作用域），Application（应用程序生命周期）
 
 
-![](https://files.mdnice.com/user/59/7d78b5f9-628c-4ead-8b62-7b0a6c85febd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7d78b5f9-628c-4ead-8b62-7b0a6c85febd.png)
 
 这张SLides讨论了为什么在某些计算操作中使用分块（Tiling）技术，并展示了内存层次结构。
 - Tiling（分块）的原因：
@@ -304,7 +304,7 @@ A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的�
 总的来说，这里解释了为什么在某些计算密集型操作中使用分块技术很重要。通过重用数据和利用更快的内存层（如GPU SRAM），可以显著提高计算效率。
 同时，Slides中展示的内存层次结构清楚地说明了不同级别内存之间在速度和容量上的权衡，这进一步强调了优化内存访问模式的重要性。
 
-![](https://files.mdnice.com/user/59/4737b84e-265a-45d8-89b6-01be99556b7f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4737b84e-265a-45d8-89b6-01be99556b7f.png)
 
 
 这张Slides解释了矩阵乘法中的分块(Tiling)技术，要点是：
@@ -319,7 +319,7 @@ A1、A2、A3：代表不同算法或优化的性能点。越接近屋顶线的�
 
 下面这张图展示了普通的矩阵乘CUDA实现：
 
-![](https://files.mdnice.com/user/59/67a478fb-eccd-44ac-8c69-74ecb1a70cd0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/67a478fb-eccd-44ac-8c69-74ecb1a70cd0.png)
 
 耗时情况是：934 µs ± 1.42 µs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
 
@@ -391,7 +391,7 @@ tiled_matmul_module = torch.utils.cpp_extension.load_inline(
 
 这个Cuda Kernel实现比较简单，这里不再赘述。
 
-![](https://files.mdnice.com/user/59/d22185d6-5579-459d-b60c-dfa832128e0b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d22185d6-5579-459d-b60c-dfa832128e0b.png)
 
 
 这是第4章和第5章的总结，列出了关于GPU编程的关键要点。

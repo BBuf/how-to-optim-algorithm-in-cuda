@@ -38,15 +38,15 @@ Diffusers 库中提供的 pipeline 尽可能地对 `torch.compile` 友好。这�
 
 与 LLM 不同，diffusion 模型主要受计算限制，因此来自 gpt-fast(https://pytorch.org/blog/accelerating-generative-ai-2/) 的优化并不能完全适用于这里。下图显示了每个优化（从左到右递增应用）对 H100 700W GPU 上 Flux.1-Schnell 的影响：
 
-![](https://files.mdnice.com/user/59/481aa91a-36d7-4a3c-b623-1a458162073f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/481aa91a-36d7-4a3c-b623-1a458162073f.png)
 
 对于 H100 上的 Flux.1-Dev，我们有以下结果：
 
-![](https://files.mdnice.com/user/59/6d16e759-6696-41db-9c4c-343aa5f4f47b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6d16e759-6696-41db-9c4c-343aa5f4f47b.png)
 
 下面是应用不同优化到 Flux.1-Dev 获得的图像视觉对比：
 
-![](https://files.mdnice.com/user/59/3fb20c93-03d0-4221-b37d-54ec87d9e574.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3fb20c93-03d0-4221-b37d-54ec87d9e574.png)
 
 
 需要注意的是，只有 FP8 量化在本质上是有损的，因此对于大多数这些优化，图像质量应该保持相同。然而，在这种情况下，我们看到 FP8 的情况下差异非常微小。

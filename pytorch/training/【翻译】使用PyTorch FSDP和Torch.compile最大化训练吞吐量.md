@@ -31,11 +31,11 @@ torch.compile是一种图编译技术，可以提高GPU利用率。关于torch c
 
 我们在下面绘制了这些选项的损失曲线和梯度范数：
 
-![图1：各种编译选项的损失曲线和梯度范数](https://files.mdnice.com/user/59/f0b3ef50-ad06-4403-82bb-76c207a52c8d.png)
+![图1：各种编译选项的损失曲线和梯度范数](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f0b3ef50-ad06-4403-82bb-76c207a52c8d.png)
 
 此外，我们运行lm-evaluation-harness并比较了不同基准测试上各种模型的得分，观察到compile和no-compile之间没有重大差异，如下所示。
 
-![图2：compile和no-compile在各种基准测试上的lm-evaluation-harness比较](https://files.mdnice.com/user/59/5984bee2-5b95-410b-a5f8-a40e219b2752.png)
+![图2：compile和no-compile在各种基准测试上的lm-evaluation-harness比较](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5984bee2-5b95-410b-a5f8-a40e219b2752.png)
 
 从所有这些结果中，我们观察到compile及其所有变体与no-compile选项相等，从而证明了compile和no-compile之间的一致性。
 
@@ -43,10 +43,10 @@ torch.compile是一种图编译技术，可以提高GPU利用率。关于torch c
 
 最后，像我们之前的博客一样，我们计算了两个集群上四种不同模型大小的MFU。一个集群是128个A100 GPU，具有400 Gbps的节点间连接；另一个是464个H100 GPU，具有3.2 Tbps的节点间连接。除了compile，我们还使用了我们在之前博客中介绍的选择性激活检查点。我们在下表中捕捉了结果。
 
-![表1：在128个A100 80GB GPU上（400Gbps节点间互连）对Llama2模型架构进行compile和no compile的MFU结果](https://files.mdnice.com/user/59/818717a8-140f-42bd-8d20-2d263645dd66.png)
+![表1：在128个A100 80GB GPU上（400Gbps节点间互连）对Llama2模型架构进行compile和no compile的MFU结果](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/818717a8-140f-42bd-8d20-2d263645dd66.png)
 
 
-![表2：在464个H100 80GB GPU上（3.2Tbps节点间互连）对Llama2模型架构进行compile和no compile的MFU结果](https://files.mdnice.com/user/59/2b9d18ea-c285-4a9e-b425-910fd6b0bdca.png)
+![表2：在464个H100 80GB GPU上（3.2Tbps节点间互连）对Llama2模型架构进行compile和no compile的MFU结果](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2b9d18ea-c285-4a9e-b425-910fd6b0bdca.png)
 
 
 我们还在内部进行了一次使用448个GPU的Llama2 7B架构的生产运行。使用compile和选择性激活检查点，全局批量大小为3.7M，我们在13天10小时内训练了4T tokens！

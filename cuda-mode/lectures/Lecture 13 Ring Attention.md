@@ -4,9 +4,9 @@
 
 ## 课程笔记
 
-![](https://files.mdnice.com/user/59/e607565c-2755-4e35-bd3f-6c2880314c6b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e607565c-2755-4e35-bd3f-6c2880314c6b.png)
 
-![](https://files.mdnice.com/user/59/4b0ce7bb-f5ee-4907-b9ac-11bf6e77f830.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4b0ce7bb-f5ee-4907-b9ac-11bf6e77f830.png)
 
 Overview部分主要介绍了长上下文Transformer模型及其相关应用的几个主题。具体内容如下：
 
@@ -16,11 +16,11 @@ Overview部分主要介绍了长上下文Transformer模型及其相关应用的�
 - Striped Attention
 - Flash Decoding
 
-![](https://files.mdnice.com/user/59/5c5c3df9-4010-4d5f-aeaa-0f2f243d7c50.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5c5c3df9-4010-4d5f-aeaa-0f2f243d7c50.png)
 
 这张slides展示了一下当前流行的LLM的上下文长度越来越长，特别的Gemini 1.5 Pro将上下文长度扩展到了1M。
 
-![](https://files.mdnice.com/user/59/d929063d-f7cc-4d7e-ae83-d8d100998dc9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d929063d-f7cc-4d7e-ae83-d8d100998dc9.png)
 
 这张Slides介绍了长上下文模型（Long-context Magic）的能力和应用，主要内容如下：
 
@@ -40,7 +40,7 @@ Overview部分主要介绍了长上下文Transformer模型及其相关应用的�
   - 视频
 - Slides底部强调这些能力朝着多模态世界模型发展，并提供了更多关于LWM的信息链接。
 
-![](https://files.mdnice.com/user/59/168b814b-4ecd-4c89-bdae-eaababbfe860.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/168b814b-4ecd-4c89-bdae-eaababbfe860.png)
 
 这张Slides介绍了多模态任意到任意（Any-to-Any）自回归预测模型，主要对比了两种模型：LWM (Large World Model) 和 LLaVA。以下是主要内容：
 
@@ -64,7 +64,7 @@ Overview部分主要介绍了长上下文Transformer模型及其相关应用的�
 
 这里是对多模态做一个Overview，然后这里的关键点是要支持多模态我们就要求模型可以处理很长的上下文，这就要求模型需要使用Ring Attention或者类似的长上下文训练技术。
 
-![](https://files.mdnice.com/user/59/c84d822b-e58d-48c8-b1bb-4d0786b38e3d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c84d822b-e58d-48c8-b1bb-4d0786b38e3d.png)
 
 - 这张Slides讨论了处理大规模语言模型时面临的内存挑战。主要内容如下：
   - 标题："挑战：我们耗尽了内存"
@@ -79,7 +79,7 @@ Overview部分主要介绍了长上下文Transformer模型及其相关应用的�
   - AMD MI300X: 192 GB
   - NVIDIA GB200 (Blackwell): 288 GB（将于2024年底推出）
 
-![](https://files.mdnice.com/user/59/c3a118ee-c9d1-4fce-bce8-bf9d6bbb6ddf.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c3a118ee-c9d1-4fce-bce8-bf9d6bbb6ddf.jpg)
 
 这张Slides讨论了处理长上下文（Long Context）时的注意力机制方法，同时以幽默的方式呈现了相关挑战。主要内容如下：
 
@@ -104,7 +104,7 @@ Overview部分主要介绍了长上下文Transformer模型及其相关应用的�
 
 这个梗图幽默地指出，虽然有些模型声称能处理非常长的上下文，但可能并没有真正解决计算复杂度随上下文长度呈二次方增长的问题。
 
-![](https://files.mdnice.com/user/59/c5458d3b-9ddb-46d2-8826-9f795d6bccdd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c5458d3b-9ddb-46d2-8826-9f795d6bccdd.png)
 
 这张Slides介绍了"Vanilla Attention"（原始注意力机制）的基本概念和其内存复杂度问题。主要内容如下：
 - 标题：Vanilla Attention（原始注意力机制）
@@ -118,7 +118,7 @@ Overview部分主要介绍了长上下文Transformer模型及其相关应用的�
   - 原文："Memory complexity of naive attention is quadratic with sequence length (score matrix & softmax output)."
   - 翻译：朴素注意力机制的内存复杂度与序列长度呈二次方关系（score矩阵和softmax输出）。
 
-![](https://files.mdnice.com/user/59/36438bb7-4f0c-48c9-82cf-df7536a281ad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/36438bb7-4f0c-48c9-82cf-df7536a281ad.png)
 
 这张Slides讨论了模型大小和上下文长度对每个token的FLOPS（浮点运算次数）缩放的影响。主要内容如下：
 - 标题：情况有多糟？每个Token的FLOPS缩放
@@ -137,27 +137,27 @@ Overview部分主要介绍了长上下文Transformer模型及其相关应用的�
 
 来源：Ring Attention，附录D。上面的公式是针对FFN，这里bs=1。具体的公式推导看下图：
 
-![](https://files.mdnice.com/user/59/6977caea-3f53-47e4-8fc5-3d1bda0eebdb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6977caea-3f53-47e4-8fc5-3d1bda0eebdb.png)
 
 
-![](https://files.mdnice.com/user/59/edfa99c5-6303-4144-be24-b50376518f50.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/edfa99c5-6303-4144-be24-b50376518f50.png)
 
 
 这张slides描述了计算Softmax的挑战。Softmax操作需要在分数矩阵（score matrix）的完整行上进行，这个分数矩阵是通过$S=QK^T$(Q是Query矩阵，K是Key矩阵的转置）计算得到的。Softmax的输出依赖于分母中的和，也就是所有输入值指数和的计算。为了在FlashAttention和RingAttention算法中应用Softmax，必须“分块”或“在线”地计算Softmax，即只处理部分和，这样可以更高效地计算出结果。
 
-![](https://files.mdnice.com/user/59/4411dcee-ecde-45b0-85a0-be8568f467b2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4411dcee-ecde-45b0-85a0-be8568f467b2.png)
 
 这张Slides开始介绍如何通过Python中的PyTorch库定义和验证一个简单的Softmax函数，并逐步过渡到Log-Sum-Exp的更新。这里展示了如何用Python代码定义一个朴素的Softmax函数。这个函数接受一个PyTorch张量作为输入，并计算Softmax值。接下来，展示了如何将自定义的Softmax函数与官方的PyTorch `torch.softmax()`函数进行比较。通过生成一个随机张量`x`，分别计算官方Softmax结果`a`和自定义版本`b`。使用`torch.allclose()`函数验证两个输出是否接近。
 
-![](https://files.mdnice.com/user/59/8e4d83df-36bd-4577-8d2c-ee62f44ebe05.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8e4d83df-36bd-4577-8d2c-ee62f44ebe05.png)
 
 slides标题提到“Naive & Numerical unstable”（朴素且数值不稳定），表示当前定义的朴素Softmax函数在某些输入情况下会出现问题。slides显示了一个具体的例子，代码使用了一个随机生成的PyTorch张量x，并将其乘以100传入到朴素的naive_softmax()函数中。结果输出中显示张量中的某些值变成了nan（Not a Number），这表明数值溢出或不稳定。
 
-![](https://files.mdnice.com/user/59/c8dd01bc-a0be-4406-b89a-e4b23c7e1733.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c8dd01bc-a0be-4406-b89a-e4b23c7e1733.png)
 
 我们的目标是将Softmax运算分块处理（breaking softmax() into chunks）。右侧文字指出，虽然可以将向量分块并分别计算Softmax，但最终问题是如何从分块结果`s1`和`s2`重构出完整的target结果。这也是下一步需要解决的核心问题。
 
-![](https://files.mdnice.com/user/59/3b53c3f7-d99a-456c-8c11-89027b131588.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3b53c3f7-d99a-456c-8c11-89027b131588.png)
 
 这张幻slides讲解了如何通过“sum exp”（指数和）撤销Softmax的归一化，从而将分块计算的结果合并。首先回顾了上一个slides中的问题：Softmax输出通过除以`x.exp().sum()`来归一化。为了将多个分块的结果合并，我们需要撤销这种归一化。
 
@@ -167,7 +167,7 @@ Slides右侧的代码显示了如何通过分块的指数和来进行修正。`x
 
 > 然而这种方法仍然需要访问所有的数值，但稍安勿躁，继续深入。
 
-![](https://files.mdnice.com/user/59/31d53c35-9fe8-447b-a484-3b242a45a630.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/31d53c35-9fe8-447b-a484-3b242a45a630.png)
 
 
 这张Slides讲解了如何使用数值稳定的方式将分块的Softmax结果进行合并。具体内容如下：
@@ -194,29 +194,29 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
 - 旁边解释了一个数学技巧：$\frac{a}{a+b}=\frac{1}{1+\frac{b}{a}}$。
 提到要在对数尺度上进行减法而非除法，从而保证数值稳定性。
 
-![](https://files.mdnice.com/user/59/4128df2d-6d10-402a-98ab-be9ca3c3f463.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4128df2d-6d10-402a-98ab-be9ca3c3f463.png)
 
 - 这里提到 RingAttention 可以使用内部 Flash Attention 的一些函数，这些函数可以返回 log-sum-exp，从而帮助进行逐块或者增量地计算注意力Value的投影。
 - 这里的代码片段是一个名为 `_update_out_and_lse` 的 PyTorch 函数。它的作用是更新 `out` 和 `lse`（log-sum-exp）的值。由于注意力Value投影是线性的，所以可以按照类似直接对 Softmax 结果进行分块处理的方式进行修正和计算。
 
-![](https://files.mdnice.com/user/59/151c556c-3421-467a-a2e2-d005b4467427.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/151c556c-3421-467a-a2e2-d005b4467427.png)
 
 这张图展示的是Flash Attention V2的逐chunk更新softmax结果和输出，实际上也适用于这里的Ring Attention的更新。
 
-![](https://files.mdnice.com/user/59/e880c3ad-3287-4cd8-b141-643f1f3ceaf1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e880c3ad-3287-4cd8-b141-643f1f3ceaf1.png)
 
 这张slides展示了zhuzilin/ring-flash-attention中对Ring Attention的开源实现，我没可以看到除了通信之外Ring Attention调用的是TriDao的Flash Attention来做每个块（设备）上的Attention计算和lse的更新。实际上这就是Ring Attention的细节了，接下来作者会继续讨论下Ring Attention的通信之类的。
 
 
-![](https://files.mdnice.com/user/59/303c3199-3225-4e0c-b5b4-ab381b72f1eb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/303c3199-3225-4e0c-b5b4-ab381b72f1eb.png)
 
 这张Slides画了一下序列并行的示意图，这个就不多讲了，大家应该比较熟悉。
 
-![](https://files.mdnice.com/user/59/d5aa4824-eae1-42aa-9fd7-51c4c5a447e5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d5aa4824-eae1-42aa-9fd7-51c4c5a447e5.png)
 
 这张Slides介绍了 注意力机制的序列并行化（Sequence Parallelism），展示了如何将查询（Q）、键（K）和值（V）张量在不同设备间进行分割和传递。每个设备分别计算一部分注意力值，并通过 `Send & Recv KV` 操作在设备间进行通信，从而实现跨设备的高效并行计算。
 
-![](https://files.mdnice.com/user/59/b70b5a76-b1da-4c0d-aebd-b74a0d49800e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b70b5a76-b1da-4c0d-aebd-b74a0d49800e.png)
 
 这里介绍了一下"Ring Attention"的主要概念。内容包括：
 - **计算顺序的灵活性**：块计算的顺序可以是任意的，不受限制。
@@ -225,11 +225,11 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
 - **完成条件**：当每个节点都看到所有KV部分时，一个完整的循环就完成了。
 - **零开销**：对于较长的序列，由于计算和通信可以重叠，因此实现了零开销。
 
-![](https://files.mdnice.com/user/59/0627acad-eb05-47b8-b5ce-976d6215059d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0627acad-eb05-47b8-b5ce-976d6215059d.png)
 
 这里展示了一下Ring Attention的伪代码和前面2个slides的代码是相对应的。
 
-![](https://files.mdnice.com/user/59/a7d4d710-cfee-4fcb-b119-0b02b7cb3e0a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a7d4d710-cfee-4fcb-b119-0b02b7cb3e0a.png)
 
 这张Slides回顾了自回归模型（Autoregressive Models）中的因果掩码（Causal Masking）的概念和作用，内容包括：
 - 因果掩码是支持自回归解码所必需的，因为在自回归模型中，每个时刻的输出只能依赖当前及之前的输入，而不能看到未来的输入。
@@ -237,7 +237,7 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
 - 掩码无需被显式存储，而是可以在内核（kernel）中动态计算。
 - 类似于Flash Attention的kernel可以跳过完全被掩码的键值块，从而提升计算效率。
 
-![](https://files.mdnice.com/user/59/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
 
 这张Slides描述了自回归模型中使用Ring Attention时遇到的主要问题及其影响。
 - 设备空闲问题：
@@ -247,7 +247,7 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
     - 使用Ring Attention的环形结构，可以动态地跳过完全被掩码的键值块，从而提升计算效率。
     - 通过这种方式，可以减少计算资源的浪费，提高计算效率。
 
-![](https://files.mdnice.com/user/59/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
 
 这张Slides描述了自回归模型中使用Ring Attention时遇到的主要问题及其影响。
 - 设备空闲问题：
@@ -257,7 +257,7 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
     - 使用Ring Attention的环形结构，可以动态地跳过完全被掩码的键值块，从而提升计算效率。
     - 通过这种方式，可以减少计算资源的浪费，提高计算效率。
 
-![](https://files.mdnice.com/user/59/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/55444448-2d20-4ae0-a8a0-bd339ae3ad2b.png)
 
 这张Slides描述了自回归模型中使用Ring Attention时遇到的主要问题及其影响。
 - **设备空闲问题**：
@@ -270,7 +270,7 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
 - **最慢的环形节点决定整体速度**：
     - Slides 特别指出：环形结构中最慢的主机（Ring Host）决定了整体计算的速度。因此，如果某个设备因掩码导致计算时间变长或空闲时间变多，会拖慢整体环形的计算速度，降低效率。
 
-![](https://files.mdnice.com/user/59/25eca3d3-6b90-43c3-bafa-8da15355795f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/25eca3d3-6b90-43c3-bafa-8da15355795f.png)
 
 这张Slides在上面的Slides基础上进一步详细说明了Ring Attention在自回归模型中应用因果掩码时的具体过程和问题。
 - **Causal Mask Chunks 分割及其应用**：
@@ -291,15 +291,15 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
 
 > 上面讲的都是Ring Attention的负载不均衡问题，接下来介绍个解决方案。
 
-![](https://files.mdnice.com/user/59/dbe00625-afd7-4741-b345-32b45b783e8c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dbe00625-afd7-4741-b345-32b45b783e8c.png)
 
-![](https://files.mdnice.com/user/59/f2b23290-ca73-4c39-bc20-bfde8ccb2310.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f2b23290-ca73-4c39-bc20-bfde8ccb2310.png)
 
 这两张slides讲解了一个Ring Attention负载不均衡的解决方案，通过 **Stripe Permutation（条带置换）** 的策略，将K，V和Q在序列维度上按条带重新排列（比如将KV0分成了0,4,8,12，而不是连续的0,1,2,3），通过重新排列KV和Q块，Striped Attention能够更好地分配计算资源，从而减轻设备之间的不平衡性，提高整体计算效率。从第二张Slides可以看到，经过条带置换后的计算过程几乎能够完美地均衡分配计算负载，从而使得设备之间的计算更加平衡，避免了Ring Attention中存在的设备空闲问题。在每个回合中，只有当“host_id < round”时，需要丢弃第一个查询和最后一个键的计算，这样做能够避免不必要的计算，进一步提升效率。
 
-![](https://files.mdnice.com/user/59/8d056f6b-6d46-43e0-8237-2aab602b9cf4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8d056f6b-6d46-43e0-8237-2aab602b9cf4.png)
 
-![](https://files.mdnice.com/user/59/ebff1ff8-f32c-4d0b-acbb-2053278fc5aa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ebff1ff8-f32c-4d0b-acbb-2053278fc5aa.png)
 
 这两张slides则讲述了 FlashAttention 和 Flash-Decoding 两种不同的方法在长文本推理任务中的表现差异。
 - FlashAttention 在长文本推理中表现不佳。
@@ -312,7 +312,7 @@ c2 = b2 / (1 + torch.exp(lse1 - lse2))
 
 Flash-Decoding和Ring Attention的区别是，它不需要在多个Host上进行序列切分和通信传递K和V，而是通过2个Kernel来完成长序列的Attention的计算。从某种角度来说，我们也可以把Flash Decoding看作是Ring Attention在推理阶段的一个优化。
 
-![](https://files.mdnice.com/user/59/a73840aa-aa64-42d3-a7e9-e6f562a2839a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a73840aa-aa64-42d3-a7e9-e6f562a2839a.png)
 
 最后一张Slides给出了这节课的一些链接。
 

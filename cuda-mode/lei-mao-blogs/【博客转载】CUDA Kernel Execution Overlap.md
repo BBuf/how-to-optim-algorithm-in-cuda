@@ -121,16 +121,16 @@ $ ./overlap
 
 我们观察到当`blocks_per_grid = 1`时出现完全并行化。然而，我们也可以看到完成所有 kernel所花费的时间很长，因为GPU没有被充分利用。
 
-![blocks_per_grid = 1](https://files.mdnice.com/user/59/9175ff40-4afc-4ff2-b673-1429e9ff04e0.png)
+![blocks_per_grid = 1](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9175ff40-4afc-4ff2-b673-1429e9ff04e0.png)
 
 
 当我们设置`blocks_per_grid = 32`时，只有部分 kernel执行被并行化。然而，GPU被充分利用，完成所有 kernel所花费的时间比`blocks_per_grid = 1`时少得多。
 
-![blocks_per_grid = 32](https://files.mdnice.com/user/59/f9951640-2f82-4730-b73c-d1207babd2e3.png)
+![blocks_per_grid = 32](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f9951640-2f82-4730-b73c-d1207babd2e3.png)
 
 与`blocks_per_grid = 32`相同，当我们设置`blocks_per_grid = 5120`时，几乎没有 kernel执行被并行化。然而，GPU仍然被充分利用，完成所有 kernel所花费的时间比`blocks_per_grid = 1`时少得多。
 
-![blocks_per_grid = 512](https://files.mdnice.com/user/59/03877567-3637-4ca1-a71e-470c571629de.png)
+![blocks_per_grid = 512](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/03877567-3637-4ca1-a71e-470c571629de.png)
 
 ### 隐式同步
 

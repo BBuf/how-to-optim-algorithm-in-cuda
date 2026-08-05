@@ -8,7 +8,7 @@ GPU-MODE 会定期搞一些 kernel 竞赛，通过耗时排名决出最快的实
 
 # 0x1. 问题描述
 
-![](https://files.mdnice.com/user/59/7ec4979b-49f5-49d2-960a-b51983561f3c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7ec4979b-49f5-49d2-960a-b51983561f3c.png)
 
 需要实现一个针对 NVIDIA B200 优化的 batched matrix-vector multiplication kernel，输入张量为：
 
@@ -125,7 +125,7 @@ check_implementation = make_match_reference(ref_kernel, rtol=1e-03, atol=1e-03)
 
 # 0x3. Rank1 代码阅读
 
-![](https://files.mdnice.com/user/59/1d3eb599-96ce-4512-bb23-9fc5e3da35d2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1d3eb599-96ce-4512-bb23-9fc5e3da35d2.png)
 
 接下来看看 rank1 的实现。整体是一个用 `load_inline` 编译的手写 CUDA kernel，核心思路是针对 B200 的带宽瓶颈做精细的缓存控制，同时用 PTX inline assembly 直接操作 fp4/fp8 的 packed 格式，避免不必要的精度转换开销。
 

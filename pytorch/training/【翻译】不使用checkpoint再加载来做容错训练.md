@@ -8,7 +8,7 @@
 
 **简述**：我们使用 torchft(https://github.com/pytorch/torchft) 和 torchtitan(https://github.com/pytorch/torchtitan) 在真实环境中以极端的合成故障率训练模型，以证明容错训练的可靠性和正确性。
 
-![](https://files.mdnice.com/user/59/18c5589b-8daa-413a-bd99-c57cc3c5a6f5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/18c5589b-8daa-413a-bd99-c57cc3c5a6f5.png)
 
 注意：每个小峰值都是非参与工作节点的恢复，这会影响指标但不会影响模型
 
@@ -20,11 +20,11 @@
 
 以下是使用 torchft 的训练作业结构：
 
-![](https://files.mdnice.com/user/59/9c560d20-7abc-4a6f-95f8-d1a0818231d8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9c560d20-7abc-4a6f-95f8-d1a0818231d8.png)
 
 训练作业的结构。torchft 的容错 DDP 实现用于跨副本组同步梯度。标准 FSDP2 和其他并行化在每个副本组内使用。
 
-![](https://files.mdnice.com/user/59/76018447-d8d3-4546-a1b0-4df1e6006c17.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/76018447-d8d3-4546-a1b0-4df1e6006c17.png)
 
 torchft 使用全局 Lighthouse 服务器和每个副本组的管理器来进行工作节点的实时协调。Lighthouse 通过心跳了解所有工作节点的状态以及哪些是健康的。
 
@@ -61,7 +61,7 @@ NVIDIA L40S GPU 通常用于推理，因此为我们提供了在非传统环境�
 
 以下是显示恢复副本（副本 1）如何加入仲裁并从健康对等节点（副本 0）恢复而不会有任何停机时间或影响健康工作节点训练的图表：
 
-![](https://files.mdnice.com/user/59/d9b4d20f-c63d-45ca-bf74-70df18d76779.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d9b4d20f-c63d-45ca-bf74-70df18d76779.png)
 
 torchft 采用了分布式数据库的许多概念：
 
@@ -165,7 +165,7 @@ with get_runner() as runner:
 
 ### 运行 1：每 60 秒注入故障，共 1100 次故障
 
-![](https://files.mdnice.com/user/59/f815a4ba-6f7e-40b7-968b-1114d329ba94.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f815a4ba-6f7e-40b7-968b-1114d329ba94.png)
 
 这次运行持续了 19 小时多一点，共 6249 步。平均每步耗时 10.9 秒。
 
@@ -189,7 +189,7 @@ with get_runner() as runner:
 
 通过随机化故障间隔，我们导致故障在工作节点仍在初始化时而不是在稳定状态时发生，更可能遇到边缘情况。我们很高兴报告 torchft 表现如预期，没有不可恢复的错误。
 
-![](https://files.mdnice.com/user/59/97c57cf6-0be6-419d-b78c-f6a70cc24ca9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/97c57cf6-0be6-419d-b78c-f6a70cc24ca9.png)
 
 如您所见，这个作业的行为更加不稳定。与 60 秒故障率时非常接近 30 台机器不同，每 15 秒一次故障时，我们在每步从 1 台机器到 30 台机器都有。
 
@@ -207,11 +207,11 @@ with get_runner() as runner:
 
 TorchFT 还支持半同步训练算法，包括 LocalSGD 和 DiLoCo，计划在未来添加更多。与 HSDP2 不同，这些算法不在每步同步。相反，它们在同步权重之前进行几步本地训练，通过平均参数或梯度。这种方法通过将通信成本降低到每 N 步一次（可配置的超参数）而不是每步一次来提高性能。我们在集群上的测试显示吞吐量有明显改善。当每 40 步同步一次时，我们最小化了通信开销，导致更高的整体吞吐量。下面是 DiLoCo 吞吐量（黄色）的比较，平均约 4000 tps，与常规 HSDP2（紫色）相比，平均约 1200 tps。
 
-![](https://files.mdnice.com/user/59/68eafca4-2de2-4170-aaac-ea988af3b541.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/68eafca4-2de2-4170-aaac-ea988af3b541.png)
 
 自然地，同步之间的间隔越长，副本组内的模型就会越发散。这种发散可能会影响模型的收敛。然而，在我们的测试中，我们观察到模型仍然能够有效训练并达到收敛，尽管有这些较长的同步间隔。这种弹性在副本可能意外离开组的动态环境中是有益的。即使在这种情况下，模型也表现出继续训练而不会显著中断的能力。
 
-![](https://files.mdnice.com/user/59/3681b0f2-c95e-4f97-a7a2-6f0d892bd152.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3681b0f2-c95e-4f97-a7a2-6f0d892bd152.png)
 
 ## 下一步
 

@@ -17,7 +17,7 @@
 
 GLM-4.5 的模型生态如果只看权重发布会少一块：这些模型后续 RL/post-training 怎么跑，rollout 后端怎么接，权重怎么同步。LMSYS 的 slime blog 可以作为公开参考：
 
-<img src="https://files.mdnice.com/user/59/e62c3bfc-5f68-4989-a912-c8495837396d.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e62c3bfc-5f68-4989-a912-c8495837396d.png" referrerpolicy="no-referrer" />
 
 这张图里的 SGLang Server Group、Router、Weight Sync 和 Partial Rollout，基本就是后面读 slime 代码的地图。GLM 系列模型体量大、MoE 多、上下文长，训练端每轮更新后都要让 rollout 侧尽快吃到新权重。slime 选择围绕 SGLang 做原生集成，原因也在这里：推理引擎的 release/resume、server group 管理、采样参数和 rollout 数据回流，都需要进入训练框架的调度面。
 
@@ -25,7 +25,7 @@ GLM-4.5 的模型生态如果只看权重发布会少一块：这些模型后续
 
 ### Slide 1：GLM-4.5 系列模型开源生态
 
-<img src="https://files.mdnice.com/user/59/8e9e3b5e-658f-41ee-9d46-b081e2a3bad4.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8e9e3b5e-658f-41ee-9d46-b081e2a3bad4.png" referrerpolicy="no-referrer" />
 
 标题页给出主题：GLM-4.5 系列模型开源生态。这里的“生态”不是只把模型权重传到 HuggingFace，而是语言模型、视觉模型、训练框架、推理框架、文档、社区活动一起构成的使用路径。
 
@@ -33,7 +33,7 @@ GLM-4.5 的模型生态如果只看权重发布会少一块：这些模型后续
 
 ### Slide 2：目录
 
-<img src="https://files.mdnice.com/user/59/9e72dc41-aa5f-40e5-bcc9-cf7524246546.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9e72dc41-aa5f-40e5-bcc9-cf7524246546.png" referrerpolicy="no-referrer" />
 
 目录分三段：GLM-4.5 语言模型、GLM-4.5V 视觉模型、GLM-4.5 系列模型开源生态。这个顺序也很自然：先说明语言模型能力和训练，再说明视觉模型的结构和数据工程，最后讲开源适配与社区传播。
 
@@ -41,7 +41,7 @@ GLM-4.5 的模型生态如果只看权重发布会少一块：这些模型后续
 
 ### Slide 3：语言模型能力背景
 
-<img src="https://files.mdnice.com/user/59/093767d4-574e-4842-9c15-682319a4cd53.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/093767d4-574e-4842-9c15-682319a4cd53.png" referrerpolicy="no-referrer" />
 
 这一页是语言模型章节的分隔页。后面几页会围绕 GLM-4.5 的 all-round 定位展开：reasoning、coding、agent 和通用能力都要覆盖。
 
@@ -49,7 +49,7 @@ GLM-4.5 的模型生态如果只看权重发布会少一块：这些模型后续
 
 ### Slide 4：GLM-4.5：All-round model
 
-<img src="https://files.mdnice.com/user/59/a5d8c235-f42e-4fc5-b92e-27c33a843844.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5d8c235-f42e-4fc5-b92e-27c33a843844.png" referrerpolicy="no-referrer" />
 
 这一页把 GLM-4.5 定位成“全优生”。slide 小字写到：复杂推理、代码生成、智能体交互是内置能力；代码和智能体能力位列全球开源模型第一，推理能力第二。这里的表述强调的是“均衡”：不是只在某一个 benchmark 上冲高，而是让模型能覆盖真实任务里的多种能力。
 
@@ -57,7 +57,7 @@ GLM-4.5 的模型生态如果只看权重发布会少一块：这些模型后续
 
 ### Slide 5：Agent 能力对比
 
-<img src="https://files.mdnice.com/user/59/7461aada-03eb-4dd7-b686-828aa89365cb.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7461aada-03eb-4dd7-b686-828aa89365cb.png" referrerpolicy="no-referrer" />
 
 Agent 能力对比页提到 τ-bench 和 BFCL-v3，并说 GLM-4.5 在这些基准上与 Claude 4 Sonnet 接近。τ-bench 关注真实工具环境下的任务完成，BFCL-v3 关注 function calling 的工具选择、参数生成和多轮调用。
 
@@ -65,7 +65,7 @@ Agent 能力对比页提到 τ-bench 和 BFCL-v3，并说 GLM-4.5 在这些基�
 
 ### Slide 6：代码能力
 
-<img src="https://files.mdnice.com/user/59/1cd41d0a-7630-442f-b328-0086c36ca486.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1cd41d0a-7630-442f-b328-0086c36ca486.png" referrerpolicy="no-referrer" />
 
 代码能力页给的是 52 个编程任务实测，任务覆盖前端开发、工具开发、数据分析、测试和算法实现等。slide 里还给了对比胜率：相对 Kimi K2、Qwen3-Coder、Claude-4-Sonnet 分别展示不同胜率。
 
@@ -73,7 +73,7 @@ Agent 能力对比页提到 τ-bench 和 BFCL-v3，并说 GLM-4.5 在这些基�
 
 ### Slide 7：通用能力
 
-<img src="https://files.mdnice.com/user/59/89098ef1-d8db-4bc1-9c85-0a330b86d3ab.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/89098ef1-d8db-4bc1-9c85-0a330b86d3ab.png" referrerpolicy="no-referrer" />
 
 通用能力页说明模型没有只往 agent/coding 偏。全能型模型如果只为某个窄任务优化，很容易在普通问答、写作、知识、数学之外出现能力塌陷。
 
@@ -81,7 +81,7 @@ Agent 能力对比页提到 τ-bench 和 BFCL-v3，并说 GLM-4.5 在这些基�
 
 ### Slide 8：搜索工具调用示例
 
-<img src="https://files.mdnice.com/user/59/7fd3013d-dbfd-42e4-8a57-297b3955955c.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7fd3013d-dbfd-42e4-8a57-297b3955955c.png" referrerpolicy="no-referrer" />
 
 这一页展示的是搜索类工具调用。画面里模型会先理解用户问题，再把问题拆成可搜索的查询，拿到外部信息后组织成回答。它不是核心系统图，但能看出 GLM-4.5 的产品化目标：模型不只回答静态问题，还要能把外部工具纳入推理过程。
 
@@ -89,7 +89,7 @@ Agent 能力对比页提到 τ-bench 和 BFCL-v3，并说 GLM-4.5 在这些基�
 
 ### Slide 9：模型即产品的能力展示
 
-<img src="https://files.mdnice.com/user/59/bc6626cd-eaeb-40e2-98f6-4d1c2bd1da3a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bc6626cd-eaeb-40e2-98f6-4d1c2bd1da3a.png" referrerpolicy="no-referrer" />
 
 这页是“模型即产品”的展示：复杂需求会被拆成搜索、规划、写作、格式控制等多个步骤。它放在模型能力部分里，说明 GLM-4.5 不是只追 benchmark 分数，也在强调 agent/product workflow 的可用性。
 
@@ -97,7 +97,7 @@ Agent 能力对比页提到 τ-bench 和 BFCL-v3，并说 GLM-4.5 在这些基�
 
 ### Slide 10：Tic-tac-toe 示例
 
-<img src="https://files.mdnice.com/user/59/93220e50-7220-4c6f-b3d3-2cbf1406de1b.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/93220e50-7220-4c6f-b3d3-2cbf1406de1b.png" referrerpolicy="no-referrer" />
 
 Tic-tac-toe 示例的 prompt 是“一句话，做一个真的玩的井字棋游戏”。它看起来是产品 demo，但技术上覆盖了代码生成、交互状态管理和前端逻辑。模型不能只写一段静态 HTML，还要让棋盘状态、胜负判断、重开逻辑都能工作。
 
@@ -105,7 +105,7 @@ Tic-tac-toe 示例的 prompt 是“一句话，做一个真的玩的井字棋游
 
 ### Slide 11：PPT/小红书生成示例
 
-<img src="https://files.mdnice.com/user/59/265cbf10-d658-4afd-a594-4a6ed0e2073d.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/265cbf10-d658-4afd-a594-4a6ed0e2073d.png" referrerpolicy="no-referrer" />
 
 PPT/小红书示例偏产品化，但它测的是另一类能力：长结构化输出、视觉排版、风格控制和工具调用的组合。用户只给一句需求，模型要生成有格式、有层次、有审美约束的内容。
 
@@ -115,7 +115,7 @@ PPT/小红书示例偏产品化，但它测的是另一类能力：长结构化�
 
 ### Slide 12：模型结构对比
 
-<img src="https://files.mdnice.com/user/59/a90ddb09-200c-4bd7-8570-826cdde2f961.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/a90ddb09-200c-4bd7-8570-826cdde2f961.png" referrerpolicy="no-referrer" />
 
 模型结构页讲的是 GLM-4.5 系列的底座差异。表格通常会把总参数、激活参数、上下文长度、模型尺寸和不同版本放在一起比较。对 infra 读者来说，重点不只是参数规模，而是 MoE、active 参数、长上下文和推理成本会共同决定后面的训练、rollout 和 serving 方案。
 
@@ -123,7 +123,7 @@ MoE 的好处是总参数可以上去，单 token active 参数受控；代价�
 
 ### Slide 13：GLM-4.5 训练过程
 
-<img src="https://files.mdnice.com/user/59/1d0ff2df-d84f-4d0c-a1ea-6da05aa1d8aa.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1d0ff2df-d84f-4d0c-a1ea-6da05aa1d8aa.png" referrerpolicy="no-referrer" />
 
 训练过程页把 pretraining、mid-training、SFT、RL 串起来。pretraining 打底，mid-training 调整能力分布，SFT 对齐指令格式，RL 再根据 reward/verifier 优化 reasoning、coding、agent 等任务。
 
@@ -131,7 +131,7 @@ slime 正是后训练阶段的系统支撑之一：training 模块从 data buffe
 
 ### Slide 14：GLM-4.5 强化学习
 
-<img src="https://files.mdnice.com/user/59/953e3746-b2b5-406d-a8c9-506fe31946f3.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/953e3746-b2b5-406d-a8c9-506fe31946f3.png" referrerpolicy="no-referrer" />
 
 强化学习第一页说明 GLM-4.5 的 post-training 不只做静态 SFT。RL 需要 rollout 引擎不断生成样本，再把 reward/verifier 结果回流训练。模型越大，rollout 吞吐、显存占用和权重同步越会变成系统问题。
 
@@ -139,7 +139,7 @@ slime 正是后训练阶段的系统支撑之一：training 模块从 data buffe
 
 ### Slide 15：强化学习策略细节
 
-<img src="https://files.mdnice.com/user/59/0c8c7f51-9222-4ad2-9ae7-e5f77870213f.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0c8c7f51-9222-4ad2-9ae7-e5f77870213f.png" referrerpolicy="no-referrer" />
 
 这一页继续展开 RL recipe。Step-wise Rule-based RL 用过程奖励显式约束分步推理，提高复杂任务里的逻辑一致性；End-to-end Multi-turn RL 直接优化完整交互过程，让模型学会主动提问、澄清和规划；Pathology RL 则针对混语、重复、格式问题这类低频错误构造专门数据并施加惩罚。
 
@@ -147,7 +147,7 @@ slime 正是后训练阶段的系统支撑之一：training 模块从 data buffe
 
 ### Slide 16：slime 开发者文档
 
-<img src="https://files.mdnice.com/user/59/698be5f3-f606-4c60-a51b-5f73d64a3972.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/698be5f3-f606-4c60-a51b-5f73d64a3972.png" referrerpolicy="no-referrer" />
 
 slime 文档入口是这里的代码落点。slide 截图里是开发者文档页面，说明 GLM-4.5 的 RL 系统不是内部口头方案，而是已经公开到可以按文档启动和调试。
 
@@ -155,7 +155,7 @@ slime README 明确写到它是 GLM-4.5 背后的 RL framework，并且用 Megat
 
 ### Slide 17：GLM-4.5V 视觉理解模型
 
-<img src="https://files.mdnice.com/user/59/bedf3563-08bf-4f9e-b798-e009a6abf4f1.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bedf3563-08bf-4f9e-b798-e009a6abf4f1.png" referrerpolicy="no-referrer" />
 
 GLM-4.5V 把话题转向视觉语言模型。这里不只是“语言模型加图片输入”，而是要处理 grounding、OCR、视频、GUI、视觉问答和多模态安全这类任务。
 
@@ -165,7 +165,7 @@ VLM 的 RL 比纯文本更复杂，因为输入输出可能涉及区域位置、
 
 ### Slide 18：Grounding 和语义理解
 
-<img src="https://files.mdnice.com/user/59/e34aeda2-253a-4587-b00c-c15a0dbb3178.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e34aeda2-253a-4587-b00c-c15a0dbb3178.png" referrerpolicy="no-referrer" />
 
 Grounding 和语义能力页强调视觉定位。图里展示的不是普通 caption，而是模型要在图片中找到目标、理解区域关系，再用语言表达出来。训练数据里需要 box、region、OCR、语义关系等监督，推理时也要保留足够视觉分辨率。
 
@@ -173,7 +173,7 @@ VLM 的难点不仅是“把图片塞进上下文”，还要让空间信息能�
 
 ### Slide 19：安全检测与 Grounding 能力
 
-<img src="https://files.mdnice.com/user/59/8154eb49-f8fe-4760-ae5b-562a9f026df8.jpg" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8154eb49-f8fe-4760-ae5b-562a9f026df8.jpg" referrerpolicy="no-referrer" />
 
 这一页把 grounding 能力和安全检测放在一起，示例是基于 GLM-4.1V-Thinking 的安全检测系统，包括火灾、烟雾和安全帽佩戴。它不是简单分类任务，很多场景需要模型指出风险发生在哪个区域。
 
@@ -181,7 +181,7 @@ VLM 的难点不仅是“把图片塞进上下文”，还要让空间信息能�
 
 ### Slide 20：GLM-4.5V 模型介绍
 
-<img src="https://files.mdnice.com/user/59/fc82782d-3810-4182-9309-5b8f16c45902.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fc82782d-3810-4182-9309-5b8f16c45902.png" referrerpolicy="no-referrer" />
 
 GLM-4.5V 模型介绍页把视觉模型和语言模型联系起来。它通常会交代底座、输入分辨率、支持图像/视频类型，以及模型在 grounding、OCR、GUI、视频理解上的定位。
 
@@ -191,7 +191,7 @@ GLM-4.5V 模型介绍页把视觉模型和语言模型联系起来。它通常�
 
 ### Slide 21：V 模型结构
 
-<img src="https://files.mdnice.com/user/59/db736f29-19d1-448e-95c4-89dbd3b6dfcd.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/db736f29-19d1-448e-95c4-89dbd3b6dfcd.png" referrerpolicy="no-referrer" />
 
 这页把 GLM-V 的输入序列画得比较清楚。底部是原生分辨率输入：Image 1、Image 2 和一段约 20s 的 Video 1，ViT Encoder 负责抽视觉特征，并且视频路径带 2x temporal compression。中间的 MLP Projector 把视觉特征投到语言模型 hidden size。上方的 Language Decoder 收到的是一串混合 token：普通文本 token、图像 token、视频 token、time index token，以及右上角虚线框里的 predicted token。
 
@@ -199,7 +199,7 @@ GLM-4.5V 模型介绍页把视觉模型和语言模型联系起来。它通常�
 
 ### Slide 22：预训练
 
-<img src="https://files.mdnice.com/user/59/a1edb74f-8661-4277-8be2-9ef515459558.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a1edb74f-8661-4277-8be2-9ef515459558.png" referrerpolicy="no-referrer" />
 
 这页的曲线横轴是 sample 数量 k，纵轴是 Pass@k。蓝线是 GLM-4.1V-9B-Base，绿线是 InternVL3-9B-Pretrain。两条线都随着 k 从 1 增到 64 持续上升，说明视觉理解任务里多采样仍然能换来更高通过率；蓝线整体高于绿线，并且在 k=4 到 k=16 区间提升很明显。
 
@@ -207,7 +207,7 @@ GLM-4.5V 模型介绍页把视觉模型和语言模型联系起来。它通常�
 
 ### Slide 23：数据工程第一部分
 
-<img src="https://files.mdnice.com/user/59/12988909-d625-42cc-a1eb-c3f1bfadd22f.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/12988909-d625-42cc-a1eb-c3f1bfadd22f.png" referrerpolicy="no-referrer" />
 
 这页把图文预训练数据拆成两块。左边是 Image Caption Data，规模写着 10B+ high-quality image-text pairs，来源包括 LAION、DataComp、DFN、Wukong 和 web sources。下面的 multi-stage refinement 有四步：先按分辨率、caption 长度、去重做 heuristic filtering；再用 CLIP-score，阈值标成大于 0.3；然后做 concept-balanced resampling，参考 MetaCLIP 的思路；最后做 factual-centered recaptioning，用迭代模型训练给 caption 去噪和补充事实。
 
@@ -215,7 +215,7 @@ GLM-4.5V 模型介绍页把视觉模型和语言模型联系起来。它通常�
 
 ### Slide 24：数据工程第二部分
 
-<img src="https://files.mdnice.com/user/59/ce03fc77-26e7-4df0-95da-8e99d3d66430.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ce03fc77-26e7-4df0-95da-8e99d3d66430.png" referrerpolicy="no-referrer" />
 
 这页继续把数据源拆成 OCR、grounding、video 和 instruction tuning。OCR Data 标了 220M total images，包含 synthetic documents、natural scene text 和 academic documents：synthetic documents 是多背景文本渲染，natural scene text 来自 Paddle-OCR 抽取的文字框，academic documents 来自 LaTeXML 处理过的 arXiv 论文。Grounding Data 标了 40M natural image annotations 和 140M+ GUI QA pairs，下面两类是 natural image grounding 和 GUI grounding，后者把 DOM elements 与 Playwright interactions 结合起来。
 
@@ -223,7 +223,7 @@ GLM-4.5V 模型介绍页把视觉模型和语言模型联系起来。它通常�
 
 ### Slide 25：训练策略
 
-<img src="https://files.mdnice.com/user/59/986279af-c2ba-4d73-87b5-c5aa67dd343f.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/986279af-c2ba-4d73-87b5-c5aa67dd343f.png" referrerpolicy="no-referrer" />
 
 训练策略页把模型结构、数据和并行训练放到一起。VLM 训练比纯文本多一层数据调度：图像 caption、OCR、grounding、视频、GUI、instruction tuning 的采样比例都要设计；视觉 token 长度又会直接影响吞吐。
 
@@ -231,7 +231,7 @@ GLM-4.5V 模型介绍页把视觉模型和语言模型联系起来。它通常�
 
 ### Slide 26：RL for VLM
 
-<img src="https://files.mdnice.com/user/59/99994339-2c92-4d14-b2d3-9336a2f32ae5.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/99994339-2c92-4d14-b2d3-9336a2f32ae5.png" referrerpolicy="no-referrer" />
 
 RL for VLM 页说明多模态也要进入 RL。GUI、grounding、OCR 这类任务往往有可验证反馈，适合做 RL 或 rejection sampling：框选是否命中、按钮是否点对、OCR 是否正确，都能构造成 reward 或 verifier。
 
@@ -239,7 +239,7 @@ RL for VLM 页说明多模态也要进入 RL。GUI、grounding、OCR 这类任�
 
 ### Slide 27：GUI Agents 和 CogAgent
 
-<img src="https://files.mdnice.com/user/59/c763ccff-0c88-4d93-b5b2-dad829991396.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c763ccff-0c88-4d93-b5b2-dad829991396.png" referrerpolicy="no-referrer" />
 
 GUI Agents 和 CogAgent 页把 VLM 推向实际环境操作。slide 提到 integrated with CogAgent、task-oriented data collection & improving loop、cross-platform GUI instruction capabilities。也就是说，模型不只是看截图回答问题，而是要在真实 UI 里完成任务。
 
@@ -247,7 +247,7 @@ GUI Agents 和 CogAgent 页把 VLM 推向实际环境操作。slide 提到 integ
 
 ### Slide 28：开源生态
 
-<img src="https://files.mdnice.com/user/59/8f769407-82df-43c7-a1c9-7992d9409e9b.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8f769407-82df-43c7-a1c9-7992d9409e9b.png" referrerpolicy="no-referrer" />
 
 开源生态页是第三部分的开头。前面讲模型能力和训练，这里转到模型如何被社区使用：权重、代码、demo、文档、框架适配、issue/PR、技术活动都会影响 adoption。
 
@@ -257,7 +257,7 @@ GUI Agents 和 CogAgent 页把 VLM 推向实际环境操作。slide 提到 integ
 
 ### Slide 29：生态地图
 
-<img src="https://files.mdnice.com/user/59/fefa4c73-d177-46e0-b3dd-d522e628f8b9.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fefa4c73-d177-46e0-b3dd-d522e628f8b9.png" referrerpolicy="no-referrer" />
 
 生态地图页展示周边项目和文档入口。它的作用是把模型从“一个 repo”扩展成“一个可导航的生态”：模型仓库、技术报告、训练框架、推理框架、社区教程都在地图里占位。
 
@@ -265,7 +265,7 @@ GUI Agents 和 CogAgent 页把 VLM 推向实际环境操作。slide 提到 integ
 
 ### Slide 30：HuggingFace trending
 
-<img src="https://files.mdnice.com/user/59/4be48ff8-28dd-4294-a614-95cc88ce1375.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4be48ff8-28dd-4294-a614-95cc88ce1375.png" referrerpolicy="no-referrer" />
 
 HF trending 页说明发布后的社区反馈。HuggingFace Trending 不能替代技术评测，但能说明模型资产被真实用户拿去试，下载、复现、报 issue 的人多，框架兼容问题会更快暴露。
 
@@ -273,7 +273,7 @@ HF trending 页说明发布后的社区反馈。HuggingFace Trending 不能替�
 
 ### Slide 31：框架采用情况
 
-<img src="https://files.mdnice.com/user/59/7b249fee-0bf7-4fa1-b12f-c8e1544b118b.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7b249fee-0bf7-4fa1-b12f-c8e1544b118b.png" referrerpolicy="no-referrer" />
 
 框架采用情况页展示主动适配主流开源框架。这里至少包括 Transformers、PEFT、Accelerate、Diffusers 这类基础库，也包括 vLLM/SGLang 这类 serving 框架。对开发者来说，能不能用熟悉的框架加载和部署，往往比论文分数更影响上手。
 
@@ -281,7 +281,7 @@ HF trending 页说明发布后的社区反馈。HuggingFace Trending 不能替�
 
 ### Slide 32：开源流程
 
-<img src="https://files.mdnice.com/user/59/0eee7cb4-1b5e-4c4d-9e4e-64e2e7931d94.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0eee7cb4-1b5e-4c4d-9e4e-64e2e7931d94.png" referrerpolicy="no-referrer" />
 
 开源流程页画了多方协作：原始模型权重转换成 HuggingFace 权重，算法重构和代码适配进入代码仓库，合作伙伴做适配支持，社区通过 PR/Issue 反馈，最后落到推理与应用、模型微调、品牌和生态推广。
 
@@ -289,7 +289,7 @@ HF trending 页说明发布后的社区反馈。HuggingFace Trending 不能替�
 
 ### Slide 33：社区反馈
 
-<img src="https://files.mdnice.com/user/59/7a2bba40-60d7-45b2-8bed-3a386da00e97.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a2bba40-60d7-45b2-8bed-3a386da00e97.png" referrerpolicy="no-referrer" />
 
 社区反馈页强调技术解读、开源生态活动和文档。slide 里提到每月至少超过一场活动/直播，目标是降低开发者入门门槛。对大模型来说，文档和活动不是宣传附属品，而是生态维护的一部分。
 
@@ -297,7 +297,7 @@ HF trending 页说明发布后的社区反馈。HuggingFace Trending 不能替�
 
 ### Slide 34：论文和技术社区
 
-<img src="https://files.mdnice.com/user/59/eee3f7cd-591c-46d5-8940-a4a2cd3cca2a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/eee3f7cd-591c-46d5-8940-a4a2cd3cca2a.png" referrerpolicy="no-referrer" />
 
 论文和技术社区页给出入口：GLM-4.5 paper、GLM-4.5 GitHub、GLM-4.5V/GLM-4.1V paper、GLM-V GitHub。读者如果要核对模型结构、benchmark、processor 和推理示例，这些是第一手资料。
 
@@ -305,7 +305,7 @@ HF trending 页说明发布后的社区反馈。HuggingFace Trending 不能替�
 
 ### Slide 35：结束页
 
-<img src="https://files.mdnice.com/user/59/81d7b369-ad20-49ef-9e6d-2123531bfe45.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2ea1b2c3-646f-4280-a6f9-e112cb3e39b2.png" referrerpolicy="no-referrer" />
 
 结束页。GLM-4.5 的技术细节会继续变化，博客里更关注当前公开源码能验证的训练系统路径。
 

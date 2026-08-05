@@ -101,15 +101,15 @@ cluster级别仅适用于目标架构sm_90或更高版本。在启动时指定cl
 
 网格可以在彼此之间具有依赖关系 - 一个网格可能是依赖网格和/或先决条件网格。要了解如何定义网格依赖关系，请参阅《CUDA编程指南》中的CUDA Graph部分。
 
-![](https://files.mdnice.com/user/59/7eeb692b-170a-41f3-a8dd-020751a5eb46.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7eeb692b-170a-41f3-a8dd-020751a5eb46.png)
 
-![](https://files.mdnice.com/user/59/69dca117-809c-4358-a830-5ad63cd7eddd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/69dca117-809c-4358-a830-5ad63cd7eddd.png)
 
 ## 2.3. 内存层次结构
 
 PTX线程在执行过程中可以访问多个状态空间的数据，如图3所示，其中cluster级别从目标架构sm_90开始引入。每个线程都有私有的本地内存。每个线程块（CTA）有一个共享内存，对该块内的所有线程以及cluster中所有活动块可见，其生命周期与块相同。最后，所有线程都可以访问相同的全局内存。
 
-![](https://files.mdnice.com/user/59/c94ac3b1-506b-4cee-a3f5-6f5cf083e9f8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c94ac3b1-506b-4cee-a3f5-6f5cf083e9f8.png)
 
 所有线程还可以访问其他状态空间：常量、参数、纹理和表面状态空间。常量和纹理内存是只读的；表面内存可读可写。全局、常量、参数、纹理和表面状态空间针对不同的内存用途进行了优化。例如，纹理内存提供不同的寻址模式和特定数据格式的数据过滤。注意，纹理和表面内存是有缓存的，在同一个kernel调用中，缓存不会与全局内存写入和表面内存写入保持一致。
 
@@ -138,7 +138,7 @@ SIMT架构类似于SIMD（单指令多数据）向量组织，因为单个指令
 
  SM一次可以处理多少个块取决于每个线程需要多少寄存器以及每个块需要多少共享内存，因为 SM的寄存器和共享内存在一批块的所有线程之间分配。如果每个 SM没有足够的寄存器或共享内存来处理至少一个块，kernel将无法启动。
 
-![](https://files.mdnice.com/user/59/aa599b8d-25bf-4471-aceb-4b9add195b86.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/aa599b8d-25bf-4471-aceb-4b9add195b86.png)
 
 ## 独立线程调度
 
@@ -205,7 +205,7 @@ start:  mov.b32  r1, %tid.x;
 
 Directive关键字以点开头，因此不可能与用户定义的标识符冲突。PTX中的Directive列在表1中，并在"状态空间、类型和变量"和"Directives"章节中描述。
 
-![](https://files.mdnice.com/user/59/4a74823b-d74b-4ef1-ae97-389b33521693.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4a74823b-d74b-4ef1-ae97-389b33521693.png)
 
 ### 4.3.2 Instruction Statements
 
@@ -215,7 +215,7 @@ Instruction由**指令操作码**后跟逗号分隔的**零个或多个操作数
 
 Instruction关键字列在表2中。所有Instruction关键字在PTX中都是保留tokens。
 
-![](https://files.mdnice.com/user/59/bb93e069-934c-461b-a4a7-f39ecc56ead7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bb93e069-934c-461b-a4a7-f39ecc56ead7.png)
 
 
 ## 4.4 标识符
@@ -233,7 +233,7 @@ PTX未指定标识符的最大长度，并建议所有实现至少支持1024个�
 
 PTX预定义了一个常量和少量以百分号开头的特殊寄存器，列在表3中。
 
-![](https://files.mdnice.com/user/59/6e425754-3231-48f5-9289-0c7bb403d237.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6e425754-3231-48f5-9289-0c7bb403d237.png)
 
 ## 4.5 常量
 

@@ -5,7 +5,7 @@
 
 > by Team PyTorch: Horace He, Driss Guessous, Yanbo Liang, Joy Dong
 
-![](https://files.mdnice.com/user/59/76f9c77b-49f7-421b-88f5-fcb9f78d8624.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/76f9c77b-49f7-421b-88f5-fcb9f78d8624.png)
 
 理论上，Attention is All You Need。然而在实践中，我们还需要像FlashAttention这样的优化注意力实现。
 
@@ -15,7 +15,7 @@
 
 下图左侧代表了当今世界的现状——一些掩码 + 偏置 + 设置的组合已经有了现有的kernel实现。但各种选项导致了指数级的设置数量，因此我们最终得到了相当零散的支持。更糟糕的是，研究人员提出的新注意力变体将完全没有支持。
 
-![](https://files.mdnice.com/user/59/0c64c6d6-2813-4ff8-9840-f50ed34c893e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0c64c6d6-2813-4ff8-9840-f50ed34c893e.png)
 
 为了彻底解决这个超立方体问题，我们引入了**FlexAttention**，一个新的PyTorch API。
 
@@ -34,7 +34,7 @@ PS：我们也发现这个API非常令人兴奋，因为它以一种有趣的方
 
 这里是经典的注意力方程：
 
-![](https://files.mdnice.com/user/59/d4cbc585-804e-40f1-891a-99081c5a45d3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d4cbc585-804e-40f1-891a-99081c5a45d3.png)
 
 以代码形式表示：
 
@@ -47,7 +47,7 @@ output: Tensor[batch_size, num_heads, sequence_length, head_dim] = probabilities
 
 FlexAttention 允许用户定义函数 `score_mod`：
 
-![](https://files.mdnice.com/user/59/8fd6793e-f305-4ec8-8e8c-f8b9ed9b0574.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8fd6793e-f305-4ec8-8e8c-f8b9ed9b0574.png)
 
 以代码形式表示：
 
@@ -110,11 +110,11 @@ def relative_positional(score, b, h, q_idx, kv_idx):
 
 请注意，与经典的实现不同，这不需要具体化一个SxS的张量。相反，FlexAttention在kernel中“即时”计算偏置值，从而显著提高了内存和性能。
 
-![](https://files.mdnice.com/user/59/8d8646bb-a53d-45e6-9726-aedea28d2e3d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8d8646bb-a53d-45e6-9726-aedea28d2e3d.png)
 
 ### ALiBi Bias
 
-![](https://files.mdnice.com/user/59/8b73747b-182a-4e44-9872-f9d238866df8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8b73747b-182a-4e44-9872-f9d238866df8.png)
 
 ALiBi 是在《Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation(https://arxiv.org/abs/2108.12409)》中引入的，并声称在推理时具有长度外推的有益特性。值得注意的是，MosaicML 指出“缺乏kernel支持”（https://x.com/jefrankle/status/1804567458092605736）是他们最终从 ALiBi 切换到旋转嵌入的主要原因。
 
@@ -191,13 +191,13 @@ flex_attention(query, key, value, block_mask=block_mask)
 
 请注意，`create_block_mask` 是一个**相对昂贵的操作**！尽管 FlexAttention 在更改时不需要重新编译，但如果你不注意缓存它，它可能会导致显著的减速（查看常见问题解答以获取最佳实践建议）。
 
-![](https://files.mdnice.com/user/59/6028ea3f-3133-4a61-aa81-a710fb5e4458.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6028ea3f-3133-4a61-aa81-a710fb5e4458.png)
 
 尽管TFlops大致相同，但mask_mod版本的执行时间快了2倍！这表明我们可以利用BlockMask提供的稀疏性，而不会损失硬件效率。
 
 ### Sliding Window + Causal
 
-![](https://files.mdnice.com/user/59/4730b440-32f0-4a9e-9924-e29c458e0ab3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4730b440-32f0-4a9e-9924-e29c458e0ab3.png)
 
 由Mistral(https://arxiv.org/abs/2310.06825)推广的滑动窗口注意力（也称为局部注意力）利用了最近token最有用的直觉。特别是，它允许query token仅关注最近的1024个token。这通常与因果注意力一起使用。
 
@@ -220,11 +220,11 @@ sliding_window_causal = or_masks(causal_mask, sliding_window)
 
 我们将其与带有滑动窗口掩码的 `F.scaled_dot_product_attention` 以及带有因果掩码的 FA2（作为性能参考点）进行基准测试。我们不仅显著快于 `F.scaled_dot_product_attention`，而且也显著快于带有因果掩码的 FA2，因为这种掩码具有显著更高的稀疏性。
 
-![](https://files.mdnice.com/user/59/dd399aa9-4d5c-4820-b103-22c95518061b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dd399aa9-4d5c-4820-b103-22c95518061b.png)
 
 ### PrefixLM
 
-![](https://files.mdnice.com/user/59/107d0fa2-0684-4105-ba87-8f2fec5ae564.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/107d0fa2-0684-4105-ba87-8f2fec5ae564.png)
 
 T5架构，在《Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer(https://arxiv.org/abs/1910.10683)》中提出，描述了一种注意力变体，它在“前缀”上执行完全双向注意力，而在其余部分执行因果注意力。我们再次组合两个掩码函数来实现这一点，一个用于因果掩码，另一个基于前缀长度。
 
@@ -263,7 +263,7 @@ def document_masking(b, h, q_idx, kv_idx):
 
 就是这样！在这种情况下，我们最终得到了一个块对角掩码。
 
-![](https://files.mdnice.com/user/59/c455a710-2969-462f-ac18-4170c66dd17f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c455a710-2969-462f-ac18-4170c66dd17f.png)
 
 文档掩码的一个有趣方面是，很容易看出它如何与任意组合的其他掩码结合。例如，我们在上一节中已经定义了 `prefixlm_mask`。我们现在是否还需要定义一个 `prefixlm_document_mask` 函数呢？
 
@@ -298,7 +298,7 @@ prefix_lm_causal = or_masks(prefix_mask, causal_mask)
 doc_prefix_lm_causal_mask = generate_doc_mask_mod(prefix_lm_causal, document_id)
 ```
 
-![](https://files.mdnice.com/user/59/14dddd97-d012-409e-bf87-c67134d4d1d3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/14dddd97-d012-409e-bf87-c67134d4d1d3.png)
 
 > packed documents：前缀上(2)执行双向注意力，其它部分执行因果注意力。
 
@@ -403,7 +403,7 @@ def mask_mod_as_score_mod(b, h, q_idx, kv_idx):
 
 幸运的是，如果我们可视化因果掩码，我们会注意到绝大多数块根本不需要“因果掩码”——它们是完全计算的！只有对角线上的块，部分计算和部分掩码，才需要应用掩码。
 
-![](https://files.mdnice.com/user/59/cc316171-a969-44ca-9f4b-8647191c173a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cc316171-a969-44ca-9f4b-8647191c173a.png)
 
 BlockMask 之前告诉我们哪些块需要计算，哪些块可以跳过。现在，我们进一步增强这个数据结构，以告诉我们哪些块是“完全计算”的（即可以跳过掩码），哪些块是“部分计算”的（即需要应用掩码）。然而，需要注意的是，尽管在“完全计算”的块上可以跳过掩码，但其他 `score_mods` 如相对位置嵌入仍然需要应用。
 
@@ -417,7 +417,7 @@ BlockMask 的元数据大小为 `[BATCH_SIZE, NUM_HEADS, QUERY_LEN//BLOCK_SIZE, 
 **Q: 数值比较如何？**
 尽管结果不是逐位相同的，但我们有信心FlexAttention在数值精度上与FlashAttention相当。我们生成了以下差异分布，比较了FlashAttention与FlexAttention在大量输入上的因果和非因果注意力变体。误差几乎相同。
 
-![](https://files.mdnice.com/user/59/ab342da2-b26b-410e-a7b7-547f4fdc169b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ab342da2-b26b-410e-a7b7-547f4fdc169b.png)
 
 ## Performance
 一般来说，FlexAttention 的性能几乎与手写的 Triton kernel相当，这并不令人意外，因为我们大量利用了手写的 Triton kernel。然而，由于其通用性，我们确实会受到一些性能损失。例如，我们必须承担一些额外的延迟来确定下一个要计算的块。在某些情况下，我们提供了一些kernel选项，这些选项可以在改变其行为的同时影响kernel的性能。它们可以在这里找到：性能旋钮（https://github.com/pytorch/pytorch/blob/ee09d066d35d7e17cf7e9479c0b8bfc70cffc264/torch/_inductor/kernel/flex_attention.py#L146-L155）
@@ -426,9 +426,9 @@ BlockMask 的元数据大小为 `[BATCH_SIZE, NUM_HEADS, QUERY_LEN//BLOCK_SIZE, 
 
 FlexAttention 在前向pass中达到了 FlashAttention2 性能的 90%，在后向pass中达到了 85%。FlexAttention 目前使用了一种确定性算法，该算法比 FAv2 重新计算更多的中间结果，但我们有计划改进 FlexAttention 的后向算法，并希望缩小这一差距！
 
-![](https://files.mdnice.com/user/59/4ac2f33b-5c56-41d2-a52a-bca48be3b7fa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4ac2f33b-5c56-41d2-a52a-bca48be3b7fa.png)
 
-![](https://files.mdnice.com/user/59/d806f798-e280-4916-9de9-9413fa612101.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d806f798-e280-4916-9de9-9413fa612101.png)
 
 ## 结论
 

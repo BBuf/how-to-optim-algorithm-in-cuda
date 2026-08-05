@@ -92,7 +92,7 @@ return call_api(
 )
 ```
 
-![](https://files.mdnice.com/user/59/b1a3cc6c-fa2c-47e6-9f91-024f11555eab.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b1a3cc6c-fa2c-47e6-9f91-024f11555eab.png)
 
 H100 4卡 23s左右跑出1080P视频。
 

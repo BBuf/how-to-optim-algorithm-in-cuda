@@ -10,42 +10,42 @@
 
 因为SGLang Diffusion里面使用的rmsnorm目前开源社区有很多版本，之前就想过是不是要做一个最优选择的方案，有了Codex就可以把这个想法变成现实了。让Codex做了benchmark脚本，然后发现各种rmsnorm在不同的真实shape（也就是不同的Diffusion模型用到的shape）下性能表现不同，具体可见这里的表格：
 
-![](https://files.mdnice.com/user/59/8f82f52a-134d-4ef3-9518-a1d349475217.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8f82f52a-134d-4ef3-9518-a1d349475217.png)
 
 是当我让Codex把这个flashinfer的rmsnorm应用到SGLang Diffusion模型时发现这些模型的性能几乎都下降了，让Codex去找原因，它找到的原因是因为这个kernel调用会让torch compile break的次数更多，因为没有注册custom op，然后它修了一下性能就合理了，相比于基线模型的性能有轻微提升。
 
 然后Codex提示目前torch compile graph break还是比较多，类似flashinfer rmsnorm的可能有影响的是flashinfer rope的调用
 
-![](https://files.mdnice.com/user/59/d326eddf-439c-43f8-8dfa-395bb06264f3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d326eddf-439c-43f8-8dfa-395bb06264f3.png)
 
 并且观察它的debug流程发现它是调用`torch._dynamo.explain`来确认当前kernel是否可以torch compile编译到一个graph里面，也把这个过程写到了SKILLS里面：
 
-![](https://files.mdnice.com/user/59/08ba16c1-eb15-457e-b0e0-e6f4a39cd97a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/08ba16c1-eb15-457e-b0e0-e6f4a39cd97a.png)
 
 接着让Codex继续往下修复了一下这个flashinfer rope注册custom op的问题，得到的结果如 https://github.com/sgl-project/sglang/pull/20699 所示：
 
-![](https://files.mdnice.com/user/59/93369362-1bc6-401d-a562-81e70bf309d3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/93369362-1bc6-401d-a562-81e70bf309d3.png)
 
 qwen-image-2512 单卡H200生产1024x1024的图性能提升了20%
 
 
 - main
 
-![](https://files.mdnice.com/user/59/e1e033aa-21a2-46ea-b956-a2bcf116ec9f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e1e033aa-21a2-46ea-b956-a2bcf116ec9f.png)
 
 一个step的一个block：5ms763us
 
-![](https://files.mdnice.com/user/59/595b3ccd-15c2-4109-9dee-7cce0165f1c3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/595b3ccd-15c2-4109-9dee-7cce0165f1c3.png)
 
 rope kernel is not covered by torch compile graph
 
 - pr
 
-![](https://files.mdnice.com/user/59/7e8b80f6-7af6-4dfc-a435-0f6d94b76486.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7e8b80f6-7af6-4dfc-a435-0f6d94b76486.png)
 
 一个step的一个block：4ms592us
 
-![](https://files.mdnice.com/user/59/e99419b1-9f9a-4f08-be1c-7effd8b2b2c1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e99419b1-9f9a-4f08-be1c-7effd8b2b2c1.png)
 
 rope kernel is covered by torch compile graph
 
@@ -53,7 +53,7 @@ rope kernel is covered by torch compile graph
 
 此外，我们还可以看到rope前面的2个qknorm理论上来说也是可以被torch compile region包含的：
 
-![](https://files.mdnice.com/user/59/156820eb-debb-4cd4-814c-53f017c7997b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/156820eb-debb-4cd4-814c-53f017c7997b.png)
 
 这就可以继续让Codex蹬了。
 

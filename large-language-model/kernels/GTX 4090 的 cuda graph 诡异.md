@@ -105,17 +105,17 @@ print(response)
 
 - vllm
 
-![](https://files.mdnice.com/user/59/76b2e8ee-7c6f-4426-ae7b-88bb2442248e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/76b2e8ee-7c6f-4426-ae7b-88bb2442248e.png)
 
 - hf
 
-![](https://files.mdnice.com/user/59/15ef2c72-14e5-4771-85ef-c0c2b4e81b8e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/15ef2c72-14e5-4771-85ef-c0c2b4e81b8e.png)
 
 都使用 Eager 推理时，我发现 VLLM 的一个decoding的iter 15.8ms，然后 HF 的一个decoding的iter 18.1ms。关注到decoding阶段kernel launch的速度都非常快，ns级别，这种情况CUDA Graph应该无法发挥出作用。至于15.8ms和18.1ms的差异，来源在于fused rope，fused rmsnorm，packed qkv linear，我把这几个组件调整成一样HF就可以和VLLM具有相同的单卡推理性能。
 
 验证一下，我把上面VLLM 脚本里的 `enforce_eager=True` 去掉，开启 CUDA Graph，再跑一遍，nsys结果如下：
 
-![](https://files.mdnice.com/user/59/e6f3fd6a-8933-481b-ad6c-9030ffc6a19b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e6f3fd6a-8933-481b-ad6c-9030ffc6a19b.png)
 
 decoding一个iter的时间和 Eager 模式是一样的。
 
@@ -150,11 +150,11 @@ decoding一个iter的时间和 Eager 模式是一样的。
 
 - 关闭cuda graph
 
-![](https://files.mdnice.com/user/59/f1f5dd0f-8705-40e6-9a45-10dabb27c004.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f1f5dd0f-8705-40e6-9a45-10dabb27c004.png)
 
 - 开启cuda graph
 
-![](https://files.mdnice.com/user/59/cdc37f66-a23d-4993-896a-f4b61f67b84c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cdc37f66-a23d-4993-896a-f4b61f67b84c.png)
 
 
 可以看到对于 TP2 的 llama3-8b 推理服务，无论是否启用 cuda graph，kernel launch 时间都保持在ns级别，说明 cuda graph 没有实质性的作用。
@@ -163,11 +163,11 @@ decoding一个iter的时间和 Eager 模式是一样的。
 
 - 没有 cuda graph
 
-![](https://files.mdnice.com/user/59/68151cf7-a382-49f8-aada-05a7211ae326.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/68151cf7-a382-49f8-aada-05a7211ae326.png)
 
 - 有 cuda graph
 
-![](https://files.mdnice.com/user/59/2cbd2de8-a4a1-40e2-a058-62300ce2e4cd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2cbd2de8-a4a1-40e2-a058-62300ce2e4cd.png)
 
 可以看到对于 TP4 的 qwen2-72b 推理服务，启用 cuda graph 后，kernel launch 时间普遍在纳秒级别。但是在没有启用 cuda graph 的情况下，kernel launch 时间增加到了几十us。
 

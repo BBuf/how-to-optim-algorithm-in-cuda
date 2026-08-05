@@ -19,7 +19,7 @@ ldmatrix指令是 PTX 级别的指令，它是个warp级别的数据加载指令
 - 图上只给出了thread0-thread7的情况，其他线程的占据的数据以此类推即可，我这里省略了。
 - 图中一共是8行，注意每行的首地址必须由`thread0-thread7`的`%1`寄存器指定!
 
-![](https://files.mdnice.com/user/59/d4b35fc7-0ee5-47af-96e0-7bc96ba03508.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d4b35fc7-0ee5-47af-96e0-7bc96ba03508.png)
 
 ### 2. ldmatrix指令的使用格式例子：ldmatrix.sync.aligned.m8n8.x4.shared.b16 { %0, %1, %2, %3 }, [ %4 ]
 
@@ -84,7 +84,7 @@ return 0;
 - 最后打印出来的四个数字如下图所示哦！
 
 
-![](https://files.mdnice.com/user/59/e07a31bd-b985-40d6-b6e9-f7cc784bd1ba.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e07a31bd-b985-40d6-b6e9-f7cc784bd1ba.png)
 
 
 - 上面的使用例子我的数据单元设置成`uint32_t`了，用户可能不太好直接理解，下面我补充一个例子，直接针对`fp16`元素进行`ldmatrix`指令的例子。
@@ -135,7 +135,7 @@ return 0;
 
 ```
 
-![](https://files.mdnice.com/user/59/4fd73336-4318-4325-93b0-31c9b72a9610.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4fd73336-4318-4325-93b0-31c9b72a9610.png)
 
 
 #### 为什么索引计算方式是：`int aTile_index = tidx % 16 * 16 + tidx / 16 * 8;`，这里的`*8`是什么意思?
@@ -198,20 +198,20 @@ return 0;
 - 就是下面这个图片所示哦
 
 
-![](https://files.mdnice.com/user/59/1d5299c3-07be-4595-a668-972ea4638606.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1d5299c3-07be-4595-a668-972ea4638606.jpg)
 
 - 从上图可以看出，假设你把上面的16 * 16 初始化成0-255，当然啦，是先行后列，mma指令对于输入在32个cuda thread之间的分布恰好就是B.cu那个例子似的！
 - B矩阵16*8的元素分布在32个cuda thread的寄存器中，那么这么多元素是如何分布在32个cuda thread的寄存器中的呢？
 - 就是下面这个图片所示哦
 
-![](https://files.mdnice.com/user/59/7652e737-15ea-4b1f-881d-967a65c107f7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7652e737-15ea-4b1f-881d-967a65c107f7.png)
 
 - 从上图可以看出，mma指令对于输入在32个cuda thread之间的分布恰好就是 ldmatrix指令那样！
 - 当然啦，这个要求smem中B矩阵必须是col major的哦！，否则就不能调用ldmatrix指令哦！
 - 其实也是可以调用ldmatrix指令的啦！只不过要加上一个trans，也就是 ldmatrix.sync.aligned.m8n8.x2.trans.shared.b16
 - 具体看我的图例！
 
-![](https://files.mdnice.com/user/59/b8bda19f-9808-49d6-b919-77e699a8d5cd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b8bda19f-9808-49d6-b919-77e699a8d5cd.png)
 
 
 - 加了`trans`后，数据在每个线程上的划分就像B矩阵那样了！
@@ -270,7 +270,7 @@ ldmatrix指令的官方文档如下：https://docs.nvidia.com/cuda/parallel-thre
 
 #### 为什么sm75以上的架构的mma指令都只支持A和B为一种layout呢？
 
-![](https://files.mdnice.com/user/59/9c7e70c7-93a4-451f-9560-69e19ec27eb4.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9c7e70c7-93a4-451f-9560-69e19ec27eb4.jpg)
 
 因为有`ldmatrix.sync.aligned.m8n8.x2.trans.shared.b16`指令啦！
 

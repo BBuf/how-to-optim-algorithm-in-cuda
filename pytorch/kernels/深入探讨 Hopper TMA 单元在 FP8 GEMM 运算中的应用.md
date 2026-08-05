@@ -9,7 +9,7 @@ Hopper（H100）GPU架构被称为"第一款真正的异步GPU"，它包含了�
 
 在这篇文章中，我们将深入探讨TMA的工作原理细节，以帮助开发者理解这个新的异步复制引擎。我们还将展示利用TMA对H100 kernel的重要性，通过在Triton中构建一个支持TMA的FP8 GEMM kernel，该内核在小到中等问题规模上相比cuBLAS FP16可获得1.4-2.2倍的性能提升。最后，我们将展示Triton和CUTLASS之间的关键实现差异，这些差异可能解释了在Triton中使用TMA时报告的性能回归。我们将我们的实现开源，以便于复现和审查，代码地址为：https://github.com/pytorch-labs/applied-ai/tree/main/kernels
 
-![图1. 各种Triton和cuBLAS FP8和FP16 kernel的吞吐量（以TFLOPs为单位），条件为M=M，N=4096，K=4096。红线代表Triton TMA，展示了利用TMA的优势。](https://files.mdnice.com/user/59/d14103c6-7eec-4ea4-b0df-77d98a6c03ba.png)
+![图1. 各种Triton和cuBLAS FP8和FP16 kernel的吞吐量（以TFLOPs为单位），条件为M=M，N=4096，K=4096。红线代表Triton TMA，展示了利用TMA的优势。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d14103c6-7eec-4ea4-b0df-77d98a6c03ba.png)
 
 ## TMA 背景
 
@@ -17,7 +17,7 @@ TMA是H100硬件的一个新增功能，它允许应用程序异步且双向地�
 
 TMA非常轻量级，只需一个单独的线程就可以启动TMA传输。通过直接将数据从GMEM（全局内存）移动到SMEM（共享内存），这避免了早期GPU中使用寄存器在不同内存空间之间移动数据的要求。
 
-![图2. A100风格的数据移动与使用TMA的H100对比。TMA硬件消除了大量线程和寄存器参与批量数据传输的需求。（图片来源：NVIDIA）](https://files.mdnice.com/user/59/cfe5fe55-9cf8-4118-bdba-3d441d6ac566.png)
+![图2. A100风格的数据移动与使用TMA的H100对比。TMA硬件消除了大量线程和寄存器参与批量数据传输的需求。（图片来源：NVIDIA）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cfe5fe55-9cf8-4118-bdba-3d441d6ac566.png)
 
 单个线程可以发出大规模数据移动指令，使得给定线程块的大部分线程能在数据传输过程中继续执行其他指令。结合异步流水线技术，这使得内存传输可以轻易地被隐藏，确保大多数线程块簇能专注于计算任务。
 
@@ -55,7 +55,7 @@ b = tl.load(b_ptrs)
 
 TMA指令需要一个特殊的数据结构，称为张量映射（tensor map），这与上面直接传递全局内存指针的方式不同。为了构建张量映射，我们首先在CPU上创建一个TMA描述符。该描述符通过使用cuTensorMapEncode API (https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html#group__CUDA__TENSOR__MEMORY) 来处理张量映射的创建。张量映射包含了诸如张量在全局和共享内存中的布局等元数据，并作为存储在全局内存中的多维张量结构的压缩表示。
 
-![图4. 通过copy描述符生成TMA地址（图片来源：Nvidia）](https://files.mdnice.com/user/59/8f80d5ed-b3ed-4d11-b9c3-346f99fbb133.png)
+![图4. 通过copy描述符生成TMA地址（图片来源：Nvidia）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8f80d5ed-b3ed-4d11-b9c3-346f99fbb133.png)
 
 TMA描述符包含张量的关键属性：
 - 基指针
@@ -138,7 +138,7 @@ cp.async.commit_group ;
    - 旧方式：在A和B的数据块（tiles）准备好被Tensor Core使用之前，需要执行ldmatrix指令将数据从共享内存移动到寄存器文件中。
    - 新方式（TMA）：在Hopper架构上，数据可以直接从共享内存中被重复使用，无需额外的ldmatrix指令。
 
-![图5. H100内存图表，显示GMEM吞吐量 = 910.22 GB/s（不使用TMA的Triton GEMM），条件为M=128，N=4096，K=4096](https://files.mdnice.com/user/59/64aff0d2-5c63-48a0-9a18-e3d73d1cf959.png)
+![图5. H100内存图表，显示GMEM吞吐量 = 910.22 GB/s（不使用TMA的Triton GEMM），条件为M=128，N=4096，K=4096](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/64aff0d2-5c63-48a0-9a18-e3d73d1cf959.png)
 
 通过利用我们上面提到的Triton API变更来使用TMA，我们可以研究Triton为单个2D tile load生成的PTX代码。
 
@@ -172,13 +172,13 @@ cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%r2
 
 `cp.async.bulk.tensor.2d.shared` TMA指令依次传递了共享内存中的目标地址、指向张量映射的指针、张量映射坐标以及指向mbarrier对象的指针。
 
-![图6. H100内存图表 GMEM吞吐量 = 1.45 TB/s（使用TMA的Triton GEMM），条件为M=128，N=4096，K=4096](https://files.mdnice.com/user/59/c96ee170-7211-40c2-a66a-09046c87f6f3.png)
+![图6. H100内存图表 GMEM吞吐量 = 1.45 TB/s（使用TMA的Triton GEMM），条件为M=128，N=4096，K=4096](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c96ee170-7211-40c2-a66a-09046c87f6f3.png)
 
 为了获得最佳性能，我们对TMA GEMM kernel进行了广泛的调优。除了块大小、线程束数量和流水线阶段数等其他参数外，我们观察到内存吞吐量的最大增长是在将TMA_SIZE（描述符大小）从128增加到512时发生的。从上面的NCU概况中，我们可以看到最终调优后的 kernel 将全局内存传输吞吐量从910 GB/s提高到了1.45 TB/s，相比非TMA Triton GEMM kernel，GMEM吞吐量增加了59%。
 
 **CUTLASS和Triton FP8 GEMM及TMA实现的比较 - kernel 架构**
 
-![图7. Triton 对比 CUTLASS PingPong FP8 GEMM TFLOPs，M=M，N=4096，K=4096](https://files.mdnice.com/user/59/2cd94df4-1a77-4940-9c2f-c5a190e7e034.png)
+![图7. Triton 对比 CUTLASS PingPong FP8 GEMM TFLOPs，M=M，N=4096，K=4096](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2cd94df4-1a77-4940-9c2f-c5a190e7e034.png)
 
 上图展示了CUTLASS Ping-Pong GEMM kernel(https://github.com/NVIDIA/cutlass/blob/637b15906358191cb4238af419d408a65819d7ec/include/cutlass/gemm/kernel/sm90_gemm_tma_warpspecialized_pingpong.hpp)与Triton的性能对比。Ping-Pong kernel使用TMA的方式与Triton不同。它利用了所有的硬件和软件功能，而Triton目前并未如此。具体而言，CUTLASS支持以下TMA特性，这些特性有助于解释纯GEMM性能的差距：
 
@@ -188,7 +188,7 @@ cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%r2
 
 为了更好地理解性能数据，下面我们将展示一个"加速"图表，以百分比形式突出显示延迟差异：
 
-![图8：CUTLASS Ping-Pong 相比 Triton FP8 使用TMA的百分比加速](https://files.mdnice.com/user/59/ec3e30b6-46ab-4529-9972-02355c4e88b0.png)
+![图8：CUTLASS Ping-Pong 相比 Triton FP8 使用TMA的百分比加速](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ec3e30b6-46ab-4529-9972-02355c4e88b0.png)
 
 这种加速纯粹是 kernel 吞吐量的比较，不包括端到端（E2E）启动开销，我们将在下面讨论这一点。
 
@@ -200,12 +200,12 @@ cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%r2
 
 回想一下，TMA传输需要一个特殊的数据结构，即通过cuTensorMap API在CPU上创建的张量映射。对于FP8 GEMM kernel 来说，这意味着需要创建三个描述符，分别对应A、B和C。我们可以看到，对于Triton和CUTLASS kernel，都调用了相同的CPU程序。
 
-![图7. 对cuTensorMapEncodeTiled的调用（Triton和CUTLASS都使用这个路径）](https://files.mdnice.com/user/59/f1b6890d-8747-4028-b5cc-81e99865ccc9.png)
+![图7. 对cuTensorMapEncodeTiled的调用（Triton和CUTLASS都使用这个路径）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f1b6890d-8747-4028-b5cc-81e99865ccc9.png)
 
 然而，对于Triton来说，每个描述符都是在其自己的独立 copy kernel 中传输的，这增加了大量的开销，并成为在端到端推理场景中使用这个kernel的障碍。
 
 
-![图8. 在 kernel 执行之前，为A、B和C分别启动了三个 H2D copy kernel](https://files.mdnice.com/user/59/9625a3f7-0bf1-440c-9276-ea2a3de7b640.png)
+![图8. 在 kernel 执行之前，为A、B和C分别启动了三个 H2D copy kernel](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9625a3f7-0bf1-440c-9276-ea2a3de7b640.png)
 
 在CUTLASS的实现中并没有观察到这些复制操作，这是由于TMA描述符传递给kernel的方式不同。从下面的PTX（并行线程执行）代码中我们可以看到，在Cutlass中，张量映射是通过值传递给kernel的。
 
@@ -238,9 +238,9 @@ cp.async.bulk.tensor.2d.global.shared::cta.bulk_group [%rd69, {%r284, %r283}], [
 
 CUDA Graph可能是减少这种开销的一种方法，但考虑到H2D复制造成的开销，当前Triton实现在端到端测量时并不具有竞争力。重新设计Triton编译器管理TMA描述符的方式可能会解决这个差距。因此，在我们上面的数据中，我们专注于比较实际计算 kernel 的吞吐量，而不是端到端性能。
 
-![图10: Triton FP8 TMA GEMM TFLOPs 比较](https://files.mdnice.com/user/59/af57fb3a-3c87-46b3-b3ed-27b96f536322.png)
+![图10: Triton FP8 TMA GEMM TFLOPs 比较](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/af57fb3a-3c87-46b3-b3ed-27b96f536322.png)
 
-![](https://files.mdnice.com/user/59/1849d913-b0e7-4e66-b16d-ddd4e2177489.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1849d913-b0e7-4e66-b16d-ddd4e2177489.png)
 
 上面的图表和表格总结了我们在单个NVIDIA H100上通过利用TMA硬件单元，相对于非TMA Triton kernel 和高性能CUDA（cuBLAS）kernel，在FP8 GEMM上所能达到的性能提升。需要注意的关键点是，这个kernel相对于竞争对手在批处理大小增加时表现出优越的扩展性。我们基准测试的问题规模代表了在小到中等批量大小的LLM（大型语言模型）推理中常见的矩阵形状。因此，对于那些有兴趣利用这个 kernel 进行FP8 LLM部署的用例来说，中等M范围（M=32到M=128）的TMA GEMM kernel性能将至关重要，因为FP8压缩数据类型可以允许更大的矩阵适应GPU内存。
 
