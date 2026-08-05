@@ -61,7 +61,7 @@ https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
 
 https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
 
-yang-yifan 将 kernel 间同步分为三类：默认串行的硬件同步、PDL 这种软件辅助的硬件同步，以及由 L2 atomic 管理依赖的纯软件同步（megakernel）。K3 主要采用第二种方式。各个融合单元仍是独立 kernel，便于单独 A/B 或替换实现；相邻 kernel 之间则通过 PDL 建立依赖并重叠执行。
+yang-yifan 将 kernel 间同步分为三类：默认串行的硬件同步、PDL 这种软件辅助的硬件同步，以及由 L2 atomic 管理依赖的纯软件同步（megakernel）。SGLang K3 主要采用第二种方式。各个融合单元仍是独立 kernel，便于单独 A/B 或替换实现；相邻 kernel 之间则通过 PDL 建立依赖并重叠执行。
 
 K3 对 PDL 的封装只有两个模板函数和一个 launch 参数：
 
