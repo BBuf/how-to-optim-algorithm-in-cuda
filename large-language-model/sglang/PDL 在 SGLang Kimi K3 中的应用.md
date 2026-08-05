@@ -114,7 +114,7 @@ https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
 
 https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
 
-瀑布图中的“重叠与序言融合”（P10、P11、P14、P15）合计增加 10.4 tok/s，其中 P15 明确写的是“将 MLA decode 的序言融合为一个 kernel，并用 PDL 启动其后的注意力 kernel”。“消除 launch”“NVIDIA kernel”和“通信融合”中的多处新 kernel 也启用了 PDL。优化后的 trace 中可以看到负 launch gap，即后继 kernel 的启动时间戳早于前驱 kernel 的结束时间戳。
+瀑布图中的“重叠与 prolog 融合”（P10、P11、P14、P15）合计增加 10.4 tok/s，其中 P15 明确写的是“将 MLA decode 的 prolog 融合为一个 kernel，并用 PDL 启动其后的注意力 kernel”。“消除 launch”“NVIDIA kernel”和“通信融合”中的多处新 kernel 也启用了 PDL。优化后的 trace 中可以看到负 launch gap，即后继 kernel 的启动时间戳早于前驱 kernel 的结束时间戳。
 
 ## 0x3. 计算链上的 PDL
 
@@ -214,7 +214,7 @@ KDA 层：qkvg GEMM → tiny_gemm(权重预取) → kda_fused_decode(全出口 t
 
 kernel 微基准可以直接观察 wait 前预取的收益。`tiny_gemm` 从 2.11µs 降到 1.23µs，`route_radix_v2` 从 6.10µs 降到 3.01µs。bs=1 的一个 step 中有数百个类似站点，但它们之间已经存在部分重叠，因此不能把每个站点节省的时间简单相加作为 e2e 收益。
 
-内部 bs=1 记录中，tail fusions 与 align/topk_sum 将 ITL 从 17.86ms 降到 17.31ms；包含 `tiny_gemm` 的一组改动将吞吐从 64.1 tok/s 提高到 66.4 tok/s；TGV GEMM 将吞吐从 71.0 tok/s 提高到 73.0 tok/s。这些都是“融合 + PDL”的整体结果。day-0 博客中，包含 P15 的“重叠与序言融合”一组增加了 10.4 tok/s。
+内部 bs=1 记录中，tail fusions 与 align/topk_sum 将 ITL 从 17.86ms 降到 17.31ms；包含 `tiny_gemm` 的一组改动将吞吐从 64.1 tok/s 提高到 66.4 tok/s；TGV GEMM 将吞吐从 71.0 tok/s 提高到 73.0 tok/s。这些都是“融合 + PDL”的整体结果。day-0 博客中，包含 P15 的“重叠与 prolog 融合”一组增加了 10.4 tok/s。
 
 MLA decode 路径还出现过一次由 dtype copy 中断 PDL 链的问题。`seq_lens.to(int32)` 每层执行一次，一个 step 共触发 24 次小 copy。将它移出循环，并为 fmha 设置 `enable_pdl` 后，trace 中的 PDL 链恢复连续。该修复随 #32541 合入主线。
 
