@@ -16,7 +16,7 @@
 
 当我们使用CUDA共享内存缓存数据而不使用填充时，warp对共享内存的读取或写入操作很常见会导致共享内存bank冲突。Swizzling是一种重新排列共享内存索引映射的技术，用于避免共享内存bank冲突。矩阵转置是一个完美的例子，如果实现不使用填充或swizzling，就会产生共享内存bank冲突。
 
-![](https://files.mdnice.com/user/59/3caa5e41-cb7c-4ec0-8800-4f7689279b86.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3caa5e41-cb7c-4ec0-8800-4f7689279b86.png)
 
 在上面的示例中，共享内存是一个大小为 $32 \times 16$ 的二维 `float` 数组。在矩阵转置的情况下，每个warp从全局内存读取一行32个值，并使用swizzling将它们写入共享内存。写入共享内存时不会产生共享内存bank冲突。为了执行矩阵转置，每个warp从共享内存读取两个经过swizzling的"列"的32个值，并将它们写入全局内存。例如，swizzling后的第0列和第1列分别用黄色和青色标记。这样，从共享内存读取时只会产生一个共享内存bank冲突。如果不使用swizzling，从共享内存读取时会产生16个（2路）共享内存bank冲突。当然，显然，如果共享内存是大小为 $32 \times 32$ 的二维 `float` 数组，那么写入和读取共享内存时都不会产生共享内存bank冲突。
 

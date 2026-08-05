@@ -22,7 +22,7 @@
 
 通过Nsight Compute分析发现，第二个MOE的计算利用率只有45.20%，远低于第一个MOE的利用率。问题主要出在：
 
-![](https://files.mdnice.com/user/59/10eb178d-ff89-4dd2-9013-094878293674.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/10eb178d-ff89-4dd2-9013-094878293674.png)
 
 1. **内存访问模式不优**：第二个MOE的输入数据访问模式比较分散，没有充分利用GPU的内存带宽
 2. **配置参数不匹配**：两个MOE使用了相同的kernel配置，但它们的计算特征完全不同

@@ -7,7 +7,7 @@
 ## Python Custom Operators 教程
 
 
-![](https://files.mdnice.com/user/59/5b6dcf68-8985-4f7b-b8e1-bafa5e6b47fb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5b6dcf68-8985-4f7b-b8e1-bafa5e6b47fb.png)
 
 这个教程介绍了Python自定义运算符的主题。它列出了我们将从这一教程中学习到的内容,包括如何将用Python编写的自定义运算符与PyTorch集成,以及如何使用torch.library.opcheck来测试自定义运算符。所需的先决条件是安装了PyTorch 2.4或更高版本。
 
@@ -43,14 +43,14 @@ display(img)
 ```
 
 
-![](https://files.mdnice.com/user/59/c06233fd-222b-4f28-8c27-092f0f5bfe89.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c06233fd-222b-4f28-8c27-092f0f5bfe89.png)
 
 ```python
 cropped_img = crop(img, (10, 10, 50, 50))
 display(cropped_img)
 ```
 
-![](https://files.mdnice.com/user/59/56dcc1ef-c4df-4aad-ab9a-cf39d8384b73.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3342a1f9-19be-4f7a-868a-d59ff20a3ba5.png)
 
 `crop`功能无法被`torch.compile`有效地开箱即用处理:`torch.compile`在无法处理的函数上会引发"图中断"(https://pytorch.org/docs/stable/torch.compiler_faq.html#graph-breaks),而图中断会导致性能下降。以下代码通过引发错误来演示这一点(如果发生图中断,`torch.compile(with fullgraph=True)`会引发错误)。
 
@@ -100,14 +100,14 @@ display(img)
 ```
 
 
-![](https://files.mdnice.com/user/59/fad4c742-771b-431f-8169-d27bc047d26e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c06233fd-222b-4f28-8c27-092f0f5bfe89.png)
 
 ```python
 display(cropped_img)
 ```
 
 
-![](https://files.mdnice.com/user/59/3342a1f9-19be-4f7a-868a-d59ff20a3ba5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3342a1f9-19be-4f7a-868a-d59ff20a3ba5.png)
 
 
 ## 为crop添加训练支持
@@ -159,7 +159,7 @@ display(img.grad)
 ```
 
 
-![](https://files.mdnice.com/user/59/d8bd6436-fa8a-45f8-824a-90a85e3ce670.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d8bd6436-fa8a-45f8-824a-90a85e3ce670.png)
 
 这是正确的梯度,在裁剪区域内是1(白色),在未使用的区域内是0(黑色)。
 

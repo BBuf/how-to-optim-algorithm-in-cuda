@@ -16,7 +16,7 @@ MTP 在论文里常被描述成多预测几个 token，但工程实现里，验�
 
 先用 LMSYS 这张通用流程图校准 MTP 的主循环，再回到 Omni-Infer 看 NPU 适配：
 
-<img src="https://files.mdnice.com/user/59/babf8956-7a0f-4d17-8155-3cb8df8eff6b.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/babf8956-7a0f-4d17-8155-3cb8df8eff6b.png" referrerpolicy="no-referrer" />
 
 这张图把 MTP 拆成三个阶段：主模型先跑出当前 token 和 hidden states，MTP module 根据 hidden states 连续 draft 多个 token，最后主模型一次性 verify 这些候选 token。只要接受 token 数大于 1，decode 的串行步数就下降。Omni-Infer 这篇 slides 的重点是在 Ascend NPU 上把这套流程跑稳：sampling info 要能 repeat/restore，KV cache 要为多个候选 token 留位置，verify 后又要把被拒绝的 token 清掉。后面看 `mtp.patch` 时，这张图可以作为总索引。
 
@@ -24,7 +24,7 @@ MTP 在论文里常被描述成多预测几个 token，但工程实现里，验�
 
 ### Slide 1：Omni-Infer 中的 MTP：昇腾亲和的高吞吐投机推理
 
-<img src="https://files.mdnice.com/user/59/490a2254-b26e-4d18-8221-6928fbdbbf08.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/490a2254-b26e-4d18-8221-6928fbdbbf08.png" referrerpolicy="no-referrer" />
 
 标题页给出主题：Omni-Infer 中的 MTP，重点是昇腾亲和的高吞吐投机推理。这里的“亲和”不是简单支持 NPU，而是要把投机推理里的采样、校验、hidden state 选择和 MLA kernel 都改到适合昇腾执行的形态。
 
@@ -32,7 +32,7 @@ Decode 阶段单 token 迭代很容易受带宽和同步开销限制，MTP 一�
 
 ### Slide 2：Decode memory-bound 与投机推理
 
-<img src="https://files.mdnice.com/user/59/3677c274-d289-4776-b82a-e8be40db7587.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3677c274-d289-4776-b82a-e8be40db7587.png" referrerpolicy="no-referrer" />
 
 这页从 Decode 阶段的计算特征讲起：每次迭代，每条 request 输入一个 token 产生一个 token，计算密度较低。对昇腾这类高计算密度/带宽比的硬件来说，单 token decode 很难把硬件吃满。
 
@@ -40,7 +40,7 @@ Decode 阶段单 token 迭代很容易受带宽和同步开销限制，MTP 一�
 
 ### Slide 3：社区 MTP/EAGLE 实现的通用流程
 
-<img src="https://files.mdnice.com/user/59/b964ac17-6192-4b8d-a8ad-4dd3ea8f0a85.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b964ac17-6192-4b8d-a8ad-4dd3ea8f0a85.png" referrerpolicy="no-referrer" />
 
 这页画的是社区里常见的 MTP/EAGLE 执行方式。prefill 之后，主模型产出 hidden states，MTP 或 draft 模块基于 hidden states 生成一串候选 token；decode 时，主模型对这串候选进行验证，接受前缀 token，并把后续状态交给下一轮 draft。
 
@@ -48,7 +48,7 @@ Decode 阶段单 token 迭代很容易受带宽和同步开销限制，MTP 一�
 
 ### Slide 4：验证后的 token 和 hidden state 选择
 
-<img src="https://files.mdnice.com/user/59/f99b7bd4-d34f-49ce-ab86-a9047bcb5586.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f99b7bd4-d34f-49ce-ab86-a9047bcb5586.png" referrerpolicy="no-referrer" />
 
 这页上半部分把 CPU stream 和 NPU stream 分开。CPU 侧负责输入准备和输出处理，NPU 侧跑主体模型和投机模型；prefill 阶段主体模型产 hidden states，投机模型用这些 hidden states 生成候选 token。进入 decode 后，主体模型先验证投机 tokens，再把验证后的 token 和对应 hidden states 交给 MTP 层继续预测。
 
@@ -56,7 +56,7 @@ Decode 阶段单 token 迭代很容易受带宽和同步开销限制，MTP 一�
 
 ### Slide 5：CPU-NPU 同步气泡
 
-<img src="https://files.mdnice.com/user/59/f39884bc-aa4b-4bcb-900b-d0ac53487f70.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f39884bc-aa4b-4bcb-900b-d0ac53487f70.png" referrerpolicy="no-referrer" />
 
 这页进入 Omni-Infer 的 MTP 实现。图里把主体模型、MTP 模型、验证与采样串起来，重点是让验证后的 token 选择、hidden state 选择和下一轮 draft 尽量留在设备侧完成，减少 CPU 介入。
 
@@ -64,7 +64,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 6：Omni-Infer 的 MTP 支持范围
 
-<img src="https://files.mdnice.com/user/59/54c33693-a707-46c9-b300-c0b10229a8b3.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/54c33693-a707-46c9-b300-c0b10229a8b3.png" referrerpolicy="no-referrer" />
 
 这页明确列了当前支持的模型：DeepSeek V3 的 MTP，Qwen2 的 EAGLE/EAGLE3，Pangu Ultra MoE 的 MTP。也就是说，Omni-Infer 不是只给某个模型写一条特殊路径，而是把 speculative method 做成推理引擎能力。
 
@@ -72,7 +72,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 7：采样和验证策略
 
-<img src="https://files.mdnice.com/user/59/622bc963-b16a-4b82-a59b-5d67f37f91a6.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/622bc963-b16a-4b82-a59b-5d67f37f91a6.png" referrerpolicy="no-referrer" />
 
 这页把采样和校验的概率关系写出来。投机模型生成 token 的概率记为 `q_i`，主模型生成 token 的概率记为 `p_i`。简单校验如果按主模型采样结果比较，相同就接收，否则拒绝，接受率和 `sum p_i q_i` 有关；如果 draft 只做 greedy sample，接受率退化成主模型给该 token 的概率 `p_i`。
 
@@ -80,7 +80,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 8：社区 verifier 的问题
 
-<img src="https://files.mdnice.com/user/59/0363beaf-1588-4800-a249-9802e33cde27.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0363beaf-1588-4800-a249-9802e33cde27.png" referrerpolicy="no-referrer" />
 
 这页指出社区 verifier 的两个问题。第一，对于应用 penalty 等其它采样参数的场景，简单 verifier 会影响大模型精度；第二，Sampler 假设每条输入只有一个 token。
 
@@ -88,7 +88,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 9：validator 两次 sampler 的设计
 
-<img src="https://files.mdnice.com/user/59/577b633a-96e7-4ab5-a718-bcd3cb88d623.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/577b633a-96e7-4ab5-a718-bcd3cb88d623.png" referrerpolicy="no-referrer" />
 
 这页画了 verifier 的现状。上方 t0/g0/t1/g1... 是交错的 target token 和 draft token，main model 一次性输出这些位置的 logits。下面把 logits 分给两个 Sampler：一边采 target 对应的候选 f0/f1/f2/f3，另一边采 draft 后面的备用 token b0/b1/b2/b3，最后统一进入 rejection sampler 做 verify & sampling。
 
@@ -96,7 +96,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 10：任意 speculative token 数的采样参数处理
 
-<img src="https://files.mdnice.com/user/59/091f3dcf-8e5d-417e-bea5-ed12ecd490e5.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/091f3dcf-8e5d-417e-bea5-ed12ecd490e5.png" referrerpolicy="no-referrer" />
 
 这页标题是“任意数量投机 token 支持”。右侧两条写得很具体：第一，根据 `spec_metadata` 复制 sampling parameters，支持任意长度，包括 allowed token ids、temperature、min_p、top_k、top_p；第二，对 logits 循环切片应用 penalty，因为 penalty 依赖 penalty cache。
 
@@ -104,7 +104,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 11：Adaptive speculation
 
-<img src="https://files.mdnice.com/user/59/efaf206e-8fd6-45d1-b9d9-cdfe7d033426.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/efaf206e-8fd6-45d1-b9d9-cdfe7d033426.png" referrerpolicy="no-referrer" />
 
 这页标题写的是 “Coming soon: 自适应投机”。左图里，蓝色 `t0/t1/t2/t3` 是 main model 验证出来的位置，绿色 `g0/g3` 表示被接受的 draft token，红色 `g1/g2` 表示被拒绝的位置；下面 MTP 分支继续产生 `f0/f1/f2/f3` 和 `h0/h1/h2/h3`。竖虚线可以理解成一次次 speculative window 的边界：有的窗口接受得多，有的窗口很快失败。
 
@@ -112,7 +112,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 12：MLA 中 MTP 的 KV 复用优化
 
-<img src="https://files.mdnice.com/user/59/4b2000fc-edde-4ec8-84d9-828df2b6bb8a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4b2000fc-edde-4ec8-84d9-828df2b6bb8a.png" referrerpolicy="no-referrer" />
 
 这页讲 MLA 算子层优化。投机 m 个 token 时，MLA 计算里会出现 `m+1` 个 Q 矩阵和同一个 K 矩阵相乘。朴素实现会让每个 Q 都重新加载 K，K 矩阵在 HBM 和 L1 之间来回搬，decode 的带宽瓶颈会被放大。
 
@@ -120,7 +120,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 13：Omni-Infer 仓库和接入方式
 
-<img src="https://files.mdnice.com/user/59/2d337110-3710-4ea7-a3bb-d0c18d3b97e8.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2d337110-3710-4ea7-a3bb-d0c18d3b97e8.png" referrerpolicy="no-referrer" />
 
 仓库页给出 Omni-Infer 的 Gitee 地址。公开实现里既有 vLLM/Ascend 适配，也有 SGLang patch。SGLang patch 里新增 `SpeculativeAlgorithm.MTP` 和 `MTPWorker`，能直接对上本场 slides 的 verifier、sampling info 和 draft/verify 主循环。
 
@@ -128,7 +128,7 @@ CPU-NPU 同步气泡是 Ascend 场景的关键问题。如果每次验证都回 
 
 ### Slide 14：总结
 
-<img src="https://files.mdnice.com/user/59/1bc90c26-3291-4b45-8ccc-b9755bb3ef85.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1bc90c26-3291-4b45-8ccc-b9755bb3ef85.png" referrerpolicy="no-referrer" />
 
 总结起来，Omni-Infer 的 MTP 不是“把 EAGLE 搬到 NPU”。它处理的是 NPU 上 sampler、verifier、graph、MLA 和同步开销这些真实工程细节。
 

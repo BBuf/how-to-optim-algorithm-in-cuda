@@ -58,7 +58,7 @@ from torchao.quantization import (
 
 我们在 diffusers-torchao(https://github.com/sayakpaul/diffusers-torchao) 中与 HuggingFace diffusers 团队进行了广泛的扩散模型基准测试，展示了 Flux.1-Dev 上 53.88% 的加速和 CogVideoX-5b 上 27.33% 的加速。
 
-![](https://files.mdnice.com/user/59/931ed0ac-c4f4-4822-88dd-f30939451b91.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/931ed0ac-c4f4-4822-88dd-f30939451b91.png)
 
 我们的 API 是可组合的，例如我们通过将稀疏性和量化结合起来，为 ViT-H 推理带来了 5% 的加速(https://github.com/pytorch/ao/tree/main/torchao/sparsity)。
 
@@ -66,13 +66,13 @@ from torchao.quantization import (
 我们还可以量化权重到 int4 和 KV 缓存到 int8，以支持 Llama 3.1 8B 在 128K 上下文长度下运行，占用不到 18.9GB 的 VRAM(https://github.com/pytorch/ao/pull/738)。
 
 
-![](https://files.mdnice.com/user/59/3597a166-ce69-4bd6-9be2-f7a441b32ed3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3597a166-ce69-4bd6-9be2-f7a441b32ed3.png)
 
 ## QAT
 
 后训练量化，尤其是在小于 4 位时，可能会遭受严重的精度下降。使用量化感知训练(QAT https://pytorch.org/blog/quantization-aware-training/)，我们设法恢复了 hellaswag 上高达 96% 的精度下降。我们将其集成到 torchtune 中，并提供了一个最小教程(https://github.com/pytorch/ao/tree/main/torchao/quantization/prototype/qat)。
 
-![](https://files.mdnice.com/user/59/f17c22af-d63f-4346-aa36-4e9b8bdbf4cf.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f17c22af-d63f-4346-aa36-4e9b8bdbf4cf.png)
 
 
 ## 训练
@@ -90,7 +90,7 @@ convert_to_float8_training(model)
 
 ### float8 预训练的 LLaMa 3 70B 的性能和精度，vs bfloat16
 
-![](https://files.mdnice.com/user/59/ee0f1ae7-4cc8-491c-8892-18309a346a65.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ee0f1ae7-4cc8-491c-8892-18309a346a65.png)
 
 (source: https://dev-discuss.pytorch.org/t/enabling-float8-all-gather-in-fsdp2/2359)
 
@@ -109,7 +109,7 @@ from torchao.prototype.low_bit_optim import AdamW8bit, AdamW4bit
 optim = AdamW8bit(model.parameters())
 ```
 
-![](https://files.mdnice.com/user/59/d913d879-ecff-4f0c-9c61-a2865fe11224.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d913d879-ecff-4f0c-9c61-a2865fe11224.png)
 
 ## 集成
 

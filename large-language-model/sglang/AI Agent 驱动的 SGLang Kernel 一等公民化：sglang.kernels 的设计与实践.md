@@ -10,7 +10,7 @@ SGLang 的 GPU kernel 原来分散在 `jit_kernel`、`sgl-kernel`、各子系统
 
 整体架构如下图：
 
-![sglang.kernels 统一命名空间的四层结构](https://files.mdnice.com/user/59/05fce7e3-2475-4d01-8af5-38feafeadb5d.png)
+![sglang.kernels 统一命名空间的四层结构](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/05fce7e3-2475-4d01-8af5-38feafeadb5d.png)
 
 从上到下分四层，每层职责单一。
 
@@ -156,7 +156,7 @@ kernel 归到哪个组，原则是功能优先：看它实际做什么（rmsnorm
 
 ## 3.1 LLM 侧：norm/激活与专用库持平，MoE gate 和 FP8 量化领先框架原生
 
-![SGLang 自研 LLM kernel 与 FlashInfer / PyTorch 的跨框架对比（H200）](https://files.mdnice.com/user/59/01467efa-29fa-4179-a062-746447c92b26.png)
+![SGLang 自研 LLM kernel 与 FlashInfer / PyTorch 的跨框架对比（H200）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/01467efa-29fa-4179-a062-746447c92b26.png)
 
 LLM 侧的结果分两类。
 
@@ -184,7 +184,7 @@ MoE gate（DeepSeek / Qwen 这类 MoE 每层都要执行）比 PyTorch 组合写
 
 ## 3.2 Diffusion 侧：DiT 融合算子对非融合路径的加速
 
-![SGLang 自研 diffusion 融合 kernel 与非融合路径的对比（H200）](https://files.mdnice.com/user/59/f469b4b5-aac1-4289-a88d-25f8f6c1fdc9.png)
+![SGLang 自研 diffusion 融合 kernel 与非融合路径的对比（H200）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f469b4b5-aac1-4289-a88d-25f8f6c1fdc9.png)
 
 SGLang 的 diffusion 路径也维护了一批融合 kernel。DiT block 中常见“norm 之后乘 gate，再加 residual”一类 element-wise 组合；PyTorch 路径需要启动多个 kernel 并产生临时张量，SGLang 的 CUDA / CuTe-DSL 实现将它们合并为一次 kernel 调用。下面选取三个常用算子，对比 SGLang 自己的非融合回退路径（PyTorch + FlashInfer 组合，通过环境变量切换，两条路径数值一致）：
 

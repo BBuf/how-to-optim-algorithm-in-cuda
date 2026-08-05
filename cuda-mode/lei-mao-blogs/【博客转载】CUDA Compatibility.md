@@ -38,7 +38,7 @@ CUDA驱动程序库总是后向兼容的。使用最新的驱动程序允许我�
 
 NVIDIA Docker是一个便捷的工具，允许用户以可移植、可复现和可扩展的方式开发和部署CUDA应用程序。使用NVIDIA Docker，我们可以在任何我们想要的CUDA环境中构建和运行任何CUDA应用程序，前提是满足驱动程序和GPU架构要求。
 
-![](https://files.mdnice.com/user/59/53ae4202-5972-4499-bd4f-6ec4c8d66571.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/53ae4202-5972-4499-bd4f-6ec4c8d66571.png)
 
 ## 参考文献
 

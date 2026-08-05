@@ -143,7 +143,7 @@ Extracting torch.einsum profiling data
 Tip: Run 'ncu --query-metrics' to see all available metrics!
 ```
 
-![](https://files.mdnice.com/user/59/6c9db7e9-2ef9-485d-b4fb-949d887cbbfb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6c9db7e9-2ef9-485d-b4fb-949d887cbbfb.png)
 
 ### `02_parameter_sweep.py`：参数扫描（configs sweep）
 
@@ -176,7 +176,7 @@ Extracting matmul profiling data
 ✓ Benchmark complete! Check '02_parameter_sweep.png'
 ```
 
-![](https://files.mdnice.com/user/59/e36b0a60-6a2c-468d-ab9f-d9c6a098c64e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e36b0a60-6a2c-468d-ab9f-d9c6a098c64e.png)
 
 ### `03_custom_metrics.py`：`derive_metric` 自定义指标（TFLOPS/算术强度）
 
@@ -242,23 +242,23 @@ Extracting matmul profiling data
 ✓ TFLOPs and Arithmetic Intensity benchmark complete! Check '03_custom_metrics_arith_intensity.png'
 ```
 
-![](https://files.mdnice.com/user/59/606a02b2-d32a-41c9-9510-6ae0dd387a39.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/606a02b2-d32a-41c9-9510-6ae0dd387a39.png)
 
-![](https://files.mdnice.com/user/59/350f9924-6bb2-4546-bd0e-5974954d95f4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/350f9924-6bb2-4546-bd0e-5974954d95f4.png)
 
 ### `04_multi_parameter.py`：多参数扫描（`itertools.product`）
 
 - 同时扫描多个参数（如 size、dtype）
 - `derive_metric(time_ns, *conf)` 使用 `*conf` 处理多参数输入
 
-![](https://files.mdnice.com/user/59/cd616583-a319-4863-a684-362f9b0d462f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cd616583-a319-4863-a684-362f9b0d462f.png)
 
 ### `05_subplots.py`：子图网格（faceting）
 
 - `row_panels` / `col_panels` 将不同参数映射到子图维度
 - 适用于多变量对比的可视化组织
 
-![](https://files.mdnice.com/user/59/8be14708-467c-49ae-a01d-2896ec479fc0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8be14708-467c-49ae-a01d-2896ec479fc0.png)
 
 ### `06_plot_customization.py`：绘图定制
 
@@ -272,7 +272,7 @@ Extracting matmul profiling data
 - `derive_metric` 计算 speedup（示例中对归一化结果取倒数）
 - `variant_fields` / `variant_annotations`：按参数（如 `block_size`）拆分曲线
 
-![](https://files.mdnice.com/user/59/34a420ff-2510-4c19-a007-6ac9bee837c3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/34a420ff-2510-4c19-a007-6ac9bee837c3.png)
 
 ### `08_multiple_metrics.py`：一次采集多个 metrics
 
@@ -383,7 +383,7 @@ torch.matmul 4096 smsp__sass_inst_executed_op_shared_st.sum     524288.0
 - `derive_metric` 的参数顺序：先是 `metrics` 对应的值，后是被装饰函数的参数
 - 返回 `dict` 输出多个派生指标（示例选择其中一个绘图）
 
-![](https://files.mdnice.com/user/59/e3792dc3-a44e-4326-8e56-c2b33e3e4251.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e3792dc3-a44e-4326-8e56-c2b33e3e4251.png)
 
 
 ### `10_combine_kernel_metrics.py`：单个 annotation 内多个 kernel 的合并
@@ -391,7 +391,7 @@ torch.matmul 4096 smsp__sass_inst_executed_op_shared_st.sum     524288.0
 - 典型场景：同一个 annotation 区间内执行多次 kernel
 - 使用 `combine_kernel_metrics=lambda x, y: x + y` 将多个 kernel 的指标合并为单值
 
-![](https://files.mdnice.com/user/59/a437d180-3a9f-455e-84a6-0acd1523ac7e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a437d180-3a9f-455e-84a6-0acd1523ac7e.png)
 
 ### `11_output_csv.py`：CSV 输出
 
@@ -556,7 +556,7 @@ if __name__ == "__main__":
 ```
 
 
-![](https://files.mdnice.com/user/59/5dc6f84e-fa58-4c5a-adfd-014539c9a1c8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5dc6f84e-fa58-4c5a-adfd-014539c9a1c8.png)
 
 ## 0x4. Examples中的限制
 

@@ -16,7 +16,7 @@
 4. 解析返回的 JSON 结果，并据此调用 SCM 的 API 来创建 review comments
 
 完成后，Codex 就能够留下 inline code review comments：
-![](https://files.mdnice.com/user/59/7cc216a0-ae04-4ec1-a4d0-f80bcbd07a3f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7cc216a0-ae04-4ec1-a4d0-f80bcbd07a3f.png)
 
 ## Code Review Prompt
 

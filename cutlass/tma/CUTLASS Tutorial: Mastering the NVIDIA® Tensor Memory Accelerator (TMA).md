@@ -72,7 +72,7 @@ void host_fn(T* data, int M, int N) {
 
 相关的 kernel 代码片段如下所示。这些代码行包含了许多重要的TMA概念，我们将在下面进行解释。
 
-![](https://files.mdnice.com/user/59/811e099f-b702-4403-bd09-301d866c5c4e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/811e099f-b702-4403-bd09-301d866c5c4e.png)
 
 首先，在第2行，kernel的tma_load参数必须用`__grid_constant__ const`注解。如果我们有两个要从GMEM复制到SMEM的张量，每个张量都必须有自己的`TiledCopy`实例，并且每个实例都必须是`__grid_constant__ const`。这是从主机传递`cuTensorMap`到设备的要求，例如在这里有文档(https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#asynchronous-data-copies-using-tensor-memory-access-tma)说明。
 
@@ -142,7 +142,7 @@ ArithTuple(0,112) o (_16,_16):(_1@1,_1@0):
 
 为了说明起见，让我们考虑TMA load的反向示例，即从多个CTA的SMEM复制到分区GMEM张量中的相应块。这里的一个区别是，我们将在复制到GMEM之前用一个简单的数字模式填充CTA中的SMEM块（否则，我们将复制未定义的值）。一个功能性的代码片段如下：
 
-![](https://files.mdnice.com/user/59/e4ce0dc2-0a9f-4227-881c-8fa4f2d742cd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e4ce0dc2-0a9f-4227-881c-8fa4f2d742cd.png)
 
 主机代码看起来几乎与TMA load相同，除了对tma_store_kernel的调用。注意，我们安排每个CTA有CTA_M个线程。我们的示例中，每个CTA在SMEM中持有一个`[CTA_M,CTA_N]`的块，这样在第29-32行，线程i用值i填充第i行。
 
@@ -165,7 +165,7 @@ TMA load和存储代码之间最重要的区别是，我们不再看到任何与
 
 TMA load和TMA store操作对比表：
 
-![TMA操作总结。](https://files.mdnice.com/user/59/2e8aa550-700e-4a5f-a55c-115119485404.png)
+![TMA操作总结。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2e8aa550-700e-4a5f-a55c-115119485404.png)
 
 
 到目前为止，我们已经学习了如何调用TMA load和TMA store操作。上表比较和对比了这些操作。要调用任一操作，我们需要通过主机代码中的`cute::make_tma_copy`方法创建一个类似于TiledCopy的对象，然后将此对象传递到kernel函数中，在那里我们使用`cute::copy`来实际调用操作。在本节中，我们深入探讨当我们在kernel函数中调用这些TiledCopy对象时实际发生的情况。从这次深入探讨中，我们讨论两个扩展：TMA store归约和TMA load multicast。
@@ -304,7 +304,7 @@ auto tma_load = make_tma_copy(SM90_TMA_LOAD_MULTICAST{},
 
 然后我们按如下方式更改kernel代码：
 
-![](https://files.mdnice.com/user/59/af40581a-af75-4954-b696-2a76d2b586ea.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/af40581a-af75-4954-b696-2a76d2b586ea.png)
 
 我们已经突出显示了相关的更改。首先，我们现在需要跟踪CTA在其集群内的内部索引，我们通过CuTe方法`block_rank_in_cluster()`获取。这会返回特殊寄存器`%cluster_ctarank`的值，在我们的示例中将取值0和1。为简洁起见，让我们将其称为`ctaid`。
 然后我们对代码进行以下三项修改：
@@ -319,11 +319,11 @@ auto tma_load = make_tma_copy(SM90_TMA_LOAD_MULTICAST{},
 
 最后，对于(3)，`ctaid`用于指定从给定CTA启动的TMA Multicast load操作时切片到GMEM的偏移量。为了清楚地解释这一点，考虑以下示例：从GMEM加载一个16 x 16的整数块到集群中两个CTA的SMEM中，该块以升序行主序初始化为0-255。假设我们错误地为两个CTA的`tma_load.get_slice()`给出了0作为参数。那么在加载完成后，我们在两个CTA的SMEM中得到以下结果：
 
-![](https://files.mdnice.com/user/59/cffb4c09-8c0a-4f57-a10a-e503e00cbb9d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cffb4c09-8c0a-4f57-a10a-e503e00cbb9d.png)
 
 相比之下，如果我们为两个CTA都给出1作为参数，那么我们在两个CTA的SMEM中得到这个：
 
-![](https://files.mdnice.com/user/59/5a2d130c-63da-44d2-97a7-d8ae5109dbda.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a2d130c-63da-44d2-97a7-d8ae5109dbda.png)
 
 最后，从`ctaid` 1给出0，从`ctaid` 0给出1，或者从`ctaid` 0给出0，从`ctaid` 1给出1，都会正确地将整个块加载到两个CTA的SMEM中。这些输出说明了从集群中的一个CTA发出Multicast操作会将GMEM的一半加载到两个CTA的SMEM中，TiledCopy的切片决定各自的一半。这与PTX文档中`cp.async.bulk.tensor`的Multicast描述一致：
 

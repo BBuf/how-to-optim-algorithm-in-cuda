@@ -14,9 +14,9 @@ DeepSeek V3/R1 中单独的Linear对应的forward就是FP8 Block GEMM，经历�
 
 现在SGLang中默认开启了DEEPGEMM，这个实现相比于sgl-kernel的cutlass实现，Triton实现基本上所有的case下都有优势，使用逻辑截图下：
 
-![](https://files.mdnice.com/user/59/5fd75e1b-563a-4f17-a5fc-e37a86a643f9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5fd75e1b-563a-4f17-a5fc-e37a86a643f9.png)
 
-![](https://files.mdnice.com/user/59/e1da3949-0a2f-4f9a-a3e2-1461716d9ab7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e1da3949-0a2f-4f9a-a3e2-1461716d9ab7.png)
 
 端到端的提升幅度和输入/输出数据长短有关系，例如10k-500这组数据输出吞吐端到端提升5%，256-4k这组数据输出吞吐端到端提升10%，这里的提升是相比于sgl-kernel cutlass实现来说的。
 
@@ -62,7 +62,7 @@ DeepSeek V3/R1 中单独的Linear对应的forward就是FP8 Block GEMM，经历�
 
 我们在SGLang中针对biased_grouped_topk(https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/moe/topk.py#L144)引入了一个fuse cuda kernel的优化，将十多个算子fuse成一个cuda kernel大大改进了grouped topk这块的性能。之前也写了一篇blog介绍这个优化：[图解DeepSeek V3 biased_grouped_topk cuda融合算子fused_moe_gate kernel](https://mp.weixin.qq.com/s/p6LlY4sUBTy-Xfc9WumNSw) ，感兴趣可以查看，这里就不多赘述了。
 
-![](https://files.mdnice.com/user/59/100d1c4f-a078-4a02-b290-c3bfd985edb4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/100d1c4f-a078-4a02-b290-c3bfd985edb4.png)
 
 kernel对应的PR见：https://github.com/sgl-project/sglang/pull/4530
 
@@ -72,17 +72,17 @@ DeepSeek V3/R1 推理性能端到端提升是5%-8%左右。
 
 具体细节可以参考我之前写的这篇blog，这个优化花了我挺多时间去测试的，也是一个比较solid提升，[分享一个DeepSeek V3和R1中 Shared Experts和普通Experts融合的一个小技巧](https://mp.weixin.qq.com/s/Bz3qdkldULZiZ8ypooOX-A) 。下面是端到端的性能提升图：
 
-![](https://files.mdnice.com/user/59/2af2a88f-28a1-45e1-80f6-b004cd7ce744.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2af2a88f-28a1-45e1-80f6-b004cd7ce744.png)
 
 ## 0x2.4 Triton Fused MoE Retuning
 
 升级PyTorch Triton版本之后社区小伙伴发现重新Tuning fused MoE kernel之后可以带来明显的性能提升，例如在Triton 3.2.0中如果继续延用Triton 3.1.0 tuning的config，则性能反而会下降，但如果重新Tuning则可以取得相比于Triton 3.1.0更好的性能。https://github.com/sgl-project/sglang/pull/5716 & https://github.com/sgl-project/sglang/pull/5740 ，通过重新Tuning Fused MoE kernel，在DeepSeek V3/R1上取得了性能提升。
 
-![](https://files.mdnice.com/user/59/cb3c8a78-8300-4b1b-b1ca-c098275e97fc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cb3c8a78-8300-4b1b-b1ca-c098275e97fc.png)
 
 我还测试了一下Triton 3.2.0升级为Triton 3.3.0的提升：
 
-![](https://files.mdnice.com/user/59/ad528d83-80b5-42fc-8633-dca519786b99.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ad528d83-80b5-42fc-8633-dca519786b99.png)
 
 基本也是符合这里的Retuning结论的。然后 https://github.com/vllm-project/vllm/pull/17934#issuecomment-2868822690 这里的一个 micro benchmark 性能测试也佐证了这一点。
 
@@ -90,7 +90,7 @@ DeepSeek V3/R1 推理性能端到端提升是5%-8%左右。
 
 把expert计算完之后最后乘以routed_scaling_factor的逻辑fuse到Fused MoE模块的最后那个topk_reduce_sum kernel中，具体可见：https://github.com/sgl-project/sglang/pull/6220 ，端到端提升如下：
 
-![](https://files.mdnice.com/user/59/9a8bb502-470d-4ec9-828d-2372b6b483cb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9a8bb502-470d-4ec9-828d-2372b6b483cb.png)
 
 ## 0x2.6 一些额外的探索
 
@@ -102,7 +102,7 @@ DeepSeek V3/R1 推理性能端到端提升是5%-8%左右。
 
 来自LinkedIn的优化，详情可见[在 SGLang 中实现 Flash Attention 后端 - 基础和 KV 缓存](https://mp.weixin.qq.com/s/693f008zNo7olXeSogy-sg) ，端到端吞吐提升结果如下所示：
 
-![](https://files.mdnice.com/user/59/c0a5c601-1a75-4459-a1f3-43b4def58d80.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c0a5c601-1a75-4459-a1f3-43b4def58d80.png)
 
 效果非常显著，然后SGLang社区也在推进hybrid Attention Backend以获得更加广泛的加速，可以参考：https://github.com/sgl-project/sglang/pull/6151 。
 
@@ -118,11 +118,11 @@ PR见：https://github.com/sgl-project/sglang/pull/5390 ，https://github.com/sg
 
 对应https://github.com/sgl-project/sglang/pull/5578，这个优化移除了q_input和k_input等临时变量的创建和处理，去掉了多个涉及self.kv_lora_rank的复制和切片操作。修改如下所示：
 
-![](https://files.mdnice.com/user/59/02481ff0-5907-4bed-8829-93b1663390d3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/02481ff0-5907-4bed-8829-93b1663390d3.png)
 
 benchmark结果如下所示：
 
-![](https://files.mdnice.com/user/59/68c505ad-a93e-4f76-a994-f3c59989803b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/68c505ad-a93e-4f76-a994-f3c59989803b.png)
 
 ## 0x4.2 MHA和MQA的选择策略优化
 
@@ -152,7 +152,7 @@ elif self.attention_backend == "fa3":
 
 详情可以参考：https://github.com/sgl-project/sglang/pull/5113 ，也是2025上半年的优化 。下面是一些Benchmark结果截图：
 
-![](https://files.mdnice.com/user/59/3943b0f8-5d6e-4356-9f09-4109d9cfd0e9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3943b0f8-5d6e-4356-9f09-4109d9cfd0e9.png)
 
 可以看到对整体的端到端吞吐提升也是明显的。
 
@@ -173,7 +173,7 @@ elif self.attention_backend == "fa3":
 
 在 DeepSeek v3 的自注意力模块中，`q_a_proj` 和 `kv_a_proj` 都以隐藏状态作为输入，因此它们可以被融合成一个模块，从而节省一次 DeepGemm 的启动。对应的改动是：当 `q_lora_rank` 大于 0 时(这对 DeepSeek V3 和 R1 来说是成立的), `self.q_a_proj` 和 `self.kv_a_proj_with_mqa` 会被融合成一个新的模块 `self.fused_qkv_a_proj_with_mqa`。在加载权重时,`q_a_proj` 和 `kv_a_proj` 的权重和 block scales 会被拼接并加载到 `self.fused_qkv_a_proj_with_mqa` 中。benchmark结果如下所示：
 
-![](https://files.mdnice.com/user/59/df52ff70-9f99-4554-895b-190a90eaa2d2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/df52ff70-9f99-4554-895b-190a90eaa2d2.png)
 
 对于bs=1时提升了约4.2%，对于bs=32时提升了约3.8%。
 
@@ -183,7 +183,7 @@ elif self.attention_backend == "fa3":
 
 它做的事情是融合 MLA set kv cache kernel 并移除 k concat 操作。目前仅支持 FA3 后端。后续验证后可以应用到其他后端。
 
-![](https://files.mdnice.com/user/59/5502f5e3-b484-4d75-b06f-f149d563b156.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5502f5e3-b484-4d75-b06f-f149d563b156.png)
 
 # 0x5. DeepSeek V3/R1 其它的优化技巧记录
 
@@ -191,31 +191,31 @@ elif self.attention_backend == "fa3":
 
 通过2个CUDA Stream把DeepSeek V3/R1 Attention 部分的 `forward_absorb` 实现中对q, k分别做rmsnorm的无数据依赖的操作overlap起来。PR见：https://github.com/sgl-project/sglang/pull/5977
 
-![](https://files.mdnice.com/user/59/48878ec7-a76d-4b76-8427-fc27308fda5f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/48878ec7-a76d-4b76-8427-fc27308fda5f.png)
 
 ## 0x5.2 层间复用的 BumpAllocator
 
 这里的出发点是每一层Layer我们都要做输入做量化，然后做量化的时候都需要给量化算子申请一个新的zero scalar tensor，为了避免重复申请Tom做了一个BumpAllocator，达到可以层间内存复用的目的，减少不同层重复创建torch.zeros的目的。PR见：https://github.com/sgl-project/sglang/pull/5549
 
-![](https://files.mdnice.com/user/59/dba6d83c-23ff-4357-839c-2e42b218faad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dba6d83c-23ff-4357-839c-2e42b218faad.png)
 
 ## 0x5.3 使用sgl-kernel 的 sglang_per_token_group_quant_fp8 算子而不是Triton实现
 
 PR见：https://github.com/sgl-project/sglang/pull/5473
 
-![](https://files.mdnice.com/user/59/f6f7ce1b-8e28-4019-a64d-906eadf8f2c7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f6f7ce1b-8e28-4019-a64d-906eadf8f2c7.png)
 
 ## 0x5.4 在DeepSeek V3/R1 应用cuda rope
 
 PR见：https://github.com/sgl-project/sglang/pull/5385
 
-![](https://files.mdnice.com/user/59/7aec31c8-a1b1-434f-9885-40fe9d8f03b4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7aec31c8-a1b1-434f-9885-40fe9d8f03b4.png)
 
 ## 0x5.5 优化 MLA 的 fp8 quant kernel
 
 这个优化的出发点是下面这张图右上角的bmm要用deepgemm或者cutlass fp8 `bmm` 来做，所以需要把输入从bf16转换为fp8。
 
-![](https://files.mdnice.com/user/59/2b2580b4-f034-4f92-b52c-286335a0f56c.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2b2580b4-f034-4f92-b52c-286335a0f56c.jpg)
 
 例如我们以deepgemm bmm为例子，代码如下：
 
@@ -242,7 +242,7 @@ if self.use_deep_gemm_bmm:
 
 这个PR做的事情就是用Triton实现了一个`per_token_group_quant_mla_deep_gemm_masked_fp8` kernel，在这之前这个操作是由一堆小算子组成的，所以这个也是CUDA kernel fuse的技巧，为了方便这里是直接用Triton实现了一个kernel。
 
-![](https://files.mdnice.com/user/59/ed8f1240-7882-4f27-b176-d86ec1185402.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ed8f1240-7882-4f27-b176-d86ec1185402.png)
 
 
 # 0x6. 总结

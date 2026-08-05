@@ -16,7 +16,7 @@ PyTorch网站已经有一个非常有用的指南（https://pytorch.org/tutorial
 
 首先,为了简化,我们将该示例封装在一个单一函数调用中:
 
-![](https://files.mdnice.com/user/59/21fe5ff0-64b8-4b52-a574-284f3d99f231.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/21fe5ff0-64b8-4b52-a574-284f3d99f231.png)
 
 然后我们将重点关注获取此调用所需的参数。具体来说,我们需要三样东西:
 

@@ -260,7 +260,7 @@ tCgC 是我们在 epilogue 中想要将累加器的值复制到的输出 GMEM �
 每个线程以一种需要将 32 因子化为 (2,2,8) 的方式持有 atom 的 32 个值，以便能够定义 tCgC 的布局对应的步长。该分区模式可以从 PTX 文档(https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#wgmma-64n16-d)中的这张图片中读取。
 
 
-![](https://files.mdnice.com/user/59/2ff62d95-7486-4f48-936b-003b6ae1c525.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2ff62d95-7486-4f48-936b-003b6ae1c525.png)
 
 这说明了线程持有 32 个值的复制 Z 模式。例如，线程 0 持有位于 (0,0) 、 (0,1) 、 (8,0) 和 (8,1) 的值，并且每隔 8 列向右重复。
 
@@ -371,7 +371,7 @@ This last section discusses further the layout requirements for tiles of matrice
 
 The matrices wA and wB are divided into a number of smaller matrices called core matrices. Each core matrix has a strided direction and a contiguous direction, such that its length is 8 in the strided direction and 16 bytes in the contiguous direction. Matrix wA is made up of 8x2 core matrices and Matrix wB is made up of 2x(N/8) core matrices. We illustrate a tiling of wA and wB by core matrices as follows (with images taken from the PTX documentation):
 
-![](https://files.mdnice.com/user/59/dcebbc6a-2310-4ba8-ae20-66d748960e5b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dcebbc6a-2310-4ba8-ae20-66d748960e5b.png)
 
 As mentioned above, wgmma in SS mode requires matrix descriptors(https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-shared-memory-layout-matrix-descriptor) for both wA (desc-a) and wB (desc-b) as inputs. This descriptor encodes five parameters:
 

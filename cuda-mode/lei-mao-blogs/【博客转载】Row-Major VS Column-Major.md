@@ -6,7 +6,7 @@
 
 在计算领域中，行主序（row-major order）和列主序（column-major order）是将多维数组存储在线性存储（如随机存取内存）中的两种方式。下图展示了二维矩阵的行主序和列主序存储方式。
 
-![](https://files.mdnice.com/user/59/103c743c-e0b2-40ef-88fe-c398c489f459.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/103c743c-e0b2-40ef-88fe-c398c489f459.png)
 
 在这篇博客文章中，我将讨论行主序和列主序之间的差异，以及它们对矩阵乘法性能的影响。
 

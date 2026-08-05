@@ -55,7 +55,7 @@ ldmatrix.sync.aligned.m16n16.num.trans{.ss}.dst_fmt.src_fmt r, [p];
 
 下图展示了使用`ldmatrix`加载的`8x8`矩阵的fragment布局：
 
-![](https://files.mdnice.com/user/59/f5fbc9ae-36a9-4691-b38e-5cf1f36cda03.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f5fbc9ae-36a9-4691-b38e-5cf1f36cda03.png)
 
 ```shell
 // 使用64位地址加载一个8x8矩阵

@@ -6,13 +6,13 @@
 
 我们最开始实现quant相关的kernel时没有考虑到这一点，现在已经全部修复。最开始实现这几个kernel的时候Dispatch dtype我是参考了vLLM的那部分代码，直接用了`c10::Float8_e4m3fn`类型，没有考虑到这个类型不是CUDA内置的`__nv_fp8_e4m3`类型，我们这两天修复完之后看到vLLM也把我们的这个修复apply进去了。
 
-![](https://files.mdnice.com/user/59/3176aa8f-a5fd-4389-a873-5483ccec118f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3176aa8f-a5fd-4389-a873-5483ccec118f.png)
 
-![](https://files.mdnice.com/user/59/0082976b-84b1-41c7-b4bf-2d87594f0e8b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0082976b-84b1-41c7-b4bf-2d87594f0e8b.png)
 
 世界是一个巨大的草台班子。下面是ncu在h20上修改后的`per_token_group_quant_8bit`相比于修改前的性能对比，可以看到带宽提升明显。
 
-![](https://files.mdnice.com/user/59/da74aec5-b93e-44e3-9be4-94e0387de578.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/da74aec5-b93e-44e3-9be4-94e0387de578.png)
 
 接下来是使用sgl-kernel benchmark工具测试的`per_tensor_quant`和`per_token_quant`的性能对比。
 
@@ -411,7 +411,7 @@ CALL.REL.NOINC 0x7fce7d7975c0
 
 然后这个函数做的事请就是将float32转换为`c10::Float8_e4m3fn`类型，由于这个类型不是CUDA内置的`__nv_fp8_e4m3`类型，所以需要通过软件函数调用实现，包含大量条件分支和位操作最终导致了性能下降。
 
-![](https://files.mdnice.com/user/59/331cb9c0-5c75-4dad-bc71-711bc4e0d668.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/331cb9c0-5c75-4dad-bc71-711bc4e0d668.png)
 
 下面用Claude 4.0分析下这个转换函数。
 

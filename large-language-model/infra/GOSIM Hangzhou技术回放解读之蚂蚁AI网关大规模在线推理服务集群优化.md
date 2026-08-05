@@ -16,7 +16,7 @@
 
 ### Slide 1：蚂蚁 AI 网关：大规模在线推理服务集群优化
 
-<img src="https://files.mdnice.com/user/59/e6216fee-f2ff-4293-bd43-d27d0499e02b.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e6216fee-f2ff-4293-bd43-d27d0499e02b.png" referrerpolicy="no-referrer" />
 
 标题页给出分享范围：蚂蚁 AI 网关在大规模在线推理服务集群里的性能优化。演讲人同时是 Mooncake 核心成员和 Envoy Golang Maintainer，这也解释了后面为什么会同时出现 KVCache Store、PD 路由和云原生网关。
 
@@ -24,7 +24,7 @@
 
 ### Slide 2：目录：从负载特征到网关调度
 
-<img src="https://files.mdnice.com/user/59/4ba5cbfb-765e-4c00-87ba-0cb7b1733acc.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4ba5cbfb-765e-4c00-87ba-0cb7b1733acc.png" referrerpolicy="no-referrer" />
 
 目录分三段：大规模推理集群的挑战、蚂蚁 AI 网关实践、未来演进。这个顺序很重要：先说明为什么 round-robin/least-connection 不够，再讲 v1/v2 怎么补负载和 cache 信号，最后才进入预测时延、Mooncake Store、PD Router 和云原生架构。
 
@@ -32,7 +32,7 @@
 
 ### Slide 3：AI Gateway 在推理集群中的位置
 
-<img src="https://files.mdnice.com/user/59/7c132901-9696-4cfa-bd14-00cdc146911e.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7c132901-9696-4cfa-bd14-00cdc146911e.png" referrerpolicy="no-referrer" />
 
 这一页把 AI Gateway 定义成推理服务智能枢纽，右侧列了四类目标：智能路由、过载保护、多租 QoS、自动故障转移；上方两个收益是降低时延和提升吞吐。也就是说，它既要做入口治理，也要理解后端执行状态。
 
@@ -40,7 +40,7 @@ AI Gateway 位于用户/API 和推理后端之间。它要做鉴权、限流、�
 
 ### Slide 4：LLM 请求负载是非线性的
 
-<img src="https://files.mdnice.com/user/59/257b8694-b4db-44de-89ce-1c3663fcd3df.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/257b8694-b4db-44de-89ce-1c3663fcd3df.png" referrerpolicy="no-referrer" />
 
 这页标题是“负载与请求量的非线性关系”。左边列推理计算特征：计算量大、单点并发小；请求 input/output 变化很大、负载波动大；prefix 语义 cache 可复用。右边列经典算法不再适用：round-robin 只做请求数均衡，least-connection 只做并发数均衡。
 
@@ -48,7 +48,7 @@ LLM 负载不是请求数线性可加。一个 200 token prompt 和一个 20k to
 
 ### Slide 5：Prefill 和 Decode 两个阶段
 
-<img src="https://files.mdnice.com/user/59/fd9c63b7-0e23-4fe7-8673-028028f43fea.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fd9c63b7-0e23-4fe7-8673-028028f43fea.png" referrerpolicy="no-referrer" />
 
 这页把推理过程拆成 Prefill 和 Decode。Prefill 的小字写的是 compute bound，几乎没有并发能力；Decode 则强调组 batch 和小并发。图的作用是提醒路由层：同一个请求在不同阶段的资源画像完全不同。
 
@@ -56,7 +56,7 @@ Prefill 主要吃长序列 attention 计算和 KV 写入，prompt 越长 TTFT �
 
 ### Slide 6：Attention 与 FFN 的资源差异
 
-<img src="https://files.mdnice.com/user/59/0fc0af91-eaf6-4037-8104-860dfb07a433.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0fc0af91-eaf6-4037-8104-860dfb07a433.png" referrerpolicy="no-referrer" />
 
 这页继续拆模型内部资源：Attention 的计算和访存都与 context length 正相关；FFN 的计算主要和 batch size 正相关，访存相对固定。也就是说，同一个 batch size 下，长上下文会让 attention 侧更重；同一个上下文长度下，大 batch 会让 FFN 侧更重。
 
@@ -64,7 +64,7 @@ Prefill 主要吃长序列 attention 计算和 KV 写入，prompt 越长 TTFT �
 
 ### Slide 7：从 request 调度到 token 调度
 
-<img src="https://files.mdnice.com/user/59/cd05a051-4f57-4eda-9ffe-0872ba806dfd.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cd05a051-4f57-4eda-9ffe-0872ba806dfd.png" referrerpolicy="no-referrer" />
 
 这页把智能路由本质写成 request 粒度和 token 粒度的协同优化。request 粒度主要影响时延和吞吐：请求选到哪个实例、排队多久、prefill 是否命中缓存；token 粒度主要影响 batch 组织和硬件利用率：decode 阶段每步要把哪些 token 合批。
 
@@ -72,7 +72,7 @@ Prefill 主要吃长序列 attention 计算和 KV 写入，prompt 越长 TTFT �
 
 ### Slide 8：传统负载均衡为什么不够
 
-<img src="https://files.mdnice.com/user/59/f821c877-ec3e-443f-a1a9-03e5bf08ebbf.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f821c877-ec3e-443f-a1a9-03e5bf08ebbf.png" referrerpolicy="no-referrer" />
 
 这页列了三个关键点：大模型计算过程、权衡、真实压测成本高。它是在解释为什么网关优化不能直接套经典负载均衡经验。LLM 的计算过程有阶段差异，路由时要在 cache 命中、当前负载、预期 decode 长度之间权衡；而真实线上压测成本高，很多策略不能靠反复试错调整。
 
@@ -80,7 +80,7 @@ Prefill 主要吃长序列 attention 计算和 KV 写入，prompt 越长 TTFT �
 
 ### Slide 9：蚂蚁 AI 网关实践章节过渡
 
-<img src="https://files.mdnice.com/user/59/d63be6a3-4ab2-46ba-998c-e00a5f74a16c.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d63be6a3-4ab2-46ba-998c-e00a5f74a16c.png" referrerpolicy="no-referrer" />
 
 这一页是实践章节的过渡。前面已经说明 LLM 请求成本不是线性的，后面开始讲蚂蚁 AI 网关如何从 v1 的简单 queue-num，迭代到 v2 的 self-loop metrics 和 cache-aware，再到 v3 的预测时延。
 
@@ -88,7 +88,7 @@ Prefill 主要吃长序列 attention 计算和 KV 写入，prompt 越长 TTFT �
 
 ### Slide 10：Ant AI Gateway 架构
 
-<img src="https://files.mdnice.com/user/59/a5ff0c73-4b37-4876-afb7-d041a76a8e46.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5ff0c73-4b37-4876-afb7-d041a76a8e46.png" referrerpolicy="no-referrer" />
 
 这页画的是 Ant AI Gateway 的基本位置：机房级入口、推理实例级路由、多租共享。机房级入口意味着它不是某个模型实例前的小代理，而是一个集群入口；推理实例级路由意味着它需要知道具体后端实例的状态；多租共享则要求它能处理不同租户的 SLO 和隔离。
 
@@ -96,7 +96,7 @@ Ant AI Gateway 的架构页把控制面和数据面分开：数据面接请求�
 
 ### Slide 11：v1：轮询 metrics 和 queue-num score
 
-<img src="https://files.mdnice.com/user/59/40cfe92e-cf12-4aee-811f-874b491e3e4d.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/40cfe92e-cf12-4aee-811f-874b491e3e4d.png" referrerpolicy="no-referrer" />
 
 v1 用定期轮询 metrics，score 直接取 `queue-num`，selection 是 `topK + random`。也就是先选队列较短的一组实例，再随机挑一个，避免所有请求都挤到同一个最优实例。
 
@@ -104,7 +104,7 @@ v1 用定期轮询 metrics，score 直接取 `queue-num`，selection 是 `topK +
 
 ### Slide 12：v1 的问题：指标滞后和缓存不敏感
 
-<img src="https://files.mdnice.com/user/59/6cd6b488-ffcd-48c0-a772-b1c106d44e5c.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6cd6b488-ffcd-48c0-a772-b1c106d44e5c.png" referrerpolicy="no-referrer" />
 
 v1 问题页分成指标采集和算法两侧。指标采集侧有三点：时效性差，多引擎适配成本高，定期采集会给引擎带来开销。算法侧也有三点：负载指标单一，长短请求干扰很大，没有 cache-aware。
 
@@ -112,7 +112,7 @@ v1 问题页分成指标采集和算法两侧。指标采集侧有三点：时�
 
 ### Slide 13：v2：self-loop metrics
 
-<img src="https://files.mdnice.com/user/59/c12c90ef-4e62-461e-9618-d488411dcc17.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c12c90ef-4e62-461e-9618-d488411dcc17.png" referrerpolicy="no-referrer" />
 
 v2 首先改指标采集，引入自闭环统计。slide 上列了两个核心指标：未完成请求数和 prefill 长度。未完成请求数比轮询 queue 更贴近数据面当前状态；prefill 长度则把长 prompt 的负载显式纳入路由。
 
@@ -120,7 +120,7 @@ v2 首先改指标采集，引入自闭环统计。slide 上列了两个核心�
 
 ### Slide 14：cache-aware prefix tree
 
-<img src="https://files.mdnice.com/user/59/658a8974-abb0-48a9-a39a-4c994a6abd57.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/658a8974-abb0-48a9-a39a-4c994a6abd57.png" referrerpolicy="no-referrer" />
 
 cache-aware prefix tree 是这场分享里最贴近 LLM 推理语义的一页。图里左侧是 Metadata-center，里面维护近似 Radix-Tree；AI 网关在 `1. LB 选择前` 会向 Metadata-center `查询 cache`，拿到候选实例的前缀命中情况。请求被引擎处理到 `3. 响应首 token` 后，网关/引擎再把新产生的 cache 信息 `save cache` 回 Metadata-center，为下一次相似 prompt 服务。
 
@@ -128,7 +128,7 @@ cache-aware prefix tree 是这场分享里最贴近 LLM 推理语义的一页。
 
 ### Slide 15：score = cache_ratio - request_load - prefill_load
 
-<img src="https://files.mdnice.com/user/59/1fece6d3-1e23-426f-8c48-a9789cd9e4f9.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1fece6d3-1e23-426f-8c48-a9789cd9e4f9.png" referrerpolicy="no-referrer" />
 
 这页给出 v2 的多因子打分：`score = W1*cache_ratio - W2*request_load - W3*prefill_load`。`cache_ratio` 是 prefix cache 命中率，越高越应该选；`request_load` 是请求队列数，越高说明排队压力越大；`prefill_load` 是当前处于 prefill 阶段的 prompt 长度，越高说明实例正在吃长上下文 prefill。
 
@@ -136,7 +136,7 @@ cache-aware prefix tree 是这场分享里最贴近 LLM 推理语义的一页。
 
 ### Slide 16：v2 优化效果
 
-<img src="https://files.mdnice.com/user/59/15f0b99c-4599-41cc-99d6-3e8cfb0f9a47.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/15f0b99c-4599-41cc-99d6-3e8cfb0f9a47.png" referrerpolicy="no-referrer" />
 
 v2 结果页给了三条收益：KVCache 命中率提升一倍，TTFT 平均值降低 50%，TTFT 长尾数量级降低。这里 TTFT 收益来自两个方向：命中 prefix cache 后少做 prefill；长 prompt 不再频繁被路由到冷节点。
 
@@ -144,7 +144,7 @@ v2 结果页给了三条收益：KVCache 命中率提升一倍，TTFT 平均值�
 
 ### Slide 17：在线场景的稳定性约束
 
-<img src="https://files.mdnice.com/user/59/e4db108b-8579-4b78-865a-e5679047214f.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e4db108b-8579-4b78-865a-e5679047214f.png" referrerpolicy="no-referrer" />
 
 这一页是未来演进的过渡。前面 v2 已经利用了自闭环 metrics 和近似前缀树，但它仍然是启发式打分。未来演进要解决的是更精确的延迟预测、更准确的 cache-aware、更复杂的 PD/EP/DP 分层路由。
 
@@ -152,7 +152,7 @@ v2 结果页给了三条收益：KVCache 命中率提升一倍，TTFT 平均值�
 
 ### Slide 18：v2 仍然解决不了的地方
 
-<img src="https://files.mdnice.com/user/59/5f758ffe-14a0-4629-9046-fb49fd415959.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5f758ffe-14a0-4629-9046-fb49fd415959.png" referrerpolicy="no-referrer" />
 
 v2 问题页也分指标和算法两侧。指标侧缺少 decode context length，而且 cache-aware 还是近似，准确度约 80%；算法侧的问题是权重参数寻优难、可解释性差、无法实现优先级调度。底部公式把 decode_load 也加进去：`W1*cache_ratio - W2*request_load - W3*prefill_load - W4*decode_load`。
 
@@ -160,7 +160,7 @@ v2 问题页也分指标和算法两侧。指标侧缺少 decode context length�
 
 ### Slide 19：Latency prediction
 
-<img src="https://files.mdnice.com/user/59/c9ce8fd6-6265-412f-bdc4-324be6e6b1b7.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c9ce8fd6-6265-412f-bdc4-324be6e6b1b7.png" referrerpolicy="no-referrer" />
 
 v3 这页把启发式打分改成预测建模。上半部分先做指标采集：prefill 阶段采 `input-length & cache-ratio`，decode 阶段采 `batch-size & context-length`。中间预测器分三项建模：TTFT、TPOT 和 Output Length。下方算法再基于预测时延做选择，同时支持多租 SLO 筛选。
 
@@ -168,7 +168,7 @@ v3 这页把启发式打分改成预测建模。上半部分先做指标采集�
 
 ### Slide 20：Mooncake Store 和 KVCache 共享
 
-<img src="https://files.mdnice.com/user/59/d87aa43b-f644-475c-aac2-9fdd3e1cb7b5.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d87aa43b-f644-475c-aac2-9fdd3e1cb7b5.png" referrerpolicy="no-referrer" />
 
 Mooncake Store 这页是在讲更精确的 cache-aware。流程从 `1. 推理请求` 进入 AI 网关开始；网关根据请求内容 `2. 生成 KVCache key`，再向 Mooncake `3. 查询 KVCache`；如果 store 里能找到对应 KV，引擎就可以在 `4. 推理请求` 时把 KV 拉进来复用。右侧两条收益分别是提升 KVCache 本地命中率，以及降低 KVCache 传输带宽和耗时。
 
@@ -176,7 +176,7 @@ Mooncake Store 这页是在讲更精确的 cache-aware。流程从 `1. 推理请
 
 ### Slide 21：TTFT 与 TPOT 的建模
 
-<img src="https://files.mdnice.com/user/59/2bbb5658-9f9f-49d2-8dc6-f68a224c3089.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2bbb5658-9f9f-49d2-8dc6-f68a224c3089.png" referrerpolicy="no-referrer" />
 
 这页标题是“时延预测模型”，左侧直接给出两个建模假设：TTFT 用二次关系，TPOT 用分阶段线性。左下图的横轴是 input token length，纵轴是 Time to First Token；蓝点是单次测量，红点是均值和标准差，绿色拟合曲线明显向上弯，说明 prompt 变长后 prefill 代价不是线性增加。它会受到 attention 计算、cache 命中率、batching 和排队共同影响，所以用二次项近似更稳。
 
@@ -184,7 +184,7 @@ Mooncake Store 这页是在讲更精确的 cache-aware。流程从 `1. 推理请
 
 ### Slide 22：PD Router 和 DP imbalance
 
-<img src="https://files.mdnice.com/user/59/a0783f4a-28ab-4a3f-873b-5824606c53e6.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a0783f4a-28ab-4a3f-873b-5824606c53e6.png" referrerpolicy="no-referrer" />
 
 这页讲分离式推理后路由层的形态。左图是三层结构：最上面 `Global Router` 先做全局入口决策，中间 `PD Router` 决定 prefill/decode 的分配，下面 `DP LB` 再在 data parallel 粒度做负载均衡。右侧第一条写“PD 分离催生 PD Router”，意思是 prefill 和 decode 拆开后，请求不再只需要挑一个实例，而是要决定 prefill 放哪、decode 放哪、KV 怎么传。
 
@@ -192,7 +192,7 @@ Mooncake Store 这页是在讲更精确的 cache-aware。流程从 `1. 推理请
 
 ### Slide 23：云原生 Go 扩展
 
-<img src="https://files.mdnice.com/user/59/a869b709-9cce-4100-9236-da3462f12811.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a869b709-9cce-4100-9236-da3462f12811.png" referrerpolicy="no-referrer" />
 
 这页把 AI 网关落到云原生架构。左上控制面接 `k8s Gateway API` 和 `Service/Inference Pool`，说明模型入口、服务池和路由规则希望用 Kubernetes 资源表达。左下数据面是同进程实例，底座是 `envoy + Golang`；中间插件机制列了九类能力：指标采集、均衡算法、认证鉴权、限流、预测模型、Trace、过载保护、多租 SLO、可观测。
 
@@ -200,7 +200,7 @@ Mooncake Store 这页是在讲更精确的 cache-aware。流程从 `1. 推理请
 
 ### Slide 24：总结
 
-<img src="https://files.mdnice.com/user/59/b406a783-38e3-40c7-a04d-4a916f80bcbf.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b406a783-38e3-40c7-a04d-4a916f80bcbf.png" referrerpolicy="no-referrer" />
 
 最后这页可以总结成一句：大模型网关要懂请求形态、cache 位置和后端执行状态。否则它只是 HTTP 转发器，帮不了推理集群省算力。
 

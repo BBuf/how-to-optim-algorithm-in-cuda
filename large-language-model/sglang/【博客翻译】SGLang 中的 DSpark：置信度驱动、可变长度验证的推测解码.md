@@ -18,7 +18,7 @@ SGLang 现在已经支持在 dense 和 sparse 模型上使用 DSpark，例如 Qw
 
 ## 相对 MTP 和非推测 baseline 的加速
 
-![图 1：H200 DP4 上，总吞吐和单用户 decode 速度的对比。每条曲线对应一个方案：非推测 baseline、MTP 和 DSpark。越靠右上越好；每个 marker 是一个 batch size，取三轮平均值。](https://files.mdnice.com/user/59/a9a76d7d-e5cb-44f4-bebe-3d77f08c2ae2.png)
+![图 1：H200 DP4 上，总吞吐和单用户 decode 速度的对比。每条曲线对应一个方案：非推测 baseline、MTP 和 DSpark。越靠右上越好；每个 marker 是一个 batch size，取三轮平均值。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/a9a76d7d-e5cb-44f4-bebe-3d77f08c2ae2.png)
 
 图 1：总吞吐（y 轴）和单用户 decode 速度（x 轴）。每条曲线从 batch 1 扫到 256，对应一个方案。越靠右上越好。
 
@@ -55,7 +55,7 @@ SGLang 的做法是保留 ragged batch，并用总 token 数作为 graph key：�
 
 Packed buffer 是 `cu_seqlens` 风格的 varlen 输入，所以 compact verify 可以复用后端已有的 attention kernel。在 DeepSeek-V4 上，它直接走模型自己的 sparse-MLA 路径（`flash_mla`），不需要新 kernel。每个支持的 backend 只需要在 graph replay 时，从 packed layout 重建自己的 varlen metadata。
 
-![图 2：把 per-request-variable verify length 的 batch 放进 captured CUDA graph。固定形状 graph 会把每个请求 pad 到完整 block width（N x W）；ragged 路径会 front-pack 已调度 token，并只对总 token 数向上取整到最近 tier，因此用同样 accepted tokens 计算更少 padded cells。](https://files.mdnice.com/user/59/2bcfe914-f04c-406e-910d-7678b296e573.png)
+![图 2：把 per-request-variable verify length 的 batch 放进 captured CUDA graph。固定形状 graph 会把每个请求 pad 到完整 block width（N x W）；ragged 路径会 front-pack 已调度 token，并只对总 token 数向上取整到最近 tier，因此用同样 accepted tokens 计算更少 padded cells。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2bcfe914-f04c-406e-910d-7678b296e573.png)
 
 图 2：把 per-request-variable verify length 的 batch 放进 captured CUDA graph。固定形状 graph 会把每个请求 pad 到完整 block width（N x W）；ragged 路径会 front-pack 已调度 token，只对总 token 数向上取整到最近的 captured tier，因此用同样的 accepted tokens 计算更少 padded cells。
 
@@ -73,9 +73,9 @@ Packed buffer 是 `cu_seqlens` 风格的 varlen 输入，所以 compact verify �
 
 当前 confidence scheduler 还是第一版朴素实现。可以把它看作端到端机制验证，而不是调到极致的结果。这里在两个接受率不同的示例 workload 上，对比 `compact` 和 `no-trim`。`compact` 使用 per-step SPS-argmax budget；`no-trim` 则是通过同一条 ragged path 执行的 `static` full-block schedule。
 
-![图 3 左：GSM8K 上，compact 动态裁剪和 no-trim full block 的对比。](https://files.mdnice.com/user/59/18383fed-bfe5-40a1-978f-39a713293e66.png)
+![图 3 左：GSM8K 上，compact 动态裁剪和 no-trim full block 的对比。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/18383fed-bfe5-40a1-978f-39a713293e66.png)
 
-![图 3 右：Arena-hard 示例上，compact 动态裁剪和 no-trim full block 的对比。](https://files.mdnice.com/user/59/92525f7e-2b95-42a2-9297-509e8ad270e7.png)
+![图 3 右：Arena-hard 示例上，compact 动态裁剪和 no-trim full block 的对比。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/92525f7e-2b95-42a2-9297-509e8ad270e7.png)
 
 图 3：`compact`（dynamic trim）和 `no-trim`（full block）的对比，batch 从 1 扫到 256，DP4，两个示例的接受率不同。越靠右上越好。
 
@@ -89,7 +89,7 @@ Dynamic budget 的收益主要出现在大 batch。batch size 为 1 时，目标
 
 同质化 sweep 会把 confidence scheduling 的重点藏起来。同一个 batch 里的两个请求，如果一个明显更可预测，它们就不该拿到同样的 verify window。混合流量才真正考验这件事。
 
-![图 4：按 workload 划分的预算（左）和 per-step verify-length 分布（右）。](https://files.mdnice.com/user/59/62b46db4-87ad-4f6d-a33d-74d6d483bf74.png)
+![图 4：按 workload 划分的预算（左）和 per-step verify-length 分布（右）。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/62b46db4-87ad-4f6d-a33d-74d6d483bf74.png)
 
 图 4：按 workload 划分的预算（左），以及 per-step verify-length 分布（右）。
 
@@ -103,13 +103,13 @@ SGLang 把一批小 op 改写成融合 Triton kernel，例如 compact scatter、
 
 DSpark 可以直接接入 SGLang 的 zero-overhead（overlap）scheduler，几乎不需要专门分支，只额外加入论文里的 two-step-back confidence relay。这里没有多少 DSpark 专用管线。SGLang 的 spec-v2 runtime 已经能在独立 stream 上，把下一步 scheduling 和当前 forward 重叠起来；DSpark 只是作为一等 worker 接入：forward 输出以 async future 返回，跨 iteration 的顺序依赖通过 runtime 的 device-side barrier 处理，on-device page table 避免 per-step host sync。Confidence relay 也走同一个 channel，读取两步之前的信息。这样 decode loop 就没有 per-step bubble，比关闭 scheduler 时紧凑约 1.5 倍。
 
-![图 5：batch size 1 的 decode trace。上图关闭 overlap scheduler，会在 run_batch iteration 之间以及 draft-generate 和 target-verify 阶段之间出现 bubble；下图打开后，这些阶段背靠背执行。](https://files.mdnice.com/user/59/c8efb872-bb6e-4adc-b9f7-97386da3e818.png)
+![图 5：batch size 1 的 decode trace。上图关闭 overlap scheduler，会在 run_batch iteration 之间以及 draft-generate 和 target-verify 阶段之间出现 bubble；下图打开后，这些阶段背靠背执行。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c8efb872-bb6e-4adc-b9f7-97386da3e818.png)
 
 图 5：batch size 1 的 decode。上图是关闭 overlap scheduler，下图是打开。打开后，`run_batch` iteration 之间，以及一个 step 内 block-draft-generate 和 target-verify 阶段之间都没有 bubble。
 
 ## Profile cost table
 
-![图 6：Additive SPS cost-table 拟合：raw step time vs. fit（a）和 throughput（b），以及 SPS 预测和实测 decode-step time（c），DeepSeek-V4 on H200。](https://files.mdnice.com/user/59/1d59ebbd-336a-455e-b9a5-3f2d86b0d32a.png)
+![图 6：Additive SPS cost-table 拟合：raw step time vs. fit（a）和 throughput（b），以及 SPS 预测和实测 decode-step time（c），DeepSeek-V4 on H200。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1d59ebbd-336a-455e-b9a5-3f2d86b0d32a.png)
 
 图 6：Additive cost model：raw vs. fit（a）、throughput（b），以及 predicted vs. measured step time（c）。
 

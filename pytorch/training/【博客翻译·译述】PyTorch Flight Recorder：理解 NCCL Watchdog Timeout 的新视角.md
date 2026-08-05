@@ -39,7 +39,7 @@ PyTorch 这篇博客想讲清楚三件事：
 
 PyTorch 为了检测这种挂住，在 c10d 层引入了 CPU 侧 `Work` 对象和 NCCL watchdog 监控线程。`Work` 会用 collective 前后的 CUDA event 记录它在 GPU 上的生命周期。watchdog 周期性检查这些 collective 是否在用户定义的超时时间内完成，默认超时时间是 10 分钟。一旦超过阈值，watchdog 就抛异常中断训练。
 
-![Figure 1: PyTorch 监控 NCCL collective 的时序图](https://files.mdnice.com/user/59/a9553cb0-7994-488a-bbf5-d0760f99ea73.png)
+![Figure 1: PyTorch 监控 NCCL collective 的时序图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/a9553cb0-7994-488a-bbf5-d0760f99ea73.png)
 
 图 1：PyTorch 如何监控 NCCL collective。collective 被调度后，watchdog 通过 `Work` 状态和 CUDA event 观察它是否按时完成。
 
@@ -60,7 +60,7 @@ PyTorch 为了检测这种挂住，在 c10d 层引入了 CPU 侧 `Work` 对象�
 
 先看一个正常路径。PyTorch 的 NCCL collective 由 CPU 调度，然后在 GPU 上异步执行。在 GPU-bound 的训练框架里，CPU 会不断把计算 kernel 和 NCCL collective 排到 GPU 上，等到下一个 CPU-GPU 同步点才阻塞等待 GPU 完成之前排队的工作。
 
-![Figure 2: 2-rank process group 中 CUDA kernel 和 NCCL collective 的发射与执行](https://files.mdnice.com/user/59/193cd565-29b8-42d0-abb4-6b243bcbd062.png)
+![Figure 2: 2-rank process group 中 CUDA kernel 和 NCCL collective 的发射与执行](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/193cd565-29b8-42d0-abb4-6b243bcbd062.png)
 
 图 2：2-rank process group 中 CUDA kernel 和 NCCL collective 的发射与执行。图里故意放大了 GPU kernel 之间的间隙，方便阅读。
 
@@ -76,7 +76,7 @@ collective timeout 大致有两类路径：
 
 根据 Meta 内部排查经验，绝大多数 NCCL watchdog timeout 不是 collective 真慢，而是 collective desync。换句话说，单纯把 timeout 调大往往没有用；必须解决 rank 之间为什么调度出了不同东西。
 
-![Figure 3: Meta 内部训练栈中观察到的 NCCL watchdog timeout 根因分布](https://files.mdnice.com/user/59/8e668a6f-d024-4309-8044-cde6dde47d1a.png)
+![Figure 3: Meta 内部训练栈中观察到的 NCCL watchdog timeout 根因分布](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8e668a6f-d024-4309-8044-cde6dde47d1a.png)
 
 图 3：Meta 内部多个训练栈中观察到的 NCCL watchdog timeout 根因分布。CPU-side issue 是最大头。
 
@@ -97,7 +97,7 @@ CPU-side issue 又可以分成两类：
 
 如果一部分 rank 的 CPU 卡在 data loading、checkpointing、PT2 compilation 这类操作上，时间超过 NCCL watchdog timeout，那么这些 rank 就不会及时把 collective 调度到 GPU。其他已经调度 collective 的 rank 会一直等它们，最后报 timeout。
 
-![Figure 4: CPU-side slowness/hang 导致 NCCL watchdog timeout](https://files.mdnice.com/user/59/c5e1319c-a0cc-4d3b-94c4-61c402186a5a.png)
+![Figure 4: CPU-side slowness/hang 导致 NCCL watchdog timeout](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c5e1319c-a0cc-4d3b-94c4-61c402186a5a.png)
 
 图 4：CPU 侧慢或挂住导致 NCCL watchdog timeout。真正慢的是一部分 rank 的 CPU 路径，报错可能出现在已经进入 collective 等待的其他 rank 上。
 
@@ -107,7 +107,7 @@ PT2 compilation 是一个典型例子。编译时间本身可能依赖输入数�
 
 如果不同 rank 进入了不同代码路径，它们可能调度不同 collective，也可能有些 rank 根本不调度 collective。这两种情况都会让一部分 rank 在后续 CPU-GPU 同步点卡住。
 
-![Figure 5: CPU execution divergence 导致 NCCL watchdog timeout](https://files.mdnice.com/user/59/2f7577e2-2c27-40bf-86bb-3e48ada2b583.png)
+![Figure 5: CPU execution divergence 导致 NCCL watchdog timeout](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2f7577e2-2c27-40bf-86bb-3e48ada2b583.png)
 
 图 5：CPU 执行路径分叉导致 NCCL watchdog timeout。不同 rank 调度了不同 collective，后续通信语义无法对齐。
 
@@ -129,7 +129,7 @@ PT2 compilation 是一个典型例子。编译时间本身可能依赖输入数�
 
 单个 CUDA stream 内，GPU 执行是顺序的。如果某个 compute kernel 在 GPU 上 hang 住，后面已经排队的 collective 就执行不到。随后 CPU 在某个同步点等待 GPU 完成，最终可能由 NCCL watchdog 报 timeout。
 
-![Figure 6: GPU hang 导致 NCCL watchdog timeout](https://files.mdnice.com/user/59/88f10910-d267-4969-b710-9bcfe0792936.png)
+![Figure 6: GPU hang 导致 NCCL watchdog timeout](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/88f10910-d267-4969-b710-9bcfe0792936.png)
 
 图 6：GPU compute kernel hang 导致后续 NCCL collective 无法执行。具体症状取决于 CPU-GPU sync 发生在 collective 调度前还是调度后。
 
@@ -175,7 +175,7 @@ FR 支持几种获取方式：
 
 一次成功的 dump，关键是所有 rank 都要 dump，包括那个已经挂住的 rank。历史上，有些 rank 可能同时挂在 CUDA 线程和 watchdog 线程上，导致只拿到部分 timeout record。为了解决这个问题，PyTorch 引入了侧向 TCP/IP channel，借助 `TCPStore` 向所有 rank 广播 timeout signal。专门的 monitor thread 轮询 `TCPStore`，收到信号后触发 FR dump。
 
-![Figure 7: Flight Recorder dump trace 的时序图](https://files.mdnice.com/user/59/6f76337b-2b94-444e-80e6-22f56d8082f9.png)
+![Figure 7: Flight Recorder dump trace 的时序图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6f76337b-2b94-444e-80e6-22f56d8082f9.png)
 
 图 7：Flight Recorder 如何 dump trace。timeout signal 通过侧向通道广播，尽量让所有 rank 在被 teardown 前完成 dump。
 
@@ -207,11 +207,11 @@ Meta 内部在 `fr_trace` 之外，还做了一个分布式 collective activity 
 
 可视化里，X 轴连续列表示 FR 记录到的全局 collective 调度顺序，不区分 process group；Y 轴每一行对应一个 `(global rank, process group)` 组合。如果一个 rank 参加多个 process group，它会出现在多行里。每个 cell 是一次 collective，颜色由 `{collective type, call stack}` 组合决定。选中一个或多个 cell 后，可以加载对应 call stack 的 icicle chart。
 
-![Figure 8: Meta 内部用于检查 NCCL collective 的可视化 mockup](https://files.mdnice.com/user/59/58f54428-3f37-4dc7-944e-b3ceda34554a.png)
+![Figure 8: Meta 内部用于检查 NCCL collective 的可视化 mockup](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/58f54428-3f37-4dc7-944e-b3ceda34554a.png)
 
 图 8：Meta 内部用于调试 timeout 的 collective 可视化 mockup。它能横向扫描 rank 和 process group 中的 collective 历史。
 
-![Figure 9: 多个 cell 被选中后展示的 call stack icicle view mockup](https://files.mdnice.com/user/59/a419a64f-77d8-40f7-86fb-4baa65518736.png)
+![Figure 9: 多个 cell 被选中后展示的 call stack icicle view mockup](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a419a64f-77d8-40f7-86fb-4baa65518736.png)
 
 图 9：选中多个 collective cell 后生成的 call stack icicle view mockup。对比 mismatch collective 的调用栈，对于定位 CPU-side divergence 特别有用。
 
@@ -227,7 +227,7 @@ Meta 内部在 `fr_trace` 之外，还做了一个分布式 collective activity 
 
 但如果实现不够健壮，一些 rank 可能因为 conditional logic、early exit 或其他 code path divergence 跳过这些 collective。一旦参与 collective 的 rank 集合不完整，已经进入 collective 的 rank 会一直等没有参与的 rank，最后训练停住并触发 watchdog timeout。
 
-![Figure 10: CPU execution divergence 的 collective 可视化示例](https://files.mdnice.com/user/59/3e29ed63-a76a-4fca-b6ef-2236fc4ba0cb.png)
+![Figure 10: CPU execution divergence 的 collective 可视化示例](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3e29ed63-a76a-4fca-b6ef-2236fc4ba0cb.png)
 
 图 10：CPU execution divergence 的 collective 可视化示例。最后一列显示部分 rank 执行了 metric aggregation collective（黄色），其他 rank 则跳过它，直接进入下一次 NCCL 操作（黑色）。
 

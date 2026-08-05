@@ -207,7 +207,7 @@ $$
 
 上述 n-ary 合并操作符与二元合并操作符一致，我们可以证明该操作符是 *交换的* 和 *结合的*。通过合并索引子集的注意力状态，有多种方法可以得到整个序列的注意力状态，最终结果在数学上是等价的：
 
-![](https://files.mdnice.com/user/59/7a03292e-0e88-4f53-9804-ba2b5471ef5c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a03292e-0e88-4f53-9804-ba2b5471ef5c.png)
 
 > 通用分数 $s$ 也被称为 对数和指数（``lse`` 为简写）。
 
@@ -256,7 +256,7 @@ FlashInfer 为 KV-Cache 的最后三个维度提供了两种布局：``NHD`` 和
 
 在批量推理/服务中，输入序列长度可能在不同的样本之间有所不同。当不需要改变序列长度（例如在Prefill阶段），我们可以使用具有单个可变长度维度的 ``RaggedTensor`` 来存储 KV Cache 中的Key/Value张量：
 
-![](https://files.mdnice.com/user/59/88eecbb5-9d02-4b80-8b20-edd24a472548.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/88eecbb5-9d02-4b80-8b20-edd24a472548.png)
 
 
 所有请求的键（或值）被打包到一个没有填充的单个 ``data`` 张量中，我们使用一个 ``indptr`` 数组（``num_requests+1`` 个元素，第一个元素始终为零）来存储每个请求的可变序列长度信息（``indptr[i+1]-indptr[i]`` 是请求 ``i`` 的序列长度），当布局为 ``NHD`` 时，``data`` 张量的形状为 ``(indptr[-1], num_heads, head_dim)``。
@@ -272,7 +272,7 @@ FlashInfer 提供了 `flashinfer.prefill.BatchPrefillWithRaggedKVCacheWrapper` �
 
 上述的 Ragged Tensor 可以推广到多个“ragged”维度。例如，当批量大小大于 1 时，FlashInfer 中的注意力掩码是一个 2D ragged tensor：
 
-![](https://files.mdnice.com/user/59/942262b0-0690-452f-9949-524a0139ddae.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/942262b0-0690-452f-9949-524a0139ddae.png)
 
 当请求数量大于 1 时，不同的请求可能具有不同的Query长度和 kv 长度。为了避免填充，我们使用 2D ragged tensor 来存储注意力掩码。输入的 ``qo_indptr`` 和 ``kv_indptr`` 数组（长度均为 ``num_requests+1``）用于存储每个请求的可变序列长度信息，``qo_indptr[i+1]-qo_indptr[i]`` 是请求 ``i`` 的Query长度（``qo_len[i]``），``kv_indptr[i+1]-kv_indptr[i]`` 是请求 ``i`` 的 kv 长度（``kv_len[i]``）。
 
@@ -293,7 +293,7 @@ FlashInfer 提供了 `flashinfer.prefill.BatchPrefillWithRaggedKVCacheWrapper` �
 当 KV-Cache 是动态的（例如在 append 或 decode 阶段），打包所有Key/Value是不高效的，因为每个请求的序列长度会随时间变化。`vLLM <https://arxiv.org/pdf/2309.06180.pdf>`_ 
 提出将 KV-Cache 组织为Page Table。在 FlashInfer 中，我们将 Page Table 视为一个块稀疏矩阵（每个使用的Page 可以视为块稀疏矩阵中的一个非零块）并使用 `CSR 格式 <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html>` 来索引 KV-Cache 中的Page。
 
-![](https://files.mdnice.com/user/59/d14c4007-6568-4039-9733-ac5fd069ecb7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d14c4007-6568-4039-9733-ac5fd069ecb7.png)
 
 对于每个请求，我们记录其 ``page_indices`` 和 ``last_page_len``，分别跟踪该请求使用的Page 和最后一个Page 中的条目数量。请求 ``i`` 的 KV 序列长度为 ``page_size * (len(page_indices[i]) - 1) + last_page_length[i]``。
 
@@ -326,7 +326,7 @@ FlashInfer 提供了 `flashinfer.prefill.BatchPrefillWithRaggedKVCacheWrapper` �
 
 当使用多级 `级联推理 <https://flashinfer.ai/2024/02/02/cascade-inference.html>`_ 时，Query和输出存储在 ragged tensors 中，所有级别的 KV-Cache 存储在一个统一的分页 KV-Cache 中。每个级别都有一个唯一的 ``qo_indptr`` 数组，该数组是子树中累积的要追加的 token 数的前缀和，以及 ``kv_page_indptr``、``kv_page_indices`` 和 ``kv_last_page_len``，这些数组的语义与 Page Table 布局 部分中的相同。下图介绍了如何为 8 个请求构建这些数据结构，我们将这些请求的 KV-Cache 视为 3 个级别以实现前缀重用：
 
-![](https://files.mdnice.com/user/59/1d076e3c-c2c1-4378-87cd-aa32314e5368.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1d076e3c-c2c1-4378-87cd-aa32314e5368.png)
 
 请注意，我们不需要为每个级别更改 ragged query/output 张量或分页 kv-cache 的数据布局。所有级别共享相同的基础数据布局，但我们使用不同的 ``qo_indptr`` / ``kv_page_indptr`` 数组，以便以不同的方式查看它们。
 

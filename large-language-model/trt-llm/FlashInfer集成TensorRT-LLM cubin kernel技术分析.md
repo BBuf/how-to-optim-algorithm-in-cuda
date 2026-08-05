@@ -11,7 +11,7 @@ FlashInfer作为一个高性能的推理框架，通过优雅的集成方式将T
 
 TensorRT-LLM Gen是NVIDIA开发的代码生成系统，用于自动生成高度优化的CUDA内核：
 
-![](https://files.mdnice.com/user/59/f190889b-f49a-411f-abb2-35ca3c9194b5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f190889b-f49a-411f-abb2-35ca3c9194b5.png)
 
 在TensorRT-LLM的github仓库只能搜到这几个有关系的字段，并且这三个文件都是通过Gen系统生成的模板，但是具体的生成脚本没有开放，不过大概也可以猜出这几个字段的意思。
 
@@ -161,7 +161,7 @@ FLASHINFER_CUBINS_REPOSITORY = os.environ.get(
 
 从这个cubin远程仓库的截图可以看到对应commit下有哪些cubin文件可以下载。
 
-![](https://files.mdnice.com/user/59/40d7d417-74bc-480f-98f8-8481984d284e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/40d7d417-74bc-480f-98f8-8481984d284e.png)
 
 ### 0x3.4 FlashInfer cubin 缓存机制
 

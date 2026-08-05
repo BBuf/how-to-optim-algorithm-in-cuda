@@ -21,7 +21,7 @@ GitHub仓库torchtitan是一个使用原生PyTorch进行大规模LLM训练的概
 
 张量并行(TP)是一种广泛使用的模型并行技术。与数据并行不同,数据并行仅限于在批次维度上分片计算,而TP进一步沿特征维度分布计算,允许多个GPU同时处理相同的样本。这一特性使得TP对大规模LLM训练至关重要,因为它打破了设备数量超出全局批次大小的限制。
 
-![图1: 在2个设备上应用TP的两层FFN示意图](https://files.mdnice.com/user/59/bbb78b1d-f1ca-4566-b500-cf934d8b5c6e.png)
+![图1: 在2个设备上应用TP的两层FFN示意图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bbb78b1d-f1ca-4566-b500-cf934d8b5c6e.png)
 
 作为简要回顾,图示展示了在2个设备上应用TP的两层FFN。我们首先从行分片的输入[X0, X1],列分片的线性权重[A0, A1],和行分片的线性权重[B0, B1]开始。首先,对[X0, X1]执行all-gather操作以生成未分片的输入X。然后,在每个设备上独立计算X @ A0 @ B0和X @ A1 @ B1,同时保持激活分片。最后,使用reduce-scatter将未分片的输出部分和组合,形成最终的分片输出。
 
@@ -31,7 +31,7 @@ GitHub仓库torchtitan是一个使用原生PyTorch进行大规模LLM训练的概
 
 据我们所知,异步张量并行(async-TP)的概念最早是在论文《Breaking the Computation and Communication Abstraction Barrier in Distributed Machine Learning Workloads》(https://arxiv.org/abs/2105.05720)中提出的,尽管也有一些平行的研究工作,包括Wang等人2022年的工作(https://dl.acm.org/doi/abs/10.1145/3567955.3567959)和Chang等人2024年的工作(https://arxiv.org/abs/2406.06858)。其关键洞见在于,通过分解相互依赖的通信和计算算子,我们可以创造出原本无法实现的重叠机会。
 
-![图2: 将异步TP应用于all-gather和矩阵乘法的示意图](https://files.mdnice.com/user/59/f41edfef-0bfc-45e0-b902-b2732b17dff1.png)
+![图2: 将异步TP应用于all-gather和矩阵乘法的示意图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f41edfef-0bfc-45e0-b902-b2732b17dff1.png)
 
 > 上半部分 (Original传统方式): 两个分区(Partition 0和1)按顺序执行, 先进行AllGather操作收集数据, 然后执行Einsum矩阵计算，这种方式计算和通信是串行的,存在等待时间。下半部分 (Overlapped异步方式): 通信被分解为异步Send和Recv操作，计算也被分解为更小的Einsum操作。两个分区可以同时进行: Partition 0发送A0到Partition 1,同时计算Einsum(A0, B0)，Partition 1发送A1到Partition 0,同时计算Einsum(A1, B1)，通过Dynamic Update更新计算结果。这种方法通信和计算可以重叠执行，减少了整体等待时间，如图右侧箭头所示,相比传统方式节省了时间。
 
@@ -59,17 +59,17 @@ Wang等人的图示展示了如何将此技术应用于all-gather后跟一个mat
 
 分块矩阵乘法 kernel 按SM数量以 wave 的形式执行。如果最后一个 wave 只包含少量块,完成时间几乎与完整的 wave 一样长,这就导致了所谓的量化效率问题。将一个矩阵乘法分解会导致每个 kernel 的块数减少,分解后的矩阵乘法的组合量化效率损失可能会超过原始矩阵乘法。
 
-![图3: 分解矩阵乘法会导致量化效率问题被放大](https://files.mdnice.com/user/59/008e7749-7fa6-431f-98b0-355f7b9da7fc.png)
+![图3: 分解矩阵乘法会导致量化效率问题被放大](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/008e7749-7fa6-431f-98b0-355f7b9da7fc.png)
 
 为了说明这个问题,让我们来看一个all-gather → matmul的例子。在这个例子中,A被分片到4个设备上。在不使用async-TP的情况下,首先从4个设备上收集A,然后在所有设备上计算A @ B。使用async-TP时,A @ B被分解为A0 @ B、A1 @ B、A2 @ B和A3 @ B。一个原生的async-TP实现会在一个流中顺序执行这些子矩阵乘法,同时在另一个流中预取下一个子矩阵乘法所需的数据。这种方法有效地隐藏了通信延迟。然而,由于矩阵乘法被分解成更小的部分,部分wave的数量增加,导致整体矩阵乘法执行时间变长。
 
-![图4: 交替流实现允许部分wave与下一个子矩阵乘法重叠](https://files.mdnice.com/user/59/d493d63d-436e-41a7-b972-7265212439f6.png)
+![图4: 交替流实现允许部分wave与下一个子矩阵乘法重叠](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d493d63d-436e-41a7-b972-7265212439f6.png)
 
 为了解决放大的量化效率问题,我们采用了交替流的方法。我们不使用专门的计算和通信流,而是使用两个交替角色的对称流。这种方法不仅允许计算和通信重叠,还能让当前子矩阵乘法的部分wave与下一个子矩阵乘法重叠,从而缓解了分解导致的额外量化效率问题。
 
-![图5: 部分wave与下一个子矩阵乘法重叠的性能分析跟踪](https://files.mdnice.com/user/59/ab411db0-48aa-45b7-a364-f9df65d98637.png)
+![图5: 部分wave与下一个子矩阵乘法重叠的性能分析跟踪](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ab411db0-48aa-45b7-a364-f9df65d98637.png)
 
-![图6: 基线和async-TP的性能分析跟踪对比](https://files.mdnice.com/user/59/a62d48c9-0734-4f2d-b84e-8d26695d708b.png)
+![图6: 基线和async-TP的性能分析跟踪对比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a62d48c9-0734-4f2d-b84e-8d26695d708b.png)
 
 
 ## 端到端性能评估
@@ -83,11 +83,11 @@ Wang等人的图示展示了如何将此技术应用于all-gather后跟一个mat
 - 模型使用bf16精度进行训练。
 - 我们对Llama3 8B应用了选择性激活检查点,对Llama3 70B应用了完整激活检查点。
 
-![图7: 使用async-TP的端到端加速效果](https://files.mdnice.com/user/59/42148fd5-05b9-45d5-b4a4-e4991a8b647b.png)
+![图7: 使用async-TP的端到端加速效果](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/42148fd5-05b9-45d5-b4a4-e4991a8b647b.png)
 
-![图8: 使用async-TP的前向传播加速效果](https://files.mdnice.com/user/59/7a8f2577-d95c-44d5-9cd9-be43c48fe153.png)
+![图8: 使用async-TP的前向传播加速效果](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a8f2577-d95c-44d5-9cd9-be43c48fe153.png)
 
-![图9: 端到端基准测试数据](https://files.mdnice.com/user/59/50cdcdf6-7da9-4e5f-8dfd-15e145e44625.png)
+![图9: 端到端基准测试数据](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/50cdcdf6-7da9-4e5f-8dfd-15e145e44625.png)
 
 我们还在Llama 3.1 405B上进行了async-TP的基准测试。你可以在这里找到详细信息(https://github.com/pytorch/torchtitan/blob/main/docs/performance.md)
 
@@ -101,7 +101,7 @@ Async-TP支持在最新的PyTorch nightly builds中可用。你可以通过torch
 
 ### 使用torch.compile的Async-TP:
 
-![图10: torch.compile自动检测TP模式并将其重写为async-TP算子](https://files.mdnice.com/user/59/671b5881-dab2-45ef-a4c5-ffeca5555f54.png)
+![图10: torch.compile自动检测TP模式并将其重写为async-TP算子](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/671b5881-dab2-45ef-a4c5-ffeca5555f54.png)
 
 torch.compile 目前是我们推荐的应用 async-TP 的方法:
 
@@ -111,7 +111,7 @@ torch.compile 目前是我们推荐的应用 async-TP 的方法:
 
 虽然这些在 eager 模式下也可以手动实现,但可能会导致模型代码和优化逻辑之间的耦合更紧密。
 
-![图11: torch.compile可以自动将async-TP应用于all-gather操作以及后续使用all-gather结果的多个矩阵乘法(例如QKV投影)](https://files.mdnice.com/user/59/d8ee33ca-f30a-4ada-8516-75e9311b7062.png)
+![图11: torch.compile可以自动将async-TP应用于all-gather操作以及后续使用all-gather结果的多个矩阵乘法(例如QKV投影)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d8ee33ca-f30a-4ada-8516-75e9311b7062.png)
 
 对于编写TP逻辑,我们推荐使用PyTorch Tensor Parallel APIs。你可以在这里找到教程(https://pytorch.org/tutorials/intermediate/TP_tutorial.html)以及在TorchTitan中的示例(https://github.com/pytorch/torchtitan/blob/1923ce4/torchtitan/parallelisms/parallelize_llama.py#L158-L183)。此外,torch.compile可以将async-TP应用于使用功能性集合操作以及`torch.mm`、`torch.matmul`或`torch._scaled_mm`手动编写的TP逻辑。你可以在这里找到一个示例(https://github.com/pytorch/pytorch/blob/16b8146/test/distributed/tensor/parallel/test_micro_pipeline_tp.py#L206-L208)。
 

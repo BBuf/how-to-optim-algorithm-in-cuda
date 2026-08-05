@@ -4,7 +4,7 @@
 
 本周末搞了一下cc-connect对接飞书和本地的Codex来进行SGLang模型优化的流程，听起来像是个玩具，但真的跑起来之后会发现，这不是“在手机上写代码”，而是“在手机上调度一个真正能 SSH、能 benchmark、能改 SGLang、能连远端 GPU 机器做profile，能写kernel，能用ncu迭代式优化，能做各种benchmark验证的 Agent 工程体, 它即将无所不能。现在离随时随地将你的想法变成现实更加接近。能完成这套工作流也依赖了一些前置的skills工作：
 
-![](https://files.mdnice.com/user/59/467c923f-8b93-4193-90e3-860030c9042e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/467c923f-8b93-4193-90e3-860030c9042e.png)
 
 和SGLang相关的skills都可以拉取SGLang仓库然后一键安装：https://github.com/sgl-project/sglang
 
@@ -12,7 +12,7 @@
 
 cc-connect描述见：https://github.com/chenhg5/cc-connect ，然后架构图见：
 
-![](https://files.mdnice.com/user/59/a855ae40-d2bb-4f3d-9fb2-ffa863dc8693.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a855ae40-d2bb-4f3d-9fb2-ffa863dc8693.jpg)
 
 除了飞书，你也可以配置微信，Slack，Telegram等几乎所有的主流社媒。除了Codex，你也可以配置Clacude Code, Gemini CLI，Cusor等等多种主流Agent，完全够用了。
 
@@ -41,11 +41,11 @@ cc-connect描述见：https://github.com/chenhg5/cc-connect ，然后架构图�
 
 举个飞书里我直接扔给 Codex 的 prompt 例子：
 
-![](https://files.mdnice.com/user/59/fe976435-1052-43ad-bc99-21a46d99a615.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fe976435-1052-43ad-bc99-21a46d99a615.png)
 
-![](https://files.mdnice.com/user/59/1837890d-aab4-46c4-8395-f02b0d605826.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1837890d-aab4-46c4-8395-f02b0d605826.png)
 
-![](https://files.mdnice.com/user/59/ffb6fb5d-1eac-4920-8d09-a173582eeb56.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ffb6fb5d-1eac-4920-8d09-a173582eeb56.png)
 
 这个prompt会走下面的流程：
 

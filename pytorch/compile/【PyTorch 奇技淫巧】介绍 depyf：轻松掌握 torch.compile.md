@@ -6,7 +6,7 @@
 
 # 介绍 depyf：轻松掌握 torch.compile
 
-![](https://files.mdnice.com/user/59/bb428f7f-2674-4be7-9007-d19ffd790dd8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bb428f7f-2674-4be7-9007-d19ffd790dd8.png)
 
 我们很高兴介绍 depyf，这是 PyTorch 生态系统中的一个新项目，旨在帮助用户理解、学习和适应 `torch.compile` ！
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
 - 继续运行代码，调试器将会命中这些断点！
 
 
-![](https://files.mdnice.com/user/59/41640327-d62f-45ce-a820-4f39ddc0bf30.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/41640327-d62f-45ce-a820-4f39ddc0bf30.png)
 
 这是它看起来的样子的截图。所有代码和张量变量都是实时的，我们可以检查任何变量，并像日常调试工作流程一样逐步执行代码！唯一的区别是我们正在调试 `torch.compile` 生成的代码，而不是人工编写的代码。
 
@@ -219,7 +219,7 @@ if __name__ == "__main__":
 
 可以顺利得到下面的：
 
-![](https://files.mdnice.com/user/59/a318bd60-f874-41ae-9e01-a081271eeaab.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a318bd60-f874-41ae-9e01-a081271eeaab.png)
 
 从`full_code_for_toy_example_0.py`中我们就可以来把握`torch.compile`到底对我们的代码做了什么优化。这个过程中我们还可以利用LLM加速我们理解代码的过程。例如，在Cursor中，我选中这个文件后输入：可以根据这个文件的内容帮我画一个流程图出来吗？它就会根据这个代码生成一个流程图出来，输出如下：
 
@@ -288,7 +288,7 @@ if __name__ == "__main__":
 
 然后可以问它`__guard_0_for_torch_dynamo_resume_in_toy_example_at_8`这个函数的作用：
 
-![](https://files.mdnice.com/user/59/d792cb11-9fc0-4b37-a8dd-3a820ba8f6ad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d792cb11-9fc0-4b37-a8dd-3a820ba8f6ad.png)
 
 这些检查都是根据输入Tensor的meta信息，python object信息，以及当前运行环境等来判断的。通过上面的流程图我们就可以一步步的去看`torch.compile`做了什么，例如`__transformed_code_0_for_toy_example`函数中`__resume_at_30_2`：
 
@@ -321,7 +321,7 @@ def __transformed_code_0_for_toy_example(a, b):
 
 这个时候我们就轻松知道我们应该去查看`__compiled_fn_7`这个函数对应的编译产物了，如下图红色所示：
 
-![](https://files.mdnice.com/user/59/9af81855-4d8c-4802-b334-bb7f97c79ce2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9af81855-4d8c-4802-b334-bb7f97c79ce2.png)
 
 打开`_compiled_fn_7_kernel0.py`文件，我们可以看到原始的：
 

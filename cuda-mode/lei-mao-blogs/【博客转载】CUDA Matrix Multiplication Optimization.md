@@ -1945,7 +1945,7 @@ void launch_gemm_kernel_v07_vectorized(size_t m, size_t n, size_t k,
 
 我们在GEMM CUDA内核上执行的优化主要遵循“CUTLASS: Fast Linear Algebra in CUDA C++”(https://developer.nvidia.com/blog/cutlass-linear-algebra-cuda/)中的图表。
 
-![](https://files.mdnice.com/user/59/5681a7ca-2fad-47d3-8068-c0f94e329955.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5681a7ca-2fad-47d3-8068-c0f94e329955.png)
 
 通过使用2D块分块、2D warp分块、2D线程分块和向量化内存访问等优化技术，我们可以在NVIDIA GeForce RTX 3090 GPU上实现20.16 TFLOPS FP32 GEMM性能，这大约是cuBLAS FP32 GEMM性能的80% - 90%。
 

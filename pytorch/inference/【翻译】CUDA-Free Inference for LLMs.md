@@ -9,7 +9,7 @@
 
 为什么要探索使用100%的Triton？Triton为LLM在不同类型的GPU（如NVIDIA、AMD，以及未来的Intel和其他基于GPU的加速器）上运行提供了一条路径。它还为GPU编程提供了更高层次的Python抽象，使我们能够比使用特定供应商的API更快地编写高性能kernel。在本文的其余部分，我们将分享我们如何实现无CUDA的计算，对单个kernel进行微基准测试以进行比较，并讨论我们如何进一步改进未来的Triton kernel以缩小差距。
 
-![](https://files.mdnice.com/user/59/d8a61875-b77f-4a30-9be7-755b20c49e07.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d8a61875-b77f-4a30-9be7-755b20c49e07.png)
 
 **图1. 在NVIDIA H100和A100上，Llama3-8B和Granite-8B的Triton和CUDA变体的推理吞吐量基准测试**
 设置：批量大小 = 2，输入序列长度 = 512，输出序列长度 = 256
@@ -18,13 +18,13 @@
 
 我们从Transformer模型中发生的计算分解开始。下图显示了一个典型Transformer块的“kernels”。
 
-![](https://files.mdnice.com/user/59/2109f8ba-6196-4618-98d1-14c07a9898c5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2109f8ba-6196-4618-98d1-14c07a9898c5.png)
 
 **图2. 按核心kernels划分的Transformer块**
 
 Llama3架构的核心操作总结如下：
 
-![](https://files.mdnice.com/user/59/9d3b36ec-ecbd-4117-afde-df6e1b0ca5ea.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9d3b36ec-ecbd-4117-afde-df6e1b0ca5ea.png)
 
 这些操作中的每一个都是通过在GPU上执行一个（或多个）kernels来计算的。尽管这些kernels的具体细节在不同的transformer模型中可能有所不同，但核心操作保持不变。例如，IBM的Granite 8B Code模型在MLP层中使用了偏置，这与Llama3不同。这种变化确实需要对kernels进行修改。一个典型的模型是由这些transformer块堆叠在一起，并通过嵌入层连接起来的。
 
@@ -34,7 +34,7 @@ Llama3架构的核心操作总结如下：
 
 Torch.compile自动为RMSNorm、RoPE、SiLU和Element Wise Multiplication生成Triton kernel。使用Nsight Systems等工具，我们可以观察这些生成的kernel；它们在矩阵乘法和注意力之间显示为微小的深绿色kernel。
 
-![](https://files.mdnice.com/user/59/8a0f225a-06dc-4bf1-8a73-4c705ccbd8fe.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8a0f225a-06dc-4bf1-8a73-4c705ccbd8fe.png)
 
 **图3**. Llama3-8B 使用 torch.compile 的跟踪，显示用于矩阵乘法和 flash attention 的 CUDA kernels
 
@@ -54,11 +54,11 @@ Torch.compile自动为RMSNorm、RoPE、SiLU和Element Wise Multiplication生成T
 
 在下图中显示的数据并行GEMM kernel中，输出矩阵的单个块的计算将由1个线程块TB0处理。
 
-![Figure 2. Data Parallel GEMM](https://files.mdnice.com/user/59/9a8df478-de50-41d0-b8b2-63603da84ee2.png)
+![Figure 2. Data Parallel GEMM](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9a8df478-de50-41d0-b8b2-63603da84ee2.png)
 
 相比之下，在SplitK kernel中，计算输出矩阵中单个块所需的工作被“分割”或共享给两个线程块TB0和TB1。这提供了更好的负载均衡和增加的并行性。
 
-![Figure 3. SplitK GEMM](https://files.mdnice.com/user/59/b04e05b7-8ede-4d29-9b5d-b77c16ad4570.png)
+![Figure 3. SplitK GEMM](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b04e05b7-8ede-4d29-9b5d-b77c16ad4570.png)
 
 关键思想是我们将并行性从`MN`增加到`MN*SplitK`。这种方法确实会带来一些成本，例如通过原子操作增加线程块间通信。然而，这些成本相对于节省的其他受限GPU资源（如共享内存和寄存器）来说是微不足道的。最重要的是，SplitK策略为瘦矩阵（如MoE推理中的情况）提供了优越的负载均衡特性，并且在解码和推理期间是常见的矩阵配置文件。
 
@@ -66,7 +66,7 @@ Torch.compile自动为RMSNorm、RoPE、SiLU和Element Wise Multiplication生成T
 
 为了实现最佳性能，我们使用了穷举搜索方法来调优我们的SplitK GEMM kernel。Granite-8B和Llama3-8B的线性层具有以下形状：
 
-![](https://files.mdnice.com/user/59/72d1115d-6348-4660-aab8-e2afc27b385a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/72d1115d-6348-4660-aab8-e2afc27b385a.png)
 
 **Figure 4. Granite-8B and Llama3-8B Linear Layer Weight Matrix Shapes**
 
@@ -84,7 +84,7 @@ Torch.compile自动为RMSNorm、RoPE、SiLU和Element Wise Multiplication生成T
 
 我们评估了每个kernel的文本生成质量，首先在eager模式下进行评估，然后（如果我们能够使用标准方法对kernel进行torch.compile）在编译模式下进行评估。对于kernel 2-5，我们注意到以下几点：
 
-![](https://files.mdnice.com/user/59/24dadddd-05ac-4d3b-a27f-172fa6184473.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/24dadddd-05ac-4d3b-a27f-172fa6184473.png)
 
 **图5. 我们尝试的不同Flash Attention Kernels的组合表**
 
@@ -95,11 +95,11 @@ Torch.compile自动为RMSNorm、RoPE、SiLU和Element Wise Multiplication生成T
 
 - 将函数包装成PyTorch自定义操作符
 
-![](https://files.mdnice.com/user/59/46be49c6-50c5-4100-afaf-df3a9773e9ab.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/46be49c6-50c5-4100-afaf-df3a9773e9ab.png)
 
 - 为操作符添加一个FakeTensor Kernel，该Kernel根据flash（q、k和v）输入张量的形状提供一种计算flash kernel输出形状的方法
 
-![](https://files.mdnice.com/user/59/825b2577-8e0c-4d9a-a2cb-84e739994019.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/825b2577-8e0c-4d9a-a2cb-84e739994019.png)
 
 在将Triton flash kernel定义为自定义操作符后，我们能够成功地为我们的端到端运行进行编译。
 
@@ -121,7 +121,7 @@ CUDA kernel配置使用：
 
 我们发现在典型的推理设置下，eager模式和torch编译模式下的吞吐量和token间延迟如下：
 
-![](https://files.mdnice.com/user/59/5903c71c-765d-4121-81b2-9cf4cf4322cc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5903c71c-765d-4121-81b2-9cf4cf4322cc.png)
 
 **图7**。Granite-8B和Llama3-8B在H100和A100上的单token生成延迟，
 （批量大小 = 2，输入序列长度 = 512，输出序列长度 = 256）
@@ -132,7 +132,7 @@ CUDA kernel配置使用：
 
 ## 8.0 Microbenchmarks
 
-![](https://files.mdnice.com/user/59/7787763e-6135-43f0-94d3-dda25514e265.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7787763e-6135-43f0-94d3-dda25514e265.png)
 
 图8. Triton 和 CUDA kernel 延迟比较（Llama3-8B 在 NVIDIA H100 上）
 输入是一个任意提示（bs=1， prompt = 44 seq length），解码延迟时间
@@ -146,7 +146,7 @@ CUDA kernel配置使用：
 
 我们正在努力验证FlexAttention的端到端（E2E）性能。目前，使用Flex进行的初步微基准测试在处理较长上下文长度和解码问题形状（其中查询向量较小）时显示出了良好的前景：
 
-![](https://files.mdnice.com/user/59/cccb04f0-3e62-4c95-ab23-a4b3056a3dc8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cccb04f0-3e62-4c95-ab23-a4b3056a3dc8.png)
 
 **图9**。在NVIDIA H100 SXM5 80GB上的FlexAttention kernel基准测试
 （批量大小=1，头数=32，序列长度=seq_len，头维度=128）

@@ -34,15 +34,15 @@ FSDP2和FP8训练 相关前置内容：
 
 首先，我们在下面的图中绘制了这两个模型的损失曲线比较，以展示几千步的损失一致性。
 
-![](https://files.mdnice.com/user/59/203aebf3-a43b-434d-b6e3-c0f9aa60a18d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/203aebf3-a43b-434d-b6e3-c0f9aa60a18d.png)
 
-![](https://files.mdnice.com/user/59/4afe8744-7668-4e20-b34f-b3f02c5ca696.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4afe8744-7668-4e20-b34f-b3f02c5ca696.png)
 
 图1：(a) 8B模型2k步损失一致性，(b) 70B模型1k步损失一致性
 
 我们观察到，在这些不同的模型和不同的环境中，我们在小规模tokens训练中获得了损失一致性。接下来，我们对从1.8B到405B的四种不同模型规模的吞吐量增益进行了表征。我们探索了float8和bf16训练运行的最佳批量大小和激活检查点方案，以确定**每GPU每秒的tokens数（wps）**指标并报告性能增益。对于405B模型，我们利用DTensor进行张量并行训练与FSDP2。我们所有的测量都使用8K的序列长度。
 
-![](https://files.mdnice.com/user/59/49c71820-f879-4890-bd2f-8ce25b8c21ad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/49c71820-f879-4890-bd2f-8ce25b8c21ad.png)
 
 表1：相对于bf16的性能增益（bf16和float8都使用torch.compile）
 
@@ -50,13 +50,13 @@ FSDP2和FP8训练 相关前置内容：
 
 其次，为了展示FP8模型的有效性，我们使用来自Hugging Face的FineWeb-edu数据集训练了一个遵循Llama3架构的3B模型，训练量达到1T tokens。我们使用lm-eval-harness框架进行评估，并在下表中展示了部分结果。我们观察到bf16的性能略优于float8分数（约一个百分点）。虽然某些分数在bf16下明显更好（例如，MMLU高出3分），但我们预计当选择正确的超参数和进行更大规模的训练运行时，这些差距会消失（例如，bf16运行的批量大小是一半，众所周知较小的批量大小运行可以提高评估分数）。
 
-![](https://files.mdnice.com/user/59/60b80721-2fd9-4c69-8a24-6341e665a4be.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/60b80721-2fd9-4c69-8a24-6341e665a4be.png)
 
 表2：float8训练模型在FP16下进行评估的基准分数（在FineWeb预训练的1T tokens处）。
 
 最后，我们将实验扩展到IBM Cloud集群的512个H100 GPU上。我们能够在512 GPU规模上重现我们观察到的结果和加速。我们在下表中仅总结了大型模型（70B和405B）的这些结果。
 
-![](https://files.mdnice.com/user/59/6204da43-dca0-465e-af4b-d73efa930024.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6204da43-dca0-465e-af4b-d73efa930024.png)
 
 表3：512 GPU规模下相对于bf16的性能增益（bf16和float8都使用torch.compile）
 

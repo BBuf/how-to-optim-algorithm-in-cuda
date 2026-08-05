@@ -271,7 +271,7 @@ CuTe 的 Python 前端将上述技术组合为两种互斥模式，可通过 `@j
 2. 预处理器模式（**默认**）`@jit(preprocess=True)` — **AST 重写 + tracing**。AST 阶段会捕获每一个循环与分支，避免纯 tracing 带来的正确性与优化问题；随后 tracing 再补齐算术计算。这条混合的“预处理器（preprocessor）”流水线是 CuTe DSL 独有的，专门用于克服上述缺点。
  
  
- ![](https://files.mdnice.com/user/59/680a3096-98f3-4989-b144-29443a86de27.jpg)
+ ![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/680a3096-98f3-4989-b144-29443a86de27.jpg)
  
  图 1：左：tracing 模式只记录实际执行到的路径。右：预处理器模式会在 tracing 算术之前，为每一个分支与循环生成结构化的中间表示（IR）。
  

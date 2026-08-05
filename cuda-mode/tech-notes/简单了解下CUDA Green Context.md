@@ -2,7 +2,7 @@
 
 在DeepSeek V3的blog（https://zhuanlan.zhihu.com/p/27181462601） 中提到的TBO作用在Prefill阶段时，我们可以从它的调度图上看到对于计算的Stream使用了108个SM，而通信的Stream则使用了剩下的24个SM。之前一直比较好奇这个SM划分是怎么做到的，最近关注到Flashinfer引入了CUDA Green Context可以比较方便的来实现这个功能（要求CUDA 12.0+），所以这里就基于Flashinfer相关的实现来简单了解一下CUDA Green Context的实现。从NV论坛和CCCL的支持来看这个feature似乎也是处于实验阶段, 在CUDA-Samples里面也找不到例子，所以我这里的介绍只是起一个科普作用，可以关注后续的演进。
 
-![](https://files.mdnice.com/user/59/dfdc6bfa-718c-4f45-b5bf-d2e56f703f38.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dfdc6bfa-718c-4f45-b5bf-d2e56f703f38.png)
 
 相关的PR为：https://github.com/flashinfer-ai/flashinfer/pull/1163 
 

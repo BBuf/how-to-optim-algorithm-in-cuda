@@ -12,7 +12,7 @@
 
 * Meta的H100是在Grand Teton(https://engineering.fb.com/2024/03/12/data-center-engineering/building-metas-genai-infrastructure/)上定制的。规格可能与公开版本不同。
 
-![](https://files.mdnice.com/user/59/b7e1c36f-7891-4d5c-a401-9f70cc20fc84.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b7e1c36f-7891-4d5c-a401-9f70cc20fc84.png)
 
 
 ## Float8训练以及为什么Float8 All-Gather很重要
@@ -62,7 +62,7 @@ precompute_float8_dynamic_scale_for_fsdp(model)
 - **fsdp_pre_all_gather (代码(https://github.com/pytorch-labs/float8_experimental/blob/0aca10aced1c4b3abdf00960d83316732cb08ed1/float8_experimental/fsdp_utils.py#L166))**: 根据最新的复制AMAX/缩放因子(需要all-reduce)将bfloat16权重转换为float8权重。注意这里的bfloat16权重是按1/NGPU分片的。由于我们通过all-reduce在所有rank上获得复制的AMAX和缩放因子,在all-gather之前将分片的bfloat16参数转换为float8等同于先all-gather bfloat16参数然后再转换为float8。
 - **fsdp_post_all_gather (代码(https://github.com/pytorch-labs/float8_experimental/blob/0aca10aced1c4b3abdf00960d83316732cb08ed1/float8_experimental/fsdp_utils.py#L196))**: 从all-gather的float8数据和复制的缩放因子构建Float8Tensor,以便在前向和反向中进行float8计算。
 
-![](https://files.mdnice.com/user/59/90db41e1-eccf-47c8-8c97-1308930dec96.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/90db41e1-eccf-47c8-8c97-1308930dec96.png)
 
 ## 性能深入分析
 
@@ -70,19 +70,19 @@ precompute_float8_dynamic_scale_for_fsdp(model)
 
 **Float8计算 + Bfloat16 All-Gather** (1.40倍加速, 代码(https://github.com/pytorch-labs/float8_experimental/blob/0aca10aced1c4b3abdf00960d83316732cb08ed1/float8_experimental/float8_linear.py#L439-L452)): 当用Float8Linear替换nn.Linear时,可以保持bfloat16权重不变。我们只需将Float8Linear当作普通的nn.Linear处理,并在FSDP2中执行bfloat16 all-gather(流22)。Float8Linear.forward负责bfloat16到float8的类型转换和float8矩阵乘法(流7)。这种方法实现了1.40倍的加速,是展示float8计算重要性的有力基准。然而,它浪费了50%的带宽来传输bfloat16参数,而这些参数最终会在前向过程中被转换为float8。
 
-![](https://files.mdnice.com/user/59/0a3fc3e5-5c93-457c-b712-2ea1f18f493c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0a3fc3e5-5c93-457c-b712-2ea1f18f493c.png)
 
 **带独立AMAX All-Reduce的Float8 All-Gather** (在1.40倍基础上+0.02倍, 代码(https://github.com/pytorch/torchtitan/blob/0f70507f1350679428ea64f90bc5a7db17b9c103/torchtitan/float8_linear.py#L96)): 我们在all-gather之前执行float8类型转换以节省50%带宽(流22)。因此,Float8Linear.forward可以直接使用float8权重而无需类型转换(流7)。然而,float8类型转换需要一个全局AMAX(abs(max)的最大值),所以我们需要在N个rank之间all-reduce部分AMAX(一个标量)(流22和35)。每个float8参数需要1次all-reduce。这些小的all-reduce操作降低了整体性能。
 
-![](https://files.mdnice.com/user/59/afc2c07e-994a-4c12-999d-dc1fa79c10c2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/afc2c07e-994a-4c12-999d-dc1fa79c10c2.png)
 
 **组合AMAX AllReduce** (在1.42倍基础上+0.08倍, 代码(https://github.com/pytorch/torchtitan/blob/0f70507f1350679428ea64f90bc5a7db17b9c103/torchtitan/float8_linear.py#L107)): 我们在优化器步骤之后对所有float8参数执行单次all-reduce。因此,我们避免了在FSDP钩子内部的小型all-reduce操作(流47)。我们通过一次性计算所有float8参数的AMAX实现了水平融合。
 
-![](https://files.mdnice.com/user/59/26d9a1bd-44f6-4720-bd3e-19e183f8001a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/26d9a1bd-44f6-4720-bd3e-19e183f8001a.png)
 
 **NCCL和Float8计算之间的SM竞争**: 根据NCCL版本和GPU总SM数量,有时float8计算(流7)中会出现气泡。float8计算(sm90_xmm)和float8 all-gather(ncclDevKernel)都在争夺SM资源。理想情况是始终优先考虑第k层的float8计算而不是第k+1层的float8 all-gather。在这种情况下,如果NCCL使用更少的SM进行较慢的通信或float8计算使用更少的SM。我们发现在基准测试期间将NCCL_MAX_CTAS(https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-ctas)设置为16或8对解决竞争很有帮助。
 
-![](https://files.mdnice.com/user/59/a6182568-52fd-485b-be3c-aa5262584ddb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a6182568-52fd-485b-be3c-aa5262584ddb.png)
 
 ## 未来工作
 
@@ -233,7 +233,7 @@ for _ in range(10):
 
 关于float8训练的一个常见问题是"相比bfloat16,float8线性层在什么情况下更快?"。给定线性层前向传播的M、K、N参数,你可以参考下表中基于NVIDIA H100的微基准测试加速比估计:
 
-![](https://files.mdnice.com/user/59/31bd8826-a8f3-4e31-8135-84132f111ab8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/31bd8826-a8f3-4e31-8135-84132f111ab8.png)
 
 示例1 (小形状):
 * 前向输入张量大小1024x2048,线性权重大小2048x1024; M, K, N = 1024, 2048, 1024

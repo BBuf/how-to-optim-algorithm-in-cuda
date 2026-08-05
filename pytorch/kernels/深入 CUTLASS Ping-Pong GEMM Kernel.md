@@ -2,7 +2,7 @@
 
 # 深入解析 CUTLASS Ping-Pong GEMM kernel 
 
-![图1. FP8 GEMM 吞吐量对比：CUTLASS vs Triton](https://files.mdnice.com/user/59/6d460462-07c4-4314-9e1e-e45afbc96516.png)
+![图1. FP8 GEMM 吞吐量对比：CUTLASS vs Triton](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6d460462-07c4-4314-9e1e-e45afbc96516.png)
 
 ## 摘要
 
@@ -28,13 +28,13 @@ Ping-Pong（或者从技术上说是'sm90_gemm_tma_warpspecialized_pingpong'）�
 
 生产者 warp 组与 TMA（张量内存加速器）一起工作，并被刻意保持尽可能轻量级。事实上，在 Ping-Pong 中，它们故意减少寄存器资源以提高占用率。生产者将其最大寄存器数减少 40 个，而消费者将其最大寄存器数增加 232 个，这种效果我们可以在 CUTLASS 源代码和相应的 SASS 中看到：
 
-![](https://files.mdnice.com/user/59/781332c5-73e1-46cf-88d2-90910f24abf1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/781332c5-73e1-46cf-88d2-90910f24abf1.png)
 
 Ping-Pong 的独特之处在于，每个消费者在不同的 C 输出Tile 上工作。（作为参考，cooperative kernel 在很大程度上等同于 Ping-Pong，但两个消费者组在同一个 C 输出Tile 上工作）。此外，两个消费者 warp 组然后在main loops  MMA 和 epilogue 之间分配它们的工作。
 
 这在下图中显示：
 
-![图2：Ping-Pong kernel 流水线概览。时间从左向右移动。](https://files.mdnice.com/user/59/fe3d6ff8-7bdf-4ab3-8766-94127421de59.jpg)
+![图2：Ping-Pong kernel 流水线概览。时间从左向右移动。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fe3d6ff8-7bdf-4ab3-8766-94127421de59.jpg)
 
 通过拥有两个消费者，意味着一个可以使用Tensor Core进行 MMA，而另一个执行 epilogue，然后反之亦然。这最大化了每个 SM 上Tensor Core的"连续使用"，这是实现最大吞吐量的关键原因之一。Tensor Core可以持续获得数据以实现（接近）最大计算能力。（参见上图 Fig 2 的底部部分）。
 
@@ -111,7 +111,7 @@ While (work_tile_info.is_valid_tile()) {
 
 以及一个将所有内容与底层硬件结合在一起的鸟瞰图：
 
-![图3：Ping-Pong 完整异步流水线概览](https://files.mdnice.com/user/59/3473c860-1382-4a69-aee6-ad3785590d76.png)
+![图3：Ping-Pong 完整异步流水线概览](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3473c860-1382-4a69-aee6-ad3785590d76.png)
 
 补充一下图的细节：
 
@@ -173,11 +173,11 @@ J - 消费者 warp 发出 `cp_async` 命令，将数据从共享内存移动到�
 
 首先是目前三个最快kernel 的一般基准测试（越低越好）：
 
-![图4：FP8 GEMM 基准测试时间，数值越低越好（越快）](https://files.mdnice.com/user/59/e0f3a181-9142-41ca-b617-5920c09a8223.png)
+![图4：FP8 GEMM 基准测试时间，数值越低越好（越快）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e0f3a181-9142-41ca-b617-5920c09a8223.png)
 
 将其转换为 Ping-Pong 与 cuBLAS 和 Triton 的相对加速图：
 
-![图5：Ping-Pong 相对于两个最接近kernel 的速度提升](https://files.mdnice.com/user/59/1a93a37d-b35f-4564-9f38-12ebcd4d807f.jpg)
+![图5：Ping-Pong 相对于两个最接近kernel 的速度提升](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1a93a37d-b35f-4564-9f38-12ebcd4d807f.jpg)
 
 Ping-Pong kernel 的完整源代码在这里（619 行深度模板化的 CUTLASS 代码，或者用著名的乌龟模因来说就是 - "全都是模板...一直都是！"）：
 

@@ -3,17 +3,17 @@
 ## 第15课: CUTLASS
 
 
-![](https://files.mdnice.com/user/59/86f297b4-c631-4bdb-a985-554d40fb1d2e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/86f297b4-c631-4bdb-a985-554d40fb1d2e.png)
 
-![](https://files.mdnice.com/user/59/4710a35c-674f-4efd-a935-94eb8f2088ef.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4710a35c-674f-4efd-a935-94eb8f2088ef.png)
 
 对CUTLASS库一些作者的展示。
 
-![](https://files.mdnice.com/user/59/b155a86e-6d0a-4f0a-b967-6c2377074a25.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b155a86e-6d0a-4f0a-b967-6c2377074a25.png)
 
 演讲者认为CUTLASS的库写得很漂亮和通用，另外CUTLASS也实现了高性能的FlashAttention。演讲者这节课不会提到太多CUTLASS的API和具体函数，方法，而是把重心放在概念介绍上。
 
-![](https://files.mdnice.com/user/59/9fc0c0cf-2c73-476a-b649-c50bb071e975.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9fc0c0cf-2c73-476a-b649-c50bb071e975.png)
 
 图中列出了几个CUTLASS的特征指标：
 
@@ -26,7 +26,7 @@
 
 这些特征是CUTLASS库中常见的命名约定、函数或变量名。
 
-![](https://files.mdnice.com/user/59/2db040ad-beef-4c75-83f5-295136d0cd34.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2db040ad-beef-4c75-83f5-295136d0cd34.png)
 
 这张Slides介绍了NVIDIA提供的两大类库:
 
@@ -39,14 +39,14 @@
 - 特别提到CUTLASS是从设备调用的，具有低级控制，直接暴露张量核心操作
 - 开发者可以编写新模型，测试它们是否以及如何能够实现高性能
 
-![](https://files.mdnice.com/user/59/c72dbf8f-a288-4e40-8280-d5a666fd2b4e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c72dbf8f-a288-4e40-8280-d5a666fd2b4e.png)
 
 为了避免困惑，这张Slides介绍了两个重要的概念：
 
 - [A .. B] 半开区间整数：这表示一个整数范围，包含从A到B的所有整数，但不包括B。例如，[1 .. 5] 表示整数集合 {1, 2, 3, 4}。
 - 嵌套元组和mode：这里提到我们将处理嵌套元组（nested tuples）。这种元组中的一个元素（可能本身就是一个元组）被称为"模式"（mode）。特别指出这是CuTe使用的术语。CuTe 是 CUTLASS 库中的一个子组件。它是一个C++模板库，用于简化CUDA编程。CuTe 提供了抽象层，使得开发者可以更容易地编写高效的CUDA代码。
 
-![](https://files.mdnice.com/user/59/e2cce9fa-3c16-47fd-ad81-ca543796d63a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e2cce9fa-3c16-47fd-ad81-ca543796d63a.png)
 
 这张Slides用一个树状结构展示了CuTe中张量的组成：
 
@@ -57,7 +57,7 @@
         - "shape"（形状）
         - "stride"（步幅）
 
-![](https://files.mdnice.com/user/59/a6c439f5-8237-4a62-9186-4a9cce6d2c52.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a6c439f5-8237-4a62-9186-4a9cce6d2c52.png)
 
 这张Slides解释了CuTe中的索引（Indexing）的概念：
 
@@ -69,7 +69,7 @@
 - 通常，允许的坐标范围被定义为：i, j, k ∈ [0 .. M) × [0 .. N) × [0 .. K) 其中K是尚未显示的某个大小。
 - 在CuTe中，允许的输入由"shape" 给出：只需写上限（M, N, K），默认每个分量从零开始。
 
-![](https://files.mdnice.com/user/59/dd941503-5bcf-42bb-9c24-04a9040c9fb2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dd941503-5bcf-42bb-9c24-04a9040c9fb2.png)
 
 这张Slides继续解释了CuTe中的索引概念：
 
@@ -78,7 +78,7 @@
 - 左侧 (M, N, K) 表示"which inputs are allowed"（允许的输入范围），右侧 (1, M, MN) 表示"how to get from an coordinate to an offset"（如何从坐标得到偏移量）
 - 注解："I personally often confuse 'shape' w 'size'"（up主个人经常混淆"shape"和"size"）
 
-![](https://files.mdnice.com/user/59/62007faa-3b63-4eaf-a239-1ec46e1644bc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/62007faa-3b63-4eaf-a239-1ec46e1644bc.png)
 
 这张Slides解释了CuTe中的布局（Layouts）概念：
 
@@ -98,7 +98,7 @@
 
 实际上这部分讨论的就是Tensor的Shape和Stride的概念，以及Tiling后的Sub Tensor的Shape和Stride和原Tensor的关系。
 
-![](https://files.mdnice.com/user/59/bdf56661-c494-4f4f-ad96-4c92519e8455.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bdf56661-c494-4f4f-ad96-4c92519e8455.png)
 
 这张Slides讨论了CUTLASS中的切片（slicing）和平铺（tiling）概念。
 - 这个库设计到大量切片（slicing）和平铺（tiling）概念。
@@ -113,7 +113,7 @@
     - 外部部分：A/a × B × C/c
     - 内部部分：a × c（也可以表示为 a × 1 × c）
 
-![](https://files.mdnice.com/user/59/0bae76a3-ebcc-46a5-aa7a-f8027e83737a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0bae76a3-ebcc-46a5-aa7a-f8027e83737a.png)
 
 
 这张Slides讨论了平铺（tiling）操作的扩展概念，不仅限于张量：
@@ -124,7 +124,7 @@
 - Tiling操作的示例：(A, B, C) ⊘ (a, b, c) = ((a, b, c), (A/a, B/b, C/c))，这里，(a, b, c) 是内部模式（表示单个tile的大小），(A/a, B/b, C/c) 是外部模式（表示tile的数量或排列）。
 - "Leftover" modes（未被Tiling的维度）按约定放在第二个（外部）模式中。示例：(A, B, C) 在模式1,3上与 (a, c) tiling，结果：((a, c), (A/a, B, C/c))。这里，B 维度作为 "leftover" 模式保留在外部模式中。
 
-![](https://files.mdnice.com/user/59/54318ce7-2021-4b85-b17c-ee5f1077b660.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/54318ce7-2021-4b85-b17c-ee5f1077b660.png)
 
 > 这里有个拼写错误，第二行公式的开头的A，B，C应该小写。
 
@@ -137,7 +137,7 @@
 
 为了说明这个问题，作者画了一张图，这里以（M, N）: (1, M)为例子，也就是一个col major的2D矩阵。
 
-![](https://files.mdnice.com/user/59/cc9712fb-c211-4f78-8ddd-f783a4910e54.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cc9712fb-c211-4f78-8ddd-f783a4910e54.png)
 
 当对它进行Tiling的时候我们可以得到图中的三个小块，这些小块的Layout最终表示为：(M/m, N/n) : (m, nM)，其中m, n分别表示tiling的大小。
 
@@ -147,7 +147,7 @@
 
 上面的公式更新为：
 
-![](https://files.mdnice.com/user/59/8cdc6ef0-847b-4d09-bb49-a4b976ebf7d1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8cdc6ef0-847b-4d09-bb49-a4b976ebf7d1.png)
 
 这节课的Slides就讲完了，这节课主要是对CUTLASS里面的2022年底引入的CUTE的一些基础概念进行了讲解。后面up主还挑了一部分cutlass源代码以及简单聊了下CUTLASS的代码目录结构，这部分没有放在Notes里的必要就跳过了。
 

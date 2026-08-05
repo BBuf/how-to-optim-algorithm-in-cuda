@@ -436,7 +436,7 @@ def causal_mask(b, h, q_idx, kv_idx):
 test_mask(mask_mod=causal_mask)
 ```
 
-![](https://files.mdnice.com/user/59/726eab1c-14c4-42ac-b627-373c2f9e2326.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/726eab1c-14c4-42ac-b627-373c2f9e2326.png)
 
 ### 滑动窗口注意力
 
@@ -459,7 +459,7 @@ def sliding_window_causal_mask(b, h, q_idx, kv_idx):
 test_mask(mask_mod=sliding_window_causal_mask)
 ```
 
-![](https://files.mdnice.com/user/59/ba95a3d9-7949-4f48-b8bb-8a743173077e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ba95a3d9-7949-4f48-b8bb-8a743173077e.png)
 
 ### 前缀 LM（双向 + 因果）
 
@@ -476,7 +476,7 @@ def prefix_lm_causal_mask(b, h, q_idx, kv_idx):
 test_mask(mask_mod=prefix_lm_causal_mask)
 ```
 
-![](https://files.mdnice.com/user/59/1211c505-855e-4dde-97e1-b80e80b760dc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1211c505-855e-4dde-97e1-b80e80b760dc.png)
 
 ### 文档掩码
 
@@ -516,7 +516,7 @@ def document_causal_mask(b, h, q_idx, kv_idx):
 test_mask(mask_mod=document_causal_mask, S=8192)
 ```
 
-![](https://files.mdnice.com/user/59/702dc016-23ab-45b1-b587-04f120d8a6a6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/702dc016-23ab-45b1-b587-04f120d8a6a6.png)
 
 ### 独立自注意力掩码
 
@@ -544,7 +544,7 @@ def sasa_mask(b, h, q_idx, kv_idx):
 test_mask(mask_mod=sasa_mask)
 ```
 
-![](https://files.mdnice.com/user/59/44b5dec7-a666-42df-926e-0ec9e7f219ef.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/44b5dec7-a666-42df-926e-0ec9e7f219ef.png)
 
 
 ### NATTEN 掩码
@@ -584,7 +584,7 @@ def natten_mask(
 test_mask(mask_mod=natten_mask)
 ```
 
-![](https://files.mdnice.com/user/59/37c61482-1108-472e-8dc4-01b6d32d3886.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/37c61482-1108-472e-8dc4-01b6d32d3886.png)
 
 ### Alibi 偏置
 
@@ -640,9 +640,9 @@ test_mask(
 
 > 这里的H没有定义，我们写一个H=64来看下结果。另外需要把print_mask改成True才能看到mask长什么样。
 
-![](https://files.mdnice.com/user/59/e8f5f35d-fcff-4ddb-a4ad-2958d0aa3046.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e8f5f35d-fcff-4ddb-a4ad-2958d0aa3046.png)
 
-![](https://files.mdnice.com/user/59/fc2cb332-abab-4370-a824-9a7ba1c85a96.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fc2cb332-abab-4370-a824-9a7ba1c85a96.png)
 
 
 
@@ -847,7 +847,7 @@ print("Correctness check passed ✅")
 print(block_mask)
 ```
 
-![](https://files.mdnice.com/user/59/8ca85ee2-b2fc-4ce4-80b3-b7f84f5b1917.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8ca85ee2-b2fc-4ce4-80b3-b7f84f5b1917.png)
 
 ### Flamingo Cross Attention
 
@@ -872,7 +872,7 @@ Example:
 
 假设image_tokens的大小为3
 
-![](https://files.mdnice.com/user/59/b82c1996-a282-42a2-9b3e-11d90969caf1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b82c1996-a282-42a2-9b3e-11d90969caf1.png)
 
 ```python
 # Given information

@@ -6,13 +6,13 @@
 
 kernel-pilot 中的 SGLang Diffusion Kernel 任务已经被封装成可直接启动的脚本：
 
-![](https://files.mdnice.com/user/59/7e484218-844b-47dc-8f71-cc493686af14.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7e484218-844b-47dc-8f71-cc493686af14.png)
 
 每个脚本对应 SGLang Diffusion 系统中的一个优化 kernel 或 fuse kernel。baseline 覆盖 CUDA、Triton 和 CuTe-DSL 等实现。
 
 运行其中一个脚本后，会看到类似下面的输出：
 
-![](https://files.mdnice.com/user/59/4873e659-176d-4f9d-b415-07389247ad0e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4873e659-176d-4f9d-b415-07389247ad0e.png)
 
 脚本会打印两个阶段的命令：第一阶段是 gen-plan，第二阶段是 RLCR loop（Humanize 的循环开发与审查流程）。命令中的参数主要用于分支隔离和任务隔离，使多个 kernel 优化任务能够并行执行。一次实验中，14 个 Agent 在一天内并行处理多个 SGLang Diffusion Kernel 任务，总花费低于 2000 美元，任务执行模型为 Opus4.8，review 模型为 Codex GPT5.5 High。
 
@@ -20,19 +20,19 @@ kernel-pilot 中的 SGLang Diffusion Kernel 任务已经被封装成可直接启
 
 实验结果如下：
 
-![](https://files.mdnice.com/user/59/ad7cef08-e9fe-436f-a2f0-a741cbff3aa1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ad7cef08-e9fe-436f-a2f0-a741cbff3aa1.png)
 
 上述任务均完成了 RLCR 循环，多数任务迭代轮数约为 6 轮。各任务最终生成的 `.cu` 文件和对应 benchmark 可在 https://github.com/BBuf/kernel-pilot/tree/main/kernels 中复现。
 
 这些 kernel 在部分计算量较大的 Diffusion 模型中不是主要热点，因此端到端收益取决于算子在 workflow 中的占比。在 qknorm-rope 和 norm-scale-shift 占比较高的 Qwen/Qwen-Image-2512 上，B200 平台测得约 10% 的 end2end 提升，见 https://github.com/sgl-project/sglang/pull/27392。
 
-![](https://files.mdnice.com/user/59/755334e0-eadb-4bea-b686-a6175c2f3934.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/755334e0-eadb-4bea-b686-a6175c2f3934.png)
 
 下面是该模型 main 分支和 PR 分支中相关 kernel 的耗时与占比对比：
 
-![main 分支的相关 kernel 耗时和占比](https://files.mdnice.com/user/59/d9787134-d48a-4f3d-a194-4352ebd670b2.png)
+![main 分支的相关 kernel 耗时和占比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d9787134-d48a-4f3d-a194-4352ebd670b2.png)
 
-![PR 分支的相关 kernel 耗时和占比](https://files.mdnice.com/user/59/bfc629e1-5d91-4432-82de-40c84a976377.png)
+![PR 分支的相关 kernel 耗时和占比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bfc629e1-5d91-4432-82de-40c84a976377.png)
 
 # 0x1. 使用 KDA 优化 SGLang Diffusion Kernel 的坑和 prompt 实践
 

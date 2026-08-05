@@ -18,7 +18,7 @@ python3 -m sglang.launch_server --model openai/gpt-oss-120b --tp 8 --port 30000 
 
 这样我们在/tmp就可以看到类似下面的profiler文件了。
 
-![](https://files.mdnice.com/user/59/ad531656-b4b5-4d38-a37c-5538b197741d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ad531656-b4b5-4d38-a37c-5538b197741d.png)
 
 接着我们只需要把这个文件下载之后拖到perfetto(https://ui.perfetto.dev)里打开，然后我们就可以对着这个Profiler的cuda kernel执行序做优化了，无论是Kernel Fuse还是Kernel本身的加速都可以非常准确的反应在perfetto对Torch Profiler渲染出的kernel时间执行图上。
 
@@ -28,7 +28,7 @@ python3 -m sglang.launch_server --model openai/gpt-oss-120b --tp 8 --port 30000 
 
 我们挑一个gpt-oss-120b decode layer的kernel执行时间图来看： 
 
-![](https://files.mdnice.com/user/59/f2210734-b6f5-40bf-8a00-d4f8d806770e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f2210734-b6f5-40bf-8a00-d4f8d806770e.png)
 
 我们发现开头和中间都有一些空洞，由于我们已经开启了cuda graph，这些明显的空洞按道理来说应该是cuda kernel才对，为什么这里是空洞呢？如果你没有对比过Nsight System结果并且对这段代码执行的kernel不熟悉的话，那么你很容易忽略这点，可能还以为是个奇怪的bug。
 
@@ -40,7 +40,7 @@ https://github.com/fzyzcjy/torch_utils/blob/master/src/convert_to_perfetto_compa
 
 简单来说就是解析kernel的执行时间，把有重叠的kernel临时放到另外一个Stream上显示。只需要把我们上面得到的Profiler文件过一次这个脚本，我们就可以把空洞部分对应的kernel完整显示出来了。效果如下：
 
-![](https://files.mdnice.com/user/59/53ac9cca-a507-44f9-81af-c1f362c59fba.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/53ac9cca-a507-44f9-81af-c1f362c59fba.png)
 
 这个问题困扰了我很长的时间，2024年就发现过这个问题，有时候用Perfetto老版本的chrome插件偶尔又可以显示出所有kernel，弄清楚之后只能说Tom神yyds。大家可以到Tom神仓库获得这个脚本：https://github.com/fzyzcjy/torch_utils/blob/master/src/convert_to_perfetto_compatible/convert_to_perfetto_compatible.py
 
@@ -56,13 +56,13 @@ https://github.com/fzyzcjy/torch_utils/blob/master/src/convert_to_perfetto_compa
 
 https://github.com/yyihuang 前两天教我的。
 
-![](https://files.mdnice.com/user/59/5bab643a-5a5f-45dd-a2c5-cdc2dba5d2c0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5bab643a-5a5f-45dd-a2c5-cdc2dba5d2c0.png)
 
 如果我们要测试这个sglang的branch，但是这个branch是一个开发者的clone分支，我们如何快速切换到这个分支的代码。
 
 可以点击右上角的code：
 
-![](https://files.mdnice.com/user/59/11a037d4-1f1f-4ba9-8cb2-fdde32f3a91a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/11a037d4-1f1f-4ba9-8cb2-fdde32f3a91a.png)
 
 需要装一下gh并和github账号关联，然后就可以用下面的命令切换到这个branch了。
 

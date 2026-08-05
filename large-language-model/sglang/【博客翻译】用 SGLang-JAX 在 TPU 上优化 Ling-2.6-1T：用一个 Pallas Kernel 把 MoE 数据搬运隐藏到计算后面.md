@@ -10,7 +10,7 @@ SGLang-JAX 现在已经支持在 TPU v7x 上高效服务 inclusionAI 的 Ling-2.
 
 使用 Fused MoE V2 后，MoE prefill 延迟从 **5.16 ms 降到 2.42 ms**。在同一个 SGLang decode benchmark 上，**16 个 TPU v7x chip 的输出吞吐达到 16 张 H200 GPU 的 1.29 倍到 1.77 倍**。完整数据如下。
 
-![Ling-2.6-1T decode throughput, TPU v7x vs GPU H200](https://files.mdnice.com/user/59/00fca46a-ff67-43b5-ad60-679fe13e069e.png)
+![Ling-2.6-1T decode throughput, TPU v7x vs GPU H200](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/00fca46a-ff67-43b5-ad60-679fe13e069e.png)
 
 图 1：Ling-2.6-1T 在 TPU v7x-16 和 H200×16 上的 decode 吞吐对比。benchmark 使用 SGLang 默认的 `random` 数据集（从 ShareGPT 采样），输入长度 16,384 token，输出长度 1,024 token。
 
@@ -137,7 +137,7 @@ TPU 上的 MoE 主要是数据搬运和 overlap 问题：
 
 接下来会用到一些 TPU 术语。简化来看：TensorCore 里有 MXU、VPU 和 VMEM；HBM 在 chip 外；chip 之间通过 ICI 通信。
 
-![Simplified TPU execution model](https://files.mdnice.com/user/59/b4b05dbb-9aa7-41bd-a1d2-b2882fe3692d.png)
+![Simplified TPU execution model](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b4b05dbb-9aa7-41bd-a1d2-b2882fe3692d.png)
 
 图 2：本节使用的简化 TPU 执行模型，改编自 [JAX Scaling Book TPU overview](https://jax-ml.github.io/scaling-book/tpus/)。
 
@@ -156,7 +156,7 @@ TPU 上的 MoE 主要是数据搬运和 overlap 问题：
 
 这条路径也不能简单当成一个独立 sparse lookup 然后卸载到 SparseCore：scatter 得到的本地 expert token layout、per-expert offset、expert output 和最终 token order 彼此依赖。真正有用的优化空间就在 MoE kernel 内部。
 
-![Naive fused MoE pipeline](https://files.mdnice.com/user/59/3c0de24f-148b-44aa-9a97-e0337ae48188.png)
+![Naive fused MoE pipeline](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3c0de24f-148b-44aa-9a97-e0337ae48188.png)
 
 图 3：naive fused pipeline，其中通信和计算阶段串行。语义是正确的，但各个引擎没有被细粒度 overlap 调度起来。
 
@@ -229,7 +229,7 @@ V2 没有 `bd1` 和 `bd2`，因为它不再切 hidden dimension。结构变化�
 
 decode 逻辑类似，但可优化空间更小。512-token decode batch 下，kernel 延迟从 **0.249 ms** 降到 **0.211 ms**，约 **15%**。每个 expert 的 effective M 维很小，MXU tile 没那么容易摊平固定开销；这条路径也更接近 expert-weight HBM read lower bound，decode trace 已经达到约 80% 的 HBM bandwidth utilization。所以 V2 对 decode 仍然有帮助，但不像 prefill 那样能完整吃到 VMEM residency 和 routed-window 的收益。
 
-![V1 and V2 fused MoE pipeline](https://files.mdnice.com/user/59/bf819538-0ab2-47ab-9156-870644a329ad.png)
+![V1 and V2 fused MoE pipeline](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bf819538-0ab2-47ab-9156-870644a329ad.png)
 
 图 4：V1 和 V2 fused MoE 的概念时间线。V1 因为 hidden-dimension slice 频繁循环，只能创造很小的 overlap window；V2 让 token 和 accumulator 常驻 VMEM，对 expert weight 做 double buffer，并把大部分 scatter/gather traffic 隐藏到 routed compute window 后面。
 
@@ -275,7 +275,7 @@ shared expert 自身计算约 **0.159 ms**，但只给关键路径增加 **0.068
 
 下面的 breakdown 展示了开启 activation quantization 和 in-kernel shared expert 后，prefill 16,384 的关键路径。带阴影的区域是真实工作，只是被其他阶段遮住了。
 
-![Ling prefill critical-path breakdown](https://files.mdnice.com/user/59/70328502-08a9-42c5-aeb7-bf6c0155c1aa.png)
+![Ling prefill critical-path breakdown](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/70328502-08a9-42c5-aeb7-bf6c0155c1aa.png)
 
 图 5：Fused MoE V2 实测 overlap 结构。大部分 scatter/gather traffic 被藏在 routed expert window 下面，只有 scatter lead 和 gather tail 还暴露出来。
 
@@ -425,15 +425,15 @@ Single-controller DP 通过把 data parallelism 当成另一个 mesh axis 来解
 - **Prefill：** output 1, concurrency 128
 - **Decode：** output 1024, concurrency 128 / 512
 
-![Ling-2.6-1T prefill throughput, Fused v1 vs v2](https://files.mdnice.com/user/59/a5d32f67-78ff-45dd-8970-a0b95a55b0c6.png)
+![Ling-2.6-1T prefill throughput, Fused v1 vs v2](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5d32f67-78ff-45dd-8970-a0b95a55b0c6.png)
 
 Prefill input throughput，输入长度 16384 token，mc=128。设置完全相同，只有 MoE kernel config 不同：Fused v1 -> v2 base -> v2 +act-quant -> v2 +act +SE-overlap（+24.8%）。
 
-![Ling-2.6-1T peak decode output throughput, Fused v1 vs v2](https://files.mdnice.com/user/59/088caf7a-961b-4994-9898-f25592a10c7d.png)
+![Ling-2.6-1T peak decode output throughput, Fused v1 vs v2](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/088caf7a-961b-4994-9898-f25592a10c7d.png)
 
 Peak output（decode）throughput，输入 16384 token，输出 1024 token，配置为 np=512/mc=128 和 np=2048/mc=512。百分比表示相对 Fused v1 的提升。
 
-![Ling-2.6-1T TPU vs GPU, same model and workload](https://files.mdnice.com/user/59/6ca8c531-6fac-4bb6-9133-e898429c4ff9.png)
+![Ling-2.6-1T TPU vs GPU, same model and workload](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6ca8c531-6fac-4bb6-9133-e898429c4ff9.png)
 
 图 6：完整 TPU-vs-GPU 对比：TPU v7x-16（fused_v2）对比 GPU H200×16（2 nodes, tp8·pp2）。两边使用同一个模型和同一个 SGLang bench workload，各自 16 个 accelerator。关于 prefill 差距见下面的说明。
 

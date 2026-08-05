@@ -11,7 +11,7 @@
 
 从《torch.compile 的详细示例解析教程》中获取工作流程：
 
-![](https://files.mdnice.com/user/59/f8aa1ff8-ef72-4ac3-ad41-aed2dc4b4eac.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f8aa1ff8-ef72-4ac3-ad41-aed2dc4b4eac.png)
 
 > 图片解释：
 
@@ -67,7 +67,7 @@ with depyf.debug():
 
 下图展示了 ``depyf`` 的两种典型用法，并列出了所有生成的文件。
 
-![](https://files.mdnice.com/user/59/d1caaaa5-282e-4f83-9edf-5f80472cec72.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d1caaaa5-282e-4f83-9edf-5f80472cec72.png)
 
 
 ## API参考
@@ -379,7 +379,7 @@ print(total_time)
 
 ### 库的总体架构
 
-![](https://files.mdnice.com/user/59/f9a4bbf8-39d8-445a-86e0-1f578bbf0319.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f9a4bbf8-39d8-445a-86e0-1f578bbf0319.png)
 
 上图展示了库的整体架构。
 

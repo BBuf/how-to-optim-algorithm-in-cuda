@@ -15,11 +15,11 @@
 
 LMSYS 的 SpecForge blog 把训练问题讲得更清楚：EAGLE3 的 draft model 不只吃 token embedding，还要吃目标模型若干中间层的 hidden states。这样做的好处是 draft model 能更接近 target model 的局部推理状态，坏处是训练流程不再像普通 LM 那么干净，必须先拿到 target hidden states，再把多层 hidden states 投影、拼接、递归 unroll。
 
-<img src="https://files.mdnice.com/user/59/41c0c2fb-7f9b-4b79-a1b3-3e96363e6395.PNG" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/41c0c2fb-7f9b-4b79-a1b3-3e96363e6395.PNG" referrerpolicy="no-referrer" />
 
 这张图就是 EAGLE3 的训练数据流：target model 负责提供 logits 和 hidden states，draft model 用这些中间表示预测后续 token，训练时还要模拟多步生成。LMSYS blog 里强调 SpecForge 支持 online/offline 两条路径，原因也在这里。如果在线跑 target model，训练时 GPU 压力大，但磁盘不会被 hidden states 数据集打爆；如果先离线生成 hidden states，训练阶段便宜很多，但中间数据会非常大。
 
-<img src="https://files.mdnice.com/user/59/48b7c84d-440c-462a-b381-4acd0863a18e.jpg" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/48b7c84d-440c-462a-b381-4acd0863a18e.jpg" referrerpolicy="no-referrer" />
 
 这张 online/offline 图对应到代码就是两个入口：online 路径在训练 step 内部调用 target model 拿 hidden states，offline 路径把 hidden states 当成 dataset 字段读进来。读 SpecForge 源码时，只要抓住这件事就不容易迷路：`Eagle3Model` 处理的是共同的 TTT/unroll/loss 逻辑，online/offline 差别主要在 hidden states 从哪里来。GPT-OSS 那篇 LMSYS blog 的价值也在这里，它说明 SpecForge 不是只适配一种 Llama-like 模型，而是把 target backend 做成可扩展层，新模型结构变了以后只需要把 hidden states、tokenizer、draft config 对齐。
 
@@ -27,49 +27,49 @@ LMSYS 的 SpecForge blog 把训练问题讲得更清楚：EAGLE3 的 draft model
 
 ### Slide 1：SpecForge：Speculative Decoding Models 的训练框架
 
-<img src="https://files.mdnice.com/user/59/ba69be4e-bd0e-4084-b9e4-6e50b89d6769.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ba69be4e-bd0e-4084-b9e4-6e50b89d6769.png" referrerpolicy="no-referrer" />
 
 SpecForge 解决的是投机解码的“训练侧”：SGLang 已经能 serve EAGLE/EAGLE3 draft model，但 draft model 从哪里来、怎么跟目标模型 hidden states 对齐、怎么处理特殊 attention mask，是另一个完整工程。
 
 ### Slide 2：目录：从投机解码到自定义训练
 
-<img src="https://files.mdnice.com/user/59/55dc0967-bfd2-483e-b9ec-d9f60ad7f763.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/55dc0967-bfd2-483e-b9ec-d9f60ad7f763.png" referrerpolicy="no-referrer" />
 
 目录顺序很清楚：先解释 speculative decoding 为什么能降低 decode latency，再讲 EAGLE3 和 SpecForge，接着落到 GPT-OSS、Flex Attention、VLM、LoRA 和自定义训练。它不是单模型脚本，而是一个训练框架。
 
 ### Slide 3：为什么 decode 阶段值得用投机解码
 
-<img src="https://files.mdnice.com/user/59/1e043b4d-8c64-4611-8930-890a66145a1e.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1e043b4d-8c64-4611-8930-890a66145a1e.png" referrerpolicy="no-referrer" />
 
 小 batch decode 很容易 memory-bound。目标模型每步只出一个 token，GPU 算力吃不满。投机解码用一个便宜 draft model 一次猜多个 token，再让 target model 并行验证，用更多计算换更少串行步数。
 
 ### Slide 4：EAGLE3 在 SGLang 里的收益
 
-<img src="https://files.mdnice.com/user/59/355584e2-8a73-4a6f-ba0d-af9f6390963d.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/355584e2-8a73-4a6f-ba0d-af9f6390963d.png" referrerpolicy="no-referrer" />
 
 EAGLE3 的意义在于 draft model 不只看 token，还看 target model 的中间 hidden states。SGLang 侧能拿到较高 acceptance length，slides 上给出 Llama3.1-8B 约 2.4x 的例子。
 
 ### Slide 5：SpecForge 的定位：训练 draft model
 
-<img src="https://files.mdnice.com/user/59/c4aaf488-684b-4041-91bc-71da68ff0e88.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c4aaf488-684b-4041-91bc-71da68ff0e88.png" referrerpolicy="no-referrer" />
 
 SpecForge 的定位是“把 EAGLE3 训练流程标准化”。它把 target hidden states 生成、draft forward、TTT unroll、loss/accuracy 计算封在框架里，用户不用从 SafeAILab/EAGLE 的训练脚本开始手搓。
 
 ### Slide 6：开箱支持主流模型和 SGLang
 
-<img src="https://files.mdnice.com/user/59/da6fe822-7840-4de7-99de-ed4b6c49b40a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c4aaf488-684b-4041-91bc-71da68ff0e88.png" referrerpolicy="no-referrer" />
 
 开箱支持并不只是模型名列表。GPT-OSS、Qwen、Llama、Qwen2.5-VL 这类模型的 tokenizer、hidden state 层选择、attention backend、FSDP/TP 都有差异。SpecForge 把这些差异放进 target/draft backend。
 
 ### Slide 7：为什么把训练框架放到 SGLang 生态里
 
-<img src="https://files.mdnice.com/user/59/3582d06f-f627-4756-a79e-910141a466bc.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3582d06f-f627-4756-a79e-910141a466bc.png" referrerpolicy="no-referrer" />
 
 放到 SGLang 生态的好处是训练和 serving 能用同一套模型假设：训练出来的 draft model 可以直接给 SGLang speculative decoding 使用，评测 acceptance length 也更接近线上行为。
 
 ### Slide 8：EAGLE3 的 Training-Time Test
 
-<img src="https://files.mdnice.com/user/59/e5d6a54e-310e-41a3-bb78-3b0e2a86458e.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e5d6a54e-310e-41a3-bb78-3b0e2a86458e.png" referrerpolicy="no-referrer" />
 
 这页左边的图要从 target model 和 draft model 两块看。target model 从 train data 经过 embedding 和多层 decoder，取出 low/mid/high 三层 hidden states；高层 hidden 直接喂给 draft 侧的 high hidden，三层 hidden 还会被送到 draft 侧做融合。draft model 这边先把 low/mid/high hidden 过一层 FC，得到 `g hidden`，再和输入 token 的 embedding 融成 `fuse hidden`，送进 draft decoder，最后用 `plogp_loss` 训练 draft 对下一批 token 的预测。
 
@@ -77,7 +77,7 @@ SpecForge 的定位是“把 EAGLE3 训练流程标准化”。它把 target hid
 
 ### Slide 9：online/offline hidden states 两种训练路径
 
-<img src="https://files.mdnice.com/user/59/fcdcf4b3-1bd3-4dfe-8b1d-ba724b1060a9.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fcdcf4b3-1bd3-4dfe-8b1d-ba724b1060a9.png" referrerpolicy="no-referrer" />
 
 Online 路径在上半部分。数据从 `Train Data -> embedding -> Target Model` 进入 target，target 一边输出 low/mid/high hidden，三层 hidden concat 后过 FC 得到 `Fuse Hidden`，另一边把 final hidden 送到 `Target LM Head` 得到 logits。虚线框右侧就是 Training-Time Test：训练输入 ids 自己也会 embedding，然后和 fuse hidden 一起喂 draft model；target logits 和 draft 输出一起计算 `plogp_loss`，其中 slide 特别标了 “Left Shift Logits and input ids”，也就是 target logits 和训练 token 要错一位对齐。
 
@@ -85,7 +85,7 @@ Offline 路径在下半部分。左边 `SGLang Phase` 只负责提前跑 target 
 
 ### Slide 10：Online & Offline Training 对比
 
-<img src="https://files.mdnice.com/user/59/706d8a11-191b-4445-93e5-52a67d08a802.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/706d8a11-191b-4445-93e5-52a67d08a802.png" referrerpolicy="no-referrer" />
 
 表格有四行。Target Model Usage 这一行说 online 训练会在训练期间调用 target model，offline 只在数据准备阶段用 target model。Disk Space Requirement 这一行对应最直观的代价：online 几乎不存 hidden states，磁盘压力低；offline 要落盘 low/mid/high/final hidden，slides 给的 UltraChat + ShareGPT 例子大约需要 12TB。GPU Requirement 则反过来：online 训练时 target model 和 draft 训练同场，target 大时 GPU 压力更高；offline 训练阶段只加载 draft，最低可以 1 张 GPU 跑起来。
 
@@ -93,13 +93,13 @@ Offline 路径在下半部分。左边 `SGLang Phase` 只负责提前跑 target 
 
 ### Slide 11：GPT-OSS EAGLE 的例子
 
-<img src="https://files.mdnice.com/user/59/6b3f5677-0d2f-4b8c-9514-0f3c35fde91e.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6b3f5677-0d2f-4b8c-9514-0f3c35fde91e.png" referrerpolicy="no-referrer" />
 
 GPT-OSS 的例子说明 SpecForge 不是只服务 Llama。开源模型结构变化快，如果训练框架把 target model 细节写死，很快就不能用。SpecForge 把 GPT-OSS 的 target backend 单独适配，draft 侧保持 EAGLE3 逻辑。图里的 acceptance length 对比也在提醒我们：draft model 训练质量会直接体现在 serving 侧吞吐上。
 
 ### Slide 12：Flex Attention 降显存和提速
 
-<img src="https://files.mdnice.com/user/59/5a6bd810-b1cd-402a-8fa4-603949d09036.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a6bd810-b1cd-402a-8fa4-603949d09036.png" referrerpolicy="no-referrer" />
 
 Flex Attention 这页有两张曲线。左边是速度对比，横轴是 sequence length，纵轴是时间；蓝线是普通 Eagle(SDPA)，红线是 Flex Attention。序列越长，蓝线抬得越快，红线增长更慢。右边是显存对比，蓝线在长序列处冲到九十多 GB，红线仍在十 GB 左右。底部小字写的是 10-20x less memory 和 H200 上约 2x speedup。
 
@@ -107,19 +107,19 @@ Flex Attention 这页有两张曲线。左边是速度对比，横轴是 sequenc
 
 ### Slide 13：VLM 也能训练 EAGLE3 draft
 
-<img src="https://files.mdnice.com/user/59/cbb669a3-d453-4a4b-9f55-6f7b894090d4.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cbb669a3-d453-4a4b-9f55-6f7b894090d4.png" referrerpolicy="no-referrer" />
 
 VLM 页最关键的是 hidden states 不只来自文本。Qwen2.5-VL 这类模型要处理 image grid、mrope position id、视觉 token 和文本 token 对齐，SpecForge 的 VLM wrapper 会把目标模型输出的多层 hidden states 接到 EAGLE3 draft。
 
 ### Slide 14：LoRA 与 speculative decoding 共存
 
-<img src="https://files.mdnice.com/user/59/f42be788-ad7c-41ce-95bf-d47fa235fe62.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f42be788-ad7c-41ce-95bf-d47fa235fe62.png" referrerpolicy="no-referrer" />
 
 LoRA 页讲的是部署现实：线上 base model 可能同时挂多个 LoRA adapter。如果 speculative decoding 只更新 base draft，不处理 adapter 侧差异，acceptance rate 会掉。SpecForge/SGLang 需要让 draft/base 的 LoRA 状态对齐。
 
 ### Slide 15：自定义训练参数和 chat template
 
-<img src="https://files.mdnice.com/user/59/df13584f-dc0c-4d99-b5e3-d1a95ed47ccd.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/df13584f-dc0c-4d99-b5e3-d1a95ed47ccd.png" referrerpolicy="no-referrer" />
 
 自定义训练首先是把参数和数据格式接上。左侧代码给的是 online 训练入口：`torchrun --standalone --nproc_per_node 8 ./scripts/train_eagle3_online.py`，核心参数包括 `--target-model-path meta-llama/Llama-3.1-8B-Instruct`、`--draft-model-config ./configs/llama3-8B-eagle3.json`、`--train-data-path ./cache/dataset/sharegpt.jsonl`、`--output-dir ./outputs/llama3-8b-eagle3`、`--num-epochs 10`、`--batch-size 1`、`--learning-rate 1e-4`、`--max-length 2048`、`--chat-template llama3` 和 `--cache-dir ./cache`。这些参数把 target model、draft config、训练数据、输出目录和上下文长度都显式传进去。
 
@@ -127,7 +127,7 @@ LoRA 页讲的是部署现实：线上 base model 可能同时挂多个 LoRA ada
 
 ### Slide 16：自定义 target model 和 draft model
 
-<img src="https://files.mdnice.com/user/59/16c88cf3-70ef-48ea-be8a-5b95cdeb3774.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/16c88cf3-70ef-48ea-be8a-5b95cdeb3774.png" referrerpolicy="no-referrer" />
 
 这一页才是模型接入入口。左侧 target model 部分说，如果只是 HuggingFace 能直接加载的小模型，改 `--target-model-path` 就够；如果模型太大、需要 tensor parallel，就要在 `specforge.modeling.target` 目录实现自己的并行版本。截图里的代码提示自定义 target model 要继承 distributed target model 类，并实现类似 `load_weights` 这样的入口，再注册到 Auto target model。
 
@@ -135,7 +135,7 @@ LoRA 页讲的是部署现实：线上 base model 可能同时挂多个 LoRA ada
 
 ### Slide 17：结束页
 
-<img src="https://files.mdnice.com/user/59/dba1426a-9d8c-4b84-9560-f6d2b2b9abca.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dba1426a-9d8c-4b84-9560-f6d2b2b9abca.png" referrerpolicy="no-referrer" />
 
 结束页没有新的技术点。回到主线看，SpecForge 的价值是把 EAGLE3 训练里最难维护的 hidden states、TTT unroll、特殊 mask 和模型适配收进框架里，让训练出来的 draft model 能更自然地进入 SGLang serving。
 

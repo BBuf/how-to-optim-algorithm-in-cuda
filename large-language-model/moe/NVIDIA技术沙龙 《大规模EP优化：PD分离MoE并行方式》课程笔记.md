@@ -1,9 +1,9 @@
 > Slides来自BiliBili NVIDIA英伟达频道上传的NVIDIA专家面对面技术沙龙《大规模EP优化：PD分离MoE并行方式》视频讲解。这里参考视频并更详细记录了Slides的要点，作为学习使用。这个演讲对应的实际上就是SGLang的Large-Scale EP+PD分离的方案，部分Slides也是从SGLang博客 https://lmsys.org/blog/2025-05-05-large-scale-ep/ 摘出来的。
 
 
-![](https://files.mdnice.com/user/59/2695746e-fded-4b72-b000-6f46cdaa4a05.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2695746e-fded-4b72-b000-6f46cdaa4a05.jpg)
 
-![](https://files.mdnice.com/user/59/adae078e-bfa5-4c5d-9709-49881faeb102.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/adae078e-bfa5-4c5d-9709-49881faeb102.png)
 
 这张Slides主要讲述了五个关键技术创新：
 - PD分离（Prefill-Decode Disaggregation）通过将Compute-Bound的Prefil阶段和Memory-Bound的Decoding阶段分离到专用服务器，避免了中断并优化GPU利用率，通过非阻塞RDMA传输将延迟降低50%；
@@ -14,33 +14,33 @@
 
 这些技术共同构成了一个高效的大规模推理系统优化方案。
 
-![](https://files.mdnice.com/user/59/41ba0002-0f62-4ab3-8098-bf0650cc16eb.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/41ba0002-0f62-4ab3-8098-bf0650cc16eb.jpg)
 
 本次演讲的目录：背景与动机（Background and Motivation）介绍技术发展的背景和推动力；原理与关键技术（Principles and Key Technologies）深入讲解核心技术原理；部署配置（Deployment Configuration）说明实际部署方案；性能突破（Performance Breakthroughs）展示优化效果和性能提升；参考资料（References）包括NVIDIA SA团队的工作成果、博客文章和技术洞察。
 
-![](https://files.mdnice.com/user/59/e0307133-3c3f-49d3-93f1-a26c7dc41ccc.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e0307133-3c3f-49d3-93f1-a26c7dc41ccc.jpg)
 
-![](https://files.mdnice.com/user/59/12ab94e5-4fee-48af-8ed7-5fb69d34d133.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/12ab94e5-4fee-48af-8ed7-5fb69d34d133.png)
 
 
 这里回顾了一下DeepSeek-V3背景。Slides展示了DeepSeek-V3的完整结构：从标准的Transformer Block（包含Feed-Forward Network、RMSNorm和Attention组件）连接到DeepSeekMoE模块，该模块通过Router从多个专家中选择Top-K个进行路由，区分了Routed Expert（绿色实心框）和Shared Expert（绿色虚线框），并详细展示了Multi-Head Latent Attention (MLA)的结构，包括输入隐藏层通过多头 Attention 机制处理q、k、v并应用RoPE生成潜在表示的过程。右侧则提供了详细的模型配置对比表格，显示Kimi K2虽然总参数量达到1.04T（比DeepSeek-V3的671B增加54%）且专家总数达到384个（比DeepSeek-V3的256个增加50%），但在激活参数量（32.6B vs 37B）、 Attention 头数（64 vs 128）和密集层数（1 vs 3）上都有所减少，但更加稀疏了。
 
-![](https://files.mdnice.com/user/59/43042e36-999e-4043-8e25-b270f314525b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/43042e36-999e-4043-8e25-b270f314525b.png)
 
 这里继续对比了下Qwen3-480B和GPT-OSS-120B的模型的架构设计与配置特点。左边展示了Qwen3-480B模型，具体配置了Qwen3-480B-A35B-Instruct模型：这是一个经过预训练和后训练的因果语言模型，总参数量达到480B，其中激活参数为35B，模型深度为62层， Attention 机制采用GQA（Grouped Query Attention）配置，包含96个Q头和8个KV头，总共部署了160个专家，每个token激活8个专家，原生上下文长度高达262,144个token。
 
 右边详细介绍了GPT-OSS-120B模型，同样采用细粒度专家设计，MoE配置为128个专家，路由器为每个token选择Top-4专家（覆盖90%以上的总参数）， Attention 机制支持GQA（带学习型sink的SWA或全密集 Attention ）。右侧还提供了详细的参数构成对比表格，显示120b版本的MLP参数为114.71B、 Attention 参数为0.96B、嵌入与非嵌入参数为1.16B、激活参数为5.13B、总参数为116.83B、检查点大小为60.8GiB，而20b版本则对应MLP参数19.12B、 Attention 参数0.64B、嵌入与非嵌入参数1.16B、激活参数3.61B、总参数20.91B、检查点大小为12.8GiB，这里清晰展示了两种GPT-OSS模型的架构区别。
 
 
-![](https://files.mdnice.com/user/59/36a81240-2eb4-4d3b-88c0-9809ac184d85.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/36a81240-2eb4-4d3b-88c0-9809ac184d85.png)
 
 这张Slides了两种大型语言模型推理服务架构的性能特点和优化策略。左侧的"Co-located（共置）"架构展示了传统推理批处理模式的问题：在IFB（In-Flight Batching）模式下，多个请求（R1-R6）的 Prefill 阶段（实心彩色块）和 Decode 阶段（条纹彩色块）都在同一组GPU上执行，由于较长的前缀块导致"Generation stall"（生成停滞）， Decode 阶段被显著延迟；而通过引入"分块捎带"（Chunked Piggybacking）技术，将 Prefill 分解成更小的块，使 Decode 阶段能够更早开始并与后续请求的 Prefill 重叠，有效缓解了生成停滞问题。右侧的"Disaggregated（解耦）"架构则通过将 Prefill 和 Decode 任务分离到不同GPU上实现根本性优化：Context GPU专门处理 Prefill 任务，能够高效并行处理多个请求的 Prefill 阶段，显著"减少生成第一个token的延迟"；Generation GPU专门处理 Decode 任务，专注于生成后续token，通过将计算密集型的 Prefill 与内存密集型的 Decode 分离，"减少了 Decode 和 Prefill 阶段之间的干扰"，使Generation GPU能够更流畅连续地进行token生成，从而提升整体吞吐量和效率。
 
 
-![](https://files.mdnice.com/user/59/523feae8-7aaf-462f-acef-323506bc256e.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/523feae8-7aaf-462f-acef-323506bc256e.jpg)
 
 
-![](https://files.mdnice.com/user/59/1f356bb3-0414-47ca-95ec-b02f6f6ac6aa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1f356bb3-0414-47ca-95ec-b02f6f6ac6aa.png)
 
 这张Slides展示了SGLang PD分离的架构流程图。图中展示了五个核心组件（客户端、 Decode 节点、引导服务器、 Prefill 节点、 Transfer Engine ）之间的交互流程：从请求初始化阶段（客户端向 Decode 节点发送请求， Decode 节点通过引导服务器查询 Prefill 节点地址并发送KV传输请求）到 KV Cache 传输阶段（ Prefill 节点准备KV数据并分组连续块，通过 Transfer Engine 执行GPU-GPU直接的RDMA传输，传输内容包含会话ID、目标KV索引和目标地址，标记为"Parallel Transfer"循环）再到验证与执行阶段（ Decode 节点验证所有块是否接收完成并向客户端返回生成的token）以及健康监控阶段（ Decode 节点定期向引导服务器发送心跳请求，标记为"Periodic Heartbeat"循环）。
 
@@ -54,13 +54,13 @@
 
 以及最权威的SGLang PD分离官方设计文档：https://docs.google.com/document/d/1rQXJwKd5b9b1aOzLh98mnyMhBMhlxXA5ATZTHoQrwvc/edit?tab=t.0#heading=h.i3s2t1j0e1ik
 
-![](https://files.mdnice.com/user/59/ae5c305e-e571-447f-a968-72fb1147df25.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ae5c305e-e571-447f-a968-72fb1147df25.png)
 
 这张Slides展示了"Prefill-Decode Disaggregation"架构中KV（Key-Value）传输的完整工作流程和技术实现。左侧的序列图展示了四个核心组件（KVManager、KVSender、KVReceiver和TransferBackend）之间的交互过程：在初始化阶段，KVManager首先向KVSender发送"Init TransferEngine"指令，KVSender随后向TransferBackend注册GPU地址以进行RDMA（远程直接内存访问），同时KVManager向KVReceiver发送"Init request_pool mapping"指令并指示其"Start ZMQ server (bind port)"；在KV发送操作阶段，KVSender将[bootstrap_room: metadata]添加到内部的request_pool中，并通过ZMQ消息向KVReceiver发送包含bootstrap_room、kv_data_ptrs和aux_data_ptrs的元数据；在 Prefill 线程阶段，KVSender通过TransferBackend执行transferSync RDMA write操作将KV数据写入，TransferBackend在数据传输完成后向KVSender返回"Transfer complete"信号，随后KVSender向KVReceiver发送"Send completion signal (bootstrap_room + Done)"通知KV数据传输完成；在 Decode 线程阶段，KVReceiver接收到完成信号后从其request_pool中移除对应的bootstrap_room并继续执行 Decode 操作。
 
 右边的内容是：KVSender和KVReceiver负责管理KV数据的发送和接收过程；后台传输在实际的数据传输线程中进行，同时暴露Python接口用于与该线程通信，确保主程序的非阻塞性；系统支持多种KV传输后端（如Mooncake、NIXL等），提供灵活性和可扩展性；所有操作都是非阻塞的，可以轮询传输过程状态，实现高效的异步处理。
 
-![](https://files.mdnice.com/user/59/eaec4716-a029-4a9f-9bfe-da317fd26c24.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/eaec4716-a029-4a9f-9bfe-da317fd26c24.png)
 
 这张Slides展示了SGLang 大EP部署DeepSeek-V3的并行方案，Slides分为四个主要部分： Attention 机制的并行优化支持混合DP与TP策略，关键优势在于消除跨设备KV Cache重复，通过避免冗余KV Cache存储减少通信开销，图(a)展示了"DP Dense FFN Network 与DP Attention "的架构，其中每个批次（Batch1-4）都独立地通过DP Dense FFN和DP Attention模块；Dense FFN的并行优化支持纯DP或纯TP，指出纯TP会导致碎片化问题（如TP32将18,432维拆分为576单元块与GPU友好的128字节边界不对齐），引入DP旨在减少碎片化提高内存和计算效率，关键优势包括将纯TP中的两次all-reduce操作替换为一次reduce-scatter加一次all-gather（减少50%开销），以及纯 DP Dense MLP 与纯DP Attention 结合可以完全消除设备间通信； 
 
@@ -68,11 +68,11 @@ Sparse FFN Network  的并行优化采用专家并行与DeepEP结合，DeepEP提
 
 语言模型LM_Head的并行优化使用DP而非TP（传统词汇并行），关键优势是更低的内存开销和简化的通信。
 
-![](https://files.mdnice.com/user/59/03e59183-f81e-41a4-850e-4b923f431e96.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/03e59183-f81e-41a4-850e-4b923f431e96.png)
 
 这张Slides展示了一下DeepEP的workflow，这个workflow是DeepSeek官方提出的结合了DeepEP两种形式的kernel和TBO得到的可以overlap计算和通信的workflow。
 
-![](https://files.mdnice.com/user/59/f0c12710-5358-4105-b524-37460baa52b0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f0c12710-5358-4105-b524-37460baa52b0.png)
 
 DeepGEMM有3种形式的kernel，一种是Dense用于q,k,v projection这种矩阵乘法，一种是Contiguous模式用在DeepEP Normal Dispatch后面，一种是Masked模式用在DeepEP Low Latency Dispatch后面。
 
@@ -82,7 +82,7 @@ CUDA Block的Warp Group分配显示每个CUDA block使用3个warp-groups（1个T
 
 DeepGEMM的优化策略会根据GEMM操作的整体形状M和N智能选择WGMMA的N维度（输出C tile的block_n）以实现最佳GPU利用率；矩阵块划分示例包括图A展示block_k如何被划分为两个block_m/2=64的子块（每个子块细分为sa1到sa4四个部分）、图B展示block_n如何被垂直划分为sb1到sb4四个子块、图C展示输出矩阵C的block_n维度如何被划分为两个block_m/2=64的区域并分别由WG1和WG2两个Warp Group负责处理
 
-![](https://files.mdnice.com/user/59/a89269ef-9575-4bb0-826f-f2075ebc551c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a89269ef-9575-4bb0-826f-f2075ebc551c.png)
 
 这张Slides详细介绍了"TBO (Two-batch Overlapping)"，该技术旨在与DeepEP和DeepGEMM协同工作以解决多节点环境中因通信带宽限制导致的延迟问题。Slides通过左右两部分呈现：
 
@@ -90,7 +90,7 @@ DeepGEMM的优化策略会根据GEMM操作的整体形状M和N智能选择WGMMA�
 
 **右侧的文字部分**详细阐述了TBO的优势和具体技术（主要目标是解决多节点环境中有限通信带宽引起的延迟问题，核心策略是将单个批次拆分为两个 Micro Batch 以实现计算和通信重叠，关键效益包括降低峰值内存使用和通过最小化空闲时间提高GPU利用率），使用的GEMM kernel 包括针对普通密集GEMM的"deep_gemm.gemm_fp8_fp8_bf16_nt"、针对MoE Prefill 的"m_grouped_gemm_fp8_fp8_bf16_nt_contiguous"和针对MoE Decode 的"m_grouped_gemm_fp8_fp8_bf16_nt_masked"，使用的注意力 kernel 采用FlashAttention3。
 
-![](https://files.mdnice.com/user/59/f570d6ee-40c6-4fa1-b627-ee991a721daa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f570d6ee-40c6-4fa1-b627-ee991a721daa.png)
 
 这张Slides展示了"TBO (Two-batch Overlapping)"技术在SGLang框架下的代码实现示例，特别针对DeepSeek模型中的 Prefill （Prefill）和 Decode （Decode）操作策略。
 
@@ -100,7 +100,7 @@ DeepGEMM的优化策略会根据GEMM操作的整体形状M和N智能选择WGMMA�
 
 针对不同的模型，例如Qwen，它就没有shared experts，要使用TBO就要针对性的去调这些策略。
 
-![](https://files.mdnice.com/user/59/4cf1c928-a13d-4c04-ab2d-52c16a531f96.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4cf1c928-a13d-4c04-ab2d-52c16a531f96.png)
 
 这张Slides讲了 **EPLB（Expert Parallelism Load Balancer，专家并行负载均衡器）** 的作用及其对性能的影响。
 
@@ -108,12 +108,12 @@ DeepGEMM的优化策略会根据GEMM操作的整体形状M和N智能选择WGMMA�
 
 **EPLB案例研究：吞吐量与均衡性** 是一个折线图，展示了在不同 Decode 步骤下输出吞吐量（Output Throughput per Device，单位：tokens/second，蓝色线）和均衡性（Balancedness，红色线）的变化趋势，图表显示吞吐量和均衡性之间存在高度正相关（在 Decode 步骤20到40左右两者都迅速上升达到峰值，吞吐量接近2850 tokens/second，均衡性接近0.88，随后两者都逐渐下降但趋势保持一致，在 Decode 步骤50附近吞吐量有明显下降而均衡性也随之出现轻微下降，进一步印证了负载均衡对系统吞吐量的直接影响）。
 
-![](https://files.mdnice.com/user/59/0522c56a-38af-4051-a480-9a4a2a34612f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0522c56a-38af-4051-a480-9a4a2a34612f.png)
 
 
 这里是展示了下在模拟的数据分布上开启EPLB的收益，这个只是一个参考数据，我们应该以实际的数据分布上的自测结果为准。
 
-![](https://files.mdnice.com/user/59/9483ea2a-c608-4dc0-bd0b-a27120ba3a45.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9483ea2a-c608-4dc0-bd0b-a27120ba3a45.png)
 
 
 这张Slides介绍了**MTP（Multiple Token Prediction，多 token 预测）**技术及其在SGLang框架下的集成与优化。
@@ -122,26 +122,26 @@ DeepGEMM的优化策略会根据GEMM操作的整体形状M和N智能选择WGMMA�
 
 刚才提到的其它的优化和MTP都是兼容的。
 
-![](https://files.mdnice.com/user/59/72afa521-807c-49e5-ab4d-d0d9d00d1a85.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/72afa521-807c-49e5-ab4d-d0d9d00d1a85.png)
 
 这张Slides展示了 MTP 在提升大型语言模型推理性能方面的显著效果，通过两个柱状图和一个表格呈现了不同配置下的吞吐量数据。**MTP在实际应用中的吞吐量测试（16块H200 GPU）** 显示在DeepSeekV3模型上使用全局批次大小为32时，未启用MTP时每GPU吞吐量为51.0 tokens/s，启用3-token MTP后每GPU吞吐量提升至81.5 tokens/s实现了60%的性能提升，启用4-token MTP后每GPU吞吐量进一步提升至82.0 tokens/s实现了60.8%的性能提升；
 
 **MTP在大规模部署中的吞吐量测试（96块H200 GPU）** 显示在DeepSeekV3模型上未启用MTP时总吞吐量为1391 tokens/s，启用MTP后总吞吐量提升至1588 tokens/s实现了14.2%的性能提升；
 
-![](https://files.mdnice.com/user/59/c945e484-ce27-4dd6-8aa3-948998ae4ba3.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c945e484-ce27-4dd6-8aa3-948998ae4ba3.jpg)
 
-![](https://files.mdnice.com/user/59/201760f9-0a85-4364-9aff-e87d1f1108ba.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/201760f9-0a85-4364-9aff-e87d1f1108ba.png)
 
 这里展示了一下DeepSeek官方，SGLang，以及NVIDIA在H20上对SGLang 大EP+PD分离方案的复现的具体数据。
 
-![](https://files.mdnice.com/user/59/4643f145-703a-4244-adfb-558a285c8e41.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4643f145-703a-4244-adfb-558a285c8e41.jpg)
 
-![](https://files.mdnice.com/user/59/6e2f6dad-8063-49c6-a07a-8604ba495488.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6e2f6dad-8063-49c6-a07a-8604ba495488.png)
 
 这张Slides展示了DeepSeek模型在 Prefill （Prefill）和 Decode （Decode）阶段的整体吞吐量性能，并将其与传统的张量并行（TP16）以及其他专家并行（EP）配置进行了对比，突出显示了相对于传统TP（黄色）的显著吞吐量提升。
 
  
-![](https://files.mdnice.com/user/59/927c62c1-d893-4116-bd06-8bc0af1e2698.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/927c62c1-d893-4116-bd06-8bc0af1e2698.png)
 
 这张Slides展示了一下 **Kimi K2模型在Prefill（ Prefill ）和Decode（ Decode ）阶段的整体吞吐量性能** ，并将其与DeepSeek模型进行了对比，同时阐述了实现这些性能的关键技术细节和配置。
 
@@ -149,9 +149,9 @@ Slides顶部标题明确指出"Overall Throughput (Kimi K2)"，并给出了目�
 
 底部提供了详细的性能对比表格，比较了DeepSeek和Kimi K2两种模型（DeepSeek模型配置了256个专家使用96块Hopper GPU实现了52.3k tokens/秒/节点的 Prefill 吞吐量和22.3k tokens/秒/节点的 Decode 吞吐量，Kimi K2模型配置了384个专家使用128块Hopper* GPU实现了56k tokens/秒/节点的 Prefill 吞吐量和24k tokens/秒/节点的 Decode 吞吐量），表格下方脚注解释了Kimi K2的128块Hopper* GPU配置采用了1P3D架构（具体为4个 Prefill 节点和12个 Decode 节点）。Slides上面的1P1D好像是typo。
 
-![](https://files.mdnice.com/user/59/8aeebae3-1483-48a3-8d35-349c6edd73cd.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8aeebae3-1483-48a3-8d35-349c6edd73cd.jpg)
 
-![](https://files.mdnice.com/user/59/1f5b6d83-69c4-456e-9064-71e32c479ef3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1f5b6d83-69c4-456e-9064-71e32c479ef3.png)
 
 Slides最后展示了一下他们在SGLang上做的工作。
 

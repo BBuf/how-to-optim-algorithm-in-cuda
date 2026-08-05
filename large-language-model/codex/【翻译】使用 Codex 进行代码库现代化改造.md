@@ -20,7 +20,7 @@ Codex 经过训练，能够阅读和推理大型、复杂的代码库，与工�
 
 我们将整个过程拆分为 5 个不同阶段，这些阶段围绕一份执行计划（简称 ExecPlan）展开。ExecPlan 是一份设计文档，agent 可以依照它交付系统变更。
 
-![](https://files.mdnice.com/user/59/8c9f6ffb-193e-4d38-97e9-dec412ed26cf.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8c9f6ffb-193e-4d38-97e9-dec412ed26cf.png)
 
 针对所选的 pilot 流程，我们将创建 4 类文档：
 
@@ -73,7 +73,7 @@ For each candidate, list:
 
 在这个例子中，我们会选择一条报表流程作为 pilot。
 
-![](https://files.mdnice.com/user/59/4c9d4690-34b1-451f-b7cc-9ab5336dba71.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4c9d4690-34b1-451f-b7cc-9ab5336dba71.jpg)
 
 ### 1.2 让 Codex 创建 pilot ExecPlan
 
@@ -124,7 +124,7 @@ In the modernization technical report section, describe:
 
 下面是 pilot_reporting_overview.md 中流程图的示例：
 
-![](https://files.mdnice.com/user/59/6f1270e0-2eb0-4bf2-be1f-23090b4c630d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6f1270e0-2eb0-4bf2-be1f-23090b4c630d.png)
 
 ### 2.2 更新 ExecPlan
 
@@ -192,7 +192,7 @@ Using pilot_reporting_design.md, draft an OpenAPI file at modern/openapi/pilot.y
 
 示例输出：
 
-![](https://files.mdnice.com/user/59/c06bac87-7409-497a-affb-6483a0728668.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c06bac87-7409-497a-affb-6483a0728668.png)
 
 ### 3.3 验证与测试计划
 
@@ -350,7 +350,7 @@ Using the same pilot files, write how_to_use_codex_for_cobol_modernization.md th
 
 如果你按照这篇 cookbook 中的步骤，为任意一个 pilot 推进工作，最终得到的目录结构大致会是这样：一份 ExecPlan、三份 pilot 文档、一份 OpenAPI spec、一个 pilot 模块，以及一个 parity 测试。为了获得更清晰的结构，你还可以进一步把这些 markdown 文件组织到额外的 pilot 和 template 子目录中。
 
-![](https://files.mdnice.com/user/59/dca87b14-46c8-432f-89db-312c7c51265e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dca87b14-46c8-432f-89db-312c7c51265e.png)
 
 你会注意到，`modern/python/pilot` 里还没有一个可运行的入口点，因为这些模块（`models.py`、`repositories.py`、`services.py`）目前只是第一版草稿式的构建块，用于启动工作。如果你想在本地做实验，有两个选择：
 

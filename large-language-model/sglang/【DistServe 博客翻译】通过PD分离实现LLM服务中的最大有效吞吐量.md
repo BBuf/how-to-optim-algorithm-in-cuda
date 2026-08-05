@@ -4,7 +4,7 @@
 
 > 2024年3月17日 · 13分钟 · Junda Chen, Yinmin Zhong, Shengyu Liu, Yibo Zhu, Xin Jin, Hao Zhang
 
-![一个请求通过具有分离 Prefill 和 Decode 功能的LLM服务引擎](https://files.mdnice.com/user/59/ea895763-c3fc-42f6-bb4b-d4664d9a0926.png)
+![一个请求通过具有分离 Prefill 和 Decode 功能的LLM服务引擎](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ea895763-c3fc-42f6-bb4b-d4664d9a0926.png)
 
 > 注意：这张图原博客里面是一张动图，可以点击原博客链接获得最佳体验。
 
@@ -23,7 +23,7 @@
 - 首token延迟时间（**TTFT**）：测量LLM向用户输出第一个生成token所需的时间。
 - 每个输出token的时间（**TPOT**）：测量两个后续生成token之间的平均延迟。
 
-![图0. 应用具有多样化的SLO。](https://files.mdnice.com/user/59/2bb66bd4-632f-4d04-a50b-4391f6e39b69.png)
+![图0. 应用具有多样化的SLO。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2bb66bd4-632f-4d04-a50b-4391f6e39b69.png)
 
 
 吞吐量测量所有用户和请求完成的请求或token数量，因此忽略了这些延迟要求。我们引入**有效吞吐量**（goodput），即每秒完成的符合SLO（TTFT和TPOT要求）的请求数量，并表明它是一个更好的指标，因为它捕获了SLO达成下的请求吞吐量——因此同时考虑了成本和服务质量。
@@ -34,7 +34,7 @@
 
 **图1**显示了一个简单的情况，其中高吞吐量的应用可能具有低有效吞吐量。该应用的吞吐量为每秒10个请求。但在延迟约束下，只有3个请求保持在SLO约束内，产生每秒3个请求的有效吞吐量。正如您可以想象的，使用这种高吞吐量但低有效吞吐量的服务系统的用户仍然会遭受低服务质量的影响。
 
-![图1. 高吞吐量 ≠ 高有效吞吐量。优化吞吐量的系统在特定SLO约束下可能具有低有效吞吐量。](https://files.mdnice.com/user/59/1768c8c3-8bcd-4a62-b8d2-698b1b501088.png)
+![图1. 高吞吐量 ≠ 高有效吞吐量。优化吞吐量的系统在特定SLO约束下可能具有低有效吞吐量。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1768c8c3-8bcd-4a62-b8d2-698b1b501088.png)
 
 让我们总结一下本小节中引入的术语：
 
@@ -54,7 +54,7 @@
 
 LLM服务系统通常使用称为迭代级调度或连续批处理的技术将所有 Prefill 和 Decode 一起批处理，以便GPU处理尽可能大的批次大小，运行一次迭代，并为所有这些请求生成一个token。这种技术有效地提高了整体吞吐量（每秒token数），并被vLLM和TensorRT-LLM等流行服务系统广泛采用。
 
-![图2. 请求在传统LLM服务系统中是如何被处理的。](https://files.mdnice.com/user/59/73f0869a-59e6-4b86-95ac-c647f2fb80bd.png)
+![图2. 请求在传统LLM服务系统中是如何被处理的。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/73f0869a-59e6-4b86-95ac-c647f2fb80bd.png)
 
 > 注意：这张图原博客里面是一张动图，可以点击原博客链接获得最佳体验。
 
@@ -71,11 +71,11 @@ LLM服务系统通常使用称为迭代级调度或连续批处理的技术将�
 
 **图3**显示了 Prefill 和 Decode 之间干扰的简化视图。在最左侧，我们将这2个请求在1个GPU中一起批处理。我们可以看到连续批处理显著延长了R1（ Decode ）的延迟，同时略微增加了R2（ Prefill ）的延迟。在右侧，我们有稳定的传入请求流。现在 Decode 阶段的请求每次有 Prefill 请求进入系统时都会"卡住"，导致 Decode 出现意外长的延迟。
 
-![图3. 连续批处理导致干扰](https://files.mdnice.com/user/59/92e41eef-cca9-47a7-8a5b-468b9b11aeda.png)
+![图3. 连续批处理导致干扰](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/92e41eef-cca9-47a7-8a5b-468b9b11aeda.png)
 
 由于这种干扰，如图4所示，当服务必须同时满足TTFT和TPOT SLO时，系统必须过度配置资源以满足延迟目标，特别是当任一SLO都很严格时。
 
-![图4. 为了满足SLO，共置 Prefill 和 Decode 的系统需要过度配置资源以满足SLO目标](https://files.mdnice.com/user/59/41f7898b-3115-4182-a1c0-e75fc7f9f55e.png)
+![图4. 为了满足SLO，共置 Prefill 和 Decode 的系统需要过度配置资源以满足SLO目标](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/41f7898b-3115-4182-a1c0-e75fc7f9f55e.png)
 
 ## 资源分配和并行策略是耦合的
 
@@ -90,7 +90,7 @@ LLM服务系统通常使用称为迭代级调度或连续批处理的技术将�
 
 **图5**说明了请求在这种分离系统中是如何被处理的。当请求到达系统时，它首先进入 Prefill 工作器并完成其 Prefill 阶段。然后系统将其中间状态（主要是 KV Cache ）迁移到** Decode 工作器**，并执行多个 Decode 步骤以生成后续token。请求在完成生成后离开系统。
 
-![图5. 当 Prefill / Decode 分离时请求是如何被处理的。](https://files.mdnice.com/user/59/039b7bf5-8ea6-4e8c-ac15-436c5f848422.png)
+![图5. 当 Prefill / Decode 分离时请求是如何被处理的。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/039b7bf5-8ea6-4e8c-ac15-436c5f848422.png)
 
 > 注意：这张图原博客里面是一张动图，可以点击原博客链接获得最佳体验。
 
@@ -104,7 +104,7 @@ LLM服务系统通常使用称为迭代级调度或连续批处理的技术将�
 
 这个实验表明，这种没有任何并行的简单分离产生了2倍的有效吞吐量。
 
-![图6. 共置（a）比分离（b）灵活性更少，后者为 Prefill 分配2个GPU，为 Decode 分配1个GPU（2P1D）。](https://files.mdnice.com/user/59/6e043ebe-a232-4dfd-9135-c43b4c43d0bc.png)
+![图6. 共置（a）比分离（b）灵活性更少，后者为 Prefill 分配2个GPU，为 Decode 分配1个GPU（2P1D）。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6e043ebe-a232-4dfd-9135-c43b4c43d0bc.png)
 
 实际上，除了为每个阶段分配不同的资源外，分离 Prefill 和 Decode 进一步使我们能够为每个阶段选择最佳的并行策略以优化有效吞吐量（称为"定制并行"），我们在我们的论文中详细研究了这一点。
 
@@ -118,7 +118,7 @@ LLM服务系统通常使用称为迭代级调度或连续批处理的技术将�
 
 这个延迟小于OPT-175B的单个 Decode 步骤（在A100上约30-50ms）。对于更大的模型、更长的序列或更先进的网络（例如，带宽为600GB/s的A100-NVLink），如图7所示，相对于单个 Decode 步骤，与 KV Cache 传输相关的比较开销变得不那么显著。总之，仔细放置 Prefill 和 Decode 工作器以利用高带宽网络可以有效地隐藏 KV Cache 传输开销，这在我们论文中有详细讨论。
 
-![图7.  KV Cache 传输开销可以有效地最小化到低于 Decode 步骤时间的程度。](https://files.mdnice.com/user/59/e33b153f-c638-451c-b79c-04b6bd7e8795.png)
+![图7.  KV Cache 传输开销可以有效地最小化到低于 Decode 步骤时间的程度。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e33b153f-c638-451c-b79c-04b6bd7e8795.png)
 
 ## DistServe：评估分离的有效性
 
@@ -140,7 +140,7 @@ LLM服务系统通常使用称为迭代级调度或连续批处理的技术将�
 
 有关更细粒度的实验结果，请参阅我们的技术报告。
 
-![图8. 在各种数据集上DistServe与vLLM的评估。](https://files.mdnice.com/user/59/a48b4868-9907-47b5-b2bc-ee012026ae48.png)
+![图8. 在各种数据集上DistServe与vLLM的评估。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a48b4868-9907-47b5-b2bc-ee012026ae48.png)
 
 ## Prefill-Decode分离 vs Chunked Prefill
 

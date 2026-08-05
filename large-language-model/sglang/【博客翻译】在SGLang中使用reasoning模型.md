@@ -287,7 +287,7 @@ watch nvidia-smi
 
 看到两个GPU都被大量使用：
 
-![](https://files.mdnice.com/user/59/ffdbd08a-9521-4251-a116-3f100e3966e8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ffdbd08a-9521-4251-a116-3f100e3966e8.png)
 
 ## 结论
 

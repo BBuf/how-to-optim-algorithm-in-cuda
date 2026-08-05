@@ -17,7 +17,7 @@
 
 通过 🤗Diffusers 库启用这些优化只需要几行代码。如果你已经感到兴奋并迫不及待地想要查看代码，请访问配套的代码仓库：https://github.com/huggingface/diffusion-fast。
 
-![](https://files.mdnice.com/user/59/3694fdac-fbae-4fb6-b4d8-dc3490d0a37c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3694fdac-fbae-4fb6-b4d8-dc3490d0a37c.png)
 
 （所讨论的技术不是 SDXL 特有的，可以用来加速其他文本到图像的 diffusion 系统，如稍后所示。）
 
@@ -62,7 +62,7 @@ image = pipe(prompt, num_inference_steps=30).images[0]
 
 但这并不实用，因为生成 30 步的单张图像需要 **7.36 秒**。这是我们的基线，我们将尝试逐步优化。
 
-![](https://files.mdnice.com/user/59/1c4d44b3-a2ac-49a5-9c9e-965de4b08a82.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1c4d44b3-a2ac-49a5-9c9e-965de4b08a82.png)
 
 这里，我们使用全精度运行 pipeline。我们可以通过使用降低的精度（如 bfloat16）来立即减少推理时间。此外，现代 GPU 配备了专用核心，可以从降低精度中受益运行加速计算。要使用 bfloat16 精度运行 pipeline 的计算，我们只需要在初始化 pipeline 时指定数据类型：
 
@@ -85,7 +85,7 @@ prompt = "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
 image = pipe(prompt, num_inference_steps=30).images[0]
 ```
 
-![](https://files.mdnice.com/user/59/2600dcc9-509d-416b-b7bc-8b00099c1e0d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2600dcc9-509d-416b-b7bc-8b00099c1e0d.png)
 
 通过使用降低的精度，我们能够将推理延迟从 **7.36 秒**减少到 **4.63 秒**。
 
@@ -122,7 +122,7 @@ image = pipe(prompt, num_inference_steps=30).images[0]
 
 SDPA 带来了很好的提升，从 **4.63 秒**减少到 **3.31 秒**。
 
-![](https://files.mdnice.com/user/59/77e9a3a6-9223-444d-ab7c-85342077d525.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/77e9a3a6-9223-444d-ab7c-85342077d525.png)
 
 ## 编译 UNet 和 VAE
 
@@ -152,7 +152,7 @@ image = pipe(prompt, num_inference_steps=30).images[0]
 
 使用 SDPA attention 并编译 UNet 和 VAE 将延迟从 **3.31 秒**减少到 **2.54 秒**。
 
-![](https://files.mdnice.com/user/59/f26b3c24-99ac-4ad0-a5cb-d8bc6d16dafb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f26b3c24-99ac-4ad0-a5cb-d8bc6d16dafb.png)
 
 
 **关于 `torch.compile` 的说明**
@@ -190,7 +190,7 @@ pipe.vae.to(memory_format=torch.channels_last)
 
 确保底层模型/方法能够完全编译对性能至关重要（使用 `fullgraph=True` 的 `torch.compile`）。这意味着没有图断点。我们通过改变访问返回变量的方式为 UNet 和 VAE 做到了这一点。考虑以下示例：
 
-![](https://files.mdnice.com/user/59/56d503be-df4d-49df-acdf-cb858f3b6b7f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/56d503be-df4d-49df-acdf-cb858f3b6b7f.png)
 
 ### 编译后消除 GPU 同步
 
@@ -215,7 +215,7 @@ pipe.fuse_qkv_projections()
 
 这些额外的技术将推理延迟从 **2.54 秒**改善到 **2.52 秒**。
 
-![](https://files.mdnice.com/user/59/886d10e2-30c5-4ef2-9c58-25d85578bca4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/886d10e2-30c5-4ef2-9c58-25d85578bca4.png)
 
 ## 动态 int8 量化
 
@@ -248,7 +248,7 @@ torch._inductor.config.use_mixed_mm = True
 以这种方式应用量化将延迟从 **2.52 秒**改善到 **2.43 秒**。
 
 
-![](https://files.mdnice.com/user/59/cf900a3f-024b-437a-bb1f-807433ae4385.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cf900a3f-024b-437a-bb1f-807433ae4385.png)
 
 
 ## 资源
@@ -272,17 +272,17 @@ torch._inductor.config.use_mixed_mm = True
 
 - SSD-1B（https://huggingface.co/segmind/SSD-1B）
 
-![](https://files.mdnice.com/user/59/81e8a539-1a1c-4040-9234-7d8df1c3aac6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/81e8a539-1a1c-4040-9234-7d8df1c3aac6.png)
 
 - Stable Diffusion v1-5
 
-![](https://files.mdnice.com/user/59/739ab0b9-fd21-4231-bf15-e3e02f5d9227.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/739ab0b9-fd21-4231-bf15-e3e02f5d9227.png)
 
 - PixArt-alpha/PixArt-XL-2-1024-MS（https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS）
 
 值得注意的是，PixArt-Alpha 使用基于 Transformer 的架构作为反向扩散过程的去噪器，而不是 UNet。
 
-![](https://files.mdnice.com/user/59/c57813c7-a5ba-4953-abd1-05b7ddaee6ed.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c57813c7-a5ba-4953-abd1-05b7ddaee6ed.png)
 
 请注意，对于 Stable Diffusion v1-5 和 PixArt-Alpha，我们没有探索应用动态 int8 量化的最佳形状组合标准。通过更好的组合可能获得更好的数字。
 

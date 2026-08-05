@@ -14,7 +14,7 @@ Nsight Compute是一个CUDA kernel分析器，它通过硬件计数器和软件�
 这里就使用 Lecture 1讲义中的 Triton 实现的矩阵开方代码使用Nsight Compute进行Profile，看一下当前Nsight Compute可以帮助我们获得哪些关键信息。Nsight Compute安装包在 https://developer.nvidia.com/tools-overview/nsight-compute/get-started 可以获得。Nsight Compute提供了Windows/Linux/MacOS等多种操作系统的支持，我们可以根据自己的操作系统选择合适的版本进行安装。我这里选择的方式就是分别在Linux服务器和本地Mac上进行安装，在服务器上使用Nsight Compute Profile之后把生产的`xxx.ncu-rep`文件在本地Mac上用Nsight Compute打开。
 
 
-![](https://files.mdnice.com/user/59/5292a5a4-3cf6-49e8-88bd-b0af96ed851b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/5292a5a4-3cf6-49e8-88bd-b0af96ed851b.png)
 
 
 Profile的代码如下所示，命名为 `triton_sample.py`：
@@ -95,7 +95,7 @@ Profile的命令为：
 当出现如下界面并且生成了`maxtrix_square.ncu-rep`时就说明Profile程序成功运行，我们就可以分析这个文件了。
 
 
-![](https://files.mdnice.com/user/59/77c1458e-7a16-462b-bc4b-f5300940026d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/77c1458e-7a16-462b-bc4b-f5300940026d.png)
 
 ### Nsight Compute Profile结果分析
 
@@ -105,7 +105,7 @@ Profile的命令为：
 
 Nsight Compute打开`maxtrix_square.ncu-rep`后的第一页长这样：
 
-![](https://files.mdnice.com/user/59/87e43127-f8f3-44fd-ae35-30c01c9916f1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/87e43127-f8f3-44fd-ae35-30c01c9916f1.png)
 
 
 1. 第一个红框部分是顶部的工具栏，Result表示当前选定的Kernel名字是`605 - square_kernel_0d1d234`。Size表示的是这个Kernel的启动参数，即Grid Size和Block Size。Time, Cycles, GPU分 别表示执行时间是 28.99 us，周期数是28,327，使用的GPU是NVIDIA GeForce RTX 3080 Ti Laptop GPU。SM Frequency, Process, Attributes分别表示 SM 频率是973.60 MHz，进程ID是[400]，运行的程序是python3.10。
@@ -129,7 +129,7 @@ Nsight Compute打开`maxtrix_square.ncu-rep`后的第一页长这样：
 当我们鼠标悬停在Compute Throughput这一列时，会显示如下界面：
 
 
-![](https://files.mdnice.com/user/59/8b20a3fe-6eb7-4fa0-92d4-51f9d91c73f1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8b20a3fe-6eb7-4fa0-92d4-51f9d91c73f1.png)
 
 SM 吞吐量假设在 SMSPs 间负载平衡理想的情况下
 （此吞吐量指标表示在所有子单元实例的经过周期内达到的峰值持续率的百分比）
@@ -146,7 +146,7 @@ SM子分区是SM上的主要处理单元。
 当我们鼠标悬停在Memory Throughput这一列时，会显示如下界面：
 
 
-![](https://files.mdnice.com/user/59/9ac644bb-d99f-4962-bbcd-c3a695326e5e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9ac644bb-d99f-4962-bbcd-c3a695326e5e.png)
 
 计算内存管道吞吐量
 （此吞吐量指标表示在所有子单元实例的经过周期内达到的峰值持续率的百分比）
@@ -155,7 +155,7 @@ gpu：整个图形处理单元。
 
 同样，当我们鼠标悬停在 #Registers 这一列时，会显示如下界面：
 
-![](https://files.mdnice.com/user/59/5ffd3b2d-e871-439f-a9b9-1f1be0051d0b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5ffd3b2d-e871-439f-a9b9-1f1be0051d0b.png)
 
 每个线程分配的寄存器数量。
 
@@ -166,7 +166,7 @@ gpu：整个图形处理单元。
 最后，对Cycles上的界面的翻译为：
 
 
-![](https://files.mdnice.com/user/59/2a43d0e8-e530-409c-aa5e-fd0749d88ebd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2a43d0e8-e530-409c-aa5e-fd0749d88ebd.png)
 
 
 在 GPC 上经过的周期数
@@ -186,7 +186,7 @@ gpc：通用处理集群（General Processing Cluster）包含以 TPC（纹理�
 
 首先是 GPU Speed Of Light Throughput部分，它通常位于Details部分的顶部。它清晰的描述了GPU资源的利用情况。在下面的截图中，我们同样可以通过鼠标悬停的方式去看每个指标的细节，这里就不再赘述了。
 
-![](https://files.mdnice.com/user/59/4e4386fd-c7f5-4c67-ac04-d27e8c6dc7b5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4e4386fd-c7f5-4c67-ac04-d27e8c6dc7b5.png)
 
 从这个结果可以看出：
 
@@ -197,7 +197,7 @@ gpc：通用处理集群（General Processing Cluster）包含以 TPC（纹理�
 
 ##### Memory Workload Analysis 部分
 
-![](https://files.mdnice.com/user/59/f124f60e-26b2-4fdb-8b43-798cd76cfe4d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f124f60e-26b2-4fdb-8b43-798cd76cfe4d.png)
 
 
 从上到下对每个部分解析一下：
@@ -222,7 +222,7 @@ Detailed analysis of the memory resources of the GPU. Memory can become a limiti
 
 - Memory Throughput
 
-![](https://files.mdnice.com/user/59/58846b98-8642-4a11-8255-4e8c3d6bc32a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/58846b98-8642-4a11-8255-4e8c3d6bc32a.png)
 
 dram__bytes.sum.per_second
 在DRAM中访问的字节数
@@ -233,7 +233,7 @@ dram：设备（主要）内存，GPU的全局和本地内存所在的位置。
 - Mem Busy
 
 
-![](https://files.mdnice.com/user/59/2a4d8c91-41ab-4c6c-8457-c3708afb0560.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2a4d8c91-41ab-4c6c-8457-c3708afb0560.png)
 
 gpu_compute_memory_access_throughput.avg.pct_of_peak_sustained_elapsed
 计算内存管道：缓存和DRAM内部活动的吞吐量
@@ -245,7 +245,7 @@ DRAM：设备（主）内存，GPU的全局和本地内存所在位置。
 
 - L1/TEX Hit Rate
 
-![](https://files.mdnice.com/user/59/d68b4fea-f94e-44f5-be9a-5f78c8f8a992.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d68b4fea-f94e-44f5-be9a-5f78c8f8a992.png)
 
 l1tex_t_sector_hit_rate.pct
 
@@ -265,7 +265,7 @@ sector：缓存线或设备内存中对齐的32字节内存块。
 
 - Max Bandwidth
 
-![](https://files.mdnice.com/user/59/d32ed3a5-de96-43be-8815-b19c78c56dd4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d32ed3a5-de96-43be-8815-b19c78c56dd4.png)
 
 
 gpu_compute_memory_request_throughput.avg.pct_of_peak_sustained_elapsed
@@ -279,7 +279,7 @@ request：向硬件单元发出的执行某些操作的命令，例如从某个�
 
 - L2 Hit Rate
 
-![](https://files.mdnice.com/user/59/9213b09f-94b0-4e98-b89e-0344195ad9a5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9213b09f-94b0-4e98-b89e-0344195ad9a5.png)
 
 l2s_t_sector_hit_rate.pct
 L2sector查找命中的比例
@@ -299,7 +299,7 @@ sector：缓存线或设备内存中对齐的32字节内存块。
 
 ###### 内存访问模式分析
 
-![](https://files.mdnice.com/user/59/96a31fae-c54d-4243-bc57-8cff5397d808.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/96a31fae-c54d-4243-bc57-8cff5397d808.png)
 
 这里显示了两种内存访问模式的性能分析结果:
 
@@ -318,7 +318,7 @@ sector：缓存线或设备内存中对齐的32字节内存块。
 
 ###### Memory Chart图分析
 
-![](https://files.mdnice.com/user/59/a38d544d-6a18-43c6-b414-2e545932fcb5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a38d544d-6a18-43c6-b414-2e545932fcb5.png)
 
 首先程序的输入为`x = torch.randn(1823, 781, device='cuda')`，也就是需要读写的数据应该是`1823*781*4/1024/1024=5.43MB`，算上一些local memory读写数据大致是符合预期的，这里我们看不出什么端倪。需要指出的是，我们可以从这个图里面观测自己的kernel从Device Memory读写的数据是否正常来判断程序的优化是否生效。
 
@@ -327,11 +327,11 @@ sector：缓存线或设备内存中对齐的32字节内存块。
 
 下面这张图展示Source Counters部分的详细信息：
 
-![](https://files.mdnice.com/user/59/a68d87cd-3815-432a-939a-20bfbdfacebe.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a68d87cd-3815-432a-939a-20bfbdfacebe.png)
 
 以及源码：
 
-![](https://files.mdnice.com/user/59/0ff3eaaf-aae2-4f4f-8492-5608c867b339.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0ff3eaaf-aae2-4f4f-8492-5608c867b339.png)
 
 
 接下来分析下这些信息：
@@ -375,17 +375,17 @@ On average, each warp of this kernel spends 42.1 cycles being stalled waiting fo
 在展示的结果中，会按照重要性进行排序，以便用户可以关注最重要的问题，因为最重要的问题最有可能产生最大的影响。这里，每条指令的Long Scoreboard Stalls平均占据了近42个周期。这些停滞和访问各个级别的内存层次结构需要的延迟有关。这种类型的内置专业知识可以让用户无需掌握硬件架构专业知识即可了解性能问题。
 
 
-![](https://files.mdnice.com/user/59/cd75f2c2-c369-409b-8552-f4d384a54296.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cd75f2c2-c369-409b-8552-f4d384a54296.png)
 
 我们点击Warp Stall Sampling之后跳到了Source Counters部分，具体见上一节的分析。
 
 另外，点击下方红色框的按钮后，我们可以可以看到一些内置规则信息，包括计算中使用了哪些硬件事件以及定义了哪些阈值来指示性能问题。
 
-![](https://files.mdnice.com/user/59/63bd72d8-27b6-4953-8909-4331575bd742.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/63bd72d8-27b6-4953-8909-4331575bd742.png)
 
 鼠标悬停到Stall Long Scoreboard或者其它状态上都可以看到对应的知识库，让我们看一下Stall Long Scoreboard的解释：
 
-![](https://files.mdnice.com/user/59/9ef648aa-5d1e-4cd9-bbe7-e5bec3206014.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9ef648aa-5d1e-4cd9-bbe7-e5bec3206014.png)
 
 smsp_average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio
 每个发射周期中驻留的平均warp数，等待L1TEX（本地、全局、表面、纹理）操作的记分板依赖

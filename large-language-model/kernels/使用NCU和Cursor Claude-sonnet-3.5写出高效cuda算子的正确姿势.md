@@ -14,7 +14,7 @@
 如果要在 SGLang 推理框架中去支持MiniMax Text01 模型，首先就需要实现 https://huggingface.co/MiniMaxAI/MiniMax-Text-01/blob/main/modeling_minimax_text_01.py 中的 MiniMaxText01LightningAttention 模块，这个正是我所擅长的。所以几乎用了一个完整的周末在 SGLang 中建立了 MiniMaxText01LightningAttention 这个模块的 Prefill 和 Decode 过程的优化算子和 Benchmark，对于 Prefiil 来说我只建立了一个 Benchmark ，使用了 OpenNLPLab 提供的lightning_attn2的 Triton 算子 https://github.com/OpenNLPLab/lightning-attention/blob/main/lightning_attn/ops/triton/lightning_attn2.py 。这个 Triton 算子相比于 HuggingFace 的原始实现把 Prefill 端到端耗时提升了数倍，可以参考下面的截图：
 
 
-![](https://files.mdnice.com/user/59/17e71224-bbe9-49b8-88a1-f97f320255a3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/17e71224-bbe9-49b8-88a1-f97f320255a3.png)
 
 
 而对于 Decode 阶段来说，这是一个典型的 Memory Bound 的算子，这个算子的Python代码单独抽出来非常简单。也是我这篇文章的起点，就是把这个算子的性能优化一下，提升带宽利用率和降低执行时间。然后我展示了一下如何正确的使用Cursor结合NCU来尝试做CUDA优化。
@@ -51,14 +51,14 @@ def lightning_attention_decode_naive(q, k, v, past_kv, slope):
 其中，输入Tensor的形状如下截图：
 
 
-![](https://files.mdnice.com/user/59/b543d7f7-6ab9-4c86-96c3-d191e5ba5b25.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b543d7f7-6ab9-4c86-96c3-d191e5ba5b25.png)
 
 其次，我这里的目标就是优化一下这个Kernel，尽可能的提升带宽利用率并且降低kernel的耗时。总的来说，我在Cursor的协助下写了2个版本的Triton Kernel，以及几个版本的CUDA Kernel，最后无论是在lightning_attention_decode这个算子的Micro Benchmark还是端到端的Lightning Attention模块的耗时相比于原始的PyTorch实现都实现了加速，对于算子来说在batch较小时可达到2倍加速。
 
 
-![](https://files.mdnice.com/user/59/645d3b4a-ad18-4733-9672-a000d99af2b7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/645d3b4a-ad18-4733-9672-a000d99af2b7.png)
 
-![](https://files.mdnice.com/user/59/e9bcdf6a-8839-4eea-b886-c069c650e9bc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e9bcdf6a-8839-4eea-b886-c069c650e9bc.png)
 
 详细数据可以参考 https://github.com/sgl-project/sglang/pull/3030
 
@@ -70,7 +70,7 @@ def lightning_attention_decode_naive(q, k, v, past_kv, slope):
 
 kernel代码：https://github.com/sgl-project/sglang/pull/2920/files#diff-16ed66afc4b7f52545a3fffd55c9fd6daaf87189d9a0d252fccba42951c1cc40R14-R105
 
-![](https://files.mdnice.com/user/59/aa40712e-822f-4454-96c9-f651c49b9d48.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/aa40712e-822f-4454-96c9-f651c49b9d48.png)
 
 首先是一个最Naive的版本，对于q,k,v的每个头使用一个Block来计算，也就是一共有$b\times h$个Block，然后每个头的维度都从92 padding到128来满足Triton kernel的计算需求。
 
@@ -80,7 +80,7 @@ kernel代码：https://github.com/sgl-project/sglang/pull/2920/files#diff-16ed66
 
 https://github.com/sgl-project/sglang/pull/2966
 
-![](https://files.mdnice.com/user/59/ef303883-b0c6-4595-b5f6-b90352260269.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ef303883-b0c6-4595-b5f6-b90352260269.png)
 
 把上面的naive版本的Triton kernel之前的手动Padding到128移除了，然后在kernel中使用Mask的方式来解决dim维度没有对齐到2的幂次的问题。从上面的结果可以看到，Lightning Attention模块的端到端时间确实是下降了一些。
 
@@ -294,11 +294,11 @@ print('end')
 
 Triton版本：
 
-![](https://files.mdnice.com/user/59/34d2c164-0168-4ea3-b9c0-8dd43344a0d2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/34d2c164-0168-4ea3-b9c0-8dd43344a0d2.png)
 
 CUDA版本：
 
-![](https://files.mdnice.com/user/59/a5b0002c-629e-41c2-a464-edac9280b637.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5b0002c-629e-41c2-a464-edac9280b637.png)
 
 有两个主要区别，首先CUDA版本没有使用Shared Memory加速读取和写入，第二个区别是Triton版本写回全局内存的数据量要小得多。
 
@@ -399,7 +399,7 @@ __global__ void lightning_attention_decode_kernel(
 
 继续打开NCU的Memory Wordload Analysis，我们发现这次它抛出了一个写Global Memory不连续导致性能降低的问题。
 
-![](https://files.mdnice.com/user/59/b33e4f1c-c0cc-46a3-8654-a3043d8cc144.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b33e4f1c-c0cc-46a3-8654-a3043d8cc144.png)
 
 把这个结果反馈给Cursor，Cursor现在可以知道主要问题是写new_kv的时候内部循环·for (int e = 0; e < embed_dim; ++e)·导致线程在访问全局内存时stride太大，然后内存没有合并访问，且每个线程需要写入多次全局内存，增加了内存事务数。这也是我们看到这个kernel写全局内存的时候比Triton多了几倍的原因。知道原因之后Cursor就可以改成正确的代码了。代码如下：
 

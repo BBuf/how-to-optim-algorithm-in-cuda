@@ -54,7 +54,7 @@ if (is_h20 && tuning_H20_kernel) {
 
 Benchmark结果：
 
-![](https://files.mdnice.com/user/59/394fa025-d875-4bef-a763-0c40515f303b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/394fa025-d875-4bef-a763-0c40515f303b.png)
 
 
 ## 4. FlashInfer Cutlass MoE DP通信优化：FP4量化+Allgatherv
@@ -126,7 +126,7 @@ if (grid.x < numSMs && block.x > threshold) {
 }
 ```
 
-![](https://files.mdnice.com/user/59/10ead02e-8d4d-416f-b999-d8fc496cefec.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/10ead02e-8d4d-416f-b999-d8fc496cefec.png)
 
 ## 7. DeeoSeek-V3, Qwen和Llama4模型支持DP Attention下的Reduce-Scatter通信优化
 
@@ -320,7 +320,7 @@ def set_kv_buffer_kernel(k_cache, v_cache, loc, k, v, fallback=False):
         v_cache[loc] = v
 ```
 
-![](https://files.mdnice.com/user/59/b7f0a008-19c8-4173-a4ba-38f758b62033.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b7f0a008-19c8-4173-a4ba-38f758b62033.png)
 
 ## 12. RoPE + Set KV Buffer kernel fuse
 
@@ -436,7 +436,7 @@ python3 -m sglang.bench_serving --backend sglang --dataset-name random --num-pro
 
 Benchmark结果：
 
-![](https://files.mdnice.com/user/59/ae4530bb-cad3-4f05-a666-9ee70b4bc1ee.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ae4530bb-cad3-4f05-a666-9ee70b4bc1ee.png)
 
 ## 16. MoE routed scaling factor kernel fuse
 
@@ -459,7 +459,7 @@ __global__ void moe_fused_gate_kernel(...) {
 
 Benchmark结果：
 
-![](https://files.mdnice.com/user/59/37321d1f-1bb8-4803-bb53-8498141d4ac6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/37321d1f-1bb8-4803-bb53-8498141d4ac6.png)
 
 ## 17. GPT-OSS模型Attention Sinks支持与TRT-LLM MHA后端优化
 
@@ -626,7 +626,7 @@ Benchmark结果：
 
 Benchmark结果：
 
-![](https://files.mdnice.com/user/59/e866c5b9-7d17-4fd4-a0df-5af47ae1d596.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e866c5b9-7d17-4fd4-a0df-5af47ae1d596.png)
 
 相关资料：关于Pingpong和Cooperative的一些感性理解(https://zhuanlan.zhihu.com/p/1922067252909434076) 以及对当前这个PR的详细解释：Pingpong Schedule并不是万能钥匙(https://zhuanlan.zhihu.com/p/1935338652726204054)
 
@@ -650,11 +650,11 @@ Benchmark结果：https://github.com/sgl-project/sglang/pull/8450#issuecomment-3
 
 Benchmark结果：
 
-![](https://files.mdnice.com/user/59/9ce6ea6a-3fe0-4c02-bcfd-fad7d8cca3bb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9ce6ea6a-3fe0-4c02-bcfd-fad7d8cca3bb.png)
 
-![](https://files.mdnice.com/user/59/555d4909-4af7-4e2e-ae15-b0a9f6f202f7.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/555d4909-4af7-4e2e-ae15-b0a9f6f202f7.jpg)
 
-![](https://files.mdnice.com/user/59/c8a07fbc-1f35-4ed1-9733-ea73be2264d8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c8a07fbc-1f35-4ed1-9733-ea73be2264d8.png)
 
 ## 23. CUDA图捕获时禁用Python垃圾回收器优化
 
@@ -772,11 +772,11 @@ def freeze_gc(context: str):
 
 改动：
 
-![](https://files.mdnice.com/user/59/9e06e122-5374-4cf8-b1cb-71f9daba6521.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9e06e122-5374-4cf8-b1cb-71f9daba6521.png)
 
 Benchmark结果：
 
-![](https://files.mdnice.com/user/59/367728b5-38c5-4bd4-972f-f59a5e91c86a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/367728b5-38c5-4bd4-972f-f59a5e91c86a.png)
 
 在B200上以并发=1运行Qwen2.5-7B模型，总吞吐从425.01提升到437.64 tok/s，提升3.0%。 
 
@@ -788,7 +788,7 @@ Benchmark结果：
 
 性能提升：显著减少ITL（Inter-Token Latency），特别是对于GQA组大小为4的模型如Llama3-8B，因为FlashInfer将head group与token维度融合使得组大小为4就足以受益于Tensor Core。 
 
-![](https://files.mdnice.com/user/59/3f9df819-4a5a-49ce-aaa2-98b8ca63a015.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3f9df819-4a5a-49ce-aaa2-98b8ca63a015.png)
 
 
 ## 28. CUTLASS 4.2升级与K-Major Scale Factor支持

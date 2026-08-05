@@ -1,4 +1,4 @@
-![Towards Free Normalization](https://files.mdnice.com/user/59/b8805768-a3f9-4e21-b343-dad44868c3db.png)
+![Towards Free Normalization](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b8805768-a3f9-4e21-b343-dad44868c3db.png)
 
 > 原文：Towards Free Normalization: Fusing Normalization into GEMM and Attention Kernels
 > 原文地址：PyTorch Blog（https://pytorch.org/blog/towards-free-normalization-fusing-normalization-into-gemm-and-attention-kernels/）
@@ -35,7 +35,7 @@ y = x * rstd
 
 最自然的想法，是把 Norm 融到前一个 GEMM 的 epilogue，或者融到后一个 GEMM 的 prologue。但这里有一个 tile 维度冲突。
 
-![Normalization and GEMM tiling mismatch](https://files.mdnice.com/user/59/fba55352-61d6-428c-83a8-fde6087fb3ce.png)
+![Normalization and GEMM tiling mismatch](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fba55352-61d6-428c-83a8-fde6087fb3ce.png)
 
 归一化需要看到一整行，也就是完整的最内层维度；GEMM 则通常同时在 M、N 两个维度切 tile，每个 CTA 只负责输出矩阵的一小块。一个 CTA 算出的局部 tile 不足以得到整行统计量。
 
@@ -43,13 +43,13 @@ y = x * rstd
 
 一种直接做法是强制 GEMM 的 `tile_n` 覆盖整个 N。这样一个 CTA 拿到了完整输出行，可以在 epilogue 里完成归一化。
 
-![Naive full-N GEMM fusion](https://files.mdnice.com/user/59/f2bfd311-5c44-4308-9969-0dfa18703321.png)
+![Naive full-N GEMM fusion](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f2bfd311-5c44-4308-9969-0dfa18703321.png)
 
 这个设计只适合较小的 N。原文给出了一笔 Blackwell 上的共享内存预算：每个 SM 约有 228 KB shared memory，BF16 GEMM 采用双缓冲，假设 `tile_m=32`、`tile_k=32`，可支持的 `tile_n` 介于 512 和 1024 之间。考虑实际 kernel 通常选择 2 的幂，最大可用 N 大约是 512。
 
 强行把更大的 N 放进一个 CTA，会降低 occupancy，挤压流水线 buffer，也破坏 GEMM 原本合适的 tile 形状。下面的实测反映了这个问题。
 
-![Naive fusion benchmark](https://files.mdnice.com/user/59/96cfec8c-4c89-40a5-8e7c-f1e9bfb41e7c.png)
+![Naive fusion benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/96cfec8c-4c89-40a5-8e7c-f1e9bfb41e7c.png)
 
 图中的指标是“融合后隐藏了多少独立 LayerNorm 延迟”。小 shape 可以隐藏 17% 到 32%；当 K、N 增大到 256 一带时，收益消失，部分配置甚至出现明显回退。`K=N=256` 时，结果为 -64.38%。
 
@@ -78,11 +78,11 @@ rmsnorm(A) = A * rstd(A)[:, None]
 
 这就是 Lazy Pre-Norm 的核心。GEMM 仍然直接读取未经归一化的 `A`。Tensor Core 沿 K 维累加时，另一个 warp 同步累加 `A` 的平方和；等 GEMM 完成后，再在 epilogue 中用每行 `rstd` 缩放输出。
 
-![Lazy Pre-Norm warp specialization](https://files.mdnice.com/user/59/f00435d5-adbc-4ae4-9d8e-28b3fee22b56.png)
+![Lazy Pre-Norm warp specialization](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f00435d5-adbc-4ae4-9d8e-28b3fee22b56.png)
 
 这样既不要求 GEMM 的 N tile 覆盖整行，也省去了归一化结果的物化。Norm 的输入读取、平方和归约以及输出写回，大部分都被 GEMM 主循环和 epilogue 吸收了。
 
-![Lazy Pre-Norm benchmark](https://files.mdnice.com/user/59/851d04a3-36cb-43f9-b0a3-3230015f5f58.png)
+![Lazy Pre-Norm benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/851d04a3-36cb-43f9-b0a3-3230015f5f58.png)
 
 在图中的测试范围内，Lazy Pre-Norm 隐藏了 41% 到 98% 的 RMSNorm 延迟。其中 `K=2048、N=512` 时达到 98.01%；更大的 N 会增加 GEMM epilogue 和数据移动压力，收益随之下降。
 
@@ -98,11 +98,11 @@ rmsnorm(A) = A * rstd(A)[:, None]
 
 更通用的办法是把一行拆给多个 CTA。原文受 Quack 的设计启发，使用 CTA cluster 和 distributed shared memory（DSMEM）交换局部归约结果。
 
-![Multi-CTA normalization split](https://files.mdnice.com/user/59/005f6c67-7c2c-46b9-9f3f-6a9eed6f08ab.png)
+![Multi-CTA normalization split](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/005f6c67-7c2c-46b9-9f3f-6a9eed6f08ab.png)
 
 每个 CTA 负责同一行的一个 N 分片，先计算局部平方和或局部均值；cluster 内再合并这些很小的统计量，得到整行结果。大块 Tensor 数据留在各自 CTA，本身不需要跨 CTA 复制。
 
-![Multi-CTA reduction algorithm](https://files.mdnice.com/user/59/336176f0-63f0-4e2b-a7e9-bd144935b798.png)
+![Multi-CTA reduction algorithm](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/336176f0-63f0-4e2b-a7e9-bd144935b798.png)
 
 这套归约被放进 GEMM epilogue。相邻 CTA 必须拥有相同的 `m_tile`，并覆盖不同的 `n_tile`，这样它们才是在协作处理同一批输出行。
 
@@ -114,7 +114,7 @@ CTA cluster 也给 GEMM 调度带来一些限制：
 
 原文的实现基于 TLX warp-specialized GEMM。测试 shape 来自广告推荐模型，M 固定为 256K，K、N 主要位于数百到数千的范围。作者只展示到 K、N 为 2048，因为 N 达到 4096 后，独立 Norm 在总耗时中的占比已经低于 5%。
 
-![Multi-CTA Norm forward benchmark](https://files.mdnice.com/user/59/2b137784-1ab3-4b8d-80b2-c0b731216ecc.png)
+![Multi-CTA Norm forward benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2b137784-1ab3-4b8d-80b2-c0b731216ecc.png)
 
 前向结果中，RMSNorm 融合隐藏了约 48% 到 72% 的归一化延迟；LayerNorm 为约 50% 到 92%。最高值出现在 LayerNorm 的某些 shape，达到 91.61%。
 
@@ -124,11 +124,11 @@ CTA cluster 也给 GEMM 调度带来一些限制：
 
 原文采用了 fusion regrouping。它不要求前向和反向都绑定同一对算子，而是分别为两个方向选择位置合适的相邻 GEMM，让 Norm 在两边都尽量落到 epilogue。
 
-![Forward and backward fusion regrouping](https://files.mdnice.com/user/59/a624230b-6e3a-400f-8849-5d9ac8508c94.png)
+![Forward and backward fusion regrouping](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a624230b-6e3a-400f-8849-5d9ac8508c94.png)
 
 这种安排需要从完整计算图看依赖，不能只在单个 PyTorch op 边界上做局部替换。
 
-![Multi-CTA Norm backward benchmark](https://files.mdnice.com/user/59/6b277d59-851d-4afd-b4fc-5f65c365e7a2.png)
+![Multi-CTA Norm backward benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6b277d59-851d-4afd-b4fc-5f65c365e7a2.png)
 
 反向测试中，RMSNorm 融合隐藏了约 31% 到 69% 的原始 Norm backward 延迟，LayerNorm 为约 37% 到 71%。最高值为 70.71%。相比前向，反向的依赖和归约更多，多数配置仍能省掉大半 Norm 时间。
 
@@ -136,7 +136,7 @@ CTA cluster 也给 GEMM 调度带来一些限制：
 
 前两种方法围绕 GEMM 展开。原文还把同样的思路用于 Kunlun 模型里的 GDPA（Generalized Dot Product Attention）。这一结构在 Attention 前后穿插了 LayerNorm、RMSNorm 和 residual：
 
-![GDPA block before fusion](https://files.mdnice.com/user/59/00f9e1a2-a7f3-4558-aace-e15ed27b04a1.png)
+![GDPA block before fusion](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/00f9e1a2-a7f3-4558-aace-e15ed27b04a1.png)
 
 如果每一步都单独执行，Attention 本体之外会出现多次中间 Tensor 读写。FlashNormAttention 将这些步骤并入一个 attention kernel，让中间值尽量留在寄存器、shared memory 或 Tensor Memory（TMEM）中。
 
@@ -159,13 +159,13 @@ Multi-CTA cluster 中的 CTA 共享同一个 batch index，分别处理不同 at
 
 执行流水线原来有四个分区：load、MMA、activation 和 epilogue。融合 LayerNorm 后增加第五个分区。activation 使用 8 个 warp（0～7），LayerNorm 使用 4 个 warp（8～11），各分区通过生产者—消费者依赖并行推进。
 
-![FlashNormAttention warp-specialized pipeline](https://files.mdnice.com/user/59/85429f38-ebe6-4dbd-8c22-e95f0d922ee2.png)
+![FlashNormAttention warp-specialized pipeline](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/85429f38-ebe6-4dbd-8c22-e95f0d922ee2.png)
 
 ### 5.3 前向性能
 
 前向 benchmark 固定 K/V 长度为 128，Q 使用平均稀疏度 0.5，batch size 为 768，head dimension 为 128；测试改变 Q 的最大长度和 head 数量。
 
-![FlashNormAttention forward benchmark](https://files.mdnice.com/user/59/03b19fa6-9a51-4d84-899c-3c023dd1f1c8.png)
+![FlashNormAttention forward benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/03b19fa6-9a51-4d84-899c-3c023dd1f1c8.png)
 
 不同配置下，端到端 kernel 延迟降低约 16% 到 35%。最大值 35.39% 出现在 Q 最大长度为 3000、head 数为 2 的配置。head 数增多后，Attention 主体计算占比提高，Norm 融合带来的相对收益会下降。
 
@@ -184,7 +184,7 @@ rmsnorm_in  = rmsnorm_out / rstd
 
 一个很有意思的取舍是 outer residual。实现使用 `TMA_REDUCE_ADD`，把 shared memory 中的结果直接累加到 HBM。它会增加一点显存流量，但在计算和 pipeline stall 已成为瓶颈时，可以减少寄存器占用与额外调度，整体反而更快。
 
-![FlashNormAttention backward benchmark](https://files.mdnice.com/user/59/e1feca02-bcbd-4165-a498-3f52fcbf7ba1.png)
+![FlashNormAttention backward benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e1feca02-bcbd-4165-a498-3f52fcbf7ba1.png)
 
 反向端到端延迟降低约 4% 到 18%，最高为 18.08%。收益小于前向，原因是反向数据依赖更复杂，部分中间量也需要重算和归约。
 

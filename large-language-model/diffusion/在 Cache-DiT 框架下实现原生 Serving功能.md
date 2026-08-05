@@ -348,7 +348,7 @@ root@264a63f2d86e:/nas/bbuf/cache-dit# curl -X POST http://localhost:8000/genera
 
 - 结果
 
-![](https://files.mdnice.com/user/59/3b471855-3c19-406b-9ae7-52fa7c141cdc.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3b471855-3c19-406b-9ae7-52fa7c141cdc.jpg)
 
 ## 0x7. 总结
 

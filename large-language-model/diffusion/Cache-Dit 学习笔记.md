@@ -4,7 +4,7 @@
 
 最近在研究DiT(Diffusion Transformer)推理优化的时候接触到了Cache-Dit这个项目，也正在参与建设这个项目，发现这是一个比较有意思但是知名度看起来还不大的工作，这里写一篇学习笔记也算是宣传下。Cache-Dit是唯品会开源的一个PyTorch原生的DiT推理加速引擎（https://github.com/vipshop/cache-dit）,它通过混合缓存加速和并行化技术来加速DiT模型的推理。这个项目最吸引我的地方在于它不仅实现了各种缓存算法,还支持Context Parallelism和Tensor Parallelism,并且做到了和torch.compile、量化方法的集成，最关键的是支持新模型比较快。
 
-![](https://files.mdnice.com/user/59/27497ea6-b6a9-4a34-ad51-273b52408560.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/27497ea6-b6a9-4a34-ad51-273b52408560.png)
 
 欢迎感兴趣的伙伴来点star或者做贡献。
 
@@ -14,7 +14,7 @@
 
 模型支持列表
 
-![](https://files.mdnice.com/user/59/38114839-dc24-4a03-b000-a7047caf2819.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/38114839-dc24-4a03-b000-a7047caf2819.png)
 
 ## Cache-Dit的核心设计理念
 
@@ -285,7 +285,7 @@ residual_diff_threshold是DBCache中最关键的超参数。它决定了什么�
 
 除了DBCache,Cache-Dit还实现了DBPrune(Dynamic Block Prune)算法。DBPrune和DBCache的思路类似,但它不是缓存residual,而是直接跳过(prune)某些blocks的计算。
 
-![](https://files.mdnice.com/user/59/0b1a012d-b455-4d97-b2ca-a56d0f600953.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0b1a012d-b455-4d97-b2ca-a56d0f600953.png)
 
 ```python
 from cache_dit import DBPruneConfig
@@ -305,7 +305,7 @@ cache_dit.enable_cache(
 
 DBPrune可以实现更激进的加速,但需要更仔细地调整参数。根据仓库的User Guide,在FLUX.1上使用L20 GPU,DBPrune可以prune掉不同比例的blocks,实现不同程度的加速(详见: https://github.com/vipshop/cache-dit/blob/main/docs/User_Guide.md#dbprune)。
 
-![](https://files.mdnice.com/user/59/1877c4a4-c36e-4889-a1eb-6b106e82c62e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1877c4a4-c36e-4889-a1eb-6b106e82c62e.png)
 
 ## Hybrid Cache CFG
 
@@ -405,13 +405,13 @@ cache_dit.enable_cache(
 
 更详细的细节可以直接看DefTruth作者的这篇博客：https://zhuanlan.zhihu.com/p/1937477466475197176
 
-![](https://files.mdnice.com/user/59/e4d3d4b9-ee7f-482c-ae10-faa706210d43.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e4d3d4b9-ee7f-482c-ae10-faa706210d43.png)
 
 ## SCM: Steps Computation Masking
 
 SCM(Steps Computation Masking)是受LeMiCa和EasyCache启发的一个优化策略。它的核心观察是:早期的caching会引入放大的下游误差,而后期的caching影响较小。因此,应该采用非均匀的cached steps分布。
 
-![](https://files.mdnice.com/user/59/9702df01-959c-4bbb-9d08-3f97732228ea.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9702df01-959c-4bbb-9d08-3f97732228ea.jpg)
 
 ```python
 from cache_dit import DBCacheConfig, TaylorSeerCalibratorConfig
@@ -800,7 +800,7 @@ Timeline:
 3. **V projection完成后立即启动V all-to-all**,同时等待Q和K的通信完成
 4. 所有通信完成后,进行attention计算
 
-![](https://files.mdnice.com/user/59/4549e7b3-c4f7-4a69-a6ea-5f3447dcfe92.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4549e7b3-c4f7-4a69-a6ea-5f3447dcfe92.png)
 
 #### 实现细节
 

@@ -52,7 +52,7 @@ TPU:
 
 由于我们大多数人都是租用计算资源,从未亲眼见过它们的样子,这里展示了一个 8xH100 节点的实物图(这是 Dell PowerEdge XE9680 机架服务器的 GPU 托盘):
 
-![nvidia-a100-spec](https://files.mdnice.com/user/59/9654f571-b9c1-4bf1-8755-2646b9977374.png)
+![nvidia-a100-spec](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9654f571-b9c1-4bf1-8755-2646b9977374.png)
 
 ## 术语表
 
@@ -93,7 +93,7 @@ ML训练的高ROI有两个指标:
 
 让我们在接下来的章节中以 NVIDIA A100 的规格作为参考点。
 
-![nvidia-a100-spec](https://files.mdnice.com/user/59/36d7d242-20b6-4021-8ab0-0abe42045743.png)
+![nvidia-a100-spec](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/36d7d242-20b6-4021-8ab0-0abe42045743.png)
 
 source(https://www.nvidia.com/en-us/data-center/a100/)
 
@@ -122,7 +122,7 @@ source(https://www.nvidia.com/en-us/data-center/a100/)
 
 此外，TFLOPS取决于矩阵的大小，如下表所示：
 
-![nvidia-a100-matmul-tflops](https://files.mdnice.com/user/59/f29fb4a3-f0ec-4967-9fd3-68a467399ce6.png)
+![nvidia-a100-matmul-tflops](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f29fb4a3-f0ec-4967-9fd3-68a467399ce6.png)
 
 source(https://developer.nvidia.com/blog/cuda-11-features-revealed/)
 

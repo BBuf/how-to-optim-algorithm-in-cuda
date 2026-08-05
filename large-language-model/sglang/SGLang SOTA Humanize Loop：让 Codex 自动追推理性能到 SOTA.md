@@ -2,7 +2,7 @@
 
 # 0x0. 前言
 
-![](https://files.mdnice.com/user/59/7073bcef-a797-4e37-a1bc-8e791570e803.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7073bcef-a797-4e37-a1bc-8e791570e803.png)
 
 先宣传一下这个仓库：AI-Infra-Auto-Driven-SKILLS(https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS)。如果你也在做推理框架开发，或者经常需要让 Agent 帮你跑 benchmark、看 profile、追性能、查历史 PR，欢迎顺手点个 Star。后面我会继续把 SGLang、vLLM、TensorRT-LLM 相关的模型优化和生产排障经验整理进去。
 
@@ -67,7 +67,7 @@ ln -s "$PWD/model-pr-optimization-history" "$SKILL_DIR/model-pr-history-knowledg
 
 下面是这个 SKILL 的流程图。核心思想是把 benchmark gate、profile gate、patch loop 和 final report 串成一条闭环。
 
-![sglang-sota-humanize-loop 流程图](https://files.mdnice.com/user/59/f09205a1-746c-46df-b901-bf04de240f64.png)
+![sglang-sota-humanize-loop 流程图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f09205a1-746c-46df-b901-bf04de240f64.png)
 
 这个图看起来长，但实际就是一句话：先证明差距，再定位差距，再改 SGLang，再用同一个真实 workload 验证。
 
