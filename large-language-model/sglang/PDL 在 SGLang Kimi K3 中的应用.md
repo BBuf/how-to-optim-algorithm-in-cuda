@@ -157,9 +157,34 @@ PR #32541 中 `_set_kv_and_concat_q_fused` 的 docstring 写明了两个目的�
 
 ### `prefetch_bc` 的安全条件
 
-PR #32541 在 `_add3` 的调用点说明了 `prefetch_bc` 的使用条件：“prefetch_bc loads b/c before the PDL wait: only pass True when their producers are at least two kernels back”。PDL wait 只与紧邻前驱的 trigger 配对，因此 b、c 的 producer 至少要位于当前 kernel 的前两跳，才能在 wait 前读取。
+PR #32541 在 `_add3` 的调用点说明了 `prefetch_bc` 的使用条件：“prefetch_bc loads b/c before the PDL wait: only pass True when their producers are at least two kernels back”。`PDLWaitPrimary` 只处理与紧邻前驱 grid 的 PDL 关系，并不会回头检查 `b/c` 的 producer。对应的 CUDA 代码在 `elementwise/add3.cuh` 中：
 
-MoE 尾部满足这个条件：b 来自 all-reduce，而 all-reduce 使用 plain launch，相当于一道完整屏障。到 `_add3` 启动时，只有 a 的 producer 可能尚未结束。
+```c++
+if constexpr (kPrefetchBC) {
+  b.load(params.b, vid);
+  c.load(params.c, vid);
+  device::PDLWaitPrimary<kUsePDL>();
+  a.load(params.a, vid);
+} else {
+  device::PDLWaitPrimary<kUsePDL>();
+  a.load(params.a, vid);
+  b.load(params.b, vid);
+  c.load(params.c, vid);
+}
+```
+
+这段代码把三个输入分成了两组。`a` 是紧邻 `_add3` 的 `routed_expert_up_proj` 产生的。由于 `up_proj` 和 `_add3` 之间使用 PDL，`_add3` 的 block 开始执行时，前一个 GEMM 可能还没有写完 `a`，所以 `a.load` 必须放在 wait 之后。`b` 是更早的 all-reduce 写出的 `shared_output`，`c` 则是更早生成的 `prefix_sum`。
+
+这条调用链的顺序可以简化成：
+
+```text
+all-reduce 写 b → norm → up_proj 写 a ──PDL──> add3
+c 更早完成                              先 load b/c → wait → load a
+```
+
+这里的 all-reduce 使用 plain launch，没有跨过它做 PDL 重叠，相当于同一条 stream 上的一道完整边界。后面的 norm 和 `up_proj` 能够开始时，`b` 已经写完，`c` 也早已就绪。因此 `_add3` 可以在等待 `a` 的同时先发起 `b/c` 的读取，把这部分显存访问藏在 `up_proj` 的尾部；wait 返回后只需再读取 `a` 并完成三路相加。如果关闭 `prefetch_bc`，三次读取都要等到 wait 之后才开始。
+
+“producer 至少位于前两跳”是代码中的简化判断，真正的安全条件是：wait 之前读取的输入必须已经写完，而且不会再被修改。如果以后调整调用链，让 `b` 或 `c` 的 producer 变成仍可能与 `_add3` 重叠的前驱，就必须关闭 `prefetch_bc`，或者重新建立能够证明其已完成的同步边界。
 
 ## 0x4. 通信 kernel 如何使用 PDL
 
