@@ -1,5 +1,7 @@
 # PDL 在 SGLang Kimi K3 中的应用
 
+SGLang Team，2026 年 8 月 5 日
+
 Kimi K3 是一个 2.8T 参数的混合注意力模型。decode 一个 token 需要经过 93 个注意力层（69 层 KDA + 24 层 MLA）和 92 层 latent-MoE。bs=1 时，单层的计算量很小，瓶颈主要来自 kernel 数量和 launch 延迟，而不是 FLOPs。模型刚接入时，一个 decode step 会启动数百个小 kernel。
 
 SGLang 后续通过 kernel 融合、替换 NVIDIA kernel 和通信融合等方式优化了这条路径。在推测解码介入前，day-0 版本的 decode 吞吐约为 113 tok/s（PR #32541 中的最新结果约为 118 tokens/s）。下文只引用已经公开的绝对性能数据，未公开的测试结果只保留定性结论。这些优化新增或改写了不少 kernel，其中多数接入了 PDL（Programmatic Dependent Launch），用于重叠相邻 kernel 的 launch 和 prolog。
