@@ -6,7 +6,7 @@
 
 Mixture-of-Experts (MoE) 是一种流行的LLM模型架构。虽然它通过每个token激活更少的参数来减少训练和推理的计算量，但在实现最佳计算效率、高内存和通信压力以及处理模型动态和稀疏性方面带来了额外挑战。在这里，我们介绍了一种新的MoE推理解决方案，MetaShuffling，它使我们能够高效地部署Llama 4模型进行生产推理。
 
-![](https://files.mdnice.com/user/59/40a1e6e5-9ef0-4404-ae0c-c65c1019d38c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/40a1e6e5-9ef0-4404-ae0c-c65c1019d38c.png)
 
 Llama 4 Scout and Maverick模型正式发布。Scout / Maverick具有共享专家和16 / 128路由专家，使用dropless token选择路由和Top-1选择每个MoE层。此外，共享和路由专家都使用SwiGLU激活，具有3个线性层。有关模型的更多信息，请参阅The Llama 4 herd: The beginning of a new era of natively multimodal AI innovation(https://ai.meta.com/blog/llama-4-multimodal-intelligence/)。
 
@@ -15,7 +15,7 @@ Llama 4 Scout and Maverick模型正式发布。Scout / Maverick具有共享专�
 MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案。在这里，我们展示了使用Top-1选择的不同token选择路由解决方案。
 
 
-![](https://files.mdnice.com/user/59/2b514ed5-1e0d-4ec6-ac0a-022237b4940a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2b514ed5-1e0d-4ec6-ac0a-022237b4940a.png)
 
 上图显示了Padding设计。每个框代表一个token，黄色/绿色代表路由到不同专家的有效token，灰色代表Padding的token。第二步中的每一行框代表不同的路由专家。Ti代表来自数据并行组当前rank的第i个token。
 
@@ -23,20 +23,20 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
     - 保存Padding数据增加内存占用。
     - 处理Padding数据增加延迟。注意，可以通过锯齿状kernel来避免处理Padding，但当专家数量很大时，锯齿状kernel也可能产生很高的开销。
 
-![](https://files.mdnice.com/user/59/264d18c7-0012-4dc4-8436-9a08758b14d7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/264d18c7-0012-4dc4-8436-9a08758b14d7.png)
 
 - **Slicing**: 在这种方法中，我们将激活切片到每个专家的精确序列长度，并运行多个矩阵乘法（MM）。它避免了Padding的问题，但会导致：
     - 由于在小形状上重复kernel启动，导致kernel效率降低。
     - 由于频繁的主机和设备同步，以及动态形状的额外kernel启动开销，导致设备利用率降低，因为它与图捕获机制（如CUDAGraph和torch.compile）不兼容。
 
-![](https://files.mdnice.com/user/59/5cd3e786-7763-492c-8d94-02cfa9a34ce9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5cd3e786-7763-492c-8d94-02cfa9a34ce9.png)
 
 - **Concatenation**: 在这种方法中，我们在切片后进一步连接激活，并运行单个分组矩阵乘法（GMM）。它避免了切片中的kernel效率问题，但仍然会导致：
     - 由于仍然需要主机和设备同步，导致设备利用率降低，因为它与图捕获机制（如CUDAGraph和torch.compile）不兼容。
 
 为了进一步改进解决方案，我们提出了一种基于shuffle的机制：
 
-![](https://files.mdnice.com/user/59/3991b788-2ddd-47a5-abf2-6d7db3f7caf7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3991b788-2ddd-47a5-abf2-6d7db3f7caf7.png)
 
 - **Shuffling**: 在这种方法中，我们直接对token进行排序，使得路由token按路由专家的ID排序。这样做，没有引入Padding或分割，并且分配给相同专家的token被存储在一起，可以在GroupedGEMM内部一起处理。它提供了一个密集模型接口，避免了上述所有问题。
     - 没有Padding，因为激活保持为密集张量。
@@ -48,7 +48,7 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 
 ### 单GPU推理无需并行化
 
-![](https://files.mdnice.com/user/59/64d8f5fd-cc81-490e-ad57-104b18e7f77d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/64d8f5fd-cc81-490e-ad57-104b18e7f77d.png)
 
 
 上图是单GPU推理无需模型并行化的整体运行时设计。注意,为了优化性能,SwiGLU激活的第一层和第三层线性层被合并为GroupedGEMM13 / GEMM13。
@@ -91,7 +91,7 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 
 ## 单主机推理的张量并行化
 
-![](https://files.mdnice.com/user/59/78a2e46f-9a76-4e47-a08d-8578626079a6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/78a2e46f-9a76-4e47-a08d-8578626079a6.png)
 
 上图是单主机推理使用张量并行(TP)的整体运行时设计。与单GPU推理相比,额外增加的步骤是:
 
@@ -116,7 +116,7 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 
 注意,使用Padding激活的网络流量浪费也可以通过使用自定义AlltoAll实现来避免,但我们不会在本博客中介绍任何关于自定义通信或通信和计算融合kernel的主题。
 
-![](https://files.mdnice.com/user/59/8887046d-adf9-47e8-ad3e-45c961fddcc0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8887046d-adf9-47e8-ad3e-45c961fddcc0.png)
 上图是使用张量并行和专家并行的多主机推理的整体运行时设计。与使用张量并行的单主机推理相比:
 
 - 实心红色箭头表示节点内通信。
@@ -146,9 +146,9 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 
 ### Eager模式下使用动态形状的非Padding通信
 
-![](https://files.mdnice.com/user/59/66783d0e-0b63-4ac4-a404-7d6b881c050e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/66783d0e-0b63-4ac4-a404-7d6b881c050e.png)
 
-![](https://files.mdnice.com/user/59/b0b90a94-438d-47a4-958a-56269db39d1d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b0b90a94-438d-47a4-958a-56269db39d1d.png)
 
 
 运行时行为的高层示意图。不同组件的实际运行时间可能会根据软件和硬件的不同而变化。
@@ -166,7 +166,7 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 
 ### 图模式下使用静态形状的Padding通信
 
-![](https://files.mdnice.com/user/59/8602148f-773b-4132-ab90-92ec9e374b56.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8602148f-773b-4132-ab90-92ec9e374b56.png)
 
 #### 最小化Padding的使用
 
@@ -185,7 +185,7 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 
 为了实现最小所需的Padding,我们直接使用AllGather来从不同的EP ranks收集所有活跃token,然后通过自定义kernel在本地拆分和重新排列路由token。激活大小被压缩到1 / (E // EP),这对应于内存和网络流量的减少。
 
-![](https://files.mdnice.com/user/59/6bc9e7aa-5ae6-4b09-a728-0f38a04e560b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6bc9e7aa-5ae6-4b09-a728-0f38a04e560b.png)
 
 上图展示了Padding设计。每个方框代表一个token,蓝色/绿色表示具有专家分配的有效token,灰色表示Paddingtoken。RiTj表示专家并行组中第i个rank的第j个token。
 
@@ -194,7 +194,7 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 尽管Padding被减少到最小允许,我们还通过承担设备形状信息`routed_token_counts_per_expert`或`routed_token_counts_per_rank_per_expert`确保Padding只导致内存空间(分配)和网络流量(通信),而不是导致冗余计算(GroupedGEMM / NonLinear),冗余内存带宽(CombineShuffling / SplitShuffling / ScatterAdd)。
 
 
-![](https://files.mdnice.com/user/59/b3f84716-9c3c-4009-bace-7e44e2cd66ca.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b3f84716-9c3c-4009-bace-7e44e2cd66ca.png)
 
 **激活的概念解释**
 
@@ -203,37 +203,37 @@ MoE层中引入了处理动态性和稀疏性问题的多种常见解决方案�
 
 **CombineShuffling**: 当前EP rank分配的token被重新排列为从专家优先顺序到rank优先顺序,在AllGather之后。未分配的token不会被复制,并且张量末尾剩余的分配内存空间保持不变。
 
-![](https://files.mdnice.com/user/59/1e1f62a3-2566-4b30-9ead-df4080e989ee.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1e1f62a3-2566-4b30-9ead-df4080e989ee.png)
 
 **SplitShuffling**: 当前EP rank分配的token被重新排列为从rank优先顺序到专家优先顺序,在AlltoAll之前。未分配的token不会被复制,并且重新排列的张量具有交错存储的Padding。
 
-![](https://files.mdnice.com/user/59/a5c6b1d0-d670-4596-a37e-5904977f96e2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5c6b1d0-d670-4596-a37e-5904977f96e2.png)
 
 
 **ScatterAdd (Padded)**: 每个EP rank最终接收来自所有其他rank计算的激活,它将理解哪些是有效token,哪些是Padding token,然后只读取有效token进行scatter_add。
 
-![](https://files.mdnice.com/user/59/6f9cc50e-361c-47b6-815f-dca633b99b3a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6f9cc50e-361c-47b6-815f-dca633b99b3a.png)
 
 
 #### 通信去重
 
 不同张量并行rank在第一个GroupedGEMM之前和第二个GroupedGEMM之后具有相同的激活,因此相同的token在节点之间重复交换。 
 
-![](https://files.mdnice.com/user/59/7a53bac0-e78c-44ba-9dd0-4bb05c40469a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a53bac0-e78c-44ba-9dd0-4bb05c40469a.png)
 
 我们启用了通信去重,以均匀分布节点间通信工作负载到不同的rank,同时引入额外的节点内通信。DP2/TP8/EP2的示例:
 
 - 在eager模式下第一个AlltoAll,将$T*D$节点间AlltoAll拆分为$T*D/8$节点间AlltoAll和$T*D$节点内AllGather。
 
-![](https://files.mdnice.com/user/59/5630ae8c-c5e4-4ecc-a299-a7603450da0f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5630ae8c-c5e4-4ecc-a299-a7603450da0f.png)
 
 - 在eager/图模式下,第二个AlltoAll,将$T*D$节点间AlltoAll拆分为$T*D/8$节点内ReduceScatter和$T*D/8$节点间AlltoAll。
 
-![](https://files.mdnice.com/user/59/74eeb169-d38d-4b7c-a6be-aa1be05a0818.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/74eeb169-d38d-4b7c-a6be-aa1be05a0818.png)
 
 - 在图模式下,第一个AllGather,将$2*T*D$节点间AlltoAll拆分为$2*T*D/8$节点间AllGather和$2*T*D$节点内AllGather。
 
-![](https://files.mdnice.com/user/59/f2ff9397-4e17-4718-b3e7-d77f0d4c2a32.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f2ff9397-4e17-4718-b3e7-d77f0d4c2a32.png)
 
 
 ## Kernel Design
@@ -271,7 +271,7 @@ def grouped_gemm_fp8_rowwise(
 
 我们采用持久kernel设计,每个SM启动1个CTA,并让所有CTA以交错方式运行所有分割的tile。概念上,工作负载分区如下所示。
 
-![](https://files.mdnice.com/user/59/800f86d1-a10a-40cd-8c42-be8f4c4822a7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/800f86d1-a10a-40cd-8c42-be8f4c4822a7.png)
 
 ```python
 def partition_workload(G: int, Ms: List[int], N: int):
@@ -294,7 +294,7 @@ def partition_workload(G: int, Ms: List[int], N: int):
 
 #### 持久kernel与warp特化
 
-![](https://files.mdnice.com/user/59/29fe257c-b713-4e3b-99d6-16c8533334b6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/29fe257c-b713-4e3b-99d6-16c8533334b6.png)
 
 
 我们采用了主机侧tensor map-based的激活和权重加载,以及可选的设备侧tensor map-based的输出存储,以减少Hopper GPU上的内存传输开销。通过激活的连续存储格式,我们可以使用单个主机侧TMA (Tensor Memory Accelerator)描述符来加载激活并掩码属于其他专家的token。然而,我们需要创建多个设备侧TMA描述符来存储输出,而不支持动态掩码。
@@ -328,7 +328,7 @@ def index_shuffling(
 
 我们采用了协作式kernel设计,并将kernel分为两个主要阶段:top-k归约阶段和桶排序阶段,中间有一个全局同步。
 
-![](https://files.mdnice.com/user/59/275d702f-ffc8-4ee1-9892-32fd080b8511.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/275d702f-ffc8-4ee1-9892-32fd080b8511.png)
 
 
 1. 加载分数:
@@ -381,7 +381,7 @@ def index_shuffling(
 
 下表展示了该kernel在Llama 4 Scout和Maverick单主机服务上的Prefill性能。实验设置假定总token数为16,384,并使用张量并行分片。
 
-![](https://files.mdnice.com/user/59/7a28bd5a-04a0-48fc-9de9-56af939345c7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a28bd5a-04a0-48fc-9de9-56af939345c7.png)
 
 注意: G表示组数。M表示每组的token数。N表示每组的输出特征维度。K表示每组的输入特征维度。FP8表示FP8行缩放(激活的每token缩放和权重的每通道缩放)快速累加。量化kernel未包含在基准测试中。缩放未包含在内存带宽计算中。使用rotating buffers和CUDAGraphs进行基准测试。
 
@@ -390,14 +390,14 @@ def index_shuffling(
 下表展示了该kernel在Llama 4 Scout和Maverick单主机服务上的解码性能。实验设置假定总token数为128,并使用张量并行分片。
 
 
-![](https://files.mdnice.com/user/59/7d2be696-37e0-43f4-b5f8-6a59cb3737c1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7d2be696-37e0-43f4-b5f8-6a59cb3737c1.png)
 
 
 ### IndexShuffling
 
 下表展示了该kernel在Llama 4 Scout和Maverick单主机服务上的性能,与原生PyTorch实现进行比较。
 
-![](https://files.mdnice.com/user/59/e3b87b4a-b3d7-4d5b-bdb2-f7cf4dbf978e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e3b87b4a-b3d7-4d5b-bdb2-f7cf4dbf978e.png)
 
 使用rotating buffers和CUDAGraphs进行基准测试。
 
@@ -407,7 +407,7 @@ def index_shuffling(
 
 这是使用我们的MetaShuffling MoE推理解决方案对64个token进行Llama 4 Scout BF16解码的示例Trace。
 
-![](https://files.mdnice.com/user/59/13d15897-3a32-455b-a1dc-48a3cdcbe0c0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/13d15897-3a32-455b-a1dc-48a3cdcbe0c0.png)
 
 
 - MoE的总内存流量(忽略激活值):
@@ -419,7 +419,7 @@ def index_shuffling(
 
 以下是Trace分析中不同组件的细分。
 
-![](https://files.mdnice.com/user/59/cc96d958-066c-4c95-97ef-3d7d1d6c92db.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cc96d958-066c-4c95-97ef-3d7d1d6c92db.png)
 
 
 首先,Router和Shared Experts的细分。这两个组件在2个不同的流上并发运行,以实现更好的资源利用。
@@ -436,7 +436,7 @@ def index_shuffling(
     6. SwiGLU: 融合的SwiGLU。可以看作是sigmoid和mul这2个操作的融合。
     7. 共享专家GEMM2: 基于CuBLAS的GEMM。
 
-![](https://files.mdnice.com/user/59/b36156fa-e133-466d-8484-e7db13c12e2b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b36156fa-e133-466d-8484-e7db13c12e2b.png)
 
 
 
@@ -463,13 +463,13 @@ def index_shuffling(
 
 - Router GEMM和SharedExpertGEMM13: 基于CuBLAS的GEMM,不使用split-k设计。因此它只启动1个kernel而不是2个。
 
-![](https://files.mdnice.com/user/59/896eebda-6cfa-4eff-acfd-5405167779a9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/896eebda-6cfa-4eff-acfd-5405167779a9.png)
 
 
 - 4 GatherMul (FP8按行量化): 基于FBGEMM的gather缩放和量化。可以看作是8个操作的融合:gather(tokens)、gather(scores)、mul、max、divide、mul、clamp和类型转换。
 - 9 SwiGLU (FP8按行量化): 融合的SwiGLU和量化。可以看作是7个操作的融合:sigmoid和mul、max、divide、mul、clamp和类型转换。
 
-![](https://files.mdnice.com/user/59/6d1f216e-9c4b-4afb-8ac8-f24eb42a82ea.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6d1f216e-9c4b-4afb-8ac8-f24eb42a82ea.png)
 
 ### Takeaway
 
@@ -486,11 +486,11 @@ def index_shuffling(
 
 我们使用1000个随机提示基准测试了Llama 4 Maverick和Llama 4 Scout的单主机服务性能,使用我们的内部**MetaShuffling** MoE推理堆栈。我们使用FP8运行Maverick,使用BF16运行Scout,在一个8xH100主机上,最大批量大小为64。我们的设置使用了H100 80GB SMX5 HBM3 700W SKUs、Python 3.12和CUDA 12.8。我们开源了所有计算kernel(https://github.com/pytorch/FBGEMM/tree/main/fbgemm_gpu/experimental/gen_ai)和**MetaShuffling** MoE推理堆栈的示例实现(https://github.com/pytorch/FBGEMM/blob/def50a6219d645c809d744f04d4ec2cbe9784620/fbgemm_gpu/experimental/gen_ai/gen_ai/moe/layers.py#L205)。
 
-![](https://files.mdnice.com/user/59/d09eb1c8-31cb-44af-80f9-a8857ac6f1a9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d09eb1c8-31cb-44af-80f9-a8857ac6f1a9.png)
 
 为了保持最佳精度,我们在路由专家上使用FP8精度基准测试Llama 4 Maverick,在注意力线性层、注意力、共享专家、路由器和KV缓存上使用BF16精度。
 
-![](https://files.mdnice.com/user/59/9f43753e-973f-490e-907e-80d17b6a017f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9f43753e-973f-490e-907e-80d17b6a017f.png)
 
 
 我们使用BF16精度基准测试了Llama 4 Scout的所有线性层(注意力线性层、共享专家、路由器和路由专家)、注意力和KV缓存。
@@ -541,7 +541,7 @@ grouped-gemm-performance:
 ```
 
 
-![](https://files.mdnice.com/user/59/b47939d5-516e-47e7-884f-7d16a661d0f7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b47939d5-516e-47e7-884f-7d16a661d0f7.png)
 
 
 
@@ -567,7 +567,7 @@ python3 benchmark/kernels/fbgemm/benchmark_fbgemm_grouped_gemm.py --model Qwen/Q
 ```
 
 
-![](https://files.mdnice.com/user/59/2e795cf6-ed2f-4ae5-958d-beb403739891.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2e795cf6-ed2f-4ae5-958d-beb403739891.png)
 
 
 
@@ -594,7 +594,7 @@ grouped-gemm-performance:
 ```
 
 
-![](https://files.mdnice.com/user/59/623d8f6e-2769-4b44-984a-0b95eb863d64.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/623d8f6e-2769-4b44-984a-0b95eb863d64.png)
 
 
 ### meta-llama/Llama-4-Scout-17B-16E-Instruct FP8 TP8
@@ -620,7 +620,7 @@ grouped-gemm-performance:
 ```
 
 
-![](https://files.mdnice.com/user/59/7304821d-fe5d-411e-a479-c1ea28b42fa7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7304821d-fe5d-411e-a479-c1ea28b42fa7.png)
 
 
 结论是FBGEMM相比SGLang的分组GEMM实现在MoE模型上可以实现显著的性能提升。这个kernel可以直接应用到SGLang的EP-MoE分组GEMM kernel中,以提升fp16/bf16和per-tensor量化fp8条件下的性能。

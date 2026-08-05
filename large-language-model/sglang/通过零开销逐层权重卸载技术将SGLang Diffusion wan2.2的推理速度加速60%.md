@@ -341,7 +341,7 @@ sglang generate \
 
 下面是torch profiler的trace截图,可以清楚地看到memcpy和compute完全overlap,没有额外开销:
 
-![](https://files.mdnice.com/user/59/3a7b359a-1a44-4efd-abaf-a5890d2342da.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3a7b359a-1a44-4efd-abaf-a5890d2342da.png)
 
 从timeline可以看到,**H2D的memcpy操作和kernel执行是完全重叠的**,这就是零开销的体现。异步拷贝在独立的stream中进行,不会阻塞主stream的计算。
 
@@ -349,7 +349,7 @@ sglang generate \
 
 即使解决了权重卸载的问题,我发现无论是否启用torch compile,第1步的性能仍然比后续步骤慢约7倍。通过完整的profiling发现,这是因为**NCCL All2All操作的初始化开销**。
 
-![](https://files.mdnice.com/user/59/14672e39-3de2-42e5-8d9e-6654b5337427.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/14672e39-3de2-42e5-8d9e-6654b5337427.png)
 
 这个初始化开销不应该在denoise阶段,而应该提前处理。因此实现了专门针对All2All操作的**预热逻辑**。预热之后,不启用compile时第1步的时间几乎与后续步骤相同,启用compile时第1步的时间仅为后续步骤的约2倍(而不是7倍)。NCCL All2All的初始化开销被提前消除,denoise阶段的第1步不再有明显的延迟。
 

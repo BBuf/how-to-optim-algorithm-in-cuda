@@ -43,11 +43,11 @@ response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 print(response)
 ```
 
-![](https://files.mdnice.com/user/59/4be78d18-a75b-4e8e-ab42-7a09682526b3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4be78d18-a75b-4e8e-ab42-7a09682526b3.png)
 
 这张图是max_new_tokens=512时，prefill和decode阶段的Flash Attention kernel的trace。红色框表示prefill阶段调用的Flash Attention kernel，绿色框表示decode阶段调用的Flash Attention kernel。可以看到prefill阶段调用了`flash_fwd_kernel`，decode阶段调用了`flash_fwd_splitkv_kernel`和`flash_fwd_splitkv_combine_kernel`两种kernel。
 
-![](https://files.mdnice.com/user/59/b8a4c1e1-28fe-43f0-8c2e-b9130a473a47.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b8a4c1e1-28fe-43f0-8c2e-b9130a473a47.png)
 
 这张图是max_new_tokens=64时，prefill和decode阶段的Flash Attention kernel的trace。可以看到两个阶段都调用了同一个`flash_fwd_kernel`。
 
@@ -983,12 +983,12 @@ void run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split
 `flash_attn_cuda.varlen_fwd`的初步dispatch逻辑就梳理完了，不过我们从文章开头的nsys可以看到调用splitkv实现的时候每个decoding step的每个Attenion计算都有2个kernel：
 
 
-![](https://files.mdnice.com/user/59/43630614-77d2-4178-a2bb-2c5c0702f1e0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/43630614-77d2-4178-a2bb-2c5c0702f1e0.png)
 
 
-![](https://files.mdnice.com/user/59/5a7019f2-e0df-40c9-8545-30585d63bad6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a7019f2-e0df-40c9-8545-30585d63bad6.png)
 
-![](https://files.mdnice.com/user/59/ec5489ae-1531-4cc8-a2a8-f7c28f34fffe.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ec5489ae-1531-4cc8-a2a8-f7c28f34fffe.png)
 
 在KV的seq纬度切分之后还需要把单独计算的结果组合成最终的计算结果，这就是`flash_fwd_splitkv_combine_kernel`的作用。实际上这个也被叫作Flash Decoding，你可以参考[https://mp.weixin.qq.com/s/hvqPhNo3l0tL_-lf978euw](https://mp.weixin.qq.com/s/hvqPhNo3l0tL_-lf978euw) 这里的介绍。
 

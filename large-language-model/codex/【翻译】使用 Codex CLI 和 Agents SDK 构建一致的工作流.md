@@ -94,7 +94,7 @@ result = await Runner.run(designer_agent, "Implement a fun new game!")
 
 | 示例玩法 | 游戏结束分数 |
 | :---: | :---: |
-| ![](https://files.mdnice.com/user/59/d49ea054-16aa-444e-9e60-40aa36161be3.png) | ![](https://files.mdnice.com/user/59/1c2227b4-3599-4404-b0a9-95e76c01d614.png) |
+| ![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d49ea054-16aa-444e-9e60-40aa36161be3.png) | ![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1c2227b4-3599-4404-b0a9-95e76c01d614.png) |
 
 下面是可直接执行的完整代码。请注意，它可能需要几分钟才能运行完成。如果你看到生成了一个 `index.html` 文件，就说明它已经成功运行。你也可能会看到一些关于格式的 MCP events warnings，这些事件可以忽略。
 
@@ -111,7 +111,7 @@ result = await Runner.run(designer_agent, "Implement a fun new game!")
 在这个例子中，我们有意让 Project Manager agent 在每个下游专用 agent 之间强制执行 gating 逻辑。这可以确保在发生 handoff 之前，对应的 artifact 已经存在。这与现实世界中的企业 workflow 非常相似，例如 JIRA 任务编排、长链路发布流程，以及 QA 签核。
 
 <div align="center">
-  <img src="https://files.mdnice.com/user/59/412d3b8e-599c-4c47-a203-94ff7eb7dac6.png" alt="多 agent 编排与 gated handoff" />
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/412d3b8e-599c-4c47-a203-94ff7eb7dac6.png" alt="多 agent 编排与 gated handoff" />
   <br />
   <em>使用 Codex MCP 和带门控的 handoff 进行多 agent 编排，并生成各类 artifact。</em>
 </div>
@@ -343,7 +343,7 @@ root_directory/
 下面来看一下上面这个 agent 团队的 agent trace。
 
 <div align="center">
-  <img src="https://files.mdnice.com/user/59/baae2c8a-5387-4578-a878-83ec1211ac12.png" alt="Agent trace 总览" />
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/baae2c8a-5387-4578-a878-83ec1211ac12.png" alt="Agent trace 总览" />
 </div>
 
 在这个 Trace 中，我们可以确认每一次 agent handoff 都是由我们的 Project Manager Agent 进行统一调度的，它会在 handoff 给下一个 agent 之前确认特定 artifact 是否存在。另外，我们还能看到 Codex MCP Server 的具体调用，并通过调用 Responses API 生成每一项输出。时间线条会突出显示执行时长，因此很容易识别长时间运行的步骤，并理解控制权如何在不同 agent 之间传递。
@@ -351,7 +351,7 @@ root_directory/
 你甚至可以点进每一条 trace，查看 prompt、tool calls 和其他元数据的具体细节。随着时间推移，你可以利用这些信息进一步调优、优化并跟踪你的 agentic system 性能。
 
 <div align="center">
-  <img src="https://files.mdnice.com/user/59/b5ced19f-588b-4d15-b381-413fab2a1d22.png" alt="Trace 详情" />
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b5ced19f-588b-4d15-b381-413fab2a1d22.png" alt="Trace 详情" />
 </div>
 
 ---

@@ -63,7 +63,7 @@ $ python3 -m sglang.bench_one_batch --batch-size 1  --input 256
 
 #### **结果:**
 
-![compile-bench](https://files.mdnice.com/user/59/ce1fb767-b855-4675-8921-5fc4c1fbd273.png)
+![compile-bench](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ce1fb767-b855-4675-8921-5fc4c1fbd273.png)
 
 正如预期的那样，当堆叠优化（torch.compiler / CUDA Graph + torch.compiler / torch.compiler(CUDA Graph) + torch.compiler）时，我们减少了总延迟（`7.322 / 1.256 / 1.011 s`）并提高了总吞吐量（`39.34 / 229.27 / 284.86 token/s`）。
 
@@ -89,7 +89,7 @@ $ pytest -s test_bmm_fp8.py
 
 #### **结果:**
 
-![bmm-bench](https://files.mdnice.com/user/59/0882db5b-273c-409e-9982-6e8b6837a095.png)
+![bmm-bench](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0882db5b-273c-409e-9982-6e8b6837a095.png)
 
 结果之间的相似度接近相同（余弦相似度=1相同），这表示没有精度损失，而fp8的延迟比bf16差，这是由于类型转换计算导致的。 
 
@@ -112,7 +112,7 @@ $ pytest -s test_bmm_fp8.py
 
 SGLang的NextN实现基于EAGLE-2和SpecInfer:
 
-![speculative_decoding.png](https://files.mdnice.com/user/59/7be3fb51-cc3e-415d-adbd-e66ec3e31a58.png)
+![speculative_decoding.png](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7be3fb51-cc3e-415d-adbd-e66ec3e31a58.png)
 
 使用基于树的推测解码（SpecInfer和EAGLE-2），预测被组织为树，其中每个节点代表一个可能的下一个token。通过这种方法，我们生成多个可以并行验证器LLM验证的推测分支，提高了接受率。
 
@@ -140,7 +140,7 @@ python3 -m sglang.bench_serving --backend sglang --dataset-name random --random-
 
 #### **结果:**
 
-![spec-bench](https://files.mdnice.com/user/59/23464004-5ddb-4297-aa16-65ba1960c295.png)
+![spec-bench](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/23464004-5ddb-4297-aa16-65ba1960c295.png)
 
 我们实现了总体吞吐量（请求、输入和输出）的改进，并显著（x6）减少了端到端延迟。
 
@@ -166,7 +166,7 @@ python3 -m sglang.bench_serving --backend sglang --dataset-name random --random-
 
 在MLA之后，执行all-gather操作，允许每个GPU获取所有序列的`hidden_state`。然后，在**MOE（专家混合）**之后，每个GPU使用**slice**操作提取其对应的序列。
 
-![dp_attn.png](https://files.mdnice.com/user/59/7f50d6d4-e639-4fc9-b854-d780214156ac.png)
+![dp_attn.png](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7f50d6d4-e639-4fc9-b854-d780214156ac.png)
 
 #### **提交:** 
 
@@ -202,7 +202,7 @@ python3 -m sglang.bench_serving --backend sglang --dataset-name random --random-
 
 #### **结果:**
 
-![dp-bench](https://files.mdnice.com/user/59/1e8640d8-689d-4a53-a20a-105c40bbc800.png)
+![dp-bench](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1e8640d8-689d-4a53-a20a-105c40bbc800.png)
 
 由于它是一个调度器范式，在使用大批量大小时表现更好。否则，添加的开销大于实际的数据并行化。
 
@@ -221,7 +221,7 @@ python3 -m sglang.bench_serving --backend sglang --dataset-name random --random-
 
 我们可以将CPU调度与GPU计算重叠。调度器提前运行一个批次并准备下一个批次所需的所有元数据。通过这样做，我们可以让GPU在整个持续时间内保持忙碌，并隐藏昂贵的开销，如radix cache操作。 
 
-![overlap_scheduler.png](https://files.mdnice.com/user/59/ab3bea07-ac46-4f00-bab3-0525ffc13b71.png)
+![overlap_scheduler.png](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ab3bea07-ac46-4f00-bab3-0525ffc13b71.png)
 
 #### **提交:** 
 
@@ -246,7 +246,7 @@ python3 -m sglang.bench_serving --backend sglang --dataset-name random --num-pro
 
 #### **结果:**
 
-![fig_overlap](https://files.mdnice.com/user/59/d214897b-ebea-4d0b-a0ce-507aacfa0976.png)
+![fig_overlap](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d214897b-ebea-4d0b-a0ce-507aacfa0976.png)
 
 我们看到延迟的普遍减少：端到端（标准：`1080152.26s`|重叠：`1066166.84s`），每个输出token的时间（标准：`348.10s`|重叠：`196.79s`）和token间延迟（标准：`350.62s`|重叠：`197.96s`），尽管第一个token的时间呈现了调度开销的下降结果（标准：`724050.93s`|重叠：`864850.926s`）。
 
@@ -298,7 +298,7 @@ Output throughput: 1920.021 token/s
 
 #### **结果:**
 
-![flashinfer_mla png](https://files.mdnice.com/user/59/a1b99699-7e50-4c15-a696-e743d550cdee.png)
+![flashinfer_mla png](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a1b99699-7e50-4c15-a696-e743d550cdee.png)
 
 
 由于FlashInfer融合操作，我们在相似精度下获得了更低的延迟和更高的输出吞吐量。
@@ -313,7 +313,7 @@ Output throughput: 1920.021 token/s
 
 NVIDIA H800 Tensor Core上的FP8 GEMM累加限制在约`14位`精度，这显著低于FP32累加精度。这就是为什么DeepSeek使用CUDA Core的单独FP32累加器寄存器，从而减轻精度损失。反量化缩放因子也应用于这个FP32累加器。
 
-![fp8_deepseek.png](https://files.mdnice.com/user/59/61ed24d7-948a-432f-b3c7-04cffb853afa.png)
+![fp8_deepseek.png](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/61ed24d7-948a-432f-b3c7-04cffb853afa.png)
 
 #### **提交:** 
 (支持分块fp8矩阵乘法 kernel #3267(https://github.com/sgl-project/sglang/pull/3267)，添加分块fp8的单元测试#3156(https://github.com/sgl-project/sglang/pull/3156)，集成分块fp8 kernel#3529(https://github.com/sgl-project/sglang/pull/3529)，[Track] DeepSeek V3/R1精度(https://github.com/sgl-project/sglang/issues/3486))
@@ -326,7 +326,7 @@ python3 benchmark/gsm8k/bench_sglang.py --num-shots 8 --num-questions 1319 --par
 ```
 #### **结果:**
 
-![](https://files.mdnice.com/user/59/edec0dc6-caf5-42db-9bd8-955f35ee540d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/edec0dc6-caf5-42db-9bd8-955f35ee540d.png)
 
 
 对于相同的精度（gsm8k上为`0.955` vs `0.957`），我们观察到更高的输出吞吐量和更低的延迟。
@@ -431,7 +431,7 @@ root@cluster-h200-02-f2:/sgl-workspace/sglang/sgl-kernel/benchmark# python3 benc
 ```
 #### **结果:**
 
-![](https://files.mdnice.com/user/59/ebf26385-59b1-4cb8-9b3f-c813ceb9818c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ebf26385-59b1-4cb8-9b3f-c813ceb9818c.png)
 
 
 基准测试测量每个批量大小的GB/s（吞吐量的另一种度量）。比较vLLM kernel（int8 gemm）与SGLang kernel，我们为不同配置（N和K）的不同批量大小获得更高的吞吐量。
@@ -509,12 +509,12 @@ fused-moe-performance:
 
 > 对于块平铺维度(`BLOCK_SIZE_M/N/K`)，组大小(`GROUP_SIZE_M`)用于一起分组的块数量，改善L2缓存使用，每个线程块（即每个块）的warp数量(`num_warps`)，以及用于将块加载到共享内存作为预取的阶段数量(`num_stages`)。
 
-![](https://files.mdnice.com/user/59/902b6fec-c08c-4a70-85ae-58eff0a0f788.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/902b6fec-c08c-4a70-85ae-58eff0a0f788.png)
 
 
 然后我们比较SGLang的融合MoE kernel实现与vLLM的基准实现，获得了一个更精细的版本，在增加批量大小时几乎保持恒定延迟。
 
-![fused_moe_latency_comparison.png](https://files.mdnice.com/user/59/026774ab-0451-45b5-98d8-b2a12b144ecf.png)
+![fused_moe_latency_comparison.png](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/026774ab-0451-45b5-98d8-b2a12b144ecf.png)
 
 作为结束语，本技术博客使用的版本是sglang: v0.4.3.post2, sgl-kernel: 0.0.3.post6, torch: 2.5.1和CUDA: 12.5。 
 

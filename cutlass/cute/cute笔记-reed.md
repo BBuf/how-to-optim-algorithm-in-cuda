@@ -49,7 +49,7 @@ fma(float &d0, float &d1, float &d2, float &d3, ...,
 
 这是因为 **A/B 是 FP16 输入**，在 PTX/底层实现里通常会 **把两个 half 打包进一个 32-bit 寄存器**（例如 half2 或者按位打包），所以用 `uint32_t` 来做“原始位模式容器”更直接。
 
-![](https://files.mdnice.com/user/59/a27d76a0-b9a3-42cd-a4b6-f930766ce0eb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a27d76a0-b9a3-42cd-a4b6-f930766ce0eb.png)
 
 ## 这张图在讲什么（总览）
 
@@ -218,11 +218,11 @@ ThrMMA {
 }
 ```
 
-![](https://files.mdnice.com/user/59/75573408-c073-4828-a3cd-2818c3706393.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/75573408-c073-4828-a3cd-2818c3706393.png)
 
 # CUDA的存储层次和数据加载路径
 
-![](https://files.mdnice.com/user/59/95c1df6e-d268-4cbf-952c-ebf03ee96c01.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/95c1df6e-d268-4cbf-952c-ebf03ee96c01.png)
 
 经典的GPU存储层次如图1所示，主要有：片外存储结构-全局内存（global memory）；片上SM（stream multi-processor）内的shared  memory 和 L1 data cache，以及寄存器堆（register file）；以及在全局内存和SM之间的L2 Cache。具体地，全局内存（图中标记为绿色global memory）容量最大，在数据中心级A100显卡中存储空间可以达到80GB，采用HBM2e技术实现，最高带宽可达2TB/s；再往内层为L2 Cache，在A100-80GB上为80MB，带宽可达20TB/s; 再向内层为片上(on-chip)存储shared memory 和L1 data cache，shared memory 和 L1 data cache 共享192KB的空间，可以配置shared memory 和L1的大小，最大可将shared memory配置为164KB。离计算单元Tensor Core和CUDA Core（图中分别标记为TC和CUDA）更近的存储结构为寄存器堆（图中标记为Register File），计算单元计算所需要的数据必须来自寄存器（Ampere及之前架构如此，Hopper架构的Tensor Core可以直接读取存储在shared memory数据进行计算），是GPU中最快的存储结构，一个线程最多使用255个32bit的寄存器。对于一个用GPU进行计算的问题，其原始数据来自于全局内存，可以经过三条路径到达核心计算单元上（Tensor Core或CUDA Core）。第一条路径，如图中路径1所示，从global内存经过L2到达shared memory（L1 bypass），然后从shared memory到达寄存器；第二条路径，如图中路径2所示，从global内存经过L2到达L1然后到达shared memory，再从shared memory到达寄存器；第三条路径从global内存经过L2到达L1，然后到达寄存器。其中路径1和2只在Ampere及其之后的架构才支持。Ampere之前的架构从全局内存到寄存器只支持路径3，从全局内存到共享内存只能先通过3将数据加载到寄存器，然后通过路径4存储到共享内存。这些存储结构我们可以编程控制的部分为全局内存共享内存和寄存器，L1 Cache和L2 Cache是缓存机构，我们可以控制其bypass与否，同时我们也可以通过PTX指令modifier控制L2 cache的数据预取行为。
 
@@ -230,11 +230,11 @@ ThrMMA {
 
 在矩阵计算的优化中，非常重要的一个技术是通过数据分块实现数据复用，数据复用可以减少对低层级存储器的访问数据量，提升数据访问效率继而提升总体计算效率。在GPU的实现中，可编程的数据复用发生在共享内存部分，即用户通过编程手段将部分数据加载到共享内存然后复用共享内存中的数据，实现数据由共享内存到寄存器，然后实现更高效的计算。前面MMA章节我们介绍了Tensor Core的基础信息，如果我们认真研究Tensor Core的汇编指令我们不难发现，参与计算warp内的线程只持有矩阵的部分数据，这些数据保存在线程的私有寄存器中（SIMT架构中，可以认为寄存器为线程所私有），warp内的所有线程的寄存器共同组成完整的矩阵计算数据。这是NVidia在SIMT架构下实现warp level的Tensor Core计算的创新实践。如图2所示，在SIMT意义下每个线程持有两个数据（如float16，可以表达为一个寄存器），warp内的32个线程共同构成64个数据，形成8x8的warp level的小矩阵，供Tensor Core计算用。
 
-![Figure 2. SIMT寄存器协作构成warp level矩阵](https://files.mdnice.com/user/59/4dde5841-e95f-4736-8fd0-d422f80f732d.png)
+![Figure 2. SIMT寄存器协作构成warp level矩阵](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4dde5841-e95f-4736-8fd0-d422f80f732d.png)
 
 通过各个线程提供的寄存器可以完成warp level的矩阵表示和存储，利用Tensor Core则可以完成高效的存储在寄存器上的矩阵计算。就数据从共享内存到寄存器的加载方面而言，可以通过SIMT意义下的LDS（load shared）来完成，但是由于数据是分布在不同的线程的寄存器上连续性方面不友好。为了更极致的性能NVidia从Turing架构开始提供了专门针对这种场景的加载指令ldmatrix。如图3，其展示了SIMT形式的模式加载矩阵数据和ldmatrix协作式加载矩阵数据的对比，ldmatrix协作式加载可以通过线程提供共享内存的地址（提供16Byte数据）完成数据的加载然后将数据分配到warp中各个线程的寄存器中，实现了跨越SIMT寄存器边界的写出，而如果是SIMT形式的加载，则只能使用更窄的数据位宽，这也就需要更多的指令完成等量数据的读写，同时ldmatrix由于是单线程提供16Byte的数据地址，warp内所有线程可以提供16Byte x 32 = 512Byte的数据到寄存器的加载，单指令实现16x16 float16矩阵的加载，减少指令数提高调度效率，同时其可以在写出时合并矩阵转置能力（可以参考tensorcore中ldmatrix指令的优势是什么？(https://www.zhihu.com/question/600927104/answer/3029266372)）。通过ldmatrix可以实现warp level共享内存到寄存器的数据搬运，自然地，cute对这种数据搬运提供了对应的抽象能力。
 
-![Figure 3. SIMT形式加载矩阵数据和ldmatrix协作式加载矩阵的对比](https://files.mdnice.com/user/59/d36be7e3-7fda-47ac-8b49-05d8768ce157.png)
+![Figure 3. SIMT形式加载矩阵数据和ldmatrix协作式加载矩阵的对比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d36be7e3-7fda-47ac-8b49-05d8768ce157.png)
 
 
 ## cute Copy抽象及其相互关系
@@ -248,7 +248,7 @@ ThrMMA {
 - TildCopy提供的是逻辑上的拷贝的概念，在具体的kernel执行之时，为了复合CUDA的编程范式，需要写成线程级别的指令，ThrCopy可以实现将大块的数据根据TiledCopy所描述的划分规则，通过提供当前线程的线程号threadIdx.x对大块的Tensor进行划分，得到当前线程为了完成D = S 拷贝所需要该线程做的任务；
 - cute::copy在ThrCopy提供了当前线程的任务之后，便可以通过copy函数触发具体的数据搬运指令。
 
-![Figure 4. cute Copy核心结构和其相互关系](https://files.mdnice.com/user/59/ffdb47cc-edac-4e00-a163-b47aa3ef0019.png)
+![Figure 4. cute Copy核心结构和其相互关系](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ffdb47cc-edac-4e00-a163-b47aa3ef0019.png)
 
 
 如图4所示，在硬件和拷贝方向之上提供了了指令抽象CopyOperation，再往上形成D = S的拷贝逻辑抽象，包含指令级别所能完成的拷贝原子能力Copy_Atom和对Atom重复后得到的TiledCopy能力，再逻辑之上针对具体的线程划分出具体的线程级的任务，通过cute::copy函数触发相应的拷贝任务，所有线程共同完成Tensor到Tensor的拷贝。下面我们针对每一个抽象层次，具体的介绍各个数据结构和抽象的细节。
@@ -424,7 +424,7 @@ void copy(TiledCopy const& copy, Tensor const& src, Tensor& dst);
 void copy_if(TiledCopy const& copy, PrdTensor const& pred, Tensor const& src, Tensor& dst);
 ```
 
-![](https://files.mdnice.com/user/59/2091b697-e554-4939-a3d0-9592ed36e953.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2091b697-e554-4939-a3d0-9592ed36e953.png)
 
 ## 对“32x2x2=128线程、MNK=32x32x16”的计算补充解释
 
@@ -490,11 +490,11 @@ void copy_if(TiledCopy const& copy, PrdTensor const& pred, Tensor const& src, Te
 
 ## Tensor 表示
 
-![Figure 2. 矩阵乘法问题的Tensor表示及其属性](https://files.mdnice.com/user/59/1931d489-d973-420e-94e3-07d271d37f69.png)
+![Figure 2. 矩阵乘法问题的Tensor表示及其属性](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1931d489-d973-420e-94e3-07d271d37f69.png)
 
 如图2所示，本文我们研究深度学习中常用的C = AB的矩阵乘法问题，其中矩阵A、B存储在GPU的全局内存中，输出C矩阵将会被存储在全局内存中；维度方面A为m行k列，B为k行n列，输出C为m行n列；数据存储Layout方面，A为行优先，B为列优先，C为行优先。数据类型方面A、B、C都位16bit的半精度浮点数，在cuda中表示为half类型（cute封装为cute::half_t类型）。我们将矩阵ABC的信息形成如下表格，同时将row/column major表示为stride形式，填充上指针变量名称
 
-![](https://files.mdnice.com/user/59/b8115bdc-3f02-452a-bf6b-a5f5945cc341.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b8115bdc-3f02-452a-bf6b-a5f5945cc341.png)
 
 我们将ABC表示为Tensor形式，则可以写出如下kernel代码
 
@@ -515,7 +515,7 @@ GPU中有多个SM（Stream Multiprocessor）我们编程时以grid、block的软
 
 $$TileC = \sum_{i_{\text{tile}}=0}^{\text{num\_tile}} TileA_{i_{\text{tile}}}TileB_{i_{\text{tile}}}$$ 
 
-![Figure 3. sliced-k模式的C矩阵为中心的任务划分方法](https://files.mdnice.com/user/59/60cf5c46-814b-41a1-928d-c3013ce29c34.png)
+![Figure 3. sliced-k模式的C矩阵为中心的任务划分方法](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/60cf5c46-814b-41a1-928d-c3013ce29c34.png)
 
 如此，我们在k轴上移动kTileK得到AB上的小块 $TileA_{i_{\text{tile}}}$ 和 $TileB_{i_{\text{tile}}}$ 将他们相乘的积累加到TileC上，便可以得到TileC的计算结果。这种沿着k轴移动的策略称sliced-k方法。这样我们使用一个block（坐标如图blockIdx.x, blockIdx.y）便可以完成C矩阵中一个小块的完整的计算。通过block维度的扩展，如图所示的矩阵C中M轴方向的blockIdx.y和N轴方向的blockIdx.x的扩展，便可以完成整个C矩阵的计算。由此我们可以计算出完成整个C矩阵所需要的gird维度：grid.x = N / kTileN, grid.y = M / kTileM (此处暂时不考虑不可整除的情形)。根据上面的计算过程我们可以继续完善代码，
 
@@ -544,15 +544,15 @@ int main() {
 如我们上面所述，我们在模版参数中给定划块的超参kTileM、kTileN、kTileK，同时使用Tensor章节中介绍local_tile方法对矩阵进行固定大小的分块，同时通过指定坐标的的全slice方法，得到当前thread block要处理的Tensor gA, gB, gC。和构造Tensor A时类似，我们在进行Tensor分块的时候也将编译时能确定的量进行了`Int<>`化，用以指示该维度信息是编译时常量，编译器可以在编译阶段完成必要的路径决策和优化计算，避免运行时的开销。同时我们在主函数中给出了grid的大小（如上代码）。值得注意的是，经过`local_tile`函数我们得到的gA, gB, gC的维度信息如下表格
 
 
-![](https://files.mdnice.com/user/59/cb793c56-10a7-4469-9f69-66feac4e64d4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cb793c56-10a7-4469-9f69-66feac4e64d4.png)
 
 先选定TileC，然后沿着k轴移动小块进行累加求和的策略为sliced-k，它对于m、n维度较大的场景（m n分块所需要的block数目足以填充所有的SM）比较有效。对于k比较大，而m、n比较小的场景，由于m、n较小而我们根据C来划分thread block，这时需要的thread block数目比较小，当这个数目无法填充所有的SM时，则存在很多SM无任务，而有任务的SM需却又需要循环多次的问题，这时候可以考虑将k轴拆分成多段，每一段都计算一个TileC结果，最后再通过额外的累加过程将多段的结果进行求和，这种模式的任务划分方法成为split-k方法。如图4，把k拆分成两段，由不同的计算单元来完成不同段段段计算，如此则得到多份C，最后将多个C进行累加求和得到最终结果。该方法在特殊场景下有用，而且实现不困难，本文暂不实现该策略。
 
-![Figure 4. split-k策略的计算逻辑](https://files.mdnice.com/user/59/8d0521a3-2d79-4f7e-aa4f-e3d37a82341b.png)
+![Figure 4. split-k策略的计算逻辑](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8d0521a3-2d79-4f7e-aa4f-e3d37a82341b.png)
 
 除了sliced-k、split-k策略在任务划分方面还有stream-k方法，stream-k方法作者们指出sliced-k或者split-k方法都是静态的划分任务，在划分的任务数目和SM执行单元不能整除的时候，总会在存在某轮（wave）计算中存在SM空闲的问题。stream-k则是抛弃以任务为中心的划分逻辑，而是变成了以计算资源为核心的分配任务方式，使得SM的任务量基本相当，如图5，其展示了假设只有4个SM的情况下，不同任务划分逻辑的差异，其中stream-k对计算资源的利用效果最好，具体可以参考发表在PPoPP‘23上的poster。现阶段cuBLAS中的kernel依然多为sliced-k和split-k实现。本文暂不实现该策略。
 
-![Figure 5. stream-k策略任务划分逻辑（引用自PPoPP23: Stream-K）](https://files.mdnice.com/user/59/e811518f-1835-497f-b36c-8933e3f1ae98.jpg)
+![Figure 5. stream-k策略任务划分逻辑（引用自PPoPP23: Stream-K）](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e811518f-1835-497f-b36c-8933e3f1ae98.jpg)
 
 ## TiledMMA：主机端选择指令，设备端将分块划分到线程
 
@@ -900,7 +900,7 @@ void gen_rand_data(T *data, int n) {
 
 # Cute之GEMM流水线
 
-![](https://files.mdnice.com/user/59/141a116a-cf04-4f9a-80f0-be4b2c3dc4ed.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/141a116a-cf04-4f9a-80f0-be4b2c3dc4ed.png)
 
 前面文章我们介绍了cute的Copy抽象、MMA抽象，基于这些抽象我们进行了简单的GEMM实现。从逻辑上而言，cute的介绍已经结束了，但是对于我们要完成的GEMM运算而言还有很重要的一项优化需要考虑，那就是如何高效的、并行的利用GPU中的数据加载和计算单元，亦即如何组织cute中的Copy抽象和MMA抽象以完成高效的GEMM计算。这部分内容属于GEMM的策略部分，不是cute的功能范畴，但是为了这系列文章的标题的对称性，我们依然将题目取为“cute之GEMM流水线”，我们需要知道的是，本质而言流水线部分本身不属于cute，而是GEMM的优化策略。文章结构方面，本文首先通过回顾经典的RISC硬件实现的指令流水线引入流水线对性能提升的作用，然后由类比介绍了GEMM算法常用的软件流水线（Tile间和Tile内），其后介绍了NVidia Ampere架构提供的异步拷贝指令和MultiStage流水线，最后文章总结了GEMM流水线和cute的关系。
 
@@ -915,7 +915,7 @@ void gen_rand_data(T *data, int n) {
 - 访存（MEM = MEMory），如果指令有对内存的访问需求，该阶段则负责相应的内存读写；
 - 写回（WB = Write Back），将执行单元的执行结果和（或）内存的访问结果写出到目的寄存器。
 
-![Figure 1. 流水线和非流水线处理器指令执行的时间分析](https://files.mdnice.com/user/59/c4bbe0ba-b535-4ea4-bde2-5f055070173e.png)
+![Figure 1. 流水线和非流水线处理器指令执行的时间分析](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c4bbe0ba-b535-4ea4-bde2-5f055070173e.png)
 
 图1对比了非流水线和流水线架构执行指令时的时间对比，可以看到非流水线结构执行每一条指令都需要执行所有的阶段，其执行三条指令（Inst-1, Inst-2, Inst-3）所需要的时间如图上半部分所示。在流水线结构下，第一条指令在做取指后进入译码阶段，这时候第二条指令则可以进入取指阶段，后续的指令阶段也是类似的可以产生重叠。如图中的下半部分所示，以流水线的形式执行三条指令所需的时间要比非流水线的模式小很多。流水线模式提升了指令执行中的各个阶段的不同单元的使用率，使得每一个时刻每一个单元都能充分利用，而不是非流水线结构中一个时间点只有一部分单元运行，而其他时间都在空闲等待。
 
@@ -923,7 +923,7 @@ void gen_rand_data(T *data, int n) {
 
 我们看到指令流水线通过硬件的设计逻辑可以提升各个单元的利用情况，提升并行度既而提升运行效率。对于GEMM问题而言，我们也可以采用这种思路利用软件编程的过程的来实现更好的并行。
 
-![Figure 2. 循环k模式的矩阵乘法的指令构成](https://files.mdnice.com/user/59/cb6e4277-32b0-4820-b81e-0fd446cd127e.png)
+![Figure 2. 循环k模式的矩阵乘法的指令构成](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cb6e4277-32b0-4820-b81e-0fd446cd127e.png)
 
 如图2所示，一个典型的sliced-k模式的GEMM实现中，通过循环K轴方向的tile来累加得到最终的CTile的结果。则类似RISC中的流水线模式，我们将计算每一个Tile的矩阵乘积作为一个基本的单元（如RISC中的指令），则该指令的执行类比RISC流水线可以划分为多个阶段，
 
@@ -933,13 +933,13 @@ void gen_rand_data(T *data, int n) {
 
 其中第一个阶段的输出数据存放在共享内存中，第二个阶段的数据存放在寄存器中。和RISC中的流水线类似，我们把一个Tile的计算过程分成三个阶段，如果各个阶段可以重叠则效率可以极大的提升，于是有了流水线思路优化的GEMM执行效果，如图3所示，
 
-![Figure 3. 非流水线模式和流水线模式下的GEMM执行逻辑](https://files.mdnice.com/user/59/2964b3ba-4379-4ed7-bc31-f8a33589fc7f.png)
+![Figure 3. 非流水线模式和流水线模式下的GEMM执行逻辑](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2964b3ba-4379-4ed7-bc31-f8a33589fc7f.png)
 
 这样三个阶段的执行便可以并行起来，通过流水线使得各个单元能够同时工作，提高了各个单元的利用效率，包括全局内存到共享内存到数据加载、共享内存到寄存器到数据加载、矩阵计算，提升GEMM的运行效率。
 
 ## Tile内的流水线
 
-![Figure 4. GEMM Tile内的流水线模式](https://files.mdnice.com/user/59/8ad09ba4-2891-4807-9dec-c8aae097d3ca.png)
+![Figure 4. GEMM Tile内的流水线模式](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8ad09ba4-2891-4807-9dec-c8aae097d3ca.png)
 
 对于矩阵乘法中的分块模式Tile内也可以使用流水线模式（本文称为tile内小k循环），如图4所示，对于Tile级别的矩阵乘，一般一个Tile内包含的矩阵大小需要若干个指令（MMA_Atom中的指令）才能完成矩阵乘法，并且各个矩阵乘法的输入数据相互独立，所以我们可以将数据加载和计算组成流水线模式以提高数据加载单元和计算单元的利用率，如此便可以形成Tile内的流水线模式（二级流水线），如图中pipelined标记的部分，其可以通过重叠数据加载和计算提高Tile内完成矩阵计算的整体效率。
 
@@ -947,13 +947,13 @@ void gen_rand_data(T *data, int n) {
 
 为了提升数据加载效率，NVidia在Ampere架构的GPU中提供了异步拷贝指令`cp.async`（SASS汇编为LDGSTS = LoaD Global Store Shared）。该异步拷贝指令可以异步地完成全局内存到共享内存的数据加载。在Ampere架构之前，全局内存到共享内存数据的加载必须经过寄存器，所以在寄存器层面会产生数据依赖，由于GPU的顺序执行机制和scoreboard的依赖解决方法（in-order issue, in-order execute），使得全局内存到共享内存到数据有寄存器依赖引入到stall。而Ampere下提供的`cp.async`则克服了这个约束，直接做实现全局内存到共享内存到加载，由于数据是异步加载的，即指令发射出去后便可以执行后续指令而无需等待，所以该架构提供了commit和wait机制来做显式的同步。其中commit用于标记事件的同步点，wait用于同步到特定同步点，保证某个同步点之前到数据都已经拷贝完成。
 
-![Figure 5. 异步拷贝机制](https://files.mdnice.com/user/59/62aa54e9-b124-4074-a0ad-dcd03743eba8.png)
+![Figure 5. 异步拷贝机制](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/62aa54e9-b124-4074-a0ad-dcd03743eba8.png)
 
 如图5所示，我们通过`cp.aync`指令提交了三个全局内存到共享内存到拷贝任务，同时通过commit提交了三个事务点和两个wait，其中`wait<1>`表示可以允许最多有一个未完成的异步事务（G2 -> S2），即`wait<1>`执行结束能够确保G1到S1的拷贝已经完成，`wait<0>`表示允许有零个未完成的事务。也就是其会等待之前所有的commit的任务都完成，即G1->S1, G2->S2, G3->S3全部已经完成。
 
 有了异步数据拷贝指令我们便可以完成全局内存到共享内存的异步加载，即完成矩阵A、B Tile的加载，再整合Tile间和Tile内的流水线，我们可以得到GEMM计算的MultiStage流水线模型，如图6所示，
 
-![Figure 6. MultiStage流水线模型](https://files.mdnice.com/user/59/4e1dcd58-33b1-426a-8874-d49d2666ae8a.png)
+![Figure 6. MultiStage流水线模型](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4e1dcd58-33b1-426a-8874-d49d2666ae8a.png)
 
 其中浅绿色的 $G^i \rightarrow S^i$ 表示全局内存到共享内存到异步数据加载其对应的大小为Tile的大小，其合并表示TileA和TileB的数据加载（即tile循环），棕色的 $S_j \rightarrow R_j$ 表示共享内存到寄存器到数据加载，其对应Tile内的小矩阵的数据加载，也是合并的表示A B的加载（即tile内的小k循环）；深绿色 $\mathrm{mma}(R_i)$ 表示寄存器上的矩阵乘法计算，亦tile内的小k循环。mma的边界有两条黑色边界线，两边界线通过曲线虚线连接，其表示tile内小k循环的起点和终点，即黑线之间完成tile内的矩阵乘法；曲线虚线表示完成一个tile的计算之后继续进行下一个tile的计算。在第一个tile开始计算之前（即第一个黑色实现边界之前）对于multistage实现（图示kStage为4），需要将stage - 1个异步的全局内存到共享内存到加载任务发射出去（G0->S0, G1->S1, G2->S2），同时为了能够读取第一个Tile的内容，则在所有异步任务发射之后，我们wait S0完成，wait之后表示数据已经到达了共享内存，在进入tile的小k循环之前我们首先从S0中取出ik = 0的矩阵计算所需要的数据到寄存器R0(第一条黑色虚线和第一条黑实线之间)，这时，我们已经有了第一个矩阵计算所需要的数据了，于是我们进入tile内的小k循环，进入循环我们需要执行三个动作：1. 发射异步读取新的Tile数据G3->S3，2. 从共享内存读取下一个小k矩阵乘法所需要的数据R1，3. 执行第一个小k的矩阵运算。其中共享内存写出的数据和mma所需数据依赖关系通过其中的箭头表示。进入小k循环后重复上面的2、3步骤即可以流水线的完成数据加载和计算在最后一个小k循环之前，我们需要读取下一个tile中的第一个小k的数据（共享内存到寄存器），但是此时下一个tile的数据（全局内存到共享内存）需要通过wait S1保证数据加载完成，所以在最后一个小k循环之前需要插入对S1的异步事务等待，等待结束后我们便可以像之前进入小k循环之前一样在进入下一个循环（tile循环）之前加载共享内存到数据到寄存器，值得注意的是此处的共享内存已经不是当前tile，而是下一个tile，即S1。读完R0之后，完成最后一个小k的mma计算，如此便完成了tile内的小k循环，小k循环结束便重复下一个tile的计算，最终完成tile循环。
 
@@ -971,21 +971,21 @@ void gen_rand_data(T *data, int n) {
 
 由于Shared Memory是为线程块服务的，所以其必须能支持线程块内的线程并行的对其进行访问（包含数据读取和写入），为了保障Shared Memory存储结构在多线程并发读写下的效率（更低的Latency和更高的Throughput），其硬件被实现为多bank的模式，每个bank都是可以独立寻址的存储空间，bank之间可以并行的读写数据，相互之间不会影响。在NVidia的架构中，shared memory包含32个bank，bank中可寻址的基本单元为4byte，如图1所示，每个bank为黑框所包含的单元，用户看到的地址空间为箭头所示的方向，即相邻的4byte占用不同的bank。如图2，当32个线程同时访问32个不同的bank时，各个bank是并行执行的，其效率是最高的，即32个线程并发的访问32个bank中不同颜色的单元，是可以并行的，值得注意的是其中的线程编号（如图2中的T0所示）和bank中的行位置并没有连续性要求。如图3，如果某两个线程T0、T2要同时访问相同bank-2的不同地址，则这两次访问会被排队执行，即先访问该bank的一个地址，然后再访问第二个地址，这样两次访问在发射任务维度上（产生访问请求指令）时间维度上是并行的，但是在真正bank读写数据在时间维度上是串行的。这就是所谓的bank conflict。由于一个bank上有两次冲突，这种情况称为二路冲突（two-way conflict）。
 
-![Figure 1. 共享内存bank结构和地址连续方向](https://files.mdnice.com/user/59/279ed9ee-bca3-4d4b-a2f1-f27222cd4f05.png)
+![Figure 1. 共享内存bank结构和地址连续方向](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/279ed9ee-bca3-4d4b-a2f1-f27222cd4f05.png)
 
-![Figure 2. 无bank conflict的共享内存访问模式](https://files.mdnice.com/user/59/89face01-5352-402f-aa0f-ab21d0eee6a4.png)
+![Figure 2. 无bank conflict的共享内存访问模式](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/89face01-5352-402f-aa0f-ab21d0eee6a4.png)
 
-![Figure 3. 两路冲突的共享内存访问模式](https://files.mdnice.com/user/59/f4e325bf-2f2b-43dc-9fca-7d1fe0dc92fd.png)
+![Figure 3. 两路冲突的共享内存访问模式](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f4e325bf-2f2b-43dc-9fca-7d1fe0dc92fd.png)
 
 为了减少指令数，我们在进行kernel优化时会采用向量化的读写指令（也叫大字长读写），如以128bit的形式读写共享内存，此时线程需要访问的单位数据量为16byte，32个线程需要访问的数据量为16byte x 32 = 512byte。完整的512byte需要4个phase才能完成访问，第一phase，T0-T7无bank conflict的访问所有bank，第二phase，T8-T15无bank conflict的访问所有bank，第三phase，T16-T23无bank conflict的访问所有bank，第四phase，T24-T31无bank conflict的访问所有的bank。这种情况也可以看作是：shared memory基本单元为16byte，总bank数为8，冲突与否的分析不在是32线程，而变成4个phase中的不同线程。如果采用64bit的访问形式，则相应的基本单元可以看作是8byte，总bank数目为16，冲突与否的条件变成两个phase内的线程是否冲突。整体上shared memory空间可以看作二维存储空间，其中列方向表示bank情况，行方向表示自由定义的大小。值得注意但是冲突与否是通过内存访问事务级别来判定的，具体的可以参考NVidia开发者论坛的讨论(link.zhihu.com/?target=https%3A//forums.developer.nvidia.com/t/how-to-understand-the-bank-conflict-of-shared-mem/260900)。
 
 ## 共享内存读取（ldmatrix指令）
 
-![Figure 4. ldmatrix输入和输出数据](https://files.mdnice.com/user/59/b17ceb98-8379-4c0d-9557-9ec50160a7a0.png)
+![Figure 4. ldmatrix输入和输出数据](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b17ceb98-8379-4c0d-9557-9ec50160a7a0.png)
 
 在GEMM流水线中，利用Tensor Core可以完成特定规格的矩阵计算乘计算（如 $D_{16\times8} = A_{16\times16} B_{16\times8} + C_{16\times8}$），其中矩阵数据A、B、C、D是通过warp内的所有线程提供一部分寄存器共同表示的。如图4中右侧的register file所示，其表示32个线程T0-T31每一个线程提供一个寄存器V0（4byte），共同表示形状为8x8 half类型的矩阵块多个8x8的块可以构成更大的16x16，16x8的块。前序文章已经介绍过，这部分数据可以利用ldmatrix指令通过warp level实现。针对一个8x8-half的寄存器表示的作为输出的矩阵块，ldmatrix其输入要求为8个shared memory地址，每个地址指向一个16byte共享内存中的数据，其中T0-Addr0指向的16byte数据经过ldmatrix会被分派到T0-T3的V0寄存器中。T1-Addr1指向的数据会被分派到T4-T7的V0寄存器中。通过ldmatrix指令便可以实现矩阵数据从共享内存到寄存器到加载，前面的介绍我们知道共享内存是有bank结构的，并且按照16byte的形式进行读取，所以T0-T7读取该数据时会被作为一个独立的phase，这就要求所有的16byte表示的8个数据必须分布在不同的bank，才能确保读取共享内存数据时不产生bank conflict。图5展示了一种ldmatrix时无bank conflict的布局形式。
 
-![Figure 5. ldmatrix指令无bank conflict时的bank占用情况](https://files.mdnice.com/user/59/d1a12b06-650d-4726-8b11-81789d543a17.jpg)
+![Figure 5. ldmatrix指令无bank conflict时的bank占用情况](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d1a12b06-650d-4726-8b11-81789d543a17.jpg)
 
 从数学逻辑上看，8x8-half的寄存器数据表示连续的矩阵块，共享8x16byte的内存也有很好空间局部性的矩阵块，但是从共享内存的存储逻辑上看，为了避免读取时的bank冲突，其必须分配在不同的bank中。所以其横向位置在共享内存排列时不是简单的逻辑向下排列，而需要横向（bank方向）错开来避免bank conflict。
 
@@ -993,13 +993,13 @@ void gen_rand_data(T *data, int n) {
 
 在GEMM流水线中数据的起点是全局内存，如图6所示，矩阵乘法所需要的寄存器数据来自于共享内存，共享内存数据来自于全局内存，数学逻辑上寄存器表示的数学空间和全局内存的位置是对应的。但是共享内存由于有bank的存在，其块状数据在共享内存存储时不是简单行列排列。需要根据ldmatrix的要求来避免冲突，这样从全局内存读取数据后写入共享内存时，也需要按照逻辑要求进行存储空间的映射。同时在全局内存向共享内存加载时，为了提升全局内存的读取效率需要考虑合并访存和L2 Cache line的情况，一般会要求其线程沿着线性地址的空间顺序排列，如图T0->Tn所示。也就是说我们在做全局内存到共享内存数据搬运时，思考模型是逻辑空间，而执行时需要考虑存储空间以避免bank conflict。
 
-![](https://files.mdnice.com/user/59/068350d9-741c-4006-8634-b266bec92c8d.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/068350d9-741c-4006-8634-b266bec92c8d.jpg)
 
 ##  异或运算的封闭性和双射性
 
 计算机异或指令（符号通常写作 `^`，也常记为 $\oplus$）接收两个输入，对于 1bit 数据，如果输入的 bit 相同则输出 0，如果 bit 不同则输出 1。对于多 bit 数据，则针对各个位置进行 1bit 异或操作。例如 $5 \oplus 3 = \texttt{0b0101} \oplus \texttt{0b0011} = \texttt{0b0110} = 6$。异或计算满足交换律、结合律。同时对于集合 $S = \{x \mid x \in [0, 2^n-1]\}$ 中的任意两个元素，异或所形成的输出仍落在 $S$ 中，因此满足封闭性。如图7，我们可以发现该结果满足双射性（bijective），以上这些性质可以通过集合理论来进行严谨的证明。
 
-![Figure 7. 使用异或避免共享内存bank冲突](https://files.mdnice.com/user/59/133525f8-cf35-4787-b767-b0d2979912dc.png)
+![Figure 7. 使用异或避免共享内存bank冲突](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/133525f8-cf35-4787-b767-b0d2979912dc.png)
 
 图7中左侧的逻辑矩阵可认为是 $i_{\text{col}}=1$ 的共享内存列，其在共享内存中对应一个 bank，即矩阵的逻辑位置为 $(i_{\text{row}}\in[0,7],\ i_{\text{col}}=1)$。我们可以通过对 column 做异或映射（swizzle）得到新的 bank 索引，例如定义 $i_{\text{bank}} = i_{\text{row}} \oplus i_{\text{col}}$，从而将坐标写为 $(i_{\text{row}}\in[0,7],\ i_{\text{bank}} = i_{\text{row}} \oplus i_{\text{col}})$。如图7中右侧黑框标注的部分，可以看到这些数据被分配到了不同的 bank 中，在读写时可以避免 bank conflict。
 
@@ -1007,7 +1007,7 @@ void gen_rand_data(T *data, int n) {
 
 cute中通过swizzle抽象来实现共享内存bank conflict的冲突解决。通过前面的描述我们知道，在整个计算体系中，我们需要的是二维的逻辑空间来描述矩阵块，但是为了避免共享内存的冲突，我们在共享内存存储数据时需要的是物理空间。回顾之前的介绍我们知道描述逻辑空间我们可以使用Layout（本质是函数），而为了避免bank 冲突，cute中定义了swizzle抽象，swizzle的本质也是函数，swizzle作用在layout上，即函数作用在函数上，复合函数复合的定义。Layout的作用是给定坐标返回offset，而swizzle的作用则是给定offset返回bank conflict free的offset。即 $\mathrm{offset}_{\text{bank\_conflict\_free}} = \mathrm{Swizzle}(\mathrm{Layout}(\mathrm{coord}))$。为了达成这个目的，Swizzle定义了三个参数: B、M、S。它们共同表达描述一维坐标向二维空间映射的三个层次。当我们把一个一维度坐标转换成二维坐标时，我们首先将一维中连续的几个元素作为新空间中的基础元素，然后描述该二维空间有多少行和列。其中一维坐标中连续的 $2^M$ 个元素构成二维空间中最基本的元素，$2^S$ 表示新的二维空间中有多少列，$2^B$ 表示新的二维空间中有多少行。
 
-![](https://files.mdnice.com/user/59/e8e1a8a1-a3cc-496a-add5-8f1ce3d78a8a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e8e1a8a1-a3cc-496a-add5-8f1ce3d78a8a.png)
 
 如图8所示，当 $B=1,\ M=1,\ S=2$ 时，$M$ 描述了一维坐标连续的两个元素构成一个二维空间的基本单元，$S$ 描述了形成二维空间后的列数，$B$ 描述了形成二维空间的行数，如此我们便得到了图2-D(a)，其二维空间包含二行四列，基本单元包含两个元素。然后我们对二维空间中的列坐标和对应的行坐标进行异或得到新的列号（$i_{\text{col}}' = i_{\text{row}} \oplus i_{\text{col}}$），形成2-D(b)。如果一维坐标映射后超过出了 $2^B$ 的大小，则超出的部分的行号从0开始记，但是offset上要加上前面的所有的元素个数。在实际操作时，如我们有一块half类型，`shape: (8, 32), stride: (32, 1)` 的共享内存，我们定义 `Swizzle<3, 3, 3>` 作用到该 shared memory Layout 上，形成 `A = Composition(Swizzle<3, 3, 3>{}, Layout<Shape<8, 32>, Stirde<32, 1>>{});` 则Layout中有效的offset为 $0\sim 256$。Swizzle中 $M=3$，所以8个元素形成一个新的最小的元素，即 $8 \times 2\,\text{byte} = 16\,\text{byte}$；Swizzle中 $S=3$，所以2D空间中一行包含8个元素，则有 $8 \times 16\,\text{byte} = 128\,\text{byte}$，$128\,\text{byte}$ 为shared memory无conflict访问所有bank的最大宽度；Swizzle中 $B=3$，则2D空间 $i_{\text{row}}$ 更新的间隔为8。如此则实现了将一个逻辑的空间向2D的shared memory空间的映射，其中列的宽度为 $128\,\text{byte}$ 占满所有的bank，行列异或后得到新的列号，避免了在bank方向（亦即icol方向）的冲突。
 
@@ -1015,7 +1015,7 @@ cute中通过swizzle抽象来实现共享内存bank conflict的冲突解决。�
 
 除了避免共享内存冲突的swizzle外，cute（cutlass）中还有另一种swizzle，为thread block swizzle，在以C为中心的任务划分模式中，如果没有Thread Block Swizzle，则任务块会按照线性的行优先或者列优先的顺序分配给所有的执行单元（如图9中SM0-3，假设硬件只有4个SM），进行Thread Block Swizzle后，可以形成如图9右侧所示的任务划分关系，在某些场景下，其可以提升L2 Cache的命中率，数学上表现为在相同的元素能覆盖更大的面积，同时这部分面积(A、B)能够很好的被L2缓存住，具体的可以参考cutlass中的thread block swizzle实现。
 
-![Figure 9. Thread Block Swizzle](https://files.mdnice.com/user/59/e4752bd8-69dc-4bf9-9753-95eb7b7075f6.jpg)
+![Figure 9. Thread Block Swizzle](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e4752bd8-69dc-4bf9-9753-95eb7b7075f6.jpg)
 
 # cute 之 高效GEMM实现
 
@@ -1037,7 +1037,7 @@ cute将这两条指令抽象为MMA_Operation：
 
 选定计算指令之后，我们便可以通过MMA_Traits，如图1，在MMA_Operation的基础上补充上后续计算所需要的其它信息，如矩阵计算的形状、该指令所需要的协作线程（此处为32线程）、A、B矩阵的寄存器Layout分布情况。有了MMA_Traits之后，我们便可以将其进一步封装为MMA_Atom，其利用Traits提供的信息，提供数据划分所需要的信息和Operation的执行功能。MMA_Atom描述了矩阵计算的原子能力（单条指令的计算能力，最小能力），我们通过增加更多的线程、每个线程做多次任务则可以将计算的规格增大，如此则有了TiledMMA，TiledMMA针对每一个线程则被分裂为ThrMMA，TiledMMA和ThrMMA利用MMA_Atom提供的信息，能够实现对矩阵块的划分。调用相应的cute::gemm函数即可以完成矩阵乘法计算。
 
-![Figure 1. MMA能力层次和各层的主要功能](https://files.mdnice.com/user/59/dcbd196a-8d1d-40b4-9b6f-8f1078c417b2.png)
+![Figure 1. MMA能力层次和各层的主要功能](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dcbd196a-8d1d-40b4-9b6f-8f1078c417b2.png)
 
 
 此时，我们便可以得到如下主机端代码
@@ -1076,7 +1076,7 @@ TiledMMA tiled_mma;
 
 将TileMMA提供线程号，则获得具体线程的数据划分能力，对给定的数据块进行划分，得到线程级的数据描述。
 
-![Figure 2. partition_A/B/C逻辑示意图](https://files.mdnice.com/user/59/2e798aab-1c25-4794-841e-b678b9ef681f.jpg)
+![Figure 2. partition_A/B/C逻辑示意图](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2e798aab-1c25-4794-841e-b678b9ef681f.jpg)
 
 如图2所示，其展示了ThrMMA提供的partition_A/B/C和partition_fragment_A/B/C函数的计算逻辑，给定一个静态大小的Tensor TileB（被划分维度为Int<>编译时常量），则thr_mma可以对其进行划分，其中划分的逻辑为：以TileMMA中描述的矩阵大小对目标Tensor进行周期性平铺，对高亮的部分进行选取形成新的矩阵，其中第一个维度为TiledMMA中单个线程的数据描述，第二个维度和第三个维度为行方向和列方向需要重复的次数。如果TileB的维度比两维高，则高出的部分继承到N,K维度之后。类似地，A/C的划分采用同样的逻辑。
 
@@ -1250,11 +1250,11 @@ static constexpr int kShmLoadSwizzleM = 3;
 
 通过上面的计算、加载、算法，我们便可以得到矩阵乘之后的块状的数据，这些数据表示为线程内寄存器，由于数据存储，将这些数据存储出去并不平凡，如图3所示，如果将寄存器数据直接写出，则在全局地址空间中会产生内存地址的不连续，这将导致存储时需要更多的内存事务，并且不能使用向量化存储指令（STG.128）。
 
-![Figure 3. 寄存器堆直接存储至全局内存引入的不连续](https://files.mdnice.com/user/59/5af057b2-6675-46f6-8010-0bba2cc8a381.png)
+![Figure 3. 寄存器堆直接存储至全局内存引入的不连续](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5af057b2-6675-46f6-8010-0bba2cc8a381.png)
 
 针对这个问题，cute中（实质为cutlass中），专门提供了Epilogue来通过共享内存作为中间媒介。先将寄存器数据存储到共享内存，然后再从共享内存中以更连续、更高位宽的形式存储到全局内存中去。PACT'20 Fireiron文章有对该问题的详细探讨，可以参考之。
 
-![Figure 4. Epilogue中Accumulator寄存器通过共享内存实现到全局内存的数据搬运](https://files.mdnice.com/user/59/bc2f11a2-44f0-42f8-997a-938b531cbcf1.jpg)
+![Figure 4. Epilogue中Accumulator寄存器通过共享内存实现到全局内存的数据搬运](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bc2f11a2-44f0-42f8-997a-938b531cbcf1.jpg)
 
 本文通过共享内存实现高效的TileC的存储，具体代码可以参考github上的实现，整体过程如图4所示。
 

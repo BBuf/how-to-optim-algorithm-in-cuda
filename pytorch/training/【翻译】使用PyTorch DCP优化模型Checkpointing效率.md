@@ -30,7 +30,7 @@ GitHub 仓库 TorchTitan(https://github.com/pytorch/torchtitan) 是一个使用�
 
 图中说明了保存流程。在这个例子中,参数 P2 在 rank0 和 rank1 之间分片,而参数 P1 保持在 rank0 上未分片。在每个 rank 上保存 `state_dict` 时,张量数据本身不会发生通信。但是,与元数据相关的通信会发生,然后保存在元数据文件中。这个元数据文件详细说明了各个文件中每个参数的偏移量和长度。请注意,该图仅用于说明目的并简化了某些方面;实际实现细节可能有所不同。
 
-![](https://files.mdnice.com/user/59/b591a1d9-f062-4530-9d6e-169f6577342d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b591a1d9-f062-4530-9d6e-169f6577342d.png)
 
 ## 将 DCP 集成到 TorchTitan 中
 
@@ -90,17 +90,17 @@ TorchTitan 使用 `model_wrapper` 和 `optim_wrapper` 而不是直接将模型�
 
 检查点面临两个主要瓶颈:将张量从 GPU 复制到 CPU 内存(称为"暂存")以及将张量从 CPU 内存传输到持久存储,如下图所示。该图沿时间轴(x轴)描绘了三个不同的任务(训练、暂存和持久化步骤),要求训练器暂停训练并切换到执行暂存,然后执行持久化步骤。对于现代模型,暂存开销通常持续几秒钟,而持久化步骤可能需要几十到几百秒,具体取决于存储系统。
 
-![](https://files.mdnice.com/user/59/95462b98-4d32-4be0-90b6-7923e9cad3e9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/95462b98-4d32-4be0-90b6-7923e9cad3e9.png)
 
 减少检查点频率是一种常见的降低开销的方法。例如,如果检查点开销是50秒,而目标是将GPU时间浪费限制在不超过1%,那么最优解决方案是每5000秒保存一次检查点。虽然这种频率在较小规模上可能是可以接受的,但在跨越数百或数千个GPU节点进行训练时就会出现问题。在如此大的规模下,假设5000秒内没有节点故障是不现实的。由于训练的SPMD特性,在此期间内单个节点的故障都会要求所有节点从最后一个检查点重新启动,这会显著降低训练效率。
 
 为了解决这种低效问题,我们在DCP中实现了异步检查点。异步检查点的基本原理是持久化步骤(不涉及GPU)可以在单独的线程上与训练步骤并发运行。使用异步检查点时,该过程从主训练暂停以将张量从GPU复制到CPU内存开始。之后,主训练线程恢复训练任务,而持久化步骤则委托给另一个线程。下图说明了异步检查点的概念。主线程不再处理持久化步骤,而是简单地启动另一个专门用于此任务的线程,并立即返回训练。
 
-![](https://files.mdnice.com/user/59/64d9a1af-bce7-478a-a61a-d903bab248a7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/64d9a1af-bce7-478a-a61a-d903bab248a7.png)
 
 下图展示了实验结果。我们使用配备了64个H100 GPU的8个节点,通过TorchTitan FSDP2训练了Llama 3 8B模型。检查点频率设置为每100次迭代一次。从图中可以看出,在不进行检查点的情况下训练100次迭代大约需要270秒。使用同步检查点时,检查点开销接近50秒。显然,这个开销太大,无法维持每100次迭代或每5分钟一次的检查点频率。
 
-![](https://files.mdnice.com/user/59/3a8b8512-be47-4853-9f69-34681aabe5ba.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3a8b8512-be47-4853-9f69-34681aabe5ba.png)
 
 使用异步检查点时,检查点开销减少到不到0.5秒。理想情况下,这应该代表异步检查点的总开销;然而,由于Python全局解释器锁(GIL)的存在,持久化线程偶尔会阻碍主训练线程,在随后的10次训练迭代中增加约2.2秒的延迟。尽管存在GIL问题,结果仍然显示相比同步检查点有显著改进,开销减少高达19倍。对于这个实验,将检查点开销限制在1%以内使我们能够实际地将检查点频率提高到每5分钟或每100次迭代一次。
 
@@ -120,13 +120,13 @@ TorchTitan 使用 `model_wrapper` 和 `optim_wrapper` 而不是直接将模型�
 
 下图说明了零开销检查点流程。在暂存CUDA流上下文中启动暂存后,主线程可以立即恢复第N+1次迭代的训练。暂存CUDA流与训练同时执行暂存过程。在进入优化步骤之前,主线程必须验证暂存的状态;如果暂存已经完成,这个检查会产生最小的开销。随后,主线程可以在单独的进程中启动持久化步骤,如前所述。然后主线程返回训练任务。
 
-![](https://files.mdnice.com/user/59/38c8c231-b412-4b14-b03f-b19741a16dd2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/38c8c231-b412-4b14-b03f-b19741a16dd2.png)
 
 下图展示了使用与上一节相同的模型和硬件配置进行的实验结果。结果表明暂存开销仅为0.06秒,后续训练步骤的速度减慢不到0.4秒。这使得总开销降至0.5秒以下——比异步检查点快6倍。但仍有改进空间。额外的0.35秒主要是由于主线程监控暂存CUDA流状态并将state_dict传输到持久化进程所致。未来的工作可以探索将这些操作卸载到另一个线程以进一步最小化开销。
 
 图6: 异步检查点 vs 零开销检查点
 
-![](https://files.mdnice.com/user/59/af3acfec-b473-45f5-8377-3bf5f589f840.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/af3acfec-b473-45f5-8377-3bf5f589f840.png)
 
 与异步检查点相比,零开销检查点更加复杂,需要额外的CPU内存(固定内存不可分页)和多进程处理,这些都更难管理。因此,如果CPU内存受限或者用户更倾向于使用更简单的检查点过程,异步检查点可能是更合适的选择。尽管存在这些挑战,零开销检查点代表了提高训练效率和GPU利用率的一个有前途的方向。
 

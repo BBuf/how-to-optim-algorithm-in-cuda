@@ -1,6 +1,6 @@
 来自：https://zhuanlan.zhihu.com/p/20579515046 & https://zhuanlan.zhihu.com/p/21142007017
 
-![](https://files.mdnice.com/user/59/17e8530e-73ee-4c95-9048-3a154ead44e8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/17e8530e-73ee-4c95-9048-3a154ead44e8.png)
 
 # 实用 Swizzle 教程（一）
 
@@ -44,13 +44,13 @@ __device__ void mma_simple(half *a, half *b, half *c) {
 
 这看起来似乎很友好，于是我兴奋地写好了测试代码后一顿操作猛如虎进行了 profile，得到了如下结果：
 
-![bank conflict profile (ld st)](https://files.mdnice.com/user/59/9af2664d-c94b-4341-a0a1-0fa22d086b65.png)
+![bank conflict profile (ld st)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9af2664d-c94b-4341-a0a1-0fa22d086b65.png)
 
 Emm..., 如图所示，Global Load/Store 均不造成 bank conflict，那么这里的 12 次冲突是哪来的呢？我们在调用 `mma_simple` 的时候一般是从 Shared Memory 加载/存储数据（笔者的测试也是如此），因此合理推断是 mma 的相关操作产生了冲突。
 
 通过反汇编查看 SASS 代码，我们可以知道 `load_matrix_sync` 生成了 `LDSM` 指令，`store_matrix_sync` 生成了 `STS` 指令，由此我们可以查看对应指令造成的冲突。
 
-![bank conflict profile (LDSM STS)](https://files.mdnice.com/user/59/fb61e4b5-01d2-4ff0-aeb1-655b1343d444.png)
+![bank conflict profile (LDSM STS)](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fb61e4b5-01d2-4ff0-aeb1-655b1343d444.png)
 
 很好，我们成功地找到了罪魁祸首。因此现在的问题转为如下两个：
 
@@ -67,7 +67,7 @@ Emm..., 如图所示，Global Load/Store 均不造成 bank conflict，那么这�
 
 事实上，从该指令在手册中所处的位置也可以知道，`ldmatrix` 是为 Tensor Core 的矩阵计算而生的一条加载指令，为使用 HMMA 指令利用 Tensor Core 进行矩阵乘法计算，矩阵的元素需要 **分布存储** 到一个 warp 的 32 个线程中。以一个 16x16 FP16 矩阵为例，由于每个 32 位寄存器可以存两个 FP16，每个线程各提供 4 个寄存器 R0, R1, R2, R3 ，共同存储 32 * 4 * 2 = 256 个矩阵元素。 为利用 HMMA 指令进行计算，在官方手册中要求矩阵的元素与线程的各个寄存器有一定的对应关系，以矩阵 A 为例，该对应关系如下所示：
 
-![m16n8k16 fragment A layout ](https://files.mdnice.com/user/59/a68b140c-8670-410d-9e32-0d90f74898db.png)
+![m16n8k16 fragment A layout ](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a68b140c-8670-410d-9e32-0d90f74898db.png)
 
 其中 `{a0,a1}` 表示寄存器中存储原矩阵的 `a0, a1` 元素。
 
@@ -77,7 +77,7 @@ Emm..., 如图所示，Global Load/Store 均不造成 bank conflict，那么这�
 
 `load_matrix_sync(frag_a, smem_a, 16)` 对该指令的使用方式可用下图说明：
 
-![ldmatrix.sync.aligned.x4.shared.b16](https://files.mdnice.com/user/59/14e45ac5-e50d-47d4-b2f1-8195d1c24cb5.png)
+![ldmatrix.sync.aligned.x4.shared.b16](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/14e45ac5-e50d-47d4-b2f1-8195d1c24cb5.png)
 
 为方便后续调用，我们将该指令进行封装如下：
 
@@ -119,7 +119,7 @@ STS 即 `st.shared`, 表示将寄存器的内容存到 shared memory 中。由�
 
 观察 `ldmatrix` 的第一个阶段，如下图所示：
 
-![bank conflict in LDSM](https://files.mdnice.com/user/59/4d5a1171-dd50-4cf0-b328-2292b5d3e747.png)
+![bank conflict in LDSM](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4d5a1171-dd50-4cf0-b328-2292b5d3e747.png)
 
 由于共享内存共有 32 个 4B 的 bank，我们可以知道 16x16 FP16 矩阵的 4 行刚好占满所有 bank，因此在第一个阶段的加载中，会有如上图所示的冲突。
 
@@ -135,13 +135,13 @@ STS 即 `st.shared`, 表示将寄存器的内容存到 shared memory 中。由�
 
 最自然的想法就是对给出的地址进行重排，如下图所示：
 
-![](https://files.mdnice.com/user/59/bbcf5446-7dfe-440d-9238-ed9ceae3d675.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bbcf5446-7dfe-440d-9238-ed9ceae3d675.png)
 
 需要注意的是，此时 `thread16-31` 的 `R0` 寄存器存储的应是原先的 `R2` 寄存器存储的内容，在后期我们需要对他们的寄存器的内容进行交换才能保证得到正确的结果。
 
 然而，该方法是不可扩展的。以 16x64 FP16 矩阵为例，若一个局部的 16x16 矩阵每行均与上一行冲突，则不管怎样重排给出的地址都会有冲突产生。具体细节可参照下图：
 
-![](https://files.mdnice.com/user/59/893f1ba4-0872-4e32-9427-bdcb2af3f155.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/893f1ba4-0872-4e32-9427-bdcb2af3f155.png)
 
 因此，在不改变 Shared Memory 布局的情况下，我们很难达到 bank conflict free 的目标。
 
@@ -149,15 +149,15 @@ STS 即 `st.shared`, 表示将寄存器的内容存到 shared memory 中。由�
 
 布局重映射法通过将一个 8x8 子块的每一行分布到不同的 bank 中以实现共享内存的无冲突访问。此处我们以对全局内存里一个 16x64 FP16 矩阵的第一个 16x16 矩阵块进行 `ldmatrix` 为例，整个过程如下图所示：
 
-![shift version](https://files.mdnice.com/user/59/78d0ace3-032e-4c57-b892-db34cc4f5ab8.png)
+![shift version](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/78d0ace3-032e-4c57-b892-db34cc4f5ab8.png)
 
 另一种可行的方式如下图所示：
 
-![xor version](https://files.mdnice.com/user/59/fb713f46-6623-4d08-96da-2037f3ba7e40.png)
+![xor version](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/99849127-db9e-46fa-9a33-52cd3c4ca188.png)
 
 上面两种方式不同的只是地址的映射方式，第二种为 CUTLASS 所采用的方式，即利用异或进行重映射。让我们更细致地考察这一过程：
 
-![](https://files.mdnice.com/user/59/0dc6e037-eeb4-4917-a114-9914b1cca42a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0dc6e037-eeb4-4917-a114-9914b1cca42a.png)
 
 我们可以总结得到以下几点：
 
@@ -199,13 +199,13 @@ ldmatrix_sync(a_frag.x, smem_a + r_ * 16 + c_ * 8)
 
 实际运行如下：
 
-![](https://files.mdnice.com/user/59/52d53e80-74a6-443e-b1f9-49e0b819d92e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/52d53e80-74a6-443e-b1f9-49e0b819d92e.png)
 
 Hoooooooray!!!
 
 最后让我们聊一下其他情形，再取一个实际的例子，如用 `ldmatrix` 加载 16x32 矩阵。相信读到此处，读者们都能做出估计：不做 Swizzle 时，每两行填满所有 bank，因此共会有 3 * 4 * 2 = 24 次冲突。而我们的 Swizzle 应按如下图所示的思路进行：
 
-![](https://files.mdnice.com/user/59/5a9492d5-fb16-4c37-9b94-536d5212c855.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a9492d5-fb16-4c37-9b94-536d5212c855.png)
 
 由于相邻的两行不会冲突，因此行偏移的最低位不做任何贡献，利用行偏移的中间 2 位与原列偏移进行异或即可得到新的列偏移。
 
@@ -231,7 +231,7 @@ Hoooooooray!!!
 
 回顾上一篇文章给出的例子：
 
-![基于 XOR 运算的 swizzle](https://files.mdnice.com/user/59/99849127-db9e-46fa-9a33-52cd3c4ca188.png)
+![基于 XOR 运算的 swizzle](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/99849127-db9e-46fa-9a33-52cd3c4ca188.png)
 
 从上图中可以得知，swizzle 实质上解决了这么一个问题：
 
@@ -247,7 +247,7 @@ Hoooooooray!!!
 
 我们重新关注一下上一篇文章中的地址映射过程：
 
-![全局内存到共享内存的地址映射](https://files.mdnice.com/user/59/d2cd31c6-b681-44d5-b348-b70e6d097e6d.png)
+![全局内存到共享内存的地址映射](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d2cd31c6-b681-44d5-b348-b70e6d097e6d.png)
 
 注意，图中的地址实际上是一个 `FP16` 指针的偏移量。`8cols` 所表示的列实际上是一个 `8*2B=16B` 的 `bank4`，即由 4 个 `4B` 的 `bank` 形成的一个列。
 
@@ -261,7 +261,7 @@ Hoooooooray!!!
 
 进而我们可以通过以下方式对 swizzle 进行抽象：
 
-![Swizzle 模板代码](https://files.mdnice.com/user/59/d7459cf7-776f-411a-afdd-c085548e3e01.png)
+![Swizzle 模板代码](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d7459cf7-776f-411a-afdd-c085548e3e01.png)
 
 我们将三个参数作为模板参数以实现编译期计算，可以很好的利用 Cpp(ComPile time Programming) 的优势。可以看到，实际运行时仅有 `return` 处的开销，这部分 bit 操作笔者选择相信编译器。
 
@@ -280,11 +280,11 @@ Elegant !!! 我们成功地实现了属于自己的 swizzle。下面就让我们
 
 Problem1.1 的核心在于无冲突访问共享内存中的 16x16 矩阵。经过上一篇文章和本文的抽象，相信读者能够轻蔑一笑，甩出下面的解法：
 
-![16x16 swizzle](https://files.mdnice.com/user/59/bef73793-ca64-47ca-88be-517973bda2af.png)
+![16x16 swizzle](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bef73793-ca64-47ca-88be-517973bda2af.png)
 
 Problem1.2 类似，不过是将两个 16x16 视为了一个整体，读者仍能毫不费力的甩出下面的解法：
 
-![16x32 swizzle](https://files.mdnice.com/user/59/11c1cf6a-89f9-4d2a-8281-be32fc3b7923.png)
+![16x32 swizzle](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/11c1cf6a-89f9-4d2a-8281-be32fc3b7923.png)
 
 ### 多层(Multi-) Swizzle
 
@@ -294,13 +294,13 @@ Problem1.2 类似，不过是将两个 16x16 视为了一个整体，读者仍�
 
 该问题图示如下：
 
-![多模式访问同一个矩阵](https://files.mdnice.com/user/59/9bbabf41-3fb6-4ae5-b176-86514acc2621.jpg)
+![多模式访问同一个矩阵](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9bbabf41-3fb6-4ae5-b176-86514acc2621.jpg)
 
 这个问题的难点在于同时支持两种访问模式的无冲突访问，直觉较强的读者可能已经隐隐有得道飞升之感...
 
 我们首先考虑应用第一层 swizzle 以解决第一个子问题的无冲突访问，如下图所示：
 
-![第一层 Swizzle](https://files.mdnice.com/user/59/95cca358-48d9-47e8-bbf6-2863c22fd718.png)
+![第一层 Swizzle](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/95cca358-48d9-47e8-bbf6-2863c22fd718.png)
 
 注意到，此种模式下对于第二个子问题的访问仍会存在冲突。以第一行为例，敏锐的读者可能已经注意到了其会产生与 Problem1.1 相同的冲突。于是乎，我们便有了一个有趣的想法：
 
@@ -310,7 +310,7 @@ You get it!, 通过连续施加两层 Swizzle，我们便获得了两种模式�
 
 整个过程如下图所示：
 
-![双层 Swizzle](https://files.mdnice.com/user/59/ba585773-4db9-42d2-99a8-a36b6b9bdbbe.jpg)
+![双层 Swizzle](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ba585773-4db9-42d2-99a8-a36b6b9bdbbe.jpg)
 
 
 ### 混叠(Interleaving-) Swizzle

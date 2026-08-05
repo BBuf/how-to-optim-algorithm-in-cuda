@@ -101,12 +101,12 @@ copy(rmem, thr_tile_DT);
 
 现在我们可以将这个方法与纯copy kernel进行基准测试比较。copy kernel的代码基于CUTLASS的tiled_copy示例(https://github.com/NVIDIA/cutlass/blob/main/examples/cute/tutorial/tiled_copy.cu)，所以我们将解析它作为读者的练习。此外，我们通过实验发现，对于我们的工作负载，`32 x 1024`的tile大小提供了最佳性能。
 
-![基准测试在NVIDIA H100 PCIe GPU上进行，矩阵大小M=N=32768。使用PyTorch基准测试工具Timer进行测量。](https://files.mdnice.com/user/59/8b71d72d-288b-4f18-8ccb-50cf7f458586.png)
+![基准测试在NVIDIA H100 PCIe GPU上进行，矩阵大小M=N=32768。使用PyTorch基准测试工具Timer进行测量。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8b71d72d-288b-4f18-8ccb-50cf7f458586.png)
 
 
 正如我们在Harris的文章中看到的，这种朴素方法的速度并不理想。这是因为这种复制是从GMEM到GMEM的跨步复制。为了确认这一点，让我们使用NVIDIA Nsight™ Compute对这个转置进行性能分析。这个性能分析工具可以检测代码中导致性能降低的问题。对朴素转置进行性能分析，GUI的摘要页面显示：
 
-![](https://files.mdnice.com/user/59/33ab6cfd-bb44-479d-9b6d-23ba8a6795c5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/33ab6cfd-bb44-479d-9b6d-23ba8a6795c5.png)
 
 Nsight Compute提供了广泛的工具来帮助优化，但全面探索Nsight超出了本文的范围。在本文中，我们将只关注摘要页面。在上面的摘要页面中，我们看到非合并访问的问题确实构成了主要报告的问题。
 
@@ -253,7 +253,7 @@ cute::copy(tDsD, tDgD);
 现在当我们进行基准测试时，我们得到了一个更好的结果。
 
 
-![基准测试在 NVIDIA H100 PCIe GPU 上进行，M=N=32768。使用 PyTorch 基准测试工具 Timer 进行测量。](https://files.mdnice.com/user/59/5f7cb12a-7b34-4429-9608-2fe00223bc2c.png)
+![基准测试在 NVIDIA H100 PCIe GPU 上进行，M=N=32768。使用 PyTorch 基准测试工具 Timer 进行测量。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5f7cb12a-7b34-4429-9608-2fe00223bc2c.png)
 
 
 尽管如此，我们的结果仍然与复制操作的结果有一定差距。再次对代码进行分析，我们可以发现下一个需要解决的问题——Memory Bank Conflict。
@@ -295,7 +295,7 @@ auto tileLayoutS = make_layout(block_shape, GenRowMajor{});
 auto smemLayoutS_swizzle = composition(Swizzle<5, 0, 5>{}, tileLayoutS);
 ```
 
-![Swizzle<5,0,5>应用于32x32 Tile的结果。索引取模32。](https://files.mdnice.com/user/59/85eb5049-00dd-43db-bb56-4e3ed0fad3ba.png)
+![Swizzle<5,0,5>应用于32x32 Tile的结果。索引取模32。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/85eb5049-00dd-43db-bb56-4e3ed0fad3ba.png)
 
 我们还注意到，SMEM中的其它数据存储模式将需要不同的交织函数。我们鼓励读者尝试CuTe提供的通用交织函数，并选择最适合他们的函数。
 
@@ -330,11 +330,11 @@ tileLayoutS(bM*x+y) = tileLayoutS((y,x)) = bN*y+x.
 
 我们的swizzled解决方案使我们接近复制kernel的性能，就像Mark Harris的文章中所做到的那样。
 
-![基准测试在 NVIDIA H100 PCIe GPU 上进行，M=N=32768。使用 PyTorch 基准测试工具 Timer 进行测量。](https://files.mdnice.com/user/59/86603b62-15e3-43ee-bbe2-ecf6198db79a.png)
+![基准测试在 NVIDIA H100 PCIe GPU 上进行，M=N=32768。使用 PyTorch 基准测试工具 Timer 进行测量。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/86603b62-15e3-43ee-bbe2-ecf6198db79a.png)
 
 随着性能接近带宽限制，我们正在接近硬件限制。在prfoile swizzle版本时，ncu摘要页面显示：
 
-![](https://files.mdnice.com/user/59/229dac2f-58e0-433c-9d23-c2973add72b5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/229dac2f-58e0-433c-9d23-c2973add72b5.png)
 
 我们看到我们已经解决了Memory Bank Conflict问题。最后报告的长记分板停顿问题可以忽略，因为我们正在分析一个完全受内存限制的kernel。
 
@@ -475,6 +475,6 @@ template <typename Element, bool isSwizzled = true> void transpose_smem(Transpos
 
 所有这些kernel的源代码以及基准测试脚本可在Colfax Research GitHub仓库(https://github.com/ColfaxResearch/cfx-article-src/tree/master/transpose-cute)中获得。
 
-![](https://files.mdnice.com/user/59/11b25161-1bf4-4cda-94d2-aa43ba2579a9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/11b25161-1bf4-4cda-94d2-aa43ba2579a9.png)
 
 

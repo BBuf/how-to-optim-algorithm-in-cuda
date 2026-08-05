@@ -2,17 +2,17 @@
 
 ## 总览&目录
 
-![](https://files.mdnice.com/user/59/5fe44715-f36e-4959-85fc-461baa79e254.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5fe44715-f36e-4959-85fc-461baa79e254.png)
 
-![](https://files.mdnice.com/user/59/f7e8b02c-29ce-49d5-98a1-de90ab75e53c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f7e8b02c-29ce-49d5-98a1-de90ab75e53c.png)
 
 这个演讲主要会分成三部分，首先是对CuTe的介绍，然后介以GEMM数据传输为例展示它是如何用Cute来做的。安排这两节是因为是在CUTLASS 3.x的底层实现中，无论你的数据在各个层级的管理，还是真正做一个GEMM运算，都是需要大量的使用到CuTe的API的。不熟悉CUTLASS的开发者初次见到CuTe会比较陌生，所以对其进行介绍。最后一个会具体的去浏览一下Mixed GEMM的CUTLASS 3.x实现。
 
 ## CuTe 介绍
 
-![](https://files.mdnice.com/user/59/32dcec1a-3930-42ff-9c13-7632043a7743.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/32dcec1a-3930-42ff-9c13-7632043a7743.png)
 
-![](https://files.mdnice.com/user/59/f47fd7ca-9d1a-4e45-95cc-0f2e92035cf9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f47fd7ca-9d1a-4e45-95cc-0f2e92035cf9.png)
 
 CuTe其实就是用来管理CUDA Tensors计算的一个工具库，它最主要的概念就是**Layout**和**Tensor**。其中Layout是由**Shape**和**Stride**这两个概念组成的，可以把它理解为一个函数，作用就是把一个N维的逻辑坐标映射到真实的一维的连续的索引上去。有了这个Layout之后，再把一个真正的内存的指针传给Tensor的模板参数，这就构成了一个真正的Tensor。这里可以发现对于同一个内存指针指向的连续空间，给它不同的Layout就可以得到不同视角的Tensor，这就让CuTe具有了很大的灵活性，让它可以去处理一些复杂的索引问题。
 
@@ -20,7 +20,7 @@ CuTe提供了对Layout的形式代数操作：Layout可以被组合、操作、�
 
 CuTe提供了很多的API，包含一些基本的变换的一些API，这里列出了几个CuTe的操作函数，如get、rank、depth、shape、stride和size等。最后，Slides提到了一些其他相关概念，如Composition（组合）、Complement（补集）、Inverse（逆）、Product（乘积）和Divide（除法）。这张Slides的最后一个链接是CuTe的官方文档有更详细的CuTe的概念以及API介绍。
 
-![](https://files.mdnice.com/user/59/c5902b43-b10b-4a08-9b4c-b672fbb79779.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c5902b43-b10b-4a08-9b4c-b672fbb79779.png)
 
 这张Slides讲解了在CUDA张量操作中Layout的表示方法，主要通过Shape（形状）和Stride（步长）来描述。以下是主要内容：
 - Layout表示：通过Shape和Stride来定义多维数组在内存中的排列方式。
@@ -41,15 +41,15 @@ CuTe提供了很多的API，包含一些基本的变换的一些API，这里列�
         - 使用公式：offset = inner_product(coord, stride)
         - 例如，对于元素f，其逻辑坐标为(0,1,1)，物理偏移量计算为40 + 11 + 2*1 = 3
 
-![](https://files.mdnice.com/user/59/ce79b0c9-0711-420c-956f-741b33f1917a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ce79b0c9-0711-420c-956f-741b33f1917a.png)
 
 仍然来看刚才的三维的例子，我们可以把它看成是两个2x2的矩阵，也可以把后面的矩阵放在前面的矩阵的下面。这样我们就得到了一个4x2的二维矩阵，它的shape可以认为是4x2，但是我们这里并不能直接写成4，因为ac/ce/eg之间的距离不是固定的，如果写成4就没办法用一个数字去表示矩阵的Stride。注意到，a和c之间，e和g之间的距离都是4，而a和e，c和g之间的距离都是2。所以我们需要用到一个嵌套的表达。如下图红色部分：
 
-![](https://files.mdnice.com/user/59/28d6e502-0df9-4aae-8e46-dcd211d09d8c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/28d6e502-0df9-4aae-8e46-dcd211d09d8c.png)
 
 我们需要把这个4x2矩阵的第一维的Shape写成（2，2），Stride写成（4,2），可以参考Slides中的左下角的图进行理解，在水平方向上可以理解为每个元素有2个子元素，每个子元素之间的距离是4，所以第一个Stride就是4，然后在z方向会重复两次，所以第二个Stride就是2。因此，通过嵌套形式的表达我们就可以表达出更复杂的一些Layout的例子。
 
-![](https://files.mdnice.com/user/59/acf8fdfc-4340-466a-abe5-8124914ed7c5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/acf8fdfc-4340-466a-abe5-8124914ed7c5.png)
 
 这张Slides展示了多种不同的Layout。每种Layout都有其特定的用途和优势。以下是对每种Layout的简要解释：
 - Column-Major (列优先):
@@ -71,7 +71,7 @@ CuTe提供了很多的API，包含一些基本的变换的一些API，这里列�
     - 形状: ((2,2),(2,4))，步长: ((1,8),(16,2))
     - 结合了多种Layout特性，形成复杂的嵌套结构
 
-![](https://files.mdnice.com/user/59/600bd772-83fb-4060-a682-8fb6a456c7bd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/600bd772-83fb-4060-a682-8fb6a456c7bd.png)
 
 这张Slides介绍了CUTLASS 3.x中的CuTe的使用示例。主要内容如下：
 
@@ -89,21 +89,21 @@ CuTe提供了很多的API，包含一些基本的变换的一些API，这里列�
     - A(5,(_,1)) = [26,27]
 - 图中用不同颜色标注了这些访问和切片操作对应的矩阵区域。
 
-![](https://files.mdnice.com/user/59/3df36db2-b182-4b89-8771-777c1d2fcd72.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3df36db2-b182-4b89-8771-777c1d2fcd72.png)
 
 这张Slides可以帮助大家理解为什么我们需要CuTe，在CuTe之前（CUTLASS 2.x）我们实现一个地址准换需要Slides右边展示的这么多代码，我们需要理解每一行代码的作用。有了CuTe之后我们只需要Slides左边的几行代码就可以完成了。而且在CUTLASS 2.x中，定义一个Layout每个都需要有自己的实现，现在我们只需要用Shape和Stride就可以拿到任意想要的Layout。
 
 ## GEMM Data Flow with Cute
 
-![](https://files.mdnice.com/user/59/b7bb8422-d3fe-4d21-881c-27b77ce6a9ee.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b7bb8422-d3fe-4d21-881c-27b77ce6a9ee.png)
 
 接下来了解一下GEMM中是如何用CuTe做数据的传输的。
 
-![](https://files.mdnice.com/user/59/f74490c3-b3ba-4840-b0f3-344e3cc9a5e5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f74490c3-b3ba-4840-b0f3-344e3cc9a5e5.png)
 
 在讲解GEMM数据传输之前需要讲一下Copy这个API，这个API是用CuTe做数据传输时一定会用到的。左边的API比较简单，把src Tensor和dst Tensor传禁区就可以完成数据拷贝，会自动根据GPU的架构，数据的存储位置去自动选择用UniversalCopy或者SM80_CP_ASYNC_CACHEALWAYS。它只会在这两个里面选择，如果我们想要得到更好的性能，建议使用右边的API。右边的copy API我们需要在第一个参数中显示指定一个copy_atom，它就是CuTe会为各种不同架构中的数据传输指令做一个封装。这里列出了不同架构下的数据传输指令，如果我们想用第二个API需要了解一下每个指令的作用和使用场景。另外，注意到这里copy的都是Tensor，所以我们可以用一些神奇的Layout达到一些除了数据拷贝之外的其它的一些变换的效果。
 
-![](https://files.mdnice.com/user/59/067782a5-6f60-453d-83ba-be9826685b3e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/067782a5-6f60-453d-83ba-be9826685b3e.png)
 
 这张Slides举了一个用Copy做矩阵转置的简单例子，虽然不是最佳性能的实现，但可以让大家看到CuTe的魅力。右边的上两个图分别是从逻辑和物理的角度来看矩阵转置在做什么，物理角度来看就是要把abcd...->aeim...的顺序。我们在构造Tensor的时候就可以让iTensor和oTensor的shape都是一样的mxn，只不过在读进iTensor的时候让它以一个Column Major的方式读进来，所以我们构造Stride的时候传入(1, m)，右边的图里把iTensor.layout也画出来了，我们再以Row Major的方式写出去就达到了一个转置的效果，因此oTensor的stride就是(n, 1)。
 
@@ -116,7 +116,7 @@ CuTe提供了很多的API，包含一些基本的变换的一些API，这里列�
 Slides最下方的表格展示了通过Layout我们还可以做到COPY，BROADCAST，GATHER等等操作。另外，你做这些操作你几乎不用改左边的任何的实现代码，只需要把Layout改成你需要的形式就可以了。
 
 
-![](https://files.mdnice.com/user/59/81ad28b5-931c-4b90-ad00-0732a478ef55.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/81ad28b5-931c-4b90-ad00-0732a478ef55.png)
 
 
 TiledCopy就是我们用来以Tile为单位的Copy时去构造source/dest tensor需要用到的东西。包括MMA的话，也是不同的MMA实现需要不同的Tile的形式，也需要TiledCopy去做。想构造一个Tiled Copy需要用到make_tiled_copy这个API。第一个参数传的还是Copy_Atom，第二个参数就是Dest Tensor的Stride的Layout，第三个参数是Dest Tensor的Value Layout。
@@ -129,7 +129,7 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
 
 最右边的图画了一下Tiled Copy的封装层级，最底层它有Copy_Op和Copy_Traits这两个概念，Copy_Op就是底层的数据传输指令，是PTX的代码，然后Copy_Traits是关于代码的元信息，比如线程的Layou是什么样的。这两个就可以封装层我们最常用的Copy_Atom，CopyAtom再去封装得到TiledCopy，然后我们去划分Source Tensor和Dest Tensor需要通过get_slice拿到ThreadCopy，去做一个划分。
 
-![](https://files.mdnice.com/user/59/60eb07c1-59a3-4998-aa9a-77e8e008fa3e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/60eb07c1-59a3-4998-aa9a-77e8e008fa3e.png)
 
 我们想构造一个Tiled Copy应该怎么设置Thread Layout和Value Layout呢？这个和Copy_Atom的指令是相关的。这里讲一个LDSM的例子展示一下应该怎么设置这个参数。LDSM就是ld.maxtrix这个指令，这个指令就是以一个warp为单位去load 1个/2个/4个 8x8矩阵的指令。这个指令有2种形式，一种是Trans的，一种是非Trans的。在CuTe里面把它封装成LDSM_后缀，LDSM_N代表非Trans的类型。对于非Trans类型可以在这里打印一下Copy_Atom，非Trans表示Source Thread会读取一列连续的数据，然后Dest里的Thread会拿连续的一列里面的2个元素。
 对于Trans类型，不同在于Source一个线程仍然是拿8个连续元素，但是Dest这边会把Source这边的一个线程连续的8个元素分给8个不同的线程，而一个线程的元素会来自两个不同的Source的线程。如果使用非Trans类型的话，Layout一定要传一个col-major进来，同理对于Trans类型一定需要一个raw-major的Source Tensor。
@@ -140,24 +140,24 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
 
 > Tiled Copy我听得比较迷糊，建议大家学习下reed佬的CuTe文章。
 
-![](https://files.mdnice.com/user/59/e8aa7932-7945-4a98-ba35-34fac57c1d41.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e8aa7932-7945-4a98-ba35-34fac57c1d41.png)
 
 接下来开始看GEMM中的数据传输是怎么做的，我们以矩阵A为例想一下怎么把数据从Global Memory传输到Shared Memory。
 
 首先，我们需要用make_tiled_copy来构造一个Tiled Copy，然后get_slice拿到对应的Thread Copy。接着，我们来构造Copy的Source Tensor，这个时候Soruce Tensor是来自Global Memory的，然后我们需要以Block的形式把它拷贝到Shared Memory，这里就需要用到local_tile这个指令，第一个参数传的就是Global Memory里面的Tensor mA，然后把Block Shape/Thread传进去，Step是<_1, X, _1>{} , 这是因为CUTLASS里面会把Block写成M, N, K三维结构，对于A来说没有N这个维度，所以这里就设置为X，表示这个维度不参与计算。通过这个local_tile我们就得到了gA，它就是当前Block需要负责的一个Source Tensor的表示。它的Shape就是（BLK_M, BLK_K, k），BLK_M和BLK_K就是这个Tile的Shape，k就表示一共有k个这个Shape的Tile要做拷贝。然后构造Dest Tensor的时候，由于Dest Tensor是在Shared Memory上，我们直接用make_tensor就可以了。这里的gA和sA拿到的是当前Block负责的数据区域，我们还需要进一步使用我们刚才获得的Thread Copy，分别用partition_S和partition_D得到当前线程负责的区域，来看Shape的话，对于partition_S得到的就是(ACPY, ACPY_M, ACPY_K, k)，这里的k还是保持不变，即一共有k个Tile，只不过在拷贝当前这个Tile的时候需要以ACPY为单位，然后分别在M和K方向上拷贝这么多次。对于Dest Tensor的话，Shape的最后一个维度就不是k了，是PIPE，因为我们需要用到Pipline，PIPE的意思就是一共有多少个Stage。
 
-![](https://files.mdnice.com/user/59/3a28a727-6902-427e-8eb4-2c4441a9365f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3a28a727-6902-427e-8eb4-2c4441a9365f.png)
 
 接着是Shared Memory到Register File的拷贝，因为Register File是直接要用来做MMA的，所以数据的排布是不能随便设置的。我们可以直接使用CuTe提供的make_tiled_copy_A这个API来构造Tiled Copy，这样就不需要设置它的Thread Layout和Value Layout了，只需要把我们构造的一个用于做MMA的tile_mma传过去就可以自动为我们计算我们需要用什么样的Layout去做Copy。然后同样还是用get_slice拿到Thread Copy。然后Source Tensor因为它不涉及Register File，所以还是partition_S就可以完成。然后在Dest Tensor涉及到MMA所以有一些不一样，所以我们需要用MMA的get_thread_slice去拿到thread_mma，然后使用partition_fragment_A去拿到MMA视角的当前Thread需要负责的Tensor是什么。最后还需要使用retile_D才可以得到我们的Copy视角下我们需要负责的一个Tensor是什么。最后还是一样的copy完成数据拷贝。
 
 
 ## Mixed GEMM Walk Through
 
-![](https://files.mdnice.com/user/59/3acdc1f3-e425-4380-ae41-3c12c43f66a5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3acdc1f3-e425-4380-ae41-3c12c43f66a5.png)
 
 这部分更多的是在Concept级别的事情去怎么做，它是会组合上面提到的CuTe相关的代码以及《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》里面讲到的Fast Convert的相关代码，主要是展示怎么做。
 
-![](https://files.mdnice.com/user/59/a7fdc769-cc83-419f-beca-83c61026c621.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a7fdc769-cc83-419f-beca-83c61026c621.png)
 
 这张Slides展示了Hopper上的WGMMA的PTX，定义了Hopper上的WGMMA在做什么。《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》里面介绍到的CUTLASS 2.x的Ampere的这些Tensor Core是同步的。同步意味着输入输出A，B，C都是在寄存器层面发射一条同步指令。Hopper上这个指令变成异步之后它可以接收来自Shared Memory的矩阵A，B了。然后，在Hopper架构中我们仍然没有一种（除了FP8这种指令）FP8和FP16直接计算的指令，所以我们要做的事情和《TensorRT-LLM中的 Quantization GEMM（Ampere Mixed GEMM）的 CUTLASS 2.x 实现讲解》中介绍的差不多。我们的数据是Mixed的，但是我们读上来的数据要做Conversion。然后我们可以把weight权重放到矩阵A那边，然后读出来之后我们做一些Conversion，这个数据留存在寄存器上，然后我们把原来的矩阵A放在矩阵B的位置，这样直接去读就可以了。
 
@@ -186,7 +186,7 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
     - 矩阵形状：详细列出了操作支持的矩阵形状，如16x16x16、32x8x16等，这有助于开发者选择适合其特定应用需求的矩阵形状。
 
 
-![](https://files.mdnice.com/user/59/18d81d6c-9b73-4301-b225-b99e6698fafa.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/18d81d6c-9b73-4301-b225-b99e6698fafa.png)
 
 这张Slides讲解了如何实现混合数据类型的GEMM(通用矩阵乘法)。主要内容包括:
 - 我们想要的是:
@@ -217,7 +217,7 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
 
 下面这张Slides的大部分内容是在《CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记》里面有讲过的，学习之前贴到下面再复习一下再贴这节课的Slides方便大家比较；
 
-![](https://files.mdnice.com/user/59/ee00936a-5a53-43ad-aa69-f10a39863f03.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ee00936a-5a53-43ad-aa69-f10a39863f03.png)
 
 这张Slides介绍了一下Hopper架构上的Warp Specialized GEMM实现，采用了生产者-消费者模型。内容如下：
 - 源代码位置：cutlass/gemm/collective/sm90_mma_tma_gmma_ss_warpspecialized_mixed_input.hpp
@@ -245,7 +245,7 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
     - 多个stage (0 到 N-1) 用于流水线操作
     - 循环执行直到完成所有tile的计算
 
-![](https://files.mdnice.com/user/59/1c20828d-cc95-46f3-8fe8-62a7a614c025.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1c20828d-cc95-46f3-8fe8-62a7a614c025.png)
 
 对比上面的Hopper架构上的Warp Specialized GEMM实现，这里的Consumer Warps少了一个Persistent方法，只关注CollectiveMma::mma(...)。中间的Shared Memory之前是两个Data Type一模一样的，但在这里我们交换了A,B矩阵，并且它们的Data Type是不一样的。所以，这里故意画的矩阵A的这个Buffer的长度要短一点，表示低精度。
 
@@ -267,15 +267,15 @@ Value Layout不好理解，可以用print_latex把你构造好的一个Tiled Cop
 
 还需要注意下这张Slides里面去掉了K方向的循环，但实际实现中仍然是有的。
 
-![](https://files.mdnice.com/user/59/ae569fb6-ea1e-41e1-a967-6a72c50adf65.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ae569fb6-ea1e-41e1-a967-6a72c50adf65.png)
 
-![](https://files.mdnice.com/user/59/4358d836-640d-4cda-a561-edde69b5efd7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4358d836-640d-4cda-a561-edde69b5efd7.png)
 
 这两张Slides分别对生产者线程束 (Producer Warps) 和消费者线程束（TC Warps）对应流程的一部分底层代码进行了解释，这些代码比较抽象和复杂，视频里面也没怎么讲，感兴趣的可以去深入CutLass的源代码研究。
 
-![](https://files.mdnice.com/user/59/85d1a1b6-0350-4a9e-8e2a-614877ceaae9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/85d1a1b6-0350-4a9e-8e2a-614877ceaae9.png)
 
-![](https://files.mdnice.com/user/59/4b4cd1cf-e802-4872-9b01-85b17327a820.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4b4cd1cf-e802-4872-9b01-85b17327a820.png)
 
 最后这张Slides是介绍消费者线程束（TC Warps）中将低精度数据转换为高精度并保存在寄存器文件（RF）中的实现细节，以及具体是怎么做的Copy的细节。
 

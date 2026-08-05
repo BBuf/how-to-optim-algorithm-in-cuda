@@ -4,15 +4,15 @@
 
 ### 课程内容
 
-![](https://files.mdnice.com/user/59/ca409085-c88d-48ea-a881-c66cc2c29895.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ca409085-c88d-48ea-a881-c66cc2c29895.png)
 
-![](https://files.mdnice.com/user/59/a0153888-5ab6-4228-a1bb-9d39afdfd1d8.png)
-
-
-![](https://files.mdnice.com/user/59/e107bacd-0f4b-403d-a353-28607261dbcf.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a0153888-5ab6-4228-a1bb-9d39afdfd1d8.png)
 
 
-![](https://files.mdnice.com/user/59/636c1455-195f-4c3b-b2c5-c107ae260f2e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e107bacd-0f4b-403d-a353-28607261dbcf.png)
+
+
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/636c1455-195f-4c3b-b2c5-c107ae260f2e.png)
 
 上面三张Slides讲述了运行时间（runtime）和内存使用（memory usage）之间的权衡关系。
 
@@ -31,54 +31,54 @@
 - 显示了小卡车被划掉，表明选择了大卡车（高内存使用但速度快的方案）。
 - 同时提醒"这确实意味着内存会受到影响，免责声明"。
 
-![](https://files.mdnice.com/user/59/7ff9ead4-6a06-4d42-b779-d4187487e8d7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7ff9ead4-6a06-4d42-b779-d4187487e8d7.png)
 
 
-![](https://files.mdnice.com/user/59/5c601e52-2698-4e38-a5f2-e879355a88ec.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5c601e52-2698-4e38-a5f2-e879355a88ec.png)
 
 这张Slides展示了一个naive的优化器实现，核心要点是假设有M个参数，对于每个参数有N个操作，那么遍历所有参数并处理完共需要M * N个操作。 
 
-![](https://files.mdnice.com/user/59/66ec108d-b015-4654-b1b6-7b1caed8e659.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/66ec108d-b015-4654-b1b6-7b1caed8e659.png)
 
 这张Slides介绍了一种称为"horizontally fused optimizer"（水平融合优化器）的优化方法，可以把naive的优化器实现中的for循环fuse掉。
 
-![](https://files.mdnice.com/user/59/c1d6e740-1a72-486c-bb3f-ab555266bae9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c1d6e740-1a72-486c-bb3f-ab555266bae9.png)
 
 这张Slides介绍了实际上我们可以把整个优化器的操作fuse成一个cuda kernel。
 
-![](https://files.mdnice.com/user/59/fec4cdbc-990e-460b-ab67-59ba1a14fa1c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fec4cdbc-990e-460b-ab67-59ba1a14fa1c.png)
 
 这张Slides传达的核心信息是：在CUDA编程中，通过减少kernel启动的次数可以提高程序的执行效率。这是因为每次启动CUDAkernel都会有一定的开销，如果能够将多个操作合并到更少的kernel中，就可以减少这些开销，从而提高整体性能。水平融合和垂直融合是实现这一目标的两种主要策略：水平融合合并了相似的并行操作；垂直融合则进一步合并了不同的计算步骤。
 
-![](https://files.mdnice.com/user/59/2126f066-f5a6-482f-89ad-a9618f8ed991.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2126f066-f5a6-482f-89ad-a9618f8ed991.png)
 
-![](https://files.mdnice.com/user/59/c91f056a-6627-441c-a434-7a5d8c11ddbe.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c91f056a-6627-441c-a434-7a5d8c11ddbe.png)
 
-![](https://files.mdnice.com/user/59/ce390307-7435-4ca6-9a81-c0557b23c86e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ce390307-7435-4ca6-9a81-c0557b23c86e.png)
 
-![](https://files.mdnice.com/user/59/3ae4afd9-8039-4a9f-8278-a6efa2d52b96.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3ae4afd9-8039-4a9f-8278-a6efa2d52b96.png)
 
 上面倒数第二张Slides类比了线粒体是细胞的能量工厂，而multi_tensor_apply是高速优化器的"动力卡车"。展示了一辆装载多辆小汽车的大卡车，暗示multi_tensor_apply可以同时处理多个张量。说明multi_tensor_apply允许我们对张量列表进行操作，而不是单个张量。
 
 上面最后一张Slides，对比了普通的torch.add操作（左侧小车+小卡车）和`_foreach_add`操作（右侧大卡车装载多辆小车）。
 
-![](https://files.mdnice.com/user/59/540bbcf8-4982-48c5-b7bb-8430dcc5f353.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/540bbcf8-4982-48c5-b7bb-8430dcc5f353.png)
 
-![](https://files.mdnice.com/user/59/3c2809ec-0f78-4f50-8f3e-bc8a7a631bbd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3c2809ec-0f78-4f50-8f3e-bc8a7a631bbd.png)
 
-![](https://files.mdnice.com/user/59/249635ef-81ba-416e-8f91-b9722845002e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/249635ef-81ba-416e-8f91-b9722845002e.png)
 
-![](https://files.mdnice.com/user/59/9061d609-3bd6-45fb-9e59-4aa4967a7fff.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9061d609-3bd6-45fb-9e59-4aa4967a7fff.png)
 
-![](https://files.mdnice.com/user/59/5a73d1bb-df45-445a-9b69-661e391c32bd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a73d1bb-df45-445a-9b69-661e391c32bd.png)
 
-![](https://files.mdnice.com/user/59/86efbe5d-44fb-4cce-a389-175cdc864c2e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/86efbe5d-44fb-4cce-a389-175cdc864c2e.png)
 
-![](https://files.mdnice.com/user/59/81fe1957-1a56-40a5-90fe-ef8c5432510e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/81fe1957-1a56-40a5-90fe-ef8c5432510e.png)
 
-![](https://files.mdnice.com/user/59/26bb217b-0c0e-4051-9f35-5697fdce5c80.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/26bb217b-0c0e-4051-9f35-5697fdce5c80.png)
 
-![](https://files.mdnice.com/user/59/1a2de6a3-c5d6-4385-9c28-29ff3aa029e3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1a2de6a3-c5d6-4385-9c28-29ff3aa029e3.png)
 
 上面的一系列Slides在讨论如何在CUDA中实现一个用于多个张量的add操作（_foreach_add）时输入应该怎么如何传递。
 
@@ -91,9 +91,9 @@
 Slides里面还画了一些示意图用于解释这个问题。
 
 
-![](https://files.mdnice.com/user/59/758d92ba-2eeb-496f-8ad5-01f69818a1c4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/758d92ba-2eeb-496f-8ad5-01f69818a1c4.png)
 
-![](https://files.mdnice.com/user/59/4b1b9eda-41fe-4524-8b90-e8ef88d6a284.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4b1b9eda-41fe-4524-8b90-e8ef88d6a284.png)
 
 这两张Slides讲解了在CUDA中实现多张量操作（specifically _foreach_add）的第三种尝试方法，称为"pass by chonky boi"（通过大块数据传递）。
 
@@ -108,43 +108,43 @@ Slides里面还画了一些示意图用于解释这个问题。
     - 这种方法成功通过了编译（"It passes CI! Yay!"）。
     - 它解决了之前尝试中遇到的问题，如std::vector不被CUDA支持，以及直接使用指针数组导致的非法内存访问。
 
-![](https://files.mdnice.com/user/59/6e2c35a6-e523-46ab-abe3-0ec7f0e5017c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6e2c35a6-e523-46ab-abe3-0ec7f0e5017c.png)
 
-![](https://files.mdnice.com/user/59/95e2daed-313f-4e55-b2c3-379ad13a2e43.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/95e2daed-313f-4e55-b2c3-379ad13a2e43.png)
 
 这里说明的是尝试上面的大块数据传递方式之后作者碰到了CUDA中的非法内存访问。问题似乎与张量列表的大小（N）有关。在N=423和N=424之间存在一个临界点，可能与CUDA的内存管理或某些硬件限制有关。
 
-![](https://files.mdnice.com/user/59/255e78f9-373f-4c28-902a-6013753ca262.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/255e78f9-373f-4c28-902a-6013753ca262.png)
 
-![](https://files.mdnice.com/user/59/64c9c403-d159-4574-b570-9abcb4dd2184.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/64c9c403-d159-4574-b570-9abcb4dd2184.png)
 
 
 这里继续说明了当尝试传递大量数据（在这里是张量地址）作为kernel参数时，可能会超出CUDAkernel参数空间的4KB限制，导致程序失败。这就解释了为什么只有当NUM_TENSORS小于某个特定值（这里提到424）时，代码才能正常工作。
 
-![](https://files.mdnice.com/user/59/f86c09a5-d130-4991-a7de-0579d261e294.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f86c09a5-d130-4991-a7de-0579d261e294.png)
 
-![](https://files.mdnice.com/user/59/7870556e-4840-47a5-be26-f6938dc9e2cb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7870556e-4840-47a5-be26-f6938dc9e2cb.png)
 
-![](https://files.mdnice.com/user/59/82f60e1d-fcd1-48bb-9c8a-5142c15702d6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/82f60e1d-fcd1-48bb-9c8a-5142c15702d6.png)
 
 这里的第一张Slides期望是能够一次性将所有数据（用小汽车表示）装载到一辆大卡车上。现实是由于CUDAkernel参数空间的4KB限制，无法一次性装载所有数据，导致部分数据"掉落"。第二张Slides提出了"Attempt 4"（第四次尝试）的解决方案，建议通过多次启动kernel来解决问题，即"make more trips"（多次运输）。第三张Slides展示了当前的方法是进行水平融合（Horizontal Fusion），将多个操作合并到一个kernel中，但实际上常常会产生多个水平融合的kernel和垂直融合的kernel。
 
-![](https://files.mdnice.com/user/59/5a0b12d9-363c-41fe-91d3-f29f0c2d01c7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a0b12d9-363c-41fe-91d3-f29f0c2d01c7.png)
 
-![](https://files.mdnice.com/user/59/b8e626d2-f904-46ff-b0a6-3c1a7b2871a6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b8e626d2-f904-46ff-b0a6-3c1a7b2871a6.png)
 
-![](https://files.mdnice.com/user/59/1730dc0f-a127-4351-a649-48fe133f5cd8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1730dc0f-a127-4351-a649-48fe133f5cd8.png)
 
 
 这里的第一张Slides展示了"尝试2"的回顾，目标是将CPU内存（紫色）中的数据转移到CUDA/GPU内存（绿色）中。最后提出了将紫色的指针（*）转变为绿色的想法，即将数据从CPU移到GPU。第二张Slides进一步详细说明了解决方案，即使用memcpy将地址列表复制到CUDA内存中。通过这种方法，可以避开CUDAkernel参数空间的4KB限制，从而能够启动单个kernel处理所有数据，注意，memcpy操作是昂贵的（$$$)。
 
 第三张Slides总结了最终的解决方案，提出了结构体（struct）和memcpy的混合使用策略。左侧：如果数据量较小，符合kernel参数空间限制，就直接使用结构体传递。右侧：如果数据量超过限制，则使用memcpy将数据复制到GPU内存，然后传递指针。
 
-![](https://files.mdnice.com/user/59/127e5fb4-1f39-420e-a490-65cc0060a8ce.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/127e5fb4-1f39-420e-a490-65cc0060a8ce.png)
 
-![](https://files.mdnice.com/user/59/6b0677d7-efbb-4767-bbe0-aaeb8e1b218e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6b0677d7-efbb-4767-bbe0-aaeb8e1b218e.png)
 
-![](https://files.mdnice.com/user/59/cbefed7d-69d1-4559-bb91-44d9041878ae.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cbefed7d-69d1-4559-bb91-44d9041878ae.png)
 
 这里的第一张Slides展示了水平融合（Horizontal Fusion）和垂直融合（Vertical Fusion），多个独立的操作（灰色块）首先进行水平融合，变成蓝色的块，然后这些蓝色的块可能进一步进行垂直融合，形成一个更大的绿色块。这种看起来比较麻烦的实现依赖multi_tensor_apply函数。
 
@@ -153,11 +153,11 @@ Slides里面还画了一些示意图用于解释这个问题。
 第三张Slides继续解释了 _foreach_add 和 _fused_adamw 的实现差异并展示了 _fused_adamw 的具体实现代码。可以粗略浏览到以下内容，使用AT_DISPATCH_FLOATING_TYPES_AND2 宏来处理不同的浮点类型。调用 multi_tensor_apply_for_fused_optimizer 函数，传入 FusedAdamMathFunctor 作为参数。
 
 
-![](https://files.mdnice.com/user/59/a832f2f2-9224-4ca1-98cb-f464cf31a78f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a832f2f2-9224-4ca1-98cb-f464cf31a78f.png)
 
-![](https://files.mdnice.com/user/59/4be81e8a-fcf6-4971-9905-b80cd91fc6b9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4be81e8a-fcf6-4971-9905-b80cd91fc6b9.png)
 
-![](https://files.mdnice.com/user/59/8dd37d7c-073d-40ce-8b7c-dcabb47d105a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8dd37d7c-073d-40ce-8b7c-dcabb47d105a.png)
 
 
 这里UP主展示了FusedAdamMathFunctor的代码实现，包括两个主要部分：
@@ -167,13 +167,13 @@ Slides里面还画了一些示意图用于解释这个问题。
 
 这里的第三张Slides显示了"...that was very manual."的文字，暗示这种实现方式是非常手动和复杂的。
 
-![](https://files.mdnice.com/user/59/a363c4d7-2e1a-42cf-866f-b3f44b01df3b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a363c4d7-2e1a-42cf-866f-b3f44b01df3b.png)
 
-![](https://files.mdnice.com/user/59/d05ef4e7-641c-4d50-bf34-e9ef23318677.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d05ef4e7-641c-4d50-bf34-e9ef23318677.png)
 
-![](https://files.mdnice.com/user/59/6ef40a8c-08e1-448b-9e8c-7629668fa905.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6ef40a8c-08e1-448b-9e8c-7629668fa905.png)
 
-![](https://files.mdnice.com/user/59/48a767f0-5838-4741-a721-b523bc59b38e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/48a767f0-5838-4741-a721-b523bc59b38e.png)
 
 
 这几张Slides讲了PyTorch中的torch.compile()功能及其在优化器中的应用，主要内容如下：
@@ -185,7 +185,7 @@ Slides里面还画了一些示意图用于解释这个问题。
     - 在训练循环中，使用compiled_step替代原来的optimizer.step()
 - 最后一张Slides展示了torch.compile()生成的Triton kernel的一部分代码。这是一个大型的、高度优化的kernel，包含了许多临时变量（tmp0, tmp1等）和复杂的数学运算。这说明torch.compile()确实可以生成非常复杂和高效的fuse kernel。 
 
-![](https://files.mdnice.com/user/59/d5185ac7-f89a-4995-a6c2-505834a69e0f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d5185ac7-f89a-4995-a6c2-505834a69e0f.png)
 
 最后这张Slides展示了了 PyTorch 中编译优化器（compiled optimizers）的工作条件和使用情况。
 

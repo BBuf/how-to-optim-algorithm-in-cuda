@@ -468,7 +468,7 @@ Matrix Idx: (3, 32) Bank Idx: 3
 
 这里是一个由于不适当的步长导致Memory Bank的例子。
 
-![Memory Bank Access of Stride = 1, 2, and 3 in a Warp](https://files.mdnice.com/user/59/8d5488f1-82ea-45cc-a5ac-6d3f32ab1d19.png)
+![Memory Bank Access of Stride = 1, 2, and 3 in a Warp](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8d5488f1-82ea-45cc-a5ac-6d3f32ab1d19.png)
 
 # 参考
 

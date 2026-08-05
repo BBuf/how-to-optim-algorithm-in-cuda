@@ -17,7 +17,7 @@ OpenSeek 不是单个模型发布，而是一个围绕数据、算法和系统�
 
 ### Slide 1：OpenSeek：开源驱动的下一代 AI 模型
 
-<img src="https://files.mdnice.com/user/59/2266a825-3c84-42b5-a12d-729d1ff9cf75.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2266a825-3c84-42b5-a12d-729d1ff9cf75.png" referrerpolicy="no-referrer" />
 
 标题页给出 OpenSeek 的定位：open-source driven next AI models。它不是单个模型发布，而是把数据、算法、系统、评测和社区贡献放在一个开放协作框架里。
 
@@ -25,7 +25,7 @@ OpenSeek 不是单个模型发布，而是一个围绕数据、算法和系统�
 
 ### Slide 2：目录：项目、数据算法、效率和未来
 
-<img src="https://files.mdnice.com/user/59/03e0f5ef-6ef9-4b60-bd5b-2d4943829196.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/03e0f5ef-6ef9-4b60-bd5b-2d4943829196.png" referrerpolicy="no-referrer" />
 
 目录把 OpenSeek 拆成四段：项目介绍，数据与算法中的退火和 RL，注意力机制演进，未来展望。这个顺序说明它不是只讲模型分数，而是先讲开源协作机制，再讲训练 recipe，最后进入系统效率。
 
@@ -33,7 +33,7 @@ OpenSeek 不是单个模型发布，而是一个围绕数据、算法和系统�
 
 ### Slide 3：OpenSeek 项目介绍
 
-<img src="https://files.mdnice.com/user/59/6e3fec09-fb69-4273-a42a-63faf3ec8c48.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6e3fec09-fb69-4273-a42a-63faf3ec8c48.png" referrerpolicy="no-referrer" />
 
 这一页是项目介绍章节的分隔页。后面会用“忒修斯之船”和“开源社区即造船厂”两个比喻说明 OpenSeek 的工程范式：模型不是一次性训练完成的静态物体，而是数据、算法、系统持续替换后的结果。
 
@@ -41,7 +41,7 @@ OpenSeek 想解决的是开放协作里的 pipeline 问题。社区可能有数�
 
 ### Slide 4：忒修斯之船：工程范式的替换
 
-<img src="https://files.mdnice.com/user/59/9489f7fd-3273-4b71-857c-7714d6e25aa7.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9489f7fd-3273-4b71-857c-7714d6e25aa7.png" referrerpolicy="no-referrer" />
 
 这一页用忒修斯之船解释 AI 模型的持续演进。左边是哲学思辨：船的木板陆续替换后，它是否还是原船；右边是工程范式：把大模型的数据、算法、系统持续更替，类比为替换木船的木板。
 
@@ -49,7 +49,7 @@ OpenSeek 想解决的是开放协作里的 pipeline 问题。社区可能有数�
 
 ### Slide 5：开源社区作为船坞
 
-<img src="https://files.mdnice.com/user/59/ae6cd900-357d-4518-bb43-6a2739f18728.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ae6cd900-357d-4518-bb43-6a2739f18728.png" referrerpolicy="no-referrer" />
 
 这页把开源社区比作造船厂。图里三类贡献对应三块“木板”：拉取请求替换算法木板，数据贡献替换数据木板，系统优化替换系统木板。它强调的不是只有代码 PR 才算贡献，数据和算力/系统优化同样进入模型演进。
 
@@ -57,7 +57,7 @@ OpenSeek 想解决的是开放协作里的 pipeline 问题。社区可能有数�
 
 ### Slide 6：累计创新和竞赛机制
 
-<img src="https://files.mdnice.com/user/59/c64ae432-3689-4785-ad02-64817eb6db5b.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c64ae432-3689-4785-ad02-64817eb6db5b.png" referrerpolicy="no-referrer" />
 
 累计创新页讲的是全年滚动主题竞赛，每场比赛聚焦替换一块关键木板。slide 上列了 iter1 数据去噪、iter2 长文本、iter3 工具调用、iter4 安全对齐，正好覆盖数据、上下文、agent 能力和安全。
 
@@ -65,7 +65,7 @@ OpenSeek 想解决的是开放协作里的 pipeline 问题。社区可能有数�
 
 ### Slide 7：OpenSeek Working Groups
 
-<img src="https://files.mdnice.com/user/59/db58f485-27b0-4c2e-a480-5308d61950e8.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/db58f485-27b0-4c2e-a480-5308d61950e8.png" referrerpolicy="no-referrer" />
 
 Working Groups 页把协作拆成 System、Data、Algo。这个分工能让贡献路径更清楚：数据组负责清洗、合成和评测集；算法组负责训练 recipe、RL、结构改动；系统组负责训练/推理效率、kernel、并行和部署。
 
@@ -73,7 +73,7 @@ Working Groups 页把协作拆成 System、Data、Algo。这个分工能让贡�
 
 ### Slide 8：非线性跃迁
 
-<img src="https://files.mdnice.com/user/59/904713b1-b6eb-4f7b-9eee-587def83a228.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/904713b1-b6eb-4f7b-9eee-587def83a228.png" referrerpolicy="no-referrer" />
 
 非线性跃迁页接着“木板”比喻：当所有关键木板完成一轮替换，模型能力会从实验木船进化到商业航母。下面列了四个变化：推理成本下降、长文本窗口增大、工具调用成功率提升、安全对齐改善。
 
@@ -81,7 +81,7 @@ Working Groups 页把协作拆成 System、Data、Algo。这个分工能让贡�
 
 ### Slide 9：开源竞赛和协作
 
-<img src="https://files.mdnice.com/user/59/1b7fd886-d90a-45db-91e7-7108b5d474bd.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1b7fd886-d90a-45db-91e7-7108b5d474bd.png" referrerpolicy="no-referrer" />
 
 这页介绍“超越杯”挑战赛。slide 写到算法和系统双赛道，初赛有 500 多支队伍报名、100 多支队伍提交结果，其中算法赛道占 60%；两个赛道各取前 10 名晋级复赛，优秀方案会全开源。
 
@@ -89,7 +89,7 @@ Working Groups 页把协作拆成 System、Data、Algo。这个分工能让贡�
 
 ### Slide 10：OpenSeek 时间线
 
-<img src="https://files.mdnice.com/user/59/96afe9b9-40cc-4216-af9d-f9180f828a49.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/96afe9b9-40cc-4216-af9d-f9180f828a49.png" referrerpolicy="no-referrer" />
 
 时间线展示从一个组织发起到社区驱动开源的过程。2025.2 是 initiation，准备数据和合成；2025.5 Stage 1 发布 CCI4.0 数据集、OpenSeek-Small 和 pipeline；2025.9 Stage 2 启动竞赛并与贡献者一起训练 OpenSeek-Mid；2025.11 Stage 3 计划发布 OpenSeek-Mid(10B)、代码、数据和 checkpoint。
 
@@ -97,7 +97,7 @@ Working Groups 页把协作拆成 System、Data、Algo。这个分工能让贡�
 
 ### Slide 11：数据与算法：Annealing + RL
 
-<img src="https://files.mdnice.com/user/59/4fde32cc-8091-49dc-bfe7-35c31d941c16.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4fde32cc-8091-49dc-bfe7-35c31d941c16.png" referrerpolicy="no-referrer" />
 
 这一页是第二部分标题：数据与算法，退火与 RL 的双轮驱动。退火对应 mid-training 里数据分布和学习率/训练阶段的调整，RL 对应 post-training 中根据 reward 优化 reasoning 等能力。
 
@@ -105,7 +105,7 @@ OpenSeek-Small 的路线不是只堆 pretrain tokens，而是在 mid-training �
 
 ### Slide 12：OpenMDW 和 OpenSeek-Small
 
-<img src="https://files.mdnice.com/user/59/3e707147-c692-4db7-b933-74c2965e6160.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3e707147-c692-4db7-b933-74c2965e6160.png" referrerpolicy="no-referrer" />
 
 这一页说明 OpenSeek 系列模型采用 OpenMDW 协议，并给出 HuggingFace collection 和 OpenSeek-Small-v1-SFT 链接。OpenMDW 的重点是给 AI 模型开放协作提供更明确的授权基础，让数据、模型和衍生工作能在规则下共享。
 
@@ -113,7 +113,7 @@ OpenSeek-Small 的路线不是只堆 pretrain tokens，而是在 mid-training �
 
 ### Slide 13：效率方向
 
-<img src="https://files.mdnice.com/user/59/f65a8b48-4763-4088-b1c3-4b88887e0ffa.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f65a8b48-4763-4088-b1c3-4b88887e0ffa.png" referrerpolicy="no-referrer" />
 
 这一页是 Model Efficiency 的章节过渡，后面开始进入训练方法和 attention 机制。效率在 OpenSeek 里不是单独的“部署优化”，而是和模型结构、训练 recipe、长上下文能力绑在一起。
 
@@ -121,7 +121,7 @@ OpenSeek-Small 的路线不是只堆 pretrain tokens，而是在 mid-training �
 
 ### Slide 14：训练方法总览
 
-<img src="https://files.mdnice.com/user/59/7fa673c9-031f-47f6-a71e-aa21db73ced2.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7fa673c9-031f-47f6-a71e-aa21db73ced2.png" referrerpolicy="no-referrer" />
 
 训练方法总览页标题是 OpenSeek 的训练之道，强调数学推理能力提升。图里把训练分成 Mid-training 和 Post-training：前者用高质量专业数据，后者用指令微调和强化学习。
 
@@ -129,7 +129,7 @@ OpenSeek-Small 的 config 里可以看到 MoE、router、group top-k 等训练�
 
 ### Slide 15：Mid-training 两阶段
 
-<img src="https://files.mdnice.com/user/59/749964be-2da7-4959-8b7d-6e379cc018fa.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/749964be-2da7-4959-8b7d-6e379cc018fa.png" referrerpolicy="no-referrer" />
 
 Mid-training 页写了 two-stage training。Stage 1 是 Stable，用最多 200B math corpus 训练，让模型获得更深的数学知识；Stage 2 是 Decay，用 20B tokens 做连续训练，巩固和深化能力。
 
@@ -137,7 +137,7 @@ Mid-training 页写了 two-stage training。Stage 1 是 Stable，用最多 200B 
 
 ### Slide 16：Post-training：SFT + GRPO
 
-<img src="https://files.mdnice.com/user/59/13107511-8346-4435-8190-f6071bcf137e.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/13107511-8346-4435-8190-f6071bcf137e.png" referrerpolicy="no-referrer" />
 
 Post-training 页分两步。Step1 是 SFT，目标是提升 instruction-following，数据用 Infinity-Instruct-core，1.4M 高质量指令能达到完整 7M 数据集 95.7% 的性能；Step2 是 RL，算法用 GRPO，数据来自 GSM8K、MATH 等数学推理训练集。
 
@@ -145,7 +145,7 @@ Post-training 页分两步。Step1 是 SFT，目标是提升 instruction-followi
 
 ### Slide 17：OpenSeek-Small 结果
 
-<img src="https://files.mdnice.com/user/59/6007a647-f017-47f1-8e55-1ad274993268.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6007a647-f017-47f1-8e55-1ad274993268.png" referrerpolicy="no-referrer" />
 
 结果页给出两点：最终 Decay model 在 MATH500 等数学 benchmark 上表现有竞争力，超过一些更大的对比模型；同时验证了 two-stage training 和 incremental innovation approach，也就是基础模型可以通过系统化增强获得更强能力。
 
@@ -153,7 +153,7 @@ Post-training 页分两步。Step1 是 SFT，目标是提升 instruction-followi
 
 ### Slide 18：训练曲线
 
-<img src="https://files.mdnice.com/user/59/43e15568-2f6b-4165-811c-d9c6a013a6a4.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/43e15568-2f6b-4165-811c-d9c6a013a6a4.png" referrerpolicy="no-referrer" />
 
 训练曲线页分成 learning curves 和 benchmark performance。learning curves 用来看训练是否稳定、是否出现 loss spike 或 plateau；benchmark performance 用来看某个阶段的 checkpoint 在任务上是否真的提升。
 
@@ -161,7 +161,7 @@ Post-training 页分两步。Step1 是 SFT，目标是提升 instruction-followi
 
 ### Slide 19：Attention 演进
 
-<img src="https://files.mdnice.com/user/59/bda5de41-896f-48f6-a1c7-442e903f765d.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bda5de41-896f-48f6-a1c7-442e903f765d.png" referrerpolicy="no-referrer" />
 
 这一页是注意力机制演进章节的分隔页。后面会从传统 attention 的 O(N^2) 复杂度讲到 DMA，再讲 Trainable Dynamic Mask Sparse Attention 和 flash-dmattn 代码。
 
@@ -169,7 +169,7 @@ Post-training 页分两步。Step1 是 SFT，目标是提升 instruction-followi
 
 ### Slide 20：Dynamic Mask Attention
 
-<img src="https://files.mdnice.com/user/59/fc766803-efc7-4903-a326-fcd425ceef33.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fc766803-efc7-4903-a326-fcd425ceef33.png" referrerpolicy="no-referrer" />
 
 这页先把问题压成一个复杂度对比：传统 attention 是 `O(N^2)`，序列长度翻倍，QK 和 softmax 的矩阵就按平方膨胀。DMA 的思路是给每个 token 动态选择少量关键历史 token，把计算复杂度降到 `O(N*w)`，其中 `w` 是保留下来的 token 或窗口数量。
 
@@ -177,7 +177,7 @@ Post-training 页分两步。Step1 是 SFT，目标是提升 instruction-followi
 
 ### Slide 21：Trainable Dynamic Mask Sparse Attention
 
-<img src="https://files.mdnice.com/user/59/e99130af-10ce-486e-980c-76c30edb320f.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e99130af-10ce-486e-980c-76c30edb320f.png" referrerpolicy="no-referrer" />
 
 这页是论文标题页：Trainable Dynamic Mask Sparse Attention。重点在 `Trainable` 和 `Dynamic Mask` 两个词。mask 不再是手写规则，也不是固定滑窗，而是通过可训练参数给不同历史位置打分，然后只保留 top-w 的位置进入 attention。
 
@@ -185,7 +185,7 @@ Post-training 页分两步。Step1 是 SFT，目标是提升 instruction-followi
 
 ### Slide 22：flash-dmattn 代码和论文
 
-<img src="https://files.mdnice.com/user/59/f1dbfa63-415f-4141-bdda-8331dd32600c.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f1dbfa63-415f-4141-bdda-8331dd32600c.png" referrerpolicy="no-referrer" />
 
 flash-dmattn 仓库给出了 Triton/CuTe 实现，是这场分享里最明确的代码落点。slide 同时给了 GitHub 地址和 Alphaxiv 页面，说明这部分已经从论文/想法落到公开实现。
 
@@ -193,7 +193,7 @@ flash-dmattn 仓库给出了 Triton/CuTe 实现，是这场分享里最明确的
 
 ### Slide 23：DMA vs NSA
 
-<img src="https://files.mdnice.com/user/59/53789e96-7dbc-45cb-ac76-c8dbdd5a923f.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/53789e96-7dbc-45cb-ac76-c8dbdd5a923f.png" referrerpolicy="no-referrer" />
 
 DMA vs NSA 这页把两类稀疏注意力放在一起。NSA 更偏预设或结构化稀疏，DMA 则强调 dynamic mask：根据当前输入和可训练参数决定哪些 token 进入 attention。
 
@@ -201,7 +201,7 @@ slides 里更偏 DMA 的 trainable dynamic mask，代码里 `topk_mask` 和 gate
 
 ### Slide 24：top-w / delta mask 方法
 
-<img src="https://files.mdnice.com/user/59/aee2a8a0-56ec-487a-82c9-c5d0fab62d01.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/aee2a8a0-56ec-487a-82c9-c5d0fab62d01.png" referrerpolicy="no-referrer" />
 
 这页给了 DMA mask 的公式。原始 attention 是 `softmax(QK^T / sqrt(d_head))V`。DMA 先定义一个额外的 bias 项 `delta = exp(softplus(VΔ)A)`，其中 `Δ` 是 head 维度里的可训练矩阵，`A` 是按 head 的可训练系数。然后从 `delta` 里选 top-w 个值，其余位置置成 `-inf`，再把 `delta` 展开到和 `QK^T` 同样大小，得到 refined attention：`softmax((QK^T + delta) / sqrt(d_head))V`。
 
@@ -209,7 +209,7 @@ slides 里更偏 DMA 的 trainable dynamic mask，代码里 `topk_mask` 和 gate
 
 ### Slide 25：实验设置
 
-<img src="https://files.mdnice.com/user/59/e8b96842-ae20-4e58-aced-1871f16d0246.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e8b96842-ae20-4e58-aced-1871f16d0246.png" referrerpolicy="no-referrer" />
 
 实验设置页列了 All Experimental Environments、Pre-training Corpus、Training Framework、Eval Framework for Perplexity Tasks、Eval Framework for Downstream Tasks。它在提醒读者：稀疏 attention 的结果必须放在统一训练和评测环境里看。
 
@@ -217,7 +217,7 @@ sparse attention 的收益必须和精度一起评估。只报速度会掩盖 ne
 
 ### Slide 26：Scaling：更少 FLOPs
 
-<img src="https://files.mdnice.com/user/59/4b67a1fc-607c-4444-93cb-a16ed902845a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4b67a1fc-607c-4444-93cb-a16ed902845a.png" referrerpolicy="no-referrer" />
 
 这页标题是 Scaling Law 实验，图上写着 “DMA require fewer FLOPs than the standard MHA and NSA”。横轴是 FLOPs，纵轴是 perplexity，曲线对比 MHA、SWA、MLA、NSA 和 DMA。紫色 DMA 曲线整体低于红色 NSA 和蓝色 MHA，在相近 perplexity 下需要的 FLOPs 更少；绿色 MLA 曲线在这组实验里不占优。
 
@@ -225,7 +225,7 @@ sparse attention 的收益必须和精度一起评估。只报速度会掩盖 ne
 
 ### Slide 27：MQAR 速度
 
-<img src="https://files.mdnice.com/user/59/3278b713-601c-43dd-ba5b-888364c8a1e8.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3278b713-601c-43dd-ba5b-888364c8a1e8.png" referrerpolicy="no-referrer" />
 
 MQAR 是 multi-query associative recall，适合测长上下文里的键值检索速度。图的横轴是 sequence length，从 1024 到 8192；纵轴是 speed(ms)。蓝色 MHA 在长序列处急剧变慢，8192 时接近 1700ms。SWA、NSA、DMA 都比 MHA 低很多，柱子上方的百分比可以理解成相对提速：在 4096 处 DMA 标到约 78.4%，在 8192 处约 87.0%。
 
@@ -233,7 +233,7 @@ MQAR 是 multi-query associative recall，适合测长上下文里的键值检�
 
 ### Slide 28：Needle-in-a-haystack
 
-<img src="https://files.mdnice.com/user/59/485196bf-0873-4f91-b94c-ec6a300c8bac.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/485196bf-0873-4f91-b94c-ec6a300c8bac.png" referrerpolicy="no-referrer" />
 
 Needle-in-a-haystack 是对稀疏 attention 的召回压力测试：把关键信息埋在长上下文不同深度，看模型能否找回。图里三块热力图分别是 MHA、Native Sparse Attention 和 Dynamic Mask Attention，横轴是 token limit，从 1K 到 16K；纵轴是 depth percent，从 0% 到 100%；颜色越接近绿色表示 score 越高。
 
@@ -241,7 +241,7 @@ Needle-in-a-haystack 是对稀疏 attention 的召回压力测试：把关键信
 
 ### Slide 29：通用 benchmark
 
-<img src="https://files.mdnice.com/user/59/c3f66cfc-12cb-4afc-8031-49f165792633.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c3f66cfc-12cb-4afc-8031-49f165792633.png" referrerpolicy="no-referrer" />
 
 这页表格把 DMA 放到通用 benchmark 里对比，列包括 Pile/Lambada perplexity、Lambada/MMLU/TriviaQA/ARC/PIQA/HellaSwag/OBQA/WinoGrande accuracy，以及 LongBench average。箭头说明 PPL 越低越好，ACC/AVG 越高越好。表格分 Zero-Shot 和 Five-Shot 两块，行里除了 MHA，还有 H2O、InfLLM、Quest、DAM、Exact-Top、NSA 和 DMA。
 
@@ -249,7 +249,7 @@ Zero-Shot 里 DMA 的 Pile PPL 是 45.12，LongBench Avg 是 16.2，MMLU、ARC�
 
 ### Slide 30：未来计划
 
-<img src="https://files.mdnice.com/user/59/35184237-ea88-4ea6-8c68-ae5dd1cd8949.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/35184237-ea88-4ea6-8c68-ae5dd1cd8949.png" referrerpolicy="no-referrer" />
 
 未来计划页是最后一章的分隔页。前面已经讲了 OpenSeek-Small 和 DMA，后面进入 OpenSeek-mid 10B 计划和三大支柱。
 
@@ -257,7 +257,7 @@ Zero-Shot 里 DMA 的 Pile PPL 是 45.12，LongBench Avg 是 16.2，MMLU、ARC�
 
 ### Slide 31：OpenSeek-mid 10B 计划
 
-<img src="https://files.mdnice.com/user/59/7e98f904-8122-4f31-a0c2-58b7d8e3a9f5.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7e98f904-8122-4f31-a0c2-58b7d8e3a9f5.png" referrerpolicy="no-referrer" />
 
 OpenSeek-mid 页把下一阶段拆成三列：Data Efficiency 是 3-4TB token，数据来源包括 CCI4.0/Decay/Midtraining；Training Efficiency 是用约 3B model initialize 10B；Structure Efficiency 是 DMA/NSA。
 
@@ -265,7 +265,7 @@ OpenSeek-mid 页把下一阶段拆成三列：Data Efficiency 是 3-4TB token，
 
 ### Slide 32：三根支柱：数据、算法、系统
 
-<img src="https://files.mdnice.com/user/59/c5c1ea41-bb47-4e23-a6f5-241d176ec5f1.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c5c1ea41-bb47-4e23-a6f5-241d176ec5f1.png" referrerpolicy="no-referrer" />
 
 三根支柱页把开源模型演进拆成 Data、Algo、System。Data 包括退火、合成；Algo 包括 RL 和模型结构；System 包括新结构支持和效率优化。
 
@@ -273,7 +273,7 @@ OpenSeek 的特点是不把系统当后处理。attention kernel、训练框架�
 
 ### Slide 33：社区邀请
 
-<img src="https://files.mdnice.com/user/59/35b249c7-ea90-4182-9bae-befe81ebb450.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/35b249c7-ea90-4182-9bae-befe81ebb450.png" referrerpolicy="no-referrer" />
 
 社区邀请页很直接：开源模型要靠持续贡献。对工程贡献者来说，flash-dmattn、FlagScale、训练 config 都是可参与入口。
 
@@ -281,7 +281,7 @@ slide 上把贡献者分成三类：拥有稀缺数据的领域专家、擅长�
 
 ### Slide 34：展台和联系方式
 
-<img src="https://files.mdnice.com/user/59/55ff92bf-497c-44cb-9d1b-1a7af16a5a35.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/55ff92bf-497c-44cb-9d1b-1a7af16a5a35.png" referrerpolicy="no-referrer" />
 
 最后是展台和联系方式。这页没有新的技术增量，后面还是把重点放在 OpenSeek 的公开资产和 DMA 代码上。
 

@@ -16,7 +16,7 @@
 
 虽然基于Excel的占用率计算器已被弃用，但我们仍然可以使用它来计算计算能力8.6及以下的占用率。
 
-![](https://files.mdnice.com/user/59/a0a538ea-2287-4a64-8ac3-4990e9ff249e.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a0a538ea-2287-4a64-8ac3-4990e9ff249e.jpg)
 
 ### GPU 计算能力的物理限制
 

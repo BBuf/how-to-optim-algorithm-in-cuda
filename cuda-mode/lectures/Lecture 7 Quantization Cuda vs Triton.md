@@ -6,12 +6,12 @@
 
 > 作者课件可以在这里找到：https://github.com/cuda-mode/lectures 。我也下载里一份放在 https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/cuda-mode/ppt 这里。
 
-![](https://files.mdnice.com/user/59/901a2917-42c1-41d5-8d37-5e4aa5593451.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/901a2917-42c1-41d5-8d37-5e4aa5593451.png)
 
 PyTorch最近一年发布了一些生成式AI模型的案例研究，这些模型运行速度极快，且代码及其精简。这些模型比如GPT-FAST，SAM-FAST都应用了量化技术，Charles很大程度上是这些量化Kernel的主要开发者。因此，这节课由Charles来分享量化技术。
 
 
-![](https://files.mdnice.com/user/59/cddc3de8-0665-499f-b048-587a2cfc5ef8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cddc3de8-0665-499f-b048-587a2cfc5ef8.png)
 
 
 这张Slides介绍了演讲者的背景和最近的研究重点，内容如下：
@@ -30,7 +30,7 @@ PyTorch最近一年发布了一些生成式AI模型的案例研究，这些模�
         - Int4 仅权重量化
             - bf16i4->bf16
 
-![](https://files.mdnice.com/user/59/d98e8c68-4a5b-40e9-bd7e-f4500f5c2f13.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d98e8c68-4a5b-40e9-bd7e-f4500f5c2f13.png)
 
 这张Slides介绍了三种不同的量化技术：
 
@@ -53,9 +53,9 @@ PyTorch最近一年发布了一些生成式AI模型的案例研究，这些模�
 
 总的来说，这张Slides展示了这三种技术在处理神经网络计算时的不同流程。动态量化通过在计算过程中使用整数运算来提高效率，而仅权重量化则只对权重进行压缩，在实际计算时仍使用浮点数。未量化的方法则完全使用浮点数，可能提供最高的精度但计算效率较低。
 
-![](https://files.mdnice.com/user/59/582cb71d-96d5-4028-a068-9a59fe604bbd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/582cb71d-96d5-4028-a068-9a59fe604bbd.png)
 
-![](https://files.mdnice.com/user/59/45e10b9a-6f68-4765-bbca-5ac4be7d116d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/45e10b9a-6f68-4765-bbca-5ac4be7d116d.png)
 
 
 这张Slides进一步说明了动态量化（Dynamic Quantization）的概念和流程：
@@ -73,7 +73,7 @@ PyTorch最近一年发布了一些生成式AI模型的案例研究，这些模�
     - 最后将结果重新缩放（Rescale (Float)）回浮点数
     - 输出浮点激活值（Float Activation）
 
-![](https://files.mdnice.com/user/59/1ab908de-90bc-43c7-8e7d-bb0d06d5cc6c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1ab908de-90bc-43c7-8e7d-bb0d06d5cc6c.png)
 
 这张Slides展示了逐张量量化（per-tensor quantization）和逐token量化 + 逐通道量化（per-token + per-channel quantization）两种动态量化方式。
 性能比较（以SAM模型为例，vit_h, bsz=16）：
@@ -83,11 +83,11 @@ PyTorch最近一年发布了一些生成式AI模型的案例研究，这些模�
 
 结论：动态量化可以提高计算效率，在这个例子中，运行时间减少了约7%。不同的量化策略（逐张量、逐token、逐通道）可以应用于不同的张量，以优化性能和精度。虽然动态量化提高了计算速度，但它的显存占用却更多了大概是15%-20%。
 
-![](https://files.mdnice.com/user/59/655f7a00-a6bb-4760-a08c-9f9f1b8c33cf.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/655f7a00-a6bb-4760-a08c-9f9f1b8c33cf.png)
 
 这张Slides指出，显存增加的原因是要把int8的结果累加到int32类型中，因此相比于BFloat1增加了额外的显存。
 
-![](https://files.mdnice.com/user/59/ee885f2b-6fc9-458e-a937-69d1fb7bf995.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ee885f2b-6fc9-458e-a937-69d1fb7bf995.png)
 
 这张Slides进一步详细介绍了动态量化（Dynamic Quantization）的概念、方法和性能比较：
 - 动态量化的数学表达：
@@ -105,7 +105,7 @@ PyTorch最近一年发布了一些生成式AI模型的案例研究，这些模�
     - 动态量化with fusion：运行时间 695.115 ms，峰值内存 14.941 GB
 结论：动态量化可以显著提高计算效率，运行时间减少约7%。动态量化with fusion进一步优化了性能，运行时间比无量化减少约11.5%，同时还略微降低了内存使用。
 
-![](https://files.mdnice.com/user/59/65b2e338-1489-4187-8a6d-b8e7c9cf1d96.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/65b2e338-1489-4187-8a6d-b8e7c9cf1d96.png)
 
 
 这里展示的是要在Torch Compile中实现动态量化with fusion需要做出的努力，因为Torch Compile并不愿意融合乘法操作，所以作者不得不在Torch Compile的矩阵乘法kernel后强制添加一个乘法的epilogue（实际上这是一个编译器的PASS，需要匹配到矩阵乘法+乘法才能生效）。图片比较难看代码，这里贴一下：
@@ -138,9 +138,9 @@ def tuned_fused_int_mm_mul(mat1, mat2, mat3, out_dtype, *, layout=None):
 
 然后，Triton在实现这个需求时相比于Torch Compile会很简单，一行代码即可。
 
-![](https://files.mdnice.com/user/59/8a91dc5d-68be-4ff4-9172-c6b0e3aa2c3e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8a91dc5d-68be-4ff4-9172-c6b0e3aa2c3e.png)
 
-![](https://files.mdnice.com/user/59/a79dda1f-11f5-4f0b-9738-32fabdbc214e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a79dda1f-11f5-4f0b-9738-32fabdbc214e.png)
 
 这张Slides介绍了Int8权重量化（Int8 Weight Only Quantization）的概念和流程。主要内容：
 - 数学表达：
@@ -167,14 +167,14 @@ def tuned_fused_int_mm_mul(mat1, mat2, mat3, out_dtype, *, layout=None):
     - 适用于对精度要求较高，但仍希望减少模型大小的场景
     - 可能在某些硬件上比全量化方法更容易实现和优化
 
-![](https://files.mdnice.com/user/59/9d56a1f3-535f-46ee-be69-3c1c7e9d8356.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9d56a1f3-535f-46ee-be69-3c1c7e9d8356.png)
 
 
 这张Slides展示了Int8权重量化（Int8 Weight Only Quantization）的性能表现，无量化: 93.08 tokens/s，int8权重量化: 40.59 tokens/s，可以看到int8权重量化反而降低了处理速度，约为无量化版本的43.6%。
 
 在图表中，对比了Batch size 1: cublas 和 int8 weight only quantized matmul。蓝线: cublas A16W16 matmul (使用16位精度的cublas矩阵乘法)。红线: A16W8 matmul (使用16位激活和8位权重的矩阵乘法)
 
-![](https://files.mdnice.com/user/59/81b20631-8ea4-492c-983e-bb35d1468ce9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/81b20631-8ea4-492c-983e-bb35d1468ce9.png)
 
 这张Slides讲到如果按照普通的gemm triton kernel模板，上面的Int8权重量化的性能低于预期的原因是：
 - 执行了比基础matmul更多的工作，展示了一段代码，显示了额外的加载和类型转换操作，这些额外操作可能导致性能下降
@@ -199,7 +199,7 @@ def mm(self, input2):
 
 实际上这个操作就是让GEMV用Cuda Core而不是Tensor Core来完成计算，具体做法就是把GEMV操作等价为一个element-wise乘法加一个reduce操作。这个操作通过Torch Compile生成的Triton Kernel代码如下：
 
-![](https://files.mdnice.com/user/59/9e42f002-e508-4b54-8faa-740687ae572e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9e42f002-e508-4b54-8faa-740687ae572e.png)
 
 
 这张Slides展示了一个名为 triton_() 的函数（由Torch编译器生成），该函数实现了 Int8 权重量化的GEMV操作。完整流程为：
@@ -249,7 +249,7 @@ def triton_(in_ptr0, in_ptr1, in_ptr2, in_ptr3, out_ptr1, xnumel, rnumel, XBLOCK
     tl.store(out_ptr1 + (x0), tmp12, xmask)
 ```
 
-![](https://files.mdnice.com/user/59/681bdd35-4e3d-400b-89b5-32d5be000f42.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/681bdd35-4e3d-400b-89b5-32d5be000f42.png)
 
 这张Slides主要讲述了Int8权重量化（Int8 Weight Only Quantization）的优化过程和结果。
 - 性能问题解决：通过使用torch.compile可以解决之前遇到的性能问题。
@@ -274,9 +274,9 @@ def triton_(in_ptr0, in_ptr1, in_ptr2, in_ptr3, out_ptr1, xnumel, rnumel, XBLOCK
 
 这里bsz=1的时候是memory bound的GEMV，如果bsz>1，这个时候就是GEMM Kernel了，很可能就是compute bound了，普通的kernel优化预计很难超越cuBLAS的性能。
 
-![](https://files.mdnice.com/user/59/d34a15d4-c6dc-487b-bd70-b7f7a1de6a70.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d34a15d4-c6dc-487b-bd70-b7f7a1de6a70.png)
 
-![](https://files.mdnice.com/user/59/6106531d-7d20-4a79-b92c-5e6b81184a0e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6106531d-7d20-4a79-b92c-5e6b81184a0e.png)
 
 从Int4 Weight Only开始，Triton开始力不从心了。要点为：
 - 目前PyTorch没有原生的int4/uint4数据类型（dtype）。
@@ -284,13 +284,13 @@ def triton_(in_ptr0, in_ptr1, in_ptr2, in_ptr3, out_ptr1, xnumel, rnumel, XBLOCK
 - 由于Triton在类型转换和乘法操作上的限制，我们在实际操作中会失去更多性能。
 - 图示展示了int4数据（4位整数）如何被打包进更大的数据类型中。
 
-![](https://files.mdnice.com/user/59/2d7321c9-7471-460d-bd3b-cead8d9a9137.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2d7321c9-7471-460d-bd3b-cead8d9a9137.png)
 
 "But we can see how far we can get with just triton"（但我们可以看看仅使用triton能走多远）说明了作者打算在现有Triton框架限制下探索Int4量化的潜力。右上角显示了一个int4x2的基本结构，每个元素包含两个4位整数。下方展示了四种不同的打包/解包布局，展示了如何在更大的数据结构中组织int4数据。
 
 > Slides里面的右下角的4张图有拼写错误，注意鉴别。比如最后一张图的第一列应该是ABEF才对。
 
-![](https://files.mdnice.com/user/59/67a25258-535e-4c6f-bb31-4e29bd73de73.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/67a25258-535e-4c6f-bb31-4e29bd73de73.png)
 
 这张Slides详解了Int4权重量化（Int4 Weight Only Quantization）在矩阵乘法（matmul）中的实现策略，特别是关于数据打包和解包的选择。
 - 在进行矩阵乘法时，由于这是权重，我们希望在int4x2格式中连续的信息在解包后仍然保持连续。
@@ -299,7 +299,7 @@ def triton_(in_ptr0, in_ptr1, in_ptr2, in_ptr3, out_ptr1, xnumel, rnumel, XBLOCK
 
 > Slides里面的右下角的4张图有拼写错误，注意鉴别。比如最后一张图的第一列应该是ABEF才对。
 
-![](https://files.mdnice.com/user/59/bc4a11ed-8f22-4531-8fec-aa5d2f8bb5d4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bc4a11ed-8f22-4531-8fec-aa5d2f8bb5d4.png)
 
 这里提供了具体的代码来展示如何打包/解包uint8和int4：
 ```python
@@ -308,7 +308,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 ```
 解释说选择uint8是因为triton框架对int8的位移操作存在问题。这里的uint4x2量化Kernel代码在：https://github.com/pytorch/pytorch/blob/main/torch/_inductor/kernel/unpack_mixed_mm.py
 
-![](https://files.mdnice.com/user/59/197de651-540c-4541-bf2c-47c082ac7266.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/197de651-540c-4541-bf2c-47c082ac7266.png)
 
 这张Slides主要讨论了Int4权重量化（Int4 Weight Only Quantization）的性能表现和一些相关观察。
 - 性能数据表格（LLaMA-7B, bsz=1）：
@@ -321,14 +321,14 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 > uint4x2量化的性能(Triton实现)只有无量化情况下的1/2，而不是预期的4倍快。作者提到如果现在重新实现，会参考fast int8 kernel的方法，而不是slow int8 kernel。此外，提到Jeff Johnson（PyTorch GPU后端的开发者）使用CUDA开发了一个int4 kernel并集成到了PyTorch中，速度非常快，也就是上面表格的Int4分组量化。代码：https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/native_functions.yaml
 
 
-![](https://files.mdnice.com/user/59/4d50f08b-c745-4b73-b045-76ac1a974104.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4d50f08b-c745-4b73-b045-76ac1a974104.png)
 
 
 这个是kernel的签名，感兴趣的读者可以自行查看代码。
 
 从这个Int4 Weight Only的cuda量化kernel实现可以看到Triton的局限性。
 
-![](https://files.mdnice.com/user/59/ae3c5f91-fa2c-483b-aae2-c188cdd4e43a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ae3c5f91-fa2c-483b-aae2-c188cdd4e43a.png)
 
 这张Slides讨论了Triton的一些局限性：
 - 复杂操作和非标准数据类型的问题：
@@ -340,7 +340,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
     - 在一些测试中，启发式算法存在问题。
     - 最佳配置可能无法使用或被启发式算法错误地丢弃。
 
-![](https://files.mdnice.com/user/59/4558ac9f-8c20-4e37-a09a-3e8414b34a7d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4558ac9f-8c20-4e37-a09a-3e8414b34a7d.png)
 
 这张Slides介绍了Trito的优势：
 - 擅长组合"简单"操作：
@@ -358,13 +358,13 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 
 这里讲的就是SAM里面的Attention操作相比于标准的SelfAttention需要融合两个MASK，这个时候使用Triton实现的FlashAttention就可以非常快的实现这个需求，并且性能很好。
 
-![](https://files.mdnice.com/user/59/1432b80b-f3ed-4e64-8722-90296709bb09.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1432b80b-f3ed-4e64-8722-90296709bb09.png)
 
 要复现作者的实验或者学习GPU上量化Kernel的实现可以点击这张Slides里的链接。
 
 作者分享的Slides里面还有一些有趣的内容作为附录，这里挑选其中的一些来解读，主要是实验结果和概念部分，对torchao的使用部分的Slides有需要的读者可以自行查看。
 
-![](https://files.mdnice.com/user/59/bd7ac1b5-1fe1-448a-8305-c994ca236103.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bd7ac1b5-1fe1-448a-8305-c994ca236103.png)
 
 这张Slides展示了对SAM（Segment Anything Model）模型进行不同量化和优化技术的实验结果。主要内容如下：
 
@@ -385,7 +385,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 - 峰值内存使用（peak memory (GB)）
 - COCO 2017验证集上的准确率（coco 2017 val accuracy）
 
-![](https://files.mdnice.com/user/59/74f0809a-5c97-4ada-bd52-406917628d4b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/74f0809a-5c97-4ada-bd52-406917628d4b.png)
 
 这张Slides展示了对Llama2 7B模型进行不同量化方法的实验结果。主要内容如下：
 
@@ -407,7 +407,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
     - winogrande acc
 - 结果显示，int4量化提供了最大的速度提升（1.86倍），但有轻微的精度损失。int8量化在保持精度的同时也提供了显著的速度提升（1.45倍）。
 
-![](https://files.mdnice.com/user/59/6d6ad738-3531-4b32-8c91-4e5c8be379a1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6d6ad738-3531-4b32-8c91-4e5c8be379a1.png)
 
 这张Slides展示了对Llama2 7B模型进行模拟低精度量化的实验结果。主要内容如下：
 - 实验目的：了解分组大小（groupsize）、位数（bit number）和GPTQ（量化技术）如何影响模型准确性。实验使用wikitext bits_per_byte困惑度作为评估指标。
@@ -419,7 +419,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 - 基准比较：结果应与bf16（bfloat16）和int8量化的基准值0.674进行比较（注1）。
 
 
-![](https://files.mdnice.com/user/59/0c3aa0ec-fb45-4de3-81fa-5c58725f6ee2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0c3aa0ec-fb45-4de3-81fa-5c58725f6ee2.png)
 
 这张Slides介绍了一些与量化相关的代码资源和工具：
 - 量化API：
@@ -435,7 +435,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 
 后面还有几页Slides介绍了不同的量化方法。
 
-![](https://files.mdnice.com/user/59/443658ce-2d31-45ba-a13c-11cf6eeb0f23.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/443658ce-2d31-45ba-a13c-11cf6eeb0f23.png)
 
 这张Slides介绍了动态量化（Dynamic Quantization）的过程和特点：
 - 动态量化流程 (Dynamic Quantization Flow):
@@ -453,7 +453,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
     - 用于替代非量化操作
     - 可能比允许一系列量化操作而不需要反量化的技术要慢
 
-![](https://files.mdnice.com/user/59/5c40c9e0-02a0-430f-a24e-88784fd0fe41.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5c40c9e0-02a0-430f-a24e-88784fd0fe41.png)
 
 这张Slides介绍了Smoothquant（平滑量化）技术，并将其与动态量化进行了对比：
 
@@ -472,11 +472,11 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
     - 有助于减少量化过程中的信息损失
     - 结合LLM.int8()技术，可以在保持精度的同时提高效率
 
-![](https://files.mdnice.com/user/59/6b9d1fcd-0821-45d7-b789-df959c9b2a6c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6b9d1fcd-0821-45d7-b789-df959c9b2a6c.png)
 
 这张Slides展示了不同量化方法在OPT-175B、BLOOM-176B和GLM-130B*模型上的性能，Smoothquant（O1、O2、O3）在大多数情况下表现接近或优于FP16和LLM.int8()。
 
-![](https://files.mdnice.com/user/59/e6c27c40-c8bb-4fae-843a-96d9af2639a7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e6c27c40-c8bb-4fae-843a-96d9af2639a7.png)
 
 这张Slides介绍了仅权重量化（Weight Only Quantization）为Int8的技术。
 - 量化流程：
@@ -490,7 +490,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 但在内存使用上更高效
 - 实际应用：在实践中，对int8使用逐通道量化（per-channel quantization）
 
-![](https://files.mdnice.com/user/59/428b200d-a062-4f3b-b523-4dd911beee4a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/428b200d-a062-4f3b-b523-4dd911beee4a.png)
 
 这张Slides介绍了仅权重量化为Int4的技术。
 - 量化流程与Int8量化类似，包括权重量化、反量化和16位乘法运算。
@@ -499,7 +499,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 - 右边还展示了per-token量化的激活矩阵和per-channel分组量化的权重矩阵。
 - 可以考虑使用smoothquant风格的输入-权重均衡化技术。这对int4的情况可能特别有用，因为int4精度较低，更需要优化。
 
-![](https://files.mdnice.com/user/59/b8f3bacb-a9b3-4ce0-9855-6845a2d45e22.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b8f3bacb-a9b3-4ce0-9855-6845a2d45e22.png)
 
 这张Slides介绍了GPTQ (Generative Pre-trained Transformer Quantization) 技术。
 - GPTQ的核心思想：使用期望Hessian（Expected Hessian）来量化权重W，目标是最小化 argmin ||WX - ŴX||²₂，其中Ŵ是量化后的权重。
@@ -512,7 +512,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
     - 重复步骤2和3，直到所有列都被量化
 
 
-![](https://files.mdnice.com/user/59/84b92f52-6be9-4da3-b21c-f00fb3168ae1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/84b92f52-6be9-4da3-b21c-f00fb3168ae1.png)
 
 这张Slides比较了三种不同的量化技术：动态量化、静态量化和仅权重量化。特别的，对于静态量化流程（其它两种已经讲过了）：
 - 权重预处理量化
@@ -521,7 +521,7 @@ int4[2*k+1,n]=(uint4x2[k,n] >> 4) - 8
 - Int32累加
 - 重新缩放到Int8
 
-![](https://files.mdnice.com/user/59/ed98cc71-d7c6-4e4c-8c5e-b7e6c4163cc3.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ed98cc71-d7c6-4e4c-8c5e-b7e6c4163cc3.png)
 
 这张Slides继续介绍了静态量化（Static Quantization）技术，并将其与动态量化进行了对比。
 - 量化流程对比：左侧是动态量化流程；右侧是静态量化流程

@@ -19,7 +19,7 @@ LayerNorm 和 RMSNorm 是深度学习里非常基础的 normalization 方法。�
 
 LayerNorm 最早来自论文 <https://arxiv.org/abs/1607.06450>。它会对输入做均值和方差归一化，并使用可学习参数 `gamma`（weight）和 `beta`（bias）做缩放和平移。
 
-![LayerNorm 公式和计算流程](https://files.mdnice.com/user/59/53383e2b-a6af-43c3-808d-966d4f77575e.png)
+![LayerNorm 公式和计算流程](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/53383e2b-a6af-43c3-808d-966d4f77575e.png)
 
 图 1：LayerNorm 的基本计算形式。
 
@@ -27,7 +27,7 @@ LayerNorm 最早来自论文 <https://arxiv.org/abs/1607.06450>。它会对输�
 
 RMSNorm，也就是 root mean square norm，是 LayerNorm 的后续变体，论文见 <https://arxiv.org/abs/1910.07467>。它不再围绕均值中心化，而是使用输入平方和对应的 RMS 进行归一化。RMSNorm 仍然使用 `gamma`（weight）作为可学习缩放参数，但不再有 bias。
 
-![RMSNorm 公式和计算流程](https://files.mdnice.com/user/59/8b9f6d4a-0680-4ed8-b9bc-5ff118f4d0b6.png)
+![RMSNorm 公式和计算流程](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8b9f6d4a-0680-4ed8-b9bc-5ff118f4d0b6.png)
 
 图 2：RMSNorm 的基本计算形式。
 
@@ -37,7 +37,7 @@ LayerNorm 和 RMSNorm 的 forward pass 结构很像：通常是在连续维度�
 
 Quack 是 Tri Dao 的高性能 CuteDSL kernel 库：<https://github.com/Dao-AILab/quack>。它包含一组高度优化的 reduction kernel。Quack README 中展示了 H100 上的结果：对这些 reduction kernel，Quack 明显快于当时的 `torch.compile`。原始对比里，`torch.compile` 通常只有 Quack 大约 50% 的性能。
 
-![Quack README 中的 baseline 对比](https://files.mdnice.com/user/59/f32721b1-3a70-4944-a232-b7214204f980.png)
+![Quack README 中的 baseline 对比](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f32721b1-3a70-4944-a232-b7214204f980.png)
 
 图 3：Quack README 中展示的 baseline。PyTorch 文章以 Quack 作为 SOTA 手写 kernel baseline 来衡量 `torch.compile`。
 
@@ -45,7 +45,7 @@ Quack 是 Tri Dao 的高性能 CuteDSL kernel 库：<https://github.com/Dao-AILa
 
 下面这张图展示了 `torch.compile` 为 LayerNorm forward 生成 kernel 时的大体逻辑。RMSNorm forward 也采用类似思路。这里假设输入的 reduction dimension，也就是 `rnumel`，是连续维度。在 TorchInductor 中，这类 reduction 被称为 Inner reduction。
 
-![torch.compile 生成 LayerNorm forward kernel 的基本逻辑](https://files.mdnice.com/user/59/d4fc350c-5ef3-4d49-8fe2-88ac87f60b22.png)
+![torch.compile 生成 LayerNorm forward kernel 的基本逻辑](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d4fc350c-5ef3-4d49-8fe2-88ac87f60b22.png)
 
 图 4：`torch.compile` 生成的 LayerNorm forward kernel 逻辑示意。
 
@@ -75,11 +75,11 @@ Quack 是 Tri Dao 的高性能 CuteDSL kernel 库：<https://github.com/Dao-AILa
 
 文章对比了 `torch.compile 2.11` 和 Quack（2026 年 3 月 24 日 trunk）在 Quack benchmark shape 以及一些真实场景常见 shape 上的结果，特别是 large M、small N 的情况。结论是：经过上述改进后，`torch.compile` forward 通常已经能和 Quack 持平。
 
-![torch.compile 与 Quack 的 forward benchmark 对比 1](https://files.mdnice.com/user/59/a62837b2-d670-4371-af20-e9ff704d512a.png)
+![torch.compile 与 Quack 的 forward benchmark 对比 1](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a62837b2-d670-4371-af20-e9ff704d512a.png)
 
 图 5：`torch.compile 2.11` 与 Quack 的 forward benchmark 对比。
 
-![torch.compile 与 Quack 的 forward benchmark 对比 2](https://files.mdnice.com/user/59/cced9172-f618-4aff-8f5e-f5b87cc0b973.png)
+![torch.compile 与 Quack 的 forward benchmark 对比 2](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cced9172-f618-4aff-8f5e-f5b87cc0b973.png)
 
 图 6：更多 forward benchmark shape 上的结果。
 
@@ -96,7 +96,7 @@ LayerNorm/RMSNorm backward 比 forward 复杂很多。至少要计算两个梯�
 
 朴素做法是拆成多个 kernel：一个 kernel 算 `dX`，另一个 kernel 算 `dW` 和 `dB`。当 reduction dimension 很大时，有时这也是难以避免的选择。但这种拆分会让同一份输入 `dY` 被两个 kernel 分别读取。归一化 kernel 本来就 memory-bound，重复读 `dY` 会显著增加 latency。
 
-![拆分 backward reduction 时的额外读带宽问题](https://files.mdnice.com/user/59/3a07b1e0-4002-4266-842f-02d70b43b6fe.png)
+![拆分 backward reduction 时的额外读带宽问题](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3a07b1e0-4002-4266-842f-02d70b43b6fe.png)
 
 图 7：分开计算 `dX` 和 `dW/dB` 会重复读取 `dY`，对 memory-bound kernel 很伤。
 
@@ -117,7 +117,7 @@ LayerNorm/RMSNorm backward 比 forward 复杂很多。至少要计算两个梯�
 
 Inductor 目前也有 split reduction 能力，会为 partial sums 分配 workspace tensor，但不使用 atomic。它会保证一个 CTA 处理多行，并写入 workspace tensor 中唯一的位置。
 
-![Split reduction 与 workspace tensor](https://files.mdnice.com/user/59/bc265ce3-0bc4-499f-975e-cd9535d8794f.png)
+![Split reduction 与 workspace tensor](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bc265ce3-0bc4-499f-975e-cd9535d8794f.png)
 
 图 8：split reduction 的基本思路：先把 partial sums 写入 workspace，再做最终 reduction。
 
@@ -146,7 +146,7 @@ Inductor 目前也有 split reduction 能力，会为 partial sums 分配 worksp
 
 `SPLIT_SIZE` 对 MixOrderReduction kernel 的性能非常关键。文章给了一个很直观的例子：在 shape `(1152000, 384)`、dtype 为 `bfloat16` 的 H100 上，Liger RMSNorm backward 默认 split size 只能达到 `0.417 TB/s`；把 `SPLIT_SIZE` 缩小 32 倍后，可以达到 `1.912 TB/s`。
 
-![不同 split size 对 MixOrderReduction 性能的影响](https://files.mdnice.com/user/59/e1225485-61d6-4ccd-9461-977eabd98b5f.png)
+![不同 split size 对 MixOrderReduction 性能的影响](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e1225485-61d6-4ccd-9461-977eabd98b5f.png)
 
 图 9：不同 shape 和 split size 下的性能曲线，测试 dtype 为 `torch.bfloat16`。
 
@@ -165,7 +165,7 @@ Inductor 原有 split-reduction 也会为 outer reduction 选择 split size，�
 
 但 Quack kernel 中存在一定程度的 prefetching。因此团队把 `num_stages` 加入 Inductor kernel 的 autotuning 参数。对某些 shape，尤其是 large M、small N，MixOrderReduction 上可以看到显著收益，最高可达 20%。
 
-![Software pipelining / prefetching 对性能的影响](https://files.mdnice.com/user/59/c54dbd78-d620-4b7e-88f6-df12c9aab509.png)
+![Software pipelining / prefetching 对性能的影响](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c54dbd78-d620-4b7e-88f6-df12c9aab509.png)
 
 图 10：为 MixOrderReduction 加入 `num_stages` autotuning 后，部分 shape 有明显收益。
 
@@ -173,7 +173,7 @@ Inductor 原有 split-reduction 也会为 outer reduction 选择 split size，�
 
 文章最后比较了 MixOrderReduction 与 PyTorch eager、旧版 compile，以及 Quack、Liger 等 OSS baseline。benchmark 运行在一台 750W B200 机器上，CUDA 12.9，时间是 2025 年末。
 
-![MixOrderReduction 与 eager、旧 compile、Quack、Liger 的 RMSNorm backward benchmark](https://files.mdnice.com/user/59/282cb6f1-8fde-4d63-8249-11f9f9016a2d.png)
+![MixOrderReduction 与 eager、旧 compile、Quack、Liger 的 RMSNorm backward benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/282cb6f1-8fde-4d63-8249-11f9f9016a2d.png)
 
 图 11：RMSNorm backward benchmark。
 
@@ -185,7 +185,7 @@ Inductor 原有 split-reduction 也会为 outer reduction 选择 split size，�
 
 LayerNorm 也给出了类似 benchmark。由于 LayerNorm 和 RMSNorm 的 kernel 结构相近，趋势基本一致。
 
-![LayerNorm backward benchmark](https://files.mdnice.com/user/59/8800f3da-e240-4766-9f00-6fb751e7f475.png)
+![LayerNorm backward benchmark](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8800f3da-e240-4766-9f00-6fb751e7f475.png)
 
 图 12：LayerNorm backward benchmark。带 MixOrderReduction 的 `torch.compile` 相比旧 compile baseline 接近 2 倍加速，也更接近峰值内存带宽。
 

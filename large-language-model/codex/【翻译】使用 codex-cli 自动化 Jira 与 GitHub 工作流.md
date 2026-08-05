@@ -6,7 +6,7 @@
 
 这篇 cookbook 提供了一套实用的分步方法，用于自动化 Jira 与 GitHub 之间的工作流。通过给 Jira issue 打上标签，你就可以触发一条端到端流程：创建 **GitHub pull request**、同步更新两个系统，并简化代码评审过程，整个过程几乎不需要人工介入。整个自动化由运行在 GitHub Action 中的 [`codex-cli`](https://github.com/openai/openai-codex) agent 驱动。
 
-![](https://files.mdnice.com/user/59/7dc1359c-5edb-4700-8eb2-410103f89cd1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7dc1359c-5edb-4700-8eb2-410103f89cd1.png)
 
 流程如下：
 
@@ -28,7 +28,7 @@
 
 ## 创建 Jira Automation Rule
 
-![](https://files.mdnice.com/user/59/0ed7ec91-a1eb-4cd7-ad2b-be9e44265480.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0ed7ec91-a1eb-4cd7-ad2b-be9e44265480.png)
 
 这条 rule 的第一步是监听某个 issue 标签的变更。这样可以确保只有在标签被添加或修改时才触发自动化，而不需要处理该 issue 的每一次更新。
 
@@ -185,7 +185,7 @@ jobs:
 1. **创建时**：在点击 *Create* 之前，在 “Labels” 字段中添加它
 2. **已有 issue**：将鼠标悬停在标签区域 → 点击铅笔图标 → 输入 `aswe`
 
-![](https://files.mdnice.com/user/59/d515795b-a96b-48ac-be5d-a8830495485c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d515795b-a96b-48ac-be5d-a8830495485c.png)
 
 ## 端到端流程
 
@@ -196,8 +196,8 @@ jobs:
 5. Jira 被移动到 **In Review**，并发布一条带有 PR URL 的评论
 6. Reviewer 会按照你现有的 branch protection 设置收到通知
 
-![](https://files.mdnice.com/user/59/0bce691d-970f-45c5-b0d6-565cd1737294.png)
-![](https://files.mdnice.com/user/59/b327f08c-5e29-423f-9e7a-105891ff01e4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0bce691d-970f-45c5-b0d6-565cd1737294.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b327f08c-5e29-423f-9e7a-105891ff01e4.png)
 
 ## 审查并合并 PR
 

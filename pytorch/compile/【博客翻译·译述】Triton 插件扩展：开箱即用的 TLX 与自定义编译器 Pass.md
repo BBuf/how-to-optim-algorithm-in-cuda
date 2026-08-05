@@ -1,4 +1,4 @@
-![Triton Plugin Extensions](https://files.mdnice.com/user/59/1cd1702f-6c83-4960-a6be-27e1b743a374.png)
+![Triton Plugin Extensions](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1cd1702f-6c83-4960-a6be-27e1b743a374.png)
 
 > 原文：Triton Plugin Extensions: Enabling TLX and Custom Compiler Passes Out of the Box
 > 原文地址：PyTorch Blog（https://pytorch.org/blog/triton-plugin-extensions-enabling-tlx-and-custom-compiler-passes-out-of-the-box/）

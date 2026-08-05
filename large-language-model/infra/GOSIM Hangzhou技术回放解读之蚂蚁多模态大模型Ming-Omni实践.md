@@ -17,7 +17,7 @@
 
 ### Slide 1：蚂蚁多模态大模型实践
 
-<img src="https://files.mdnice.com/user/59/24549154-9b5c-4227-9019-588e4427f224.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/24549154-9b5c-4227-9019-588e4427f224.png" referrerpolicy="no-referrer" />
 
 标题页给出主题：蚂蚁多模态大模型实践。正文的主线是 Ming-Omni，它不是单纯 VLM，而是把图像、视频、音频、文本理解和生成放进一个更统一的模型体系里。
 
@@ -25,7 +25,7 @@
 
 ### Slide 2：目录：模型族、Ming-Omni、技术细节
 
-<img src="https://files.mdnice.com/user/59/fad02339-9622-49b4-9d54-49ace65e8975.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fad02339-9622-49b4-9d54-49ace65e8975.png" referrerpolicy="no-referrer" />
 
 目录分四段：百灵大模型技术布局，多模态技术趋势及蚂蚁多模态演进，Ming-Omni 关键技术，百灵大模型演进。前两段解释为什么要做统一多模态，第三段才进入模型结构、训练和生成。
 
@@ -33,7 +33,7 @@
 
 ### Slide 3：Ling/Ring/Ming 模型布局
 
-<img src="https://files.mdnice.com/user/59/1a4004e3-2f9c-4b27-9526-2b396c401898.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1a4004e3-2f9c-4b27-9526-2b396c401898.png" referrerpolicy="no-referrer" />
 
 这一页是百灵大模型技术布局，信息量很大。上层是应用：医疗管家、金融管家、生活管家、CodeFuse、智能客服、保险助手、医生助手等；中间是语言、代码、行业和多模态模型；底座则包括算力、安全力和知识力。
 
@@ -41,7 +41,7 @@ Ling/Ring/Ming 是模型族分工。Ling 更偏语言基础模型，Ring 强调�
 
 ### Slide 4：模型族能力边界
 
-<img src="https://files.mdnice.com/user/59/e1d5d067-1ae9-404d-bd60-d204dbacd315.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e1d5d067-1ae9-404d-bd60-d204dbacd315.png" referrerpolicy="no-referrer" />
 
 这一页把四条路线列得很清楚。Ling-lite/Ling-mini 走“小身材，大智慧”的高性价比语言路线；Ring-lite/Ring-mini 用 Joint RL 深挖难例、提升推理水平；Ring-lite-linear 走混合线性注意力，压低长文本冗余；Ming-lite-omni 则把听觉、视觉等多种能力融合起来。
 
@@ -49,7 +49,7 @@ Ling/Ring/Ming 是模型族分工。Ling 更偏语言基础模型，Ring 强调�
 
 ### Slide 5：章节过渡：Ming-Omni
 
-<img src="https://files.mdnice.com/user/59/1fcdb93c-7c2b-44df-94a6-70ba26d2c508.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1fcdb93c-7c2b-44df-94a6-70ba26d2c508.png" referrerpolicy="no-referrer" />
 
 这一页是目录过渡，把话题从模型族布局切到多模态技术趋势。它提示后面要回答两个问题：行业为什么从“多模态理解”走向“理解与生成统一”，以及蚂蚁为什么选择 Ming-Omni 这条路线。
 
@@ -57,7 +57,7 @@ Ling/Ring/Ming 是模型族分工。Ling 更偏语言基础模型，Ring 强调�
 
 ### Slide 6：多模态走向全模态统一
 
-<img src="https://files.mdnice.com/user/59/5a51c0cf-43ae-40c6-9306-fd6b8662353a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a51c0cf-43ae-40c6-9306-fd6b8662353a.png" referrerpolicy="no-referrer" />
 
 趋势页把横轴画成“理解 -> 生成 -> 理解生成统一”，纵轴是“单模态 -> 多模态”。左侧是图文理解、语音理解这些单向理解模型，中间是图像/视频/语音/3D 生成模型，右侧则是 Gemini 2.5、GPT-4o、Qwen-Omni、Janus、Bagel、Ming-lite-omni 这类理解与生成统一的方向。
 
@@ -65,7 +65,7 @@ Ling/Ring/Ming 是模型族分工。Ling 更偏语言基础模型，Ring 强调�
 
 ### Slide 7：Ming scaling 轨迹
 
-<img src="https://files.mdnice.com/user/59/7b3e3cbf-5425-4bcf-bdb5-d5657cbc1d8a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7b3e3cbf-5425-4bcf-bdb5-d5657cbc1d8a.png" referrerpolicy="no-referrer" />
 
 Ming scaling 轨迹把多个模型放在一张坐标图上：从 Qwen2.5-VL、Qwen-Omni、Ming-lite-uni、Ming-lite-omni-preview，到 Ming-flash-omni、Ming-Omni、Ming-world++。右侧 Ming-Omni 的 bullet 写到：功能对齐 GPT-4o 的全模态模型，统一 tokenizer 和训练目标，通过 MoE 架构和训练策略优化实现模态统一。
 
@@ -73,7 +73,7 @@ Ming scaling 轨迹把多个模型放在一张坐标图上：从 Qwen2.5-VL、Qw
 
 ### Slide 8：章节过渡：技术方案
 
-<img src="https://files.mdnice.com/user/59/fee97c6c-1e93-4dfb-b13c-91c9947a85d4.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fee97c6c-1e93-4dfb-b13c-91c9947a85d4.png" referrerpolicy="no-referrer" />
 
 这一页是进入 Ming-Omni 关键技术的目录过渡。后面三张核心 slide 分别讲：模型能力与特性、全模态架构、混合训练、视觉理解与生成统一。
 
@@ -81,7 +81,7 @@ Ming scaling 轨迹把多个模型放在一张坐标图上：从 Qwen2.5-VL、Qw
 
 ### Slide 9：Ming-Omni：看、听、说、画
 
-<img src="https://files.mdnice.com/user/59/9a6fb7a1-8eea-4ed9-9cef-f1cc04dc90eb.jpg" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9a6fb7a1-8eea-4ed9-9cef-f1cc04dc90eb.jpg" referrerpolicy="no-referrer" />
 
 Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基于 Ling-lite 的 MoE 架构，通过架构设计和多阶段训练统一理解与生成；Ming-lite-omni v1.5 支持音、视、图、文全模态理解和生成。第二组是跨模态融合与统一：按训练阶段、数据模态两个维度调控训练数据配比，并引入目标函数动态调权算法。第三组是理解与生成统一：生成式检测分割增强感知，多尺度可学习令牌和表征对齐统一图像理解与生成，还支持多模态对话和 TTS。
 
@@ -89,7 +89,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 10：能力展示
 
-<img src="https://files.mdnice.com/user/59/f147802a-e703-417e-9bdf-2216f8f305c4.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f147802a-e703-417e-9bdf-2216f8f305c4.png" referrerpolicy="no-referrer" />
 
 能力展示页包含音视频交互、多模态推理、图像分割、生成式编辑、人像编辑和 ID 一致性保持。它的作用是说明 Ming-Omni 覆盖的不是单一 VQA，而是感知、推理、编辑和生成的组合任务。
 
@@ -97,7 +97,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 11：Ming-Omni 架构
 
-<img src="https://files.mdnice.com/user/59/e34996d6-4e24-4420-9aae-01c9c69cfbc0.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e34996d6-4e24-4420-9aae-01c9c69cfbc0.png" referrerpolicy="no-referrer" />
 
 这页左侧图例先给 token 类型：蓝框是 text token，黄框是 vision token，绿框是 audio token，灰框是 pad token；浅色块表示 shared experts，蓝色块表示 routing experts；火焰表示 perception training，水滴表示 generation training。底部的 image/video 先进入 Vision Encoder，audio 进入 Audio Encoder，连续特征被插回 token 序列后送进 Ling 底座。中间的 Ling 由 Attention Layer 和 MoE FFN 堆叠，右下角还画了 T/V/A Router，说明文本、视觉、音频 token 可以走不同模态路由，再和 shared/routing experts 组合。
 
@@ -105,7 +105,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 12：混合全模态训练
 
-<img src="https://files.mdnice.com/user/59/c0a67340-13b9-4a1e-8200-3e8e5c7f1ac2.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c0a67340-13b9-4a1e-8200-3e8e5c7f1ac2.png" referrerpolicy="no-referrer" />
 
 这页左上讲预训练梯度累积策略：每个 step 对各模态各采一个 batch 分别算 loss，再做梯度加权更新。右上虚线框列了训练数据形态：图像文本对、音频文本对、OCR、纯文本、交错图文序列、视频文本对，它们都进 `BailingMM-Native`，forward 得到 `loss1` 到 `loss6`，backward 时再合到参数更新。
 
@@ -113,7 +113,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 13：视觉理解和生成统一
 
-<img src="https://files.mdnice.com/user/59/08c8ca6d-57fa-4131-926d-2c1d1334aa0a.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/08c8ca6d-57fa-4131-926d-2c1d1334aa0a.png" referrerpolicy="no-referrer" />
 
 这页左侧把训练和推理画在一起。训练时，image tokens、text tokens 和 multi-scale queries 进入 Multi-modal LLM；response 侧的多尺度 query 通过 Connector 接到 DiT Blocks，分别服务 128px、256px、512px 的 denoising objective，同时还有 representation alignment，让不同尺度的表征能对齐。推理时，noisy inputs 进入多层 DiT Block，最终生成 512px 图片。
 
@@ -121,7 +121,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 14：章节过渡：开源与演进
 
-<img src="https://files.mdnice.com/user/59/35d7c4aa-b377-49d0-949b-4394107063fb.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/35d7c4aa-b377-49d0-949b-4394107063fb.png" referrerpolicy="no-referrer" />
 
 这一页是进入“百灵大模型演进”的目录过渡。前面已经讲了 Ming-Omni 的结构和训练，后面会回到版本演进和开源资料。
 
@@ -129,7 +129,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 15：版本演进
 
-<img src="https://files.mdnice.com/user/59/57ff0717-cd93-4b2f-a357-c9b6dd841abf.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/57ff0717-cd93-4b2f-a357-c9b6dd841abf.png" referrerpolicy="no-referrer" />
 
 版本演进页把“效率与智能的进阶之路”分成五个点：扫码级 AI、MoE、线性 Attention、多模态融合、AI 优化。它想表达的是，模型演进不只靠参数变大，还包括性价比、架构、长文本效率、模态理解和评测标准。
 
@@ -137,7 +137,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 16：论文、模型和代码链接
 
-<img src="https://files.mdnice.com/user/59/920df130-eec6-4982-9baf-b12d8af96124.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/920df130-eec6-4982-9baf-b12d8af96124.png" referrerpolicy="no-referrer" />
 
 链接页给出 Ming-lite-omni 1.5 和 Ming-lite-uni 的公开入口，包括 HuggingFace、ModelScope、GitHub、technical report 和 project page。它也说明用户不只能读论文，还能直接下载权重、看 cookbook、跑 demo。
 
@@ -145,7 +145,7 @@ Ming-Omni 的能力页写了三组特性。第一组是简洁模型结构：基�
 
 ### Slide 17：总结
 
-<img src="https://files.mdnice.com/user/59/2ea1b2c3-646f-4280-a6f9-e112cb3e39b2.png" referrerpolicy="no-referrer" />
+<img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2ea1b2c3-646f-4280-a6f9-e112cb3e39b2.png" referrerpolicy="no-referrer" />
 
 总结页回到实践：Ming-Omni 的关键不是堆模态，而是把连续特征、离散 token、生成 condition 和多目标训练放在一个可维护的模型实现里。
 

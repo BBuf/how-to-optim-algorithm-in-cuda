@@ -14,7 +14,7 @@
 
 
 
-![](https://files.mdnice.com/user/59/9d805106-2a9e-42c7-a2f0-1c8c6a0c3b7c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9d805106-2a9e-42c7-a2f0-1c8c6a0c3b7c.png)
 
 
 Detailed analysis of the compute resources of the streaming multiprocessors (SM), including the achieved instructions per clock (IPC) and the utilization of each available pipeline. Pipelines with very high utilization might limit the overall performance.
@@ -25,7 +25,7 @@ Detailed analysis of the compute resources of the streaming multiprocessors (SM)
 
 - Executed Ipc Elapsed[inst/cycle]
 
-![](https://files.mdnice.com/user/59/fed54b44-b9aa-4158-98e2-77dc9154caee.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fed54b44-b9aa-4158-98e2-77dc9154caee.png)
 
 执行的warp指令数
 
@@ -45,7 +45,7 @@ instructions: 一条汇编（SASS）指令。
 
 - SM Busy
 
-![](https://files.mdnice.com/user/59/15339364-d40b-4228-acbc-9499a34e6e53.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/15339364-d40b-4228-acbc-9499a34e6e53.png)
 
 sm_instruction_throughput.avg.pct_of_peak_sustained_active
 假设SMSP间理想负载平衡的SM核心指令吞吐量
@@ -57,7 +57,7 @@ SM子分区是SM上的主要处理元素。
 
 - Executed Ipc Active[inst/cycle]
 
-![](https://files.mdnice.com/user/59/24485578-18bb-4b2b-8ba6-16c74ae917af.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/24485578-18bb-4b2b-8ba6-16c74ae917af.png)
 
 sm_inst_executed.avg.per_cycle_active
 执行的warp指令数
@@ -65,7 +65,7 @@ sm_inst_executed.avg.per_cycle_active
 
 - Issue Slots Busy
 
-![](https://files.mdnice.com/user/59/9a850c51-c62c-48ce-a402-a92916ed92c9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9a850c51-c62c-48ce-a402-a92916ed92c9.png)
 
 sm_inst_issued.avg.pct_of_peak_sustained_active
 发出的warp指令数
@@ -73,7 +73,7 @@ sm_inst_issued.avg.pct_of_peak_sustained_active
 
 - Issued Ipc Active[inst/cycle]
 
-![](https://files.mdnice.com/user/59/57fddbed-cb74-48b8-a232-1920df99892e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/57fddbed-cb74-48b8-a232-1920df99892e.png)
 
 sm_inst_issued.avg.per_cycle_active
 发出的warp指令数
@@ -81,7 +81,7 @@ sm_inst_issued.avg.per_cycle_active
 
 接着对后半部分的图标进行分析：
 
-![](https://files.mdnice.com/user/59/aba3e34f-9885-481f-9b27-db22f709dd24.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/aba3e34f-9885-481f-9b27-db22f709dd24.png)
 
 这里提示低利用率（Low Utilization）并且预估加速比可以到91.84%。所有计算Pipline都未被充分利用。这可能是因为内核太小，或者每个调度器没有发出足够的warps。
 
@@ -97,7 +97,7 @@ sm_inst_issued.avg.per_cycle_active
 ##### Launch Statistics部分
 
 
-![](https://files.mdnice.com/user/59/b62101c1-7af2-408d-b9c9-f0c6a73513b5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b62101c1-7af2-408d-b9c9-f0c6a73513b5.png)
 
 
 这里的具体指标的知识库不再赘述，直接看一下Tail Effect部分，这里说的是 Wave 是指可以在目标GPU上并行执行的最大块数。在这个内核中，2个完整Wave和一个部分Wave（包含433个线程块）被执行。假设所有线程块的执行时间均匀，部分Wave可能占总内核运行时间的33.3%，而完整占用度为24.0%。
@@ -108,7 +108,7 @@ sm_inst_issued.avg.per_cycle_active
 
 ##### Scheduler Statistics部分
 
-![](https://files.mdnice.com/user/59/8184a152-b3c6-489e-844b-5a7088b62fca.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8184a152-b3c6-489e-844b-5a7088b62fca.png)
 
 Summary of the activity of the schedulers issuing instructions. Each scheduler maintains a pool of warps that it can issue instructions for. The upper bound of warps in the pool (Theoretical Warps) is limited by the launch configuration. On every cycle each scheduler checks the state of the allocated warps in the pool (Active Warps). Active warps that are not stalled (Eligible Warps) are ready to issue their next instruction. From the set of eligible warps the scheduler selects a single warp from which to issue one or more instructions (Issued Warp). On cycles with no eligible warps, the issue slot is skipped and no instruction is issued. Having many skipped issue slots indicates poor latency hiding.
 
@@ -118,7 +118,7 @@ Summary of the activity of the schedulers issuing instructions. Each scheduler m
 
 - Active Warps Per Scheduler[warp]
 
-![](https://files.mdnice.com/user/59/f9334cb6-af96-4e5f-8ccf-35dace48325f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f9334cb6-af96-4e5f-8ccf-35dace48325f.png)
 
 smsp__warps_active.avg_per_cycle_active
 累计活跃的线程组数量
@@ -133,7 +133,7 @@ warps: 一个CTA(合作线程阵列)中有32个线程。
 
 - No Eligible[%]
 
-![](https://files.mdnice.com/user/59/f7ece807-34fb-4068-82a4-d925f4fbcfa8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f7ece807-34fb-4068-82a4-d925f4fbcfa8.png)
 
 smsp__issue_inst0.avg.pct_of_peak_sustained_active
 
@@ -144,7 +144,7 @@ instructions: 一个汇编(SASS)指令。
 
 - Eligible Warps Per Scheduler[warp]
 
-![](https://files.mdnice.com/user/59/7f3c7fbc-932f-4d25-a252-13c6e7eae7ef.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7f3c7fbc-932f-4d25-a252-13c6e7eae7ef.png)
 
 smsp__issue_active.avg.per_cycle_active
 
@@ -158,7 +158,7 @@ smsp__issue_active.avg.pct_of_peak_sustained_active
 
 后续的分析结果：
 
-![](https://files.mdnice.com/user/59/32304b0a-ce08-4d0d-83dd-a97ebb52bc9d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/32304b0a-ce08-4d0d-83dd-a97ebb52bc9d.png)
 
 - 每个调度器(scheduler)每个周期都可以发出一条指令,但是这个内核每9.6个周期才会发出一条指令。这可能会造成硬件资源的浪费,影响性能表现。
 - 每个调度器最多可以分配12个线程组(warp),但这个内核平均只分配了9.15个活跃的线程组。然而,每个周期里平均只有0.28个线程组是可以发出指令的(eligible)。
@@ -171,7 +171,7 @@ smsp__issue_active.avg.pct_of_peak_sustained_active
 
 ##### Occupancy 部分
 
-![](https://files.mdnice.com/user/59/a5e482b8-7367-45cb-ab34-a8fd97680073.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5e482b8-7367-45cb-ab34-a8fd97680073.png)
 
 占用率(Occupancy)是指每个SM上活跃线程组(warp)的数量与可能的最大活跃线程组数量的比率。另一种看待占用率的方式是,它表示硬件处理线程组的能力中实际被使用的百分比。虽然较高的占用率并不总能带来更高的性能,但是低占用率会降低隐藏延迟的能力,从而导致整体性能下降。在执行过程中,理论占用率和实际达到的占用率之间存在较大差异,通常表示工作负载高度不均衡。占用率反映了GPU资源的利用情况,是评估CUDA程序性能的一个关键指标。过低的占用率会导致性能下降,需要分析并优化造成低占用率的原因。
 
@@ -193,14 +193,14 @@ smsp__issue_active.avg.pct_of_peak_sustained_active
 
 下面这张图展示Source Counters部分的详细信息：
 
-![](https://files.mdnice.com/user/59/a68d87cd-3815-432a-939a-20bfbdfacebe.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a68d87cd-3815-432a-939a-20bfbdfacebe.png)
 
 
 我们可以看到代码中存在未合并的全局内存访问，这可能导致性能损失。分支效率很高，不是主要的性能瓶颈。主要的性能问题集中在triton_sample.py文件的第21行和第28行。warp停滞是一个值得关注的问题，特别是在第21行。
 
 当我们点击绿色的代码链接之后我们就可以跳转到Source部分，直接进入到导致问题的源代码行：
 
-![](https://files.mdnice.com/user/59/57c61be7-5883-4306-9e52-f4b3632accda.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/57c61be7-5883-4306-9e52-f4b3632accda.png)
 
 我们不仅可以查看产生问题的源代码，还可以查看编译器生成的PTX/SASS等格式的代码。定位到源代码并结合Source Counters部分给出的建议将对我们优化代码提供很大的帮助。
 

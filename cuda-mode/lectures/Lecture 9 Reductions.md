@@ -4,15 +4,15 @@
 
 ### 课程笔记
 
-![](https://files.mdnice.com/user/59/b9b77076-7a41-4fea-b371-f9ba927b1219.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b9b77076-7a41-4fea-b371-f9ba927b1219.png)
 
 本节课的题目。
 
-![](https://files.mdnice.com/user/59/cf3e6544-c11a-4a7d-a5d8-b98323488a5e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cf3e6544-c11a-4a7d-a5d8-b98323488a5e.png)
 
 这节课的内容主要是 Chapter 10 of PMPP book ，Slides里面还给出了本节课的代码所在位置以及如何编译以及使用nsight compute进行profile。
 
-![](https://files.mdnice.com/user/59/fc7532be-2e98-44ed-8e10-5adb8e5aa4e6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fc7532be-2e98-44ed-8e10-5adb8e5aa4e6.png)
 
 
 这张slides给出了reduction（归约）操作的定义，reduction（归约）是减少输出大小的操作。最典型的reduction操作是将向量（vector）转换为标量（scalar）。然后还列举了一些常见的reduction操作，包括min（最小值），max（最大值），argmax（最大值的索引），argmin（最小值的索引），norm（范数），sum（求和），prod（乘积），mean（平均值），unique（唯一值）。https://github.com/cuda-mode/lectures/blob/main/lecture_009/torch_reductions.py 这个文件展示了一些 reduction 操作的例子。
@@ -42,7 +42,7 @@ print(reduce(data, float('inf'), min))  # Output: 1
 
 在PyTorch中有一个通用的Recuce算子来做所有的归约操作，所以你不能看到reduce_max这种单独的算子。
 
-![](https://files.mdnice.com/user/59/9d605154-a0a6-42a1-a869-413322881ce1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9d605154-a0a6-42a1-a869-413322881ce1.png)
 
 这张Slides强调了归约操作在深度学习和机器学习中的普遍性，例如：
 
@@ -51,11 +51,11 @@ print(reduce(data, float('inf'), min))  # Output: 1
 - Loss calculations（损失计算）：在训练过程中，通常需要计算损失函数，这往往涉及到对多个样本损失的归约操作。
 - Softmax normalization（Softmax归一化）：在多分类问题中，Softmax用于将原始的输出分数转换为概率分布，这个过程也涉及归约操作。
 
-![](https://files.mdnice.com/user/59/55b40864-d77a-4a49-8184-3bfa04eb4c93.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/55b40864-d77a-4a49-8184-3bfa04eb4c93.png)
 
 这张Slides展示了一个PyTorch使用归约操作（在这个case中是求最大值）来处理张量数据的例子。我们可以看到`torch.max`这个算子的实现是在 https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/ReduceOps.cpp 这里，并不是一个单独的kernel实现，而是注册为通用的Reduce Op里面的其中一个。
 
-![](https://files.mdnice.com/user/59/70562d90-ae1d-47ac-a3df-e4ab1cd5dd18.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/70562d90-ae1d-47ac-a3df-e4ab1cd5dd18.png)
 
 这张Slides展示了一个"串行归约"(Serial reduction)的例子，具体是关于最大值(Max)操作的过程。
 - 处理方法如下：
@@ -68,11 +68,11 @@ print(reduce(data, float('inf'), min))  # Output: 1
     - 迭代3：[5, 5, 8]（8大于5，更新最大值）
     - 迭代4：[5, 5, 8, 8]（1小于8，最大值保持不变）
 
-![](https://files.mdnice.com/user/59/d0d86c02-6f64-4b36-9de1-fcda59989c7c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d0d86c02-6f64-4b36-9de1-fcda59989c7c.png)
 
 这张Slides主要展示了数据处理中的两种策略:转换(Transformation)和归约(Reduction)，以及它们各自的线程策略。继续看归约是怎么做的。
 
-![](https://files.mdnice.com/user/59/59d43391-d61f-476f-8e6e-4b0d14b23255.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/59d43391-d61f-476f-8e6e-4b0d14b23255.png)
 
 - 这张Slides展示了并行归约（Parallel Reduction）的可视化过程，主要讲解了如何通过并行计算找出一个向量中的最大值。
 - 算法步骤：
@@ -87,11 +87,11 @@ print(reduce(data, float('inf'), min))  # Output: 1
     - 最终步骤：[9]
 这个算法是后续cuda kernel实现的基础。
 
-![](https://files.mdnice.com/user/59/8e409640-6310-4141-bb5b-82da61621b9e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8e409640-6310-4141-bb5b-82da61621b9e.png)
 
 这张Slides以树的方式可视化了上面的并行Reduction算法，只不过这里是求和而不是求最大值了。这里需要注意的是，浮点数加法不满足交换律，即A=B不等于B+A，使用PyTorch时这一点经常引起混淆。在这个例子中，我们无法控制GPU线程执行的先后顺序，所以无法控制合并两个元素的顺序，这也是不确定性的源头之一。
 
-![](https://files.mdnice.com/user/59/73b82c5d-c169-492d-8a60-673c910c4a0b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/73b82c5d-c169-492d-8a60-673c910c4a0b.png)
 
 PyTorch中使用`torch.use_deterministic_algorithms(True)`来控制使用确定性的算法，但是这种算法一般会降低运行速度。https://github.com/cuda-mode/lectures/blob/main/lecture_009/nondeterminism.py 这个文件举了一个例子说明由于浮点数精度问题导致求和结果的不确定性的问题。
 
@@ -133,7 +133,7 @@ result_float16_converted = result_float16.to(torch.float32).item()
 print(result_float32, result_float16_converted)
 ```
 
-![](https://files.mdnice.com/user/59/5e3ef1cb-86f5-4e8f-86ae-d32e5c3c5168.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5e3ef1cb-86f5-4e8f-86ae-d32e5c3c5168.png)
 
 这张Slides建议结合 https://github.com/cuda-mode/lectures/blob/main/lecture_009/simple_reduce.cu 实现代码来看：
 
@@ -164,15 +164,15 @@ __global__ void SimpleSumReductionKernel(float* input, float* output) {
 - kernel启动设置：SimpleSumReductionKernel<<<1, size / 2>>>(d_input, d_output); 启动了 size/2 个线程，对应图中的8个线程（假设 size 为16）。
 - Slides建议使用 "ncu -set full" 进行性能分析，这可能会揭示更多关于线程和warp效率的详细信息。
 
-![](https://files.mdnice.com/user/59/98199667-96a1-4967-832d-93f081e7114c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/98199667-96a1-4967-832d-93f081e7114c.png)
 
 这个版本的代码在T4 GPU上的分支效率为74%。
 
-![](https://files.mdnice.com/user/59/a60aeb85-ce33-4257-bafd-f41b2da453fd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a60aeb85-ce33-4257-bafd-f41b2da453fd.png)
 
 当我们尝试对上面的kernel进行优化时，我们要牢记在Lecture 8里讲到的CUDA性能检查清单。我们的优化将涉及到Control divergence，Memory divergence，最小化全局内存访问，线程粗化等等。
 
-![](https://files.mdnice.com/user/59/5b78d7ad-3013-4195-b9d9-7c559160c792.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5b78d7ad-3013-4195-b9d9-7c559160c792.png)
 
 这张Slides对应的代码是：https://github.com/cuda-mode/lectures/blob/main/lecture_009/control_divergence_reduce.cu ，我们要结合代码中的kernel实现来看：
 
@@ -200,16 +200,16 @@ Slides和对应的CUDA kernel代码都在讲解如何减少控制分歧(control 
 
 > 这里还解释了一下Slides图中的树状迭代的逻辑实际上是因为每次迭代之后的__syncthreads()来完成的。
 
-![](https://files.mdnice.com/user/59/4deaaf11-9a1d-441b-8466-ec82cbd130b8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4deaaf11-9a1d-441b-8466-ec82cbd130b8.png)
 
 从ncu的结果可以看到，相比于初始版本，这里的分支效率为99%，相比于初始的74%，这种优化确实是有效的。
 
-![](https://files.mdnice.com/user/59/d5b33094-3646-46cc-935e-6d1c6849f038.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d5b33094-3646-46cc-935e-6d1c6849f038.png)
 
 此外，ncu的结果还显示当前kernel的L1 Cache命中率为66.88%，这个和下一个shared memory优化相关。
 
 
-![](https://files.mdnice.com/user/59/4cc344d0-9a70-4248-9fd0-61a58223f421.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4cc344d0-9a70-4248-9fd0-61a58223f421.png)
 
 这张Slides对应的代码是：https://github.com/cuda-mode/lectures/blob/main/lecture_009/shared_reduce.cu , kernel实现为：
 
@@ -245,18 +245,18 @@ __global__ void SharedMemoryReduction(float* input, float* output) {
     - `input_s[t] = input[t] + input[t  + BLOCK_DIM];` 从全局内存加载数据到共享内存，并进行初步计算。这对应Slides中的"Initial load from global memory"。
     - `__syncthreads();` 确保所有线程在进入下一迭代前完成当前操作。
 
-![](https://files.mdnice.com/user/59/bc7a185b-383f-44c4-9c5f-984b2b90c024.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bc7a185b-383f-44c4-9c5f-984b2b90c024.png)
 
 从ncu的结果来看，L1 Cache命中率提升到了60%。不过尽管L1缓存吞吐量显著提高，但实际运行速度可能没有明显提升。这可能是因为其他因素（如全局内存带宽、线程同步开销等）成为了新的瓶颈。
 
 尝试增加这个kernel的输入数据量的时候我们发现kernel结果会出错，这是因为kernel里面的shared memory的大小限制为了1024。在GPU上一般不会做规模着么小的任务。
 
-![](https://files.mdnice.com/user/59/1edefe97-cbec-47ea-a8a7-daf56f3567c7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1edefe97-cbec-47ea-a8a7-daf56f3567c7.png)
 
 这张Slides实际上就是说在GPU上使用多个Block来分段处理数据，上面的2个版本的程序都只启动了一个Block，如下图所示：
 
 
-![](https://files.mdnice.com/user/59/3731b1d0-5718-482f-aa77-3e2cedc6a130.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3731b1d0-5718-482f-aa77-3e2cedc6a130.png)
 
 
 这张Slides展示的做法就是启动多个Block，然后只要每个单独的Block可以容纳1024分元素，我们就可以在不同的Block中单独进行归约操作，最后再对所有的Block进行一次最后的归约。
@@ -347,7 +347,7 @@ int main() {
 
 代码中需要特别注意的是kernel的最后一句代码，这是当我们把所有的Block处理完之后，我们进行最后一层的归约操作。我们在Block层面做归约是跨global memory的，这个时候需要使用atomicAdd来避免多个Block在同一个位置写的时候出现竞争错误。
 
-![](https://files.mdnice.com/user/59/74f090db-a6fd-4532-a5d4-644cd3e37e5c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/74f090db-a6fd-4532-a5d4-644cd3e37e5c.png)
 
 再介绍一种优化策略-线程粗化。我们之前的策略是确保每个线程基本上每次只累加2个元素，可以想一下如果每个线程累加4个或者8个元素会怎么样呢？这个优化对应的代码在 https://github.com/cuda-mode/lectures/blob/main/lecture_009/reduce_coarsening.cu ，kernel实现为：
 
@@ -390,7 +390,7 @@ __global__ void CoarsenedReduction(float* input, float* output, int size) {
 
 COARSE_FACTOR这个参数控制一个线程在一个iter里面累加多少次元素，一次就是累加2个元素，2次就是累加4个元素。这个kernel和上一个分段归约比较类似，不过现在的第一次归约是在单个线程内部进行归约，一旦一个线程上完成了归约，接下来就需要在一个线程块内进行归约，最后是在Block间进行最后的归约。
 
-![](https://files.mdnice.com/user/59/14e0762a-d5e5-4174-a319-83ce2c3bf6f1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/14e0762a-d5e5-4174-a319-83ce2c3bf6f1.png)
 
 
 - 这张Slides标题为"Next steps"（下一步），主要内容包括：
@@ -404,16 +404,16 @@ COARSE_FACTOR这个参数控制一个线程在一个iter里面累加多少次元
 - 寻找讲师：
     - 正在寻找有兴趣讲解前缀和（scan）和NCCL的讲师。
 
-![](https://files.mdnice.com/user/59/e70fa816-d5eb-4982-b97c-122e868683d1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e70fa816-d5eb-4982-b97c-122e868683d1.png)
 
 作者还额外准备了几张Slides让大家了解一下深度学习框架中归约操作是如何实现的。
 
-![](https://files.mdnice.com/user/59/f8056699-ac21-4beb-b0d9-cc25ffbd0fac.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f8056699-ac21-4beb-b0d9-cc25ffbd0fac.png)
 
 例如，以PyTorch为例子，已经有了一系列面向用户的归约操作，比如torch.max/torch.min,torch.mean等等。这些操作是如何用CUDA Kernel实现的呢？我们从上面最后两个版本的优化可以注意到，这些优化考虑是为了输入数据很大的时候做的,但如果输入数据很小,那么上面的所有考虑都变得没有意义了,使用非分段的Reduction算法更合理。对多个维度的数据进行归约应该怎么做？当输入和输出的数据类型发生变化时，我们需要的实现吗？我们是否应该考虑修改累加器的dtype呢？因此，如果你尝试写一个广泛适用的kernel，你需要考虑很多因素。因为如果你构建的kernel仅仅适用于特定的场景，这意味着你的二进制文件会非常庞大，因为你需要为每一种不同的排列组合都在代码库中加入一个kernel。而如果你拥有的是一个更侧重代码生成并具备启发式方法来选择适合kernel的系统，那么你的框架很可能会持续成为人们进行实验探索的平台。这正是PyTorch取得成功的一大关键因素。这种哲学理念在实践中的一个例子基本上就是我们的reduce kernel，所以PyTorch的reduction kernel并不是像我们有一个max.cuh/mean.cuh那样，而是只有一个单独的Reduce.cuh，因为所有的归约操作都具有相同的结构，它们在数学上是高度等价的。我们期望构建一个更为通用的基础设施，其中可以赋予它一个累加器以及一个操作符，然后通过代码生成来获得最优的算法。大家可以详细读一下这个实现 https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/Reduce.cuh 
 
 
-![](https://files.mdnice.com/user/59/38813b68-a4d8-4044-812e-6f6e9368c273.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/38813b68-a4d8-4044-812e-6f6e9368c273.png)
 
 作者这里做了一些关于 https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/Reduce.cuh 的笔记，关键点为：
 
@@ -430,7 +430,7 @@ COARSE_FACTOR这个参数控制一个线程在一个iter里面累加多少次元
 
 通过学习 https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/Reduce.cuh 可以掌握很多cuda，模板方面的有趣知识，强烈推荐大家学习一下。
 
-![](https://files.mdnice.com/user/59/967bd986-3a64-435e-823d-65a5a58b4d7d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/967bd986-3a64-435e-823d-65a5a58b4d7d.png)
 
 最后，还想展示一下torch.compile生成的reduce kernel。代码为：
 
@@ -448,7 +448,7 @@ f(torch.randn(10).cuda())
 
 作者展示了一下Triton生成的代码。对代码里面的ReductionHit以及启发式搜索算法在PyTorch中的实现（pytorch/torch/_inductor/triton_heuristics）做了简要浏览，从这里我们也可以发现针对不同的输入大小，调度的kernel类型是不同的。
 
-![](https://files.mdnice.com/user/59/5a7a846a-10b2-441c-909f-f846b42ce553.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a7a846a-10b2-441c-909f-f846b42ce553.png)
 
 最后一张Slides提了一下Triton里面是如何实现Reduction的，对应这段代码：
 

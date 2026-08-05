@@ -50,7 +50,7 @@
 
 由ZeRO驱动的数据并行（ZeRO-DP）在以下博客文章中的图表中描述（https://www.microsoft.com/en-us/research/blog/zero-deepspeed-new-system-optimizations-enable-training-models-with-over-100-billion-parameters/）
 
-![](https://files.mdnice.com/user/59/8e968fe7-2499-4cf5-9502-ff787f6ec9d8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8e968fe7-2499-4cf5-9502-ff787f6ec9d8.png)
 
 这个概念可能一开始很难理解，但实际上非常简单。这就是普通的`DataParallel`(DP)，只不过每个GPU不是存储完整的模型参数、梯度和优化器状态的副本，而是只存储其中的一个切片。然后在运行时，当某个层需要完整的层参数时，所有GPU会同步以互相提供它们缺失的部分 - 就是这样。
 
@@ -226,7 +226,7 @@ PyTorch FSDP 在 shardingStrategy.HYBRID_SHARD(https://pytorch.org/docs/stable/f
 
 下面来自GPipe论文(https://ai.googleblog.com/2019/03/introducing-gpipe-open-source-library.html)的插图展示了朴素MP(上图)和PP(下图):
 
-![](https://files.mdnice.com/user/59/3255a30e-2664-4fc9-838c-f3ebfebddf8f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3255a30e-2664-4fc9-838c-f3ebfebddf8f.png)
 
 
 从中图可以很容易看出PP如何减少了GPU空闲的死区。这些空闲部分被称为"气泡"。
@@ -257,7 +257,7 @@ PP引入了一个新的超参数`chunks`来调优,它定义了通过同一管道
 
 这里是一个交错流水线的例子:
 
-![parallelism-sagemaker-interleaved-pipeline](https://files.mdnice.com/user/59/a302752e-b7b4-4c83-8592-634598fcdf2e.png)
+![parallelism-sagemaker-interleaved-pipeline](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a302752e-b7b4-4c83-8592-634598fcdf2e.png)
 
 在这里,气泡(空闲时间)通过优先处理反向传播进一步最小化。
 
@@ -267,7 +267,7 @@ Varuna通过使用模拟来发现最有效的调度方式,从而进一步改进�
 
 DeepSeek v3（https://arxiv.org/abs/2412.19437） 引入了一种更高效的PP，通过DualPipe减少了气泡大小，并实现了更好的计算与通信重叠。具体细节请参见论文第3.2.1节。
 
-![来源：https://arxiv.org/abs/2412.19437](https://files.mdnice.com/user/59/36b857ea-fe9c-4f2f-9f81-33ff74de4f18.png)
+![来源：https://arxiv.org/abs/2412.19437](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/36b857ea-fe9c-4f2f-9f81-33ff74de4f18.png)
 
 PP解决方案有两类 - 传统的Pipeline API和更现代的解决方案,后者通过帮助部分或完全自动化流程,使最终用户使用起来更加容易:
 
@@ -319,20 +319,20 @@ PP解决方案有两类 - 传统的Pipeline API和更现代的解决方案,后�
 
 如果我们以矩阵形式查看计算,很容易看出矩阵乘法如何在多个GPU之间拆分:
 
-![Parallel GEMM](https://files.mdnice.com/user/59/f88b660b-c53f-4c23-bc83-8363e2e255d9.png)
+![Parallel GEMM](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f88b660b-c53f-4c23-bc83-8363e2e255d9.png)
 
 
 如果我们将权重矩阵 `A` 按列分割到 `N` 个GPU上,并行执行矩阵乘法 `XA_1` 到 `XA_n`,那么我们将得到 `N` 个输出向量 `Y_1, Y_2, ..., Y_n`,它们可以独立地输入到 `GeLU` 中:
 
-![independent GeLU](https://files.mdnice.com/user/59/ac0d80ee-29a4-4166-aa10-dcc9c1c8fad7.png)
+![independent GeLU](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ac0d80ee-29a4-4166-aa10-dcc9c1c8fad7.png)
 
 使用这个原理,我们可以更新任意深度的MLP,在最后需要从分片重建输出向量之前,不需要在GPU之间进行任何同步。Megatron-LM论文作者为此提供了一个有帮助的示意图:
 
-![parallel shard processing](https://files.mdnice.com/user/59/477e5763-1ae1-4e9a-96e2-0a13763373bc.png)
+![parallel shard processing](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/477e5763-1ae1-4e9a-96e2-0a13763373bc.png)
 
 由于多头注意力层本身就具有多个独立的头,因此并行化多头注意力层甚至更简单!
 
-![parallel self-attention](https://files.mdnice.com/user/59/fb28c287-9c49-495a-a04a-9a0e69d311d7.png)
+![parallel self-attention](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fb28c287-9c49-495a-a04a-9a0e69d311d7.png)
 
 重要提示:TP需要非常快速的网络,由于节点内网络通常比节点间网络快得多,因此不建议跨节点进行TP。实际上,如果一个节点有4个GPU,那么TP的最高程度就是4。如果你需要8度的TP,你需要使用至少有8个GPU的节点。
 
@@ -369,7 +369,7 @@ TP可以与SP在同一进程组中结合使用，以最小化通信成本，具�
 
 以下来自 DeepSpeed pipeline 教程(https://www.deepspeed.ai/tutorials/pipeline/)的图表展示了如何将 DP 与 PP 结合使用。
 
-![dp-pp-2d](https://files.mdnice.com/user/59/ce30cb13-6de8-4b7b-8a1f-bf2a609a0daa.png)
+![dp-pp-2d](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ce30cb13-6de8-4b7b-8a1f-bf2a609a0daa.png)
 
 这里需要注意的是,DP rank 0看不到GPU2,DP rank 1看不到GPU3。对于DP来说,只有GPU 0和1,它像只有2个GPU一样向它们输入数据。GPU0使用PP"秘密地"将一些负载卸载到GPU2。GPU1也通过利用GPU3做同样的事情。
 
@@ -389,7 +389,7 @@ TP可以与SP在同一进程组中结合使用，以最小化通信成本，具�
 
 为了获得更高效的训练,可以使用3D并行,即将PP与TP和DP结合使用。这可以从下图中看出。
 
-![dp-pp-tp-3d](https://files.mdnice.com/user/59/e96ccef9-65a2-4439-980c-71d296a62a62.png)
+![dp-pp-tp-3d](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e96ccef9-65a2-4439-980c-71d296a62a62.png)
 
 这个图来自博客文章《3D并行:扩展到万亿参数模型》(https://www.microsoft.com/en-us/research/blog/deepspeed-extreme-scale-model-training-for-everyone/),这也是一篇值得一读的文章。
 
@@ -447,7 +447,7 @@ Self-Attention作为Transformer的关键组件,其内存需求与序列长度呈
 
 在计算过程中,每个序列块都被投影到QKV上,然后在每个设备上收集成完整序列的QKV,每个设备只计算它拥有的子头,然后再次收集到MLP块的完整注意力输出中。
 
-![deepspeed-ulysses sp](https://files.mdnice.com/user/59/284c6ec7-8b0f-42cd-8fc9-04d3f7ba3ac7.png)
+![deepspeed-ulysses sp](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/284c6ec7-8b0f-42cd-8fc9-04d3f7ba3ac7.png)
 
 源码(https://github.com/microsoft/DeepSpeed/tree/master/blogs/deepspeed-ulysses)
 
@@ -457,7 +457,7 @@ Self-Attention作为Transformer的关键组件,其内存需求与序列长度呈
 3. 接下来,通过参与计算设备之间高度优化的all-to-all集合通信,将局部QKV嵌入收集到全局QKV中。
 4. 然后对每个注意力头执行注意力计算:
 
-![](https://files.mdnice.com/user/59/2211bb3c-6f7d-41dc-8d87-07fcfdfc1727.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2211bb3c-6f7d-41dc-8d87-07fcfdfc1727.png)
 
 
 5. 最后,另一个all-to-all集合将注意力计算的输出上下文张量转换为序列(N/P)并行,以供transformer层块中剩余模块的后续操作(MLP MatMul、层归一化等)使用。
@@ -508,7 +508,7 @@ PyTorch也在开发这个功能,并将其称为上下文并行(CP)。
 
 DISTFLASHATTN: 用于长上下文LLM训练的分布式内存高效注意力（https://arxiv.org/abs/2310.03294）据报道比Ring Attention快多倍，因为它在执行序列并行时在工作节点之间平衡了每个token的KVQ计算负载。
 
-![](https://files.mdnice.com/user/59/219c1879-4474-4e30-b805-f7ce244a60b7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/219c1879-4474-4e30-b805-f7ce244a60b7.png)
 
 ### Related reading
 
@@ -552,7 +552,7 @@ FlexFlow(https://github.com/flexflow/FlexFlow)以略微不同的方式解决并�
 
 这与张量模型并行或简单的层级模型并行类似。
 
-![](https://files.mdnice.com/user/59/3c560576-b425-46fd-a08c-9d92b0b5dfc0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/3c560576-b425-46fd-a08c-9d92b0b5dfc0.png)
 
 这个框架的重要性在于它可以处理如(1) GPU/TPU/CPU、(2) RAM/DRAM、(3) 快速内部连接/慢速外部连接等资源,并自动优化所有这些资源,以算法方式决定在哪里使用哪种并行化。
 
@@ -566,7 +566,7 @@ FlexFlow(https://github.com/flexflow/FlexFlow)以略微不同的方式解决并�
 
 这里有一个有用的提示：all-reduce集合可以分解为两个独立的阶段：reduce-scatter和all-gather。
 
-![来源：https://engineering.fb.com/2021/07/15/open-source/fsdp/attachment/fsdp-graph-2a/](https://files.mdnice.com/user/59/e4205b8c-2fbe-4189-ad9f-4c05f29b2b1b.png)
+![来源：https://engineering.fb.com/2021/07/15/open-source/fsdp/attachment/fsdp-graph-2a/](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e4205b8c-2fbe-4189-ad9f-4c05f29b2b1b.png)
 
 以下是不同并行化策略所使用的集合操作的详细说明：
 

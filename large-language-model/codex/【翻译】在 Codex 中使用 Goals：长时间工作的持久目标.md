@@ -34,7 +34,7 @@ Goal 不是没有边界的后台自治。它是一个有范围、由用户控制
 4. 将这一模式应用到复杂研究工作中。
 5. 判断什么时候普通 prompt 仍然是更好的工具。
 
-![图 1：Goal 将一次性对话变成带有证据检查的持续推进循环](https://files.mdnice.com/user/59/88f846e6-4057-4214-9cbb-7844608e8be1.png)
+![图 1：Goal 将一次性对话变成带有证据检查的持续推进循环](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/88f846e6-4057-4214-9cbb-7844608e8be1.png)
 
 *图 1. Goal 将一次性对话变成带有证据检查的持续推进循环。*
 
@@ -181,7 +181,7 @@ Codex 可以据此提出一个更完整的 Goal，只询问真正必要的缺失
 
 Goals 被实现为持久化的线程状态，而不是全局记忆，也不是项目级指令。这个设计选择很重要：目标属于包含相关上下文的线程，包括 Codex 查看过的文件、运行过的命令、产生的 diff、看过的日志，以及一路建立起来的推理轨迹。
 
-![图 2：Goal 为当前线程加入持久状态、继续推进能力、控制入口和证据检查](https://files.mdnice.com/user/59/875a58a8-1948-4e89-ab65-453233d7b608.png)
+![图 2：Goal 为当前线程加入持久状态、继续推进能力、控制入口和证据检查](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/875a58a8-1948-4e89-ab65-453233d7b608.png)
 
 *图 2. Goal 为当前线程加入持久状态、继续推进能力、控制入口和证据检查。*
 
@@ -193,7 +193,7 @@ Codex 会把这个状态视为用户、模型和线程之间的契约。Goal 可
 
 调度器的行为是刻意保守的。只有计划、没有实际执行的工作不会触发继续。中断会暂停目标。在合适的时候，恢复线程可以恢复目标。如果某次自动继续没有调用任何工具，那么下一次自动继续会被抑制，避免 Codex 原地空转。
 
-![图 3：只有当 Goal 活跃、线程空闲且没有用户输入排队时，Codex 才会继续](https://files.mdnice.com/user/59/4ffc7f52-9892-4448-9244-4c5d3109de92.png)
+![图 3：只有当 Goal 活跃、线程空闲且没有用户输入排队时，Codex 才会继续](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4ffc7f52-9892-4448-9244-4c5d3109de92.png)
 
 *图 3. 只有当 Goal 活跃、线程空闲且没有用户输入排队时，Codex 才会继续。*
 
@@ -221,7 +221,7 @@ Prompt 层也强化了同一套架构。继续推进的 prompt 会让 Codex 围�
 
 ### 示例：性能调优
 
-![图 4：强 Goal 会明确最终状态、验证面和约束](https://files.mdnice.com/user/59/d2acf1cc-e8bf-4dff-88dd-e8ea980c1a35.png)
+![图 4：强 Goal 会明确最终状态、验证面和约束](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d2acf1cc-e8bf-4dff-88dd-e8ea980c1a35.png)
 
 *图 4. 强 Goal 会明确最终状态、验证面和约束。*
 
@@ -273,7 +273,7 @@ Goal 应该窄到可以审计，也应该宽到能让 Codex 选择下一步动�
 
 更强的版本之所以有效，是因为它命名了证据标准和最终产物。Codex 不只是要产出一个看起来很厉害的复现，而是要尽量减少不确定性，同时不夸大现有证据能支持的范围。
 
-![图 5：研究型 Goal 会先把论文拆成不同证据通道，再声明状态](https://files.mdnice.com/user/59/588580bb-1259-4dbf-9f50-a0c66b2a7875.png)
+![图 5：研究型 Goal 会先把论文拆成不同证据通道，再声明状态](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/588580bb-1259-4dbf-9f50-a0c66b2a7875.png)
 
 *图 5. 研究型 Goal 会先把论文拆成不同证据通道，再声明状态。*
 
@@ -292,7 +292,7 @@ Codex 用它来：
 
 这就是 Goal 的价值。它让工作在遇到阻塞后仍然继续推进，同时也让最终表述保持诚实。一个训练得到的替代模型可以支持某个主张，一个接近的数值匹配可以提高置信度，一个重建图像可以验证部分结果，但这些都不应该被描述成精确恢复了原始实验。
 
-![图 6：最终输出应该保留不同层级的认知支持](https://files.mdnice.com/user/59/61c099aa-d516-4635-91e2-83e6b940906a.png)
+![图 6：最终输出应该保留不同层级的认知支持](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/61c099aa-d516-4635-91e2-83e6b940906a.png)
 
 *图 6. 最终输出应该保留不同层级的认知支持。*
 
@@ -310,7 +310,7 @@ Codex 用它来：
 
 这就是 Goals 在研究任务中的演示价值。它们让 Codex 能够在模糊性中继续工作，同时防止一个看起来合理的产物变成过度声称的结论。Goal 不只是要求 Codex 完成；它定义了“完成”的含义：逐条主张的审计，基于证据，明确近似性，并诚实标出复现和重放之间的边界。
 
-![图 7：一个研究型 Goal 可以把复杂复现目标写成可执行的完成契约](https://files.mdnice.com/user/59/ec079ca3-32bf-4d22-822d-5e413b95f8fe.png)
+![图 7：一个研究型 Goal 可以把复杂复现目标写成可执行的完成契约](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ec079ca3-32bf-4d22-822d-5e413b95f8fe.png)
 
 *图 7. 一个研究型 Goal 可以把复杂复现目标写成可执行的完成契约。*
 

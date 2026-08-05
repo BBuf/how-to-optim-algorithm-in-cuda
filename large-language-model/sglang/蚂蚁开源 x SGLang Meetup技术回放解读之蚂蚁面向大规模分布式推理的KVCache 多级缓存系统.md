@@ -2,7 +2,7 @@
 
 # 0x0. 前言
 
-![](https://files.mdnice.com/user/59/ba77bb1f-3c13-495f-a8b4-faf8ad6480ec.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ba77bb1f-3c13-495f-a8b4-faf8ad6480ec.png)
 
 这套 slides 值得展开的地方在于：它不是单独讲「KVCache offload 到 CPU」这么简单。真正的问题是，当线上推理变成多租户、多轮对话、Agentic Coding、PD 分离、异构 TP、Sparse Attention 混在一起以后，KVCache 已经不是一个局部优化点，而是一个跨 scheduler、memory pool、storage backend、transfer engine 的系统问题。
 
@@ -25,25 +25,25 @@ LMSYS blog 也有几篇刚好能对上这套 slides：
 
 先把 LMSYS blog 里和这套 slides 最相关的两张系统图补在这里。第一张是 HiCache 的整体结构：
 
-![](https://files.mdnice.com/user/59/a6dd1768-dc5c-45b9-bc9d-89fadc5b27e4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a6dd1768-dc5c-45b9-bc9d-89fadc5b27e4.png)
 
 LMSYS 对 HiCache 的解释很直接：把 RadixAttention 的 GPU prefix cache 扩展成 GPU/CPU/外部存储三层缓存，同时保留原来基于 radix tree 的 prefix 匹配能力。这个说法比「KVCache offload」更准确，因为 offload 只描述了数据往外搬，HiCache 真正加的是一套 page table、写回策略、异步加载和多后端 I/O 抽象。后面逐页看代码时，`HiRadixCache`、`HiCacheController`、`BaseKVStorage` 这几个名字会反复出现。
 
 第二张是 HiCache 的内存布局：
 
-![](https://files.mdnice.com/user/59/7ed0d8fe-883d-4556-868f-cb8b5a5c0b8f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7ed0d8fe-883d-4556-868f-cb8b5a5c0b8f.png)
 
 这张图里最容易被忽略的是 page 粒度。HiCache 不是把一个请求的整段 KV 当成一个大 blob 存起来，而是按 page 管理。GPU 上的 page index、CPU pinned memory 里的 page、远端 backend 里的 key/value 对应起来以后，scheduler 才能在 prefix 命中时只恢复需要的那部分。LMSYS blog 强调了两个收益：一是 GPU 空间不足时不用把 prefix 彻底丢掉，二是可以把 CPU、file、Mooncake、3FS 这些 backend 放在同一个接口后面。代价也很清楚：每次命中都要多算一笔 I/O 是否划算的账，所以 SGLang 里才会有 `--hicache-prefetch-threshold`、write policy、backend 选择这些参数。
 
 HiSparse 的 blog 也对 slides 中的 sparse attention 部分有帮助。它把 DeepSeek Sparse Attention 的问题讲得更直白：Top-k selector 让 attention 不再看完整历史，但「该看哪些 token」本身需要历史索引；如果索引和 KV 都留在 GPU，长上下文并发还是会被 HBM 卡住。HiSparse 的做法是把热 KV 留在 GPU hot buffer，冷 KV 放到 host 或外部层级，miss 时再 swap in：
 
-![](https://files.mdnice.com/user/59/0c2ba128-ec5a-4fe1-8157-d306aeeaffcf.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0c2ba128-ec5a-4fe1-8157-d306aeeaffcf.png)
 
 下面这张图是 LMSYS 给出的吞吐曲线。它的重点不是某个绝对数，而是 concurrency 上来以后，分层 sparse cache 能比只依赖 GPU 的方案更稳：
 
-![](https://files.mdnice.com/user/59/6543cf79-89e5-4ebd-b50f-22defac1c9ab.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6543cf79-89e5-4ebd-b50f-22defac1c9ab.png)
 
-![](https://files.mdnice.com/user/59/c4739884-ecaf-40ac-b02d-e8de86617f3e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c4739884-ecaf-40ac-b02d-e8de86617f3e.png)
 
 目录分四部分：
 
@@ -56,11 +56,11 @@ HiSparse 的 blog 也对 slides 中的 sparse attention 部分有帮助。它把
 
 # 0x1. 从 RadixCache 到 HiCache
 
-![](https://files.mdnice.com/user/59/32ee5985-705f-4970-8ec9-18d1255f240f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/32ee5985-705f-4970-8ec9-18d1255f240f.png)
 
 这一页只是章节页，但它点出了第一个关键词：Hierarchical Cache。SGLang 原本已经有 RadixCache，也就是 RadixAttention 里的 GPU prefix cache。HiCache 做的是把这棵 radix tree 往 CPU 和远端存储扩展。
 
-![](https://files.mdnice.com/user/59/017fc121-14ee-4d88-9e0f-b015602b8bcb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/017fc121-14ee-4d88-9e0f-b015602b8bcb.png)
 
 RadixCache 的基本思想可以回到 LMSYS 2024 年那篇 [Fast and Expressive LLM Inference with RadixAttention and SGLang](https://www.lmsys.org/blog/2024-01-17-sglang/)。多轮对话、few-shot、self-consistency、agentic coding 这些场景都有共享 prefix。prefix 对应的 KVCache 如果还在 GPU 上，就可以跳过一大段 prefill 计算。
 
@@ -68,7 +68,7 @@ SGLang 的 `RadixCache` 把 token 序列挂在 radix tree 上，value 是 GPU KV
 
 问题也很直接：GPU HBM 就这么大。slides 里举了 DeepSeek V3 的例子，8 张 H20 只能放大约 130K token 的 KVCache。在线上多租户场景里，prompt 分布很散，某个会话刚刚写进 GPU 的 cache，很快就可能被别的请求挤掉。RadixCache 的结构没问题，容量不够。
 
-![](https://files.mdnice.com/user/59/c0c241a5-6a70-4c3b-a6aa-1200d3254048.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c0c241a5-6a70-4c3b-a6aa-1200d3254048.png)
 
 这页用了「以存代算，存比算快」这个说法，但它成立需要两个条件：
 
@@ -121,7 +121,7 @@ class HiRadixCache(RadixCache):
 
 所以 HiCache 不是「另起炉灶做一个 cache」，而是给 RadixCache 增加了多级地址。
 
-![](https://files.mdnice.com/user/59/73446102-19e4-475d-ba55-2d3fc0a5d25f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/73446102-19e4-475d-ba55-2d3fc0a5d25f.png)
 
 这页是 HiCache 的总图。L1 GPU、L2 CPU、L3 Storage。Storage 可以是 Mooncake Store，也可以是 3FS。控制面有 CacheController，数据面有高效 I/O kernel 和 zero-copy。
 
@@ -214,7 +214,7 @@ def prefetch_from_storage(self, req_id, last_host_node, new_input_tokens, ...):
 
 # 0x2. Host Memory Pool 的布局为什么要改
 
-![](https://files.mdnice.com/user/59/7d116e55-fc36-4741-b5b9-9f82cc212d56.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7d116e55-fc36-4741-b5b9-9f82cc212d56.png)
 
 这页非常重要。它讲的是 HiCache 数据面的核心：GPU 侧计算天然是 layer-first，但 CPU/L3 侧 I/O 更喜欢 page-first。
 
@@ -379,7 +379,7 @@ for (int64_t layer_id = start_layer_id; layer_id < start_layer_id + num_layers_t
 
 # 0x3. HiCache Scheduling Pipeline
 
-![](https://files.mdnice.com/user/59/b4641516-73a1-4967-aeec-0215bc4228b5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b4641516-73a1-4967-aeec-0215bc4228b5.png)
 
 这一页是章节页。slides 标题叫 Scheduling Pipeline，但真正要看的是 `HiCacheController`。它负责三类事：
 
@@ -509,7 +509,7 @@ def write_backup_storage(self, node: TreeNode):
 
 这一套控制面对应 slides 里的「CacheController 灵活支持 cache-aware scheduling 和 latency hiding」。它不只是 I/O wrapper，还要负责异步事件、rank 间一致性、host 内存回收、write policy、prefetch stop policy。
 
-![](https://files.mdnice.com/user/59/7732c903-0e83-4bbf-9bc3-b4b37528f290.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7732c903-0e83-4bbf-9bc3-b4b37528f290.png)
 
 这页讲 PD 分离和 TP 异构兼容，信息量很大。
 
@@ -584,11 +584,11 @@ def _get_mha_split_heads_buffer_meta(self, keys, indices):
 
 # 0x4. DeepSeek Sparse Attention 为什么还会卡显存
 
-![](https://files.mdnice.com/user/59/ccede706-f72d-40dc-9dc7-f46bd55622d4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ccede706-f72d-40dc-9dc7-f46bd55622d4.png)
 
 这里进入第二部分：Hierarchical Sparse Attention。标题页不展开个人信息，后面直接看 DSA 和 HiSparse 的系统问题。
 
-![](https://files.mdnice.com/user/59/4b7e8dd3-9a9e-477b-a100-48ec47014d1d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4b7e8dd3-9a9e-477b-a100-48ec47014d1d.png)
 
 这页讲 DeepSeek Sparse Attention。DeepSeek-V3.2 相比 V3.1 加了 DSA。LMSYS 的 [DeepSeek-V3.2 Day 0 blog](https://www.lmsys.org/blog/2025-09-29-deepseek-V32/) 里也讲了同一件事：DSA 用 Lightning Indexer 快速筛选相关 token，再通过 Top-k Selector 只对选中的 KV 做 attention。
 
@@ -612,7 +612,7 @@ if topk_transform_method == TopkTransformMethod.PAGED:
 
 LMSYS blog 里说 DSA 把核心 attention 复杂度从 `O(L^2)` 降到 `O(Lk)`。这当然是大事，但 slides 下一页马上指出了系统层面的尴尬。
 
-![](https://files.mdnice.com/user/59/afc39cae-87f4-467a-a898-f0368574ab47.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/afc39cae-87f4-467a-a898-f0368574ab47.png)
 
 DSA 降的是计算量，不自动降低 KVCache 常驻显存。
 
@@ -622,7 +622,7 @@ slides 里给的数字是：128K 输入下，每个 step 有 98.5% KVCache 不�
 
 LMSYS HiSparse blog 也用了同样的判断：sparse attention 可能从 compute-bound 变成 capacity-bound。没有分层内存时，top-k 的稀疏性无法转换成并发度。
 
-![](https://files.mdnice.com/user/59/f1298075-9682-4acd-90ee-737a44665f8e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f1298075-9682-4acd-90ee-737a44665f8e.png)
 
 这页给出 HiSparse 的核心方案：
 
@@ -703,13 +703,13 @@ python3 -m sglang.launch_server \
 
 这里的 `top_k=2048` 对应 DSA 每层每步要看的 token 数，`device_buffer_size=6144` 就是 GPU hot buffer 容量。buffer 比 top-k 大，是为了让相邻 step 的 top-k 交集留在 GPU 上，不要每步都从 CPU 重拉。
 
-![](https://files.mdnice.com/user/59/1f765622-e6b1-4aab-b3fa-cebf24b6dc2e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1f765622-e6b1-4aab-b3fa-cebf24b6dc2e.png)
 
 这一页是「分层稀疏化框架」章节页。可以把它理解为：HiCache 是 prefix 粒度的层次缓存，HiSparse 是 top-k sparse attention 粒度的层次缓存。前者服务 prefill/prefix reuse，后者服务 decode/high concurrency。
 
 # 0x5. HiSparse 的 hot buffer、diff kernel 和 LRU
 
-![](https://files.mdnice.com/user/59/b6053f70-7a29-4fe1-9d95-c5eb29ebda4d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b6053f70-7a29-4fe1-9d95-c5eb29ebda4d.png)
 
 这页讲增量 cache transfer。相邻 token 的 Top-k overlap 可以到 80%-90%，所以没必要每一步都把 2K 个 Top-k KV 从 CPU 拷到 GPU。正确做法是算 diff：
 
@@ -942,7 +942,7 @@ for (int miss_idx = warp_id; miss_idx < total_misses; miss_idx += NUM_WARPS) {
 
 这个 kernel 同时做三件事：查 hit、排 LRU、拷 miss。它就是 slides 里「Diff Kernel」的实现。
 
-![](https://files.mdnice.com/user/59/cf2ab333-8822-4748-b0b1-efd5d29ac745.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cf2ab333-8822-4748-b0b1-efd5d29ac745.png)
 
 这页解释 hot buffer size 为什么会影响 hit rate。长序列越长，Top-k 的候选范围越大，相邻 step 的 Top-k overlap 会下降，miss 数上升。miss 多了以后，CPU->GPU copy 变成 decode 临界路径。
 
@@ -950,7 +950,7 @@ for (int miss_idx = warp_id; miss_idx < total_misses; miss_idx += NUM_WARPS) {
 
 这里要注意一个权衡：hot buffer 越大，每个 request 占的 GPU KV 空间越大，batch size 上限越低。HiSparse 不是把 GPU KV 变成 0，而是把「和上下文长度线性增长」变成「每个 request 固定一个 buffer」。这已经足够大幅提高长上下文 decode 并发。
 
-![](https://files.mdnice.com/user/59/4e7c603c-755a-4573-b307-643356bba2ee.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4e7c603c-755a-4573-b307-643356bba2ee.png)
 
 这页讲 HiSparse 和 Radix Tree 的兼容性。问题很细：Radix Tree 管的是连续 prefix，Sparse Attention 每层访问的是离散 Top-k。甚至不同 layer 的 Top-k 还不一样，同一个 hot buffer slot 在 layer0 和 layer20 可能对应不同 token。那还能不能让 Radix Tree 直接管理 GPU hot buffer？
 
@@ -964,7 +964,7 @@ slides 里的方案是：CPU KV 是完整的，Radix Tree 只匹配 Host Indices
 
 这避免了把 radix tree 搞成「每层一棵离散 Top-k cache tree」。那样不仅复杂，而且和 prefix cache 的语义也不匹配。
 
-![](https://files.mdnice.com/user/59/a21cbf53-67a4-40bc-be6d-75b77a7606fd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a21cbf53-67a4-40bc-be6d-75b77a7606fd.png)
 
 这页是长序列压测结果：BatchSize 提升 5x，Decode throughput 提升 200%+。我不强行解读每个柱子的细节，因为 slides 截图里没有完整压测脚本和轴说明。但从系统角度看，这个结果是合理的：DSA 已经把每步 attention compute 降到 Top-k，HiSparse 再把 per-request GPU KV footprint 降到固定 hot buffer，于是 decode batch 可以明显变大。
 
@@ -978,11 +978,11 @@ CI 里跑的是 GLM5/DSA 模型的 HiSparse smoke。真实性能压测需要 PD 
 
 # 0x6. Mooncake 和 Theta KVPool 的背景
 
-![](https://files.mdnice.com/user/59/1566bfae-a001-45ad-97de-ab80057aad42.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1566bfae-a001-45ad-97de-ab80057aad42.png)
 
 第三部分进入 Theta KVPool。这里 slides 从 SGLang 开源实现切到蚂蚁内部平台，但底层还是 Mooncake/SGLang HiCache 这套思想。
 
-![](https://files.mdnice.com/user/59/861b2eb9-278d-4968-aae5-4f7c1910836f.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/861b2eb9-278d-4968-aae5-4f7c1910836f.jpg)
 
 Mooncake 是一个 KVCache-centric 的分布式推理架构。论文是 [Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving](https://arxiv.org/abs/2407.00079)，代码在 [kvcache-ai/Mooncake](https://github.com/kvcache-ai/Mooncake)。SGLang 里默认的 P/D disaggregation transfer backend 也长期是 Mooncake。
 
@@ -1028,13 +1028,13 @@ python -m sglang.launch_server \
 
 这个 `standalone_storage` 就会和后面 slides 的 Dummy/Real Client 架构对上。
 
-![](https://files.mdnice.com/user/59/9a0bc420-cd28-401b-af1c-497af1e97565.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9a0bc420-cd28-401b-af1c-497af1e97565.png)
 
 Theta 是蚂蚁的大模型服务平台。slides 这页更多是平台介绍：模型服务接入、轻量微调部署、AI 应用、稳定性、成本和安全。
 
 这一页没有对应的 SGLang 开源代码。它的意义在于告诉我们：KVPool 不是一个单机 demo，而是服务平台里的共享基础设施。只有放到平台层，L3 KVCache 才真的能跨实例、跨 P/D 角色、跨租户 workload 复用。
 
-![](https://files.mdnice.com/user/59/ea22d5ca-c6d4-4bfb-ac53-d3ea3323b0da.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ea22d5ca-c6d4-4bfb-ac53-d3ea3323b0da.png)
 
 这页列了不同模型每 token KVCache 大小。大概能看出两件事：
 
@@ -1053,7 +1053,7 @@ else:
 
 这也是 HiCache 对 MLA 做写回优化的原因：MLA 下多 TP rank 可能持有相同 KV，没必要每个 rank 都往 L3 写一份。
 
-![](https://files.mdnice.com/user/59/c3f3a23e-dacc-46e3-a181-4ad6db0c57a7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c3f3a23e-dacc-46e3-a181-4ad6db0c57a7.png)
 
 这页讲 KVCache 扩容方式。模型架构层面可以用 MLA 降 KV 大小，系统层面可以用 BF16/FP8 KV、CPU/SSD/远端存储、多级缓存、PD 分离和全局 KVPool。
 
@@ -1082,7 +1082,7 @@ PR [#21259](https://github.com/sgl-project/sglang/pull/21259) 就是 Mooncake ba
 
 # 0x7. Dummy/Real Client 和 Zero-Copy
 
-![](https://files.mdnice.com/user/59/0701a700-31f2-4a0c-a5ae-1edba31859e5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0701a700-31f2-4a0c-a5ae-1edba31859e5.png)
 
 这页是 Theta KVPool 的关键架构：Dummy Client 和 Real Client 分离。
 
@@ -1120,7 +1120,7 @@ if config.standalone_storage:
 
 这可以理解为社区版 Dummy Client 的雏形。Theta 这页多出来的是平台侧的 `KVMaster` 和更完整的 Real Client 资源管理。
 
-![](https://files.mdnice.com/user/59/c8df87e8-2056-4ff7-a77c-bb887a61b7f9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c8df87e8-2056-4ff7-a77c-bb887a61b7f9.png)
 
 这页讲 Zero-Copy。普通 API 的问题是中间 buffer 太多：
 
@@ -1204,7 +1204,7 @@ def _batch_io_v2(self, transfers: List[PoolTransfer], is_set: bool):
 
 所以这页不是抽象的「少拷贝」口号，代码里已经把接口形态改成了 ptr + size。
 
-![](https://files.mdnice.com/user/59/030c3dcf-40c1-4270-bd37-fc990c9ff043.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/030c3dcf-40c1-4270-bd37-fc990c9ff043.png)
 
 这页是单节点部署：SGLang engine 主容器负责队列、GPU 推理 kernel、KV 生成和备份/恢复调度；`KVMaster` sidecar 管元数据；`KVPool Real Client` sidecar 管存储后端和预分配资源。
 
@@ -1230,7 +1230,7 @@ python -m sglang.launch_server \
 
 如果把这里的 `mooncake_client` 换成 Theta 的 `KVPool Real Client sidecar`，基本就是 slides 里的单节点形态。
 
-![](https://files.mdnice.com/user/59/9e850e87-bf2d-4162-93b0-40441ae5e760.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9e850e87-bf2d-4162-93b0-40441ae5e760.png)
 
 这页是 P-D 分离部署。差异是 `KVMaster` 在一个 P-D instance 内唯一，并且把 metadata 同步到 Tbase，用来做跨 instance KV 数据共享。
 
@@ -1244,7 +1244,7 @@ python -m sglang.launch_server \
 
 SGLang 开源里的 HiCache L3 metadata 目前主要由 storage backend 查询和 radix hash value 驱动；Theta 这页里的 KVMaster/Tbase 则是平台侧更强的 metadata 服务。二者不矛盾：SGLang engine 负责本地 tree 和执行路径，平台 KVPool 负责跨实例 metadata 和资源路由。
 
-![](https://files.mdnice.com/user/59/c1a95b5d-25a9-4167-9ad6-5915957c0c4e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c1a95b5d-25a9-4167-9ad6-5915957c0c4e.png)
 
 这页是性能数据。slides 给了两个业务 case：
 
@@ -1258,7 +1258,7 @@ SGLang 开源里的 HiCache L3 metadata 目前主要由 storage backend 查询�
 
 这和 LMSYS HiCache blog 中 Ant Group 的反馈也能对上：DeepSeek-R1-671B 在 PD 分离部署、一般 QA 请求采样下，cache hit 相比 full recompute 能显著降低 TTFT。具体数字在 blog 里写的是 cache hit 平均 TTFT 降低 84%。slides 这里是另一套 Theta KVPool 口径，不能直接混算，但方向一致。
 
-![](https://files.mdnice.com/user/59/90dd3ef4-215b-4557-beff-8b7c4e8622cc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/90dd3ef4-215b-4557-beff-8b7c4e8622cc.png)
 
 未来规划分两条。
 
@@ -1278,7 +1278,7 @@ Mooncake：
 
 central Meta 到 distributed Meta 很好理解：全局 KVPool 如果所有 metadata 都卡在一个中心服务上，规模上去后会变成新瓶颈。国产加速卡支持和 KVCache quantization 则是平台落地必然会碰到的成本问题。
 
-![](https://files.mdnice.com/user/59/0b51c575-e351-4fa4-9e73-7147d84e47b6.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0b51c575-e351-4fa4-9e73-7147d84e47b6.png)
 
 最后一页给了社区贡献入口：
 

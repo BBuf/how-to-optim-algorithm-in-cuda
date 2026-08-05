@@ -150,11 +150,11 @@ codex_review:
 
 生成的 artifact 可以在 pipeline 页面下载
 
-![](https://files.mdnice.com/user/59/a9dcd2b6-be07-431e-8c4d-44ce4f428eba.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/a9dcd2b6-be07-431e-8c4d-44ce4f428eba.png)
 
 或者在以 feature 分支向 master 分支发起 merge 时，
 
-![](https://files.mdnice.com/user/59/7be882e6-d3e1-419c-8984-d7b626bbe871.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7be882e6-d3e1-419c-8984-d7b626bbe871.png)
 
 通过将 Codex CLI 嵌入 GitLab CI/CD pipeline，你可以 **把 code quality 检查提升到超越静态规则的层次**。这样一来，你不只是捕获语法错误或风格违规，还能启用基于推理的分析，在上下文中指出潜在问题。
 

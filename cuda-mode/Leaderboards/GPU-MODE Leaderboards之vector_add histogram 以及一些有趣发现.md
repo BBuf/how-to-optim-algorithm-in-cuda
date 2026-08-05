@@ -108,9 +108,9 @@ def custom_kernel(data: input_t) -> output_t:
     return d_out
 ```
 
-![](https://files.mdnice.com/user/59/43a26b47-ae94-4427-8092-ba9e613e54a1.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/43a26b47-ae94-4427-8092-ba9e613e54a1.png)
 
-![](https://files.mdnice.com/user/59/8618cf05-1b96-4ca9-ad38-cf75420e0fae.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8618cf05-1b96-4ca9-ad38-cf75420e0fae.png)
 
 ## 带宽利用率估算
 
@@ -204,7 +204,7 @@ def check_implementation(data, output):
 这里先贴一下榜单里的实现截图：
 
 
-![](https://files.mdnice.com/user/59/87c10e79-0c1d-4fe4-9fbc-20c3326d61a0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/87c10e79-0c1d-4fe4-9fbc-20c3326d61a0.png)
 
 
 ## 带宽利用率估算
@@ -509,13 +509,13 @@ def correctness():
 ```
 
 
-![](https://files.mdnice.com/user/59/6ee0a2a3-61c1-4cbd-bcac-919699985d64.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6ee0a2a3-61c1-4cbd-bcac-919699985d64.png)
 
 前面这些任务，充满Hack行为的代码很多，例如vector sum里面直接只取前缀样本的近似结果居然也能过 correctness，然后Nader这个人一直用cccl去调用接口取得数个rank1例如sort, vector_add, prefix_sum等等， conv2d里面通过调cudnn的接口获得rank1等等。如果放到cuda agent里面去做了训练数据，感觉一定会让模型出现reward hacking行为需要特别小心。
 
 另外一个发现就是 https://www.gpumode.com/leaderboard/399?tab=rankings amd-fp8-mm 的rank1的代码对cuda 源码用了压缩和解码的方式去提交，这样是不是能避免被大模型洗成语料？
 
-![](https://files.mdnice.com/user/59/778eb93e-cf9c-4046-b27a-385bfaccae9f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/778eb93e-cf9c-4046-b27a-385bfaccae9f.png)
 
 
 

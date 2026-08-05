@@ -114,12 +114,12 @@ typedef struct nvmlUtilization_st {
 以下是两个显示从 `nvidia-smi` 和 `dcgm-exporter` 收集的指标的仪表板:
 
 
-![Metrics from nvidia-smi](https://files.mdnice.com/user/59/14e60ce9-4b64-4353-9eed-bd00576e0e1e.png)
+![Metrics from nvidia-smi](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/14e60ce9-4b64-4353-9eed-bd00576e0e1e.png)
 
 
 注意 GPU 的利用率是 100%。以下是从 `dcgm-exporter` 收集的指标:
 
-![Metrics from dcgm-exporter](https://files.mdnice.com/user/59/5a3cf61f-53ec-4139-bbae-0f80090897c6.png)
+![Metrics from dcgm-exporter](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5a3cf61f-53ec-4139-bbae-0f80090897c6.png)
 
 
 我们可以看到 SM 占用率非常低(`<20%`),浮点运算(FP32/FP16/TensorCore)也保持在非常低的百分比,这表明 GPU 没有饱和。
@@ -136,6 +136,6 @@ typedef struct nvmlUtilization_st {
 
 此外,关注饱和度指标是有益的。这些指标包括 FP64/FP32/FP16 激活、张量核心激活百分比、NVLINK 带宽、GPU 内存带宽百分比等。
 
-![Metrics from dcgm-exporter](https://files.mdnice.com/user/59/395d48b6-16b4-41d3-96ea-508868878004.png)
+![Metrics from dcgm-exporter](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/395d48b6-16b4-41d3-96ea-508868878004.png)
 
 

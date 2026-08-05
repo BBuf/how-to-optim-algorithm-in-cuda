@@ -4,7 +4,7 @@
 
 ### 课程笔记
 
-![](https://files.mdnice.com/user/59/8f9a0665-871e-4c5a-ac67-86bfa79f00c7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8f9a0665-871e-4c5a-ac67-86bfa79f00c7.png)
 
 
 这节课实际上算是[CUDA-MODE 课程笔记 第一课: 如何在 PyTorch 中 profile CUDA kernels](https://mp.weixin.qq.com/s/owF7AFR61SLrOosUPdZPQQ) 这节课更细节的讲解。另外关于nsight compute相关指标细节解释可以参考 [CUDA-MODE 第一课课后实战（上）](https://mp.weixin.qq.com/s/9XeJPWUsKTaMU2OdPkL-OQ)，
@@ -12,15 +12,15 @@
 
 将GPU用于计算，我们最关心的肯定是性能。比较幸运的是，当我们掌握一些性能优化技巧之后它往往会经常被用到。这节课将会系统的介绍这些性能优化技巧。
 
-![](https://files.mdnice.com/user/59/56f3a5e1-c0e2-4182-aa17-4d03c9f3ef6d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/56f3a5e1-c0e2-4182-aa17-4d03c9f3ef6d.png)
 
 本节课的课件和代码都在 https://github.com/cuda-mode/lectures 开源，我们可以用nvcc编译lecture8下面的cu文件，然后使用ncu进行profile。此外，这里的方法遵循了  https://arxiv.org/pdf/1804.06826.pdf 这篇论文的风格。up主也非常推荐大家阅读下这篇论文，用claude 3.5问了一下paper的主要内容，如下截图：
 
-![](https://files.mdnice.com/user/59/e00c198b-2e70-466f-be35-b4af3d324ddd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e00c198b-2e70-466f-be35-b4af3d324ddd.png)
 
 可以看到这篇论文主要是对Volta架构的GPU的架构细节进行分析，对性能优化是很重要的。
 
-![](https://files.mdnice.com/user/59/828daf13-e5e3-4fbc-8370-49e59497ae74.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/828daf13-e5e3-4fbc-8370-49e59497ae74.png)
 
 这张Slides从物理学的角度分析了下SRAM和DRAM的区别：
 - DRAM由1个晶体管和1个电容器构成；SRAM: 由6个晶体管构成
@@ -29,7 +29,7 @@
 
 这里的youtube链接作者Bill是NVIDIA的首席科学家，他解释了很多为什么GPU设计成现在这个样子，并且由浅入深，基础细节讲的非常清楚。
 
-![](https://files.mdnice.com/user/59/51bdc9fd-4cc6-41a3-b558-40790a80fc5c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/51bdc9fd-4cc6-41a3-b558-40790a80fc5c.png)
 
 这里的"性能检查清单"（Performance checklist），列出了一系列优化GPU程序性能的策略和技巧：
 - 合并全局内存访问（Coalesced Global Memory Access）
@@ -43,7 +43,7 @@
 
 这里的Privatization指的应该就是Shared Memory/寄存器优化全局内存读取，而Coarsening大概指的就是一个线程应该完成多少任务，一般情况下我们让一个线程完成的任务尽量少，但是在Compute Bound情况下，让一个线程执行更多的工作可以让程序运行得更快。最后一点更好的数学方法重写算法的经典例子就是Flash Attention。
 
-![](https://files.mdnice.com/user/59/ea47a608-f087-4625-bc0f-25afb0ffe301.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ea47a608-f087-4625-bc0f-25afb0ffe301.png)
 
 这张Slides讲述了GPU内存访问延迟的相关内容，下面的Figure3和表格都来自 https://arxiv.org/pdf/2208.11174 ，这个表格（Table IV），列出了不同类型内存的访问延迟（以时钟周期为单位）：
 
@@ -54,7 +54,7 @@
 
 > 我后面也找到了这个paper里面做micro benchmark的代码：https://www.stuffedcow.net/research/cudabmk?q=research/cudabmk ，后面如果有空继续阅读下这篇 paper 以及测试代码。
 
-![](https://files.mdnice.com/user/59/c46250e5-8aa3-4af3-8a8a-59e9eb4502eb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c46250e5-8aa3-4af3-8a8a-59e9eb4502eb.png)
 
 这张Slides讲述了延迟（latency）在计算机系统中的重要性和一些相关概念。
 - 标题 "It's the latency stupid" 强调了延迟的重要性。
@@ -66,7 +66,7 @@
     - 例如，Bolo（可能是某个系统或协议）尽可能使用字节（byte）而不是16位或32位字来减少数据包大小。
 - 底部提供了一个网址链接，包含更多关于这个话题的详细讨论。
 
-![](https://files.mdnice.com/user/59/8bf4fb12-76f6-4fc1-a663-0df2ebbae546.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8bf4fb12-76f6-4fc1-a663-0df2ebbae546.png)
 
 这张Slides开始介绍内存合并（Memory Coalescing）的概念。我们无法减少延迟，但可以通过读取连续的内存元素来隐藏延迟。Slides建议在进行案例研究时要关注以下三个方面：
 - DRAM Throughput（DRAM吞吐量）
@@ -140,17 +140,17 @@ int main() {
 
 接着使用`nvcc -o benchmark coalesce.cu`来编译程序，然后执行`ncu benchmark`来Profile程序。
 
-![](https://files.mdnice.com/user/59/dc2d062f-e5b0-467c-ac9f-507278a74526.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/dc2d062f-e5b0-467c-ac9f-507278a74526.png)
 
 对于copyDataNonCoalesced kernel来说，DRAM内存吞吐量大约是89%，L1 Cache的吞吐量是30%，kernel的执行时间是764us。
 
-![](https://files.mdnice.com/user/59/1a9d18ca-9a2c-4ff8-a405-147cc9892a04.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1a9d18ca-9a2c-4ff8-a405-147cc9892a04.png)
 
 对于copyDataCoalesced kernel来说，L1 Cache的吞吐量大约是37%，DRAM内存吞吐量是82%，执行时间是558us。
 
 我们可以看到合并内存访问的kernel是有明显的性能提升的。可以预见，随着输入数据量的增大合并内存访问的优势会更明显。ncu的结果里面还提示计算的理论occupancy（100.0%）和实测的实际occupancy占用（77%）之间的差异可能是由于 kernel 执行期间的warp调度开销或工作负载不平衡导致的。在同一kernel 的不同块之间以及块内的不同 warps 之间都可能发生负载不平衡。把上面程序中的`int blockSize = 128`改成`int blockSize = 1024`再次用ncu profile，可以发现occupancy提升到了85.94%。
 
-![](https://files.mdnice.com/user/59/e4100f32-4ecf-4fdf-a2f5-123d25cb088c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/e4100f32-4ecf-4fdf-a2f5-123d25cb088c.png)
 
 这张Slides讨论了GPU中的占用率（Occupancy）问题，主要内容如下：
 - 两种quantization问题：
@@ -164,7 +164,7 @@ int main() {
     - 右图(b)显示性能波动较小，整体更加平滑。
 我们可以看到cuBLAS v11 可能采用了更好的调度策略或优化技术，减少了由于Tile和Wave Quantization 导致的性能波动。
 
-![](https://files.mdnice.com/user/59/7556b215-7af4-4174-a2b4-ac96a9cf1617.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7556b215-7af4-4174-a2b4-ac96a9cf1617.png)
 
 这张Slides讲解了在PyTorch中使用padding（填充）来解决Tensor Core矩阵乘法维度要求的问题。具体内容如下：
 - 在PyTorch环境中，使用padding是解决某些问题的方法。
@@ -180,31 +180,31 @@ int main() {
 
 新版本的cuBLAS和cuDNN提供了更灵活的Tensor Core使用条件。而A100 GPU可能需要更大的倍数来获得最佳性能。Padding可以用来将矩阵维度调整为这些推荐的倍数，以提高性能。
 
-![](https://files.mdnice.com/user/59/5c245d0d-8294-459e-8c18-468e4622c8af.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5c245d0d-8294-459e-8c18-468e4622c8af.png)
 
 在CUDA中提升Occupancy的一个方法是修改kernel。
 
-![](https://files.mdnice.com/user/59/cbd741af-7c2e-4d92-a0b5-887def230f26.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/cbd741af-7c2e-4d92-a0b5-887def230f26.png)
 
 CUDA Occupancy calculator工具可以帮我们自动计算达到更好Occupancy的kernel启动参数，在上一节合并访存的.cu中调用这个Api结果显示，对于T4 GPU，最优的配置是网格大小为40，块大小为1024。代码见：https://github.com/cuda-mode/lectures/blob/main/lecture_008/occupancy.cu
 
-![](https://files.mdnice.com/user/59/de9e20ba-deec-4222-92a4-29fdec946ba2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/de9e20ba-deec-4222-92a4-29fdec946ba2.png)
 
 在对这个程序进行ncu的时候有新的问题，那就是下面所展示的：
 
-![](https://files.mdnice.com/user/59/8ac819a9-d4c0-44ab-a157-f3fdef14d287.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8ac819a9-d4c0-44ab-a157-f3fdef14d287.png)
 
-![](https://files.mdnice.com/user/59/bbb40964-9f2f-4e75-b257-112259586dd8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/bbb40964-9f2f-4e75-b257-112259586dd8.png)
 
 > 警告（WRN）：内存利用率高于计算利用率：请查看内存工作负载分析部分以识别DRAM瓶颈。检查内存重放（合并）指标，以确保您正在有效利用传输的字节。同时考虑是否可以通过每次内存访问执行更多工作（kernel融合）或是否有可以（重新）计算的值。
 
 接下来开始讨论这个问题
 
-![](https://files.mdnice.com/user/59/4f04866a-4fdf-4387-9e00-ee8e3c0bb75f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4f04866a-4fdf-4387-9e00-ee8e3c0bb75f.png)
 
 讨论之前需要先了解一下这张Slides展示的Roofline模型，它决定了一个cuda kernel是compute bound还是memory bound。
 
-![](https://files.mdnice.com/user/59/7c8e5d9b-7efe-4287-9f42-86feef7e1129.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7c8e5d9b-7efe-4287-9f42-86feef7e1129.png)
 
 这张Slides讲解了算术强度（Arithmetic intensity）的概念及其在处理器性能分析中的应用。这个slides来自gtc2019的一个讲解。
 
@@ -218,7 +218,7 @@ CUDA Occupancy calculator工具可以帮我们自动计算达到更好Occupancy�
 
 链接：https://developer.download.nvidia.com/video/gputechconf/gtc/2019/presentation/s9926-tensor-core-performance-the-ultimate-guide.pdf
 
-![](https://files.mdnice.com/user/59/364580c5-02d6-42b5-8cff-de939d4b2b7c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/364580c5-02d6-42b5-8cff-de939d4b2b7c.png)
 
 这张slides讲解了ReLU（Rectified Linear Unit）函数的算术强度分析：
 - ReLU函数定义：f(x) = max(0, x)，应用于向量的每个元素。
@@ -232,11 +232,11 @@ CUDA Occupancy calculator工具可以帮我们自动计算达到更好Occupancy�
     - 最好情况：1/4（当不需要写入时，只有读取操作）
 结论：1/4 < 1，表明ReLU操作受内存带宽限制（Memory bound）
 
-![](https://files.mdnice.com/user/59/7a48019a-b625-4d30-9468-7610cdc5a25a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a48019a-b625-4d30-9468-7610cdc5a25a.png)
 
 这张Slides对Float16的ReLU进行了算术强度分析，可以看打这种情况下最坏的算术强度是1/4，而不是Float32时的1/8，因此量化是可以提高计算强度的。
 
-![](https://files.mdnice.com/user/59/b74501a6-2c92-4898-92d1-4de14daa2077.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b74501a6-2c92-4898-92d1-4de14daa2077.png)
 
 这张Slides讲解了矩阵乘法（Matmul）的算术强度分析。其中：
 - FLOPS（浮点运算次数）计算：
@@ -253,7 +253,7 @@ CUDA Occupancy calculator工具可以帮我们自动计算达到更好Occupancy�
     - 对于大型矩阵，计算受限（Compute bound）
     - 否则，带宽受限（Bandwidth bound）
 
-![](https://files.mdnice.com/user/59/7d4474e4-ea1e-4059-bdeb-4a8119d3217a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7d4474e4-ea1e-4059-bdeb-4a8119d3217a.png)
 
 这张Slides总结了如何优化不同类型的kernels：
 
@@ -264,11 +264,11 @@ CUDA Occupancy calculator工具可以帮我们自动计算达到更好Occupancy�
 - 计算受限的kernel（Compute Bound Kernels）优化策略：
     - Write a better algorithm（编写更好的算法）：这意味着需要从算法层面进行优化
 
-![](https://files.mdnice.com/user/59/9e2e291a-5e61-4a31-9eb3-ccd24eb3525b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9e2e291a-5e61-4a31-9eb3-ccd24eb3525b.png)
 
 关于矩阵乘法Tiling减少全局内存访问请查看以前的[CUDA-MODE 课程笔记 第四课: PMPP 书的第4-5章笔记](https://mp.weixin.qq.com/s/P87c8LRJ1CEOOyaQw8L-cA) 。
 
-![](https://files.mdnice.com/user/59/6d706b6b-4d0c-42ac-880b-fdb6cf753698.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6d706b6b-4d0c-42ac-880b-fdb6cf753698.png)
 
 这张Slides对应这里的代码： https://github.com/cuda-mode/lectures/blob/main/lecture_008/divergence.cu ，主要是对下面2个kernel进行分析：
 
@@ -298,7 +298,7 @@ __global__ void processArrayWithoutDivergence(int *data, int N) {
 - "ncu --set full divergence" 用这行命令来设置线程control divergence分析。
 
 
-![](https://files.mdnice.com/user/59/c5e124c5-2b90-4a72-b7f7-ead7ef71b154.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c5e124c5-2b90-4a72-b7f7-ead7ef71b154.png)
 
 对于compute bound的kernel，让线程可以做更多工作，可能会更快。
 - 性能比较：
@@ -313,7 +313,7 @@ __global__ void processArrayWithoutDivergence(int *data, int N) {
 
 这也许可以解释Lecture 7中为什么对于Int4 Weight Only量化的高效kernel实现比普通的fp16的Kernel跑得更快。
 
-![](https://files.mdnice.com/user/59/ecfd8cfb-09c4-4802-8f9b-02c4f92c3309.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ecfd8cfb-09c4-4802-8f9b-02c4f92c3309.png)
 
 这张Slides讨论了在GPU编程中的"私有化"（Privatization）技术。要点为：
 - 将部分更新应用到数据的私有副本上，然后再写回全局或共享内存。
@@ -328,7 +328,7 @@ __global__ void processArrayWithoutDivergence(int *data, int N) {
 
 这个滑动窗口算法对应的例子就是Mistral等大模型里面的滑动窗口注意力算法，
 
-![](https://files.mdnice.com/user/59/c620f434-0121-4ba4-94f3-ea3eb0e74efd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c620f434-0121-4ba4-94f3-ea3eb0e74efd.png)
 
 解释下这个图：
 

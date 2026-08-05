@@ -29,7 +29,7 @@ Humanize 1.0 主要靠 RLCR（Ralph-Loop with Codex Review）运转，大体是�
 
 cookbook 里这张图讲的是 `/goal` 的基本模型：
 
-![图 1：Goal 把一次性对话变成带证据检查的持续推进循环](https://files.mdnice.com/user/59/88f846e6-4057-4214-9cbb-7844608e8be1.png)
+![图 1：Goal 把一次性对话变成带证据检查的持续推进循环](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/88f846e6-4057-4214-9cbb-7844608e8be1.png)
 
 *图 1. Goal 把一次性对话变成带证据检查的持续推进循环（图自 OpenAI Cookbook）。*
 
@@ -52,7 +52,7 @@ impl<C> ConfigContributor          for GoalExtension<C> { ... }     // 配置热
 
 cookbook 用一张图概括了 goal 给一个线程加了哪几样东西：
 
-![图 2：Goal 为当前线程加入持久状态、继续推进能力、控制入口和证据检查](https://files.mdnice.com/user/59/875a58a8-1948-4e89-ab65-453233d7b608.png)
+![图 2：Goal 为当前线程加入持久状态、继续推进能力、控制入口和证据检查](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/875a58a8-1948-4e89-ab65-453233d7b608.png)
 
 *图 2. Goal 为当前线程加入持久状态、继续推进能力、控制入口和证据检查（图自 OpenAI Cookbook）。*
 
@@ -131,7 +131,7 @@ pub(crate) async fn emit_thread_idle_lifecycle_if_idle(&self) {
 
 也就是说，只有当前没有 turn 在跑、用户也没有排队输入时，才会触发一次"要不要继续"的判断。cookbook 说的"只有线程空闲、Goal 活跃且预算充足时才会继续"，落到代码里就是这两个 if。cookbook 把这个调度条件画成了一张图：
 
-![图 3：只有当 Goal 活跃、线程空闲且没有用户输入排队时，Codex 才会继续](https://files.mdnice.com/user/59/4ffc7f52-9892-4448-9244-4c5d3109de92.png)
+![图 3：只有当 Goal 活跃、线程空闲且没有用户输入排队时，Codex 才会继续](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4ffc7f52-9892-4448-9244-4c5d3109de92.png)
 
 *图 3. 只有当 Goal 活跃、线程空闲且没有用户输入排队时，Codex 才会继续（图自 OpenAI Cookbook）。*
 

@@ -449,7 +449,7 @@ class DeepseekV2Attention(nn.Module):
 由于这里的代码比较长，这里就只从流程出发，尽量少展示代码。先把DeepSeek MLA的公式截图到这里：
 
 
-![](https://files.mdnice.com/user/59/6afdc732-4224-4a4d-aaf5-a87732020e68.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6afdc732-4224-4a4d-aaf5-a87732020e68.png)
 
 
 ## 0x3.1 权重介绍
@@ -701,7 +701,7 @@ else:
 
 后续分析将假设bs=1。为了方便下面的代码分析，这里再复制一下paper的MLA公式。
 
-![](https://files.mdnice.com/user/59/6afdc732-4224-4a4d-aaf5-a87732020e68.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6afdc732-4224-4a4d-aaf5-a87732020e68.png)
 
 ### 001
 
@@ -781,12 +781,12 @@ self.attn_mqa = RadixAttention(
 
 其实这个MQA就是DeekSeek在开源周开源的FlashMLA，如下图所示：
 
-![](https://files.mdnice.com/user/59/085133cc-3802-43c6-a3b3-b58e63c59af4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/085133cc-3802-43c6-a3b3-b58e63c59af4.png)
 
 
 我们还需要注意的是，这个地方的$W^{UK}$矩阵吸收并没有在init的时候提前完成，而是直接在forward的时候通过矩阵运算结合律来算。可以用paper公式31和32来说明：
 
-![](https://files.mdnice.com/user/59/c2b91998-55d4-475b-9479-0706ec545fb4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c2b91998-55d4-475b-9479-0706ec545fb4.png)
 
 如果我们保持`forward_normal`那种计算方式，也就是说先对Latent解压缩再计算，则Attn的计算是一个实打实的Multi Head Attention，会增大计算量。
 

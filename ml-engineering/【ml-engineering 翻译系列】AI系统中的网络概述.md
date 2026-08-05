@@ -304,7 +304,7 @@ AMD MI* 加速器的节点内通信是通过 AMD Infinity Fabric 完成的，也
 
 其他节点内解决方案通常具有相同的对等和全互联带宽，因此 Infinity Fabric 似乎明显较慢。我猜这是因为这些主要是为推理创建的，因为这些慢速的速度会显著降低 LLM 训练的速度。
 
-![AMD Infinity Platform Architecture](https://files.mdnice.com/user/59/ffc93caa-c011-41be-9e19-3fc04f43a6c9.png)
+![AMD Infinity Platform Architecture](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ffc93caa-c011-41be-9e19-3fc04f43a6c9.png)
 
 Platform 描述:
 - MI250X(https://www.amd.com/en/products/accelerators/instinct/mi200/mi250x.html)
@@ -518,7 +518,7 @@ NVIDIA可扩展分层聚合和归约协议（SHARP）(https://docs.nvidia.com/ne
 
 以下是all-reduce集合通信操作的可视化：
 
-![](https://files.mdnice.com/user/59/2c80cce0-2c65-4db0-b03d-43ae8b0134be.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2c80cce0-2c65-4db0-b03d-43ae8b0134be.png)
 
 (source(https://pytorch.org/tutorials/intermediate/dist_tuto.html#collective-communication))
 
@@ -788,7 +788,7 @@ Unidirectional P2P=Enabled Bandwidth (P2P Writes) Matrix (GB/s)
 
 这张图也很有帮助，可以演示实际带宽如何随着消息大小的变化而变化：
 
-![Low-level Uni-directional Bandwidth Measurements](https://files.mdnice.com/user/59/71953d7d-5fd1-4be2-ac6f-dec4dafe7bbd.png)
+![Low-level Uni-directional Bandwidth Measurements](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/71953d7d-5fd1-4be2-ac6f-dec4dafe7bbd.png)
 
 
 (source(https://ieeexplore.ieee.org/document/5238655))
@@ -797,7 +797,7 @@ Unidirectional P2P=Enabled Bandwidth (P2P Writes) Matrix (GB/s)
 
 ### 延迟
 
-![Low-level Latency Measurements](https://files.mdnice.com/user/59/574e41d3-d3d9-4d60-bcdf-6247546c78f8.png)
+![Low-level Latency Measurements](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/574e41d3-d3d9-4d60-bcdf-6247546c78f8.png)
 
 (source(https://ieeexplore.ieee.org/document/5238655))
 

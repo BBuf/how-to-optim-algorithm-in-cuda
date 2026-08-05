@@ -6,7 +6,7 @@
 
 vLLM 引擎目前是执行大语言模型(LLM)的最高性能方式之一。它提供了 vllm serve(https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html) 命令作为在单机上部署模型的简单选项。虽然这很方便，但要在生产环境中大规模部署这些 LLM，还需要一些高级功能。
 
-![](https://files.mdnice.com/user/59/aeb843b9-b1a5-4652-b1c4-c9687cdcdf98.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/aeb843b9-b1a5-4652-b1c4-c9687cdcdf98.png)
 
 TorchServe 提供了这些基本的生产功能(如自定义指标和模型版本控制)，并通过其灵活的自定义处理程序设计，使得集成检索增强生成(RAG)或 Llama Guard(https://ai.meta.com/research/publications/llama-guard-llm-based-input-output-safeguard-for-human-ai-conversations/) 等安全保护功能变得非常容易。因此，将 vLLM 引擎与 TorchServe 配对来创建一个功能完备的生产级 LLM 服务解决方案是很自然的选择。
 
@@ -58,7 +58,7 @@ python -m ts.llm_launcher --model_id meta-llama/Meta-Llama-3.1-8B-Instruct  --di
 
 TorchServe(https://pytorch.org/serve/) 是一个易于使用的开源解决方案,用于在生产环境中部署 PyTorch 模型。作为经过生产测试的服务解决方案,TorchServe 为大规模部署 PyTorch 模型提供了众多好处和功能。通过将其与 vLLM 引擎的推理性能相结合,这些好处现在也可以用于大规模部署 LLM。
 
-![](https://files.mdnice.com/user/59/36176266-28d1-44a2-a7a2-7951d9b7c86b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/36176266-28d1-44a2-a7a2-7951d9b7c86b.png)
 
 为了最大化硬件利用率，通常将来自多个用户的请求批量处理是一个很好的做法。从历史上看，TorchServe 只提供了一种同步模式来收集来自不同用户的请求。在这种模式下，TorchServe 会等待预定义的时间(例如 batch_delay=200ms)或直到收集到足够的请求(例如 batch_size=8)。当触发其中一个事件时，批处理数据会被转发到后端，模型会对批处理进行处理，然后通过前端将模型输出返回给用户。这种方式对于传统的视觉模型特别有效，因为每个请求的输出通常会同时完成。
 
@@ -66,7 +66,7 @@ TorchServe(https://pytorch.org/serve/) 是一个易于使用的开源解决方�
 
 为了实现最佳内存利用率，即填充内存中未使用的空隙(想象一下俄罗斯方块)，vLLM 需要完全控制在任何给定时间处理哪些请求的决定。为了提供这种灵活性，我们不得不重新评估 TorchServe 处理用户请求的方式。我们引入了异步模式(https://github.com/pytorch/serve/blob/ba8c268fe09cb9396749a9ae5d480ba252764d71/examples/large_models/vllm/llama3/model-config.yaml#L7)(见下图)来替代之前的同步处理模式，在这种模式下，传入的请求直接转发到后端，使其可供 vLLM 使用。后端为 vllm.AsyncEngine 提供数据，现在可以从所有可用请求中进行选择。如果启用了流式模式并且请求的第一个 token 可用，后端将立即发送结果，并继续发送 token，直到生成最后一个 token。
 
-![](https://files.mdnice.com/user/59/c1176a25-a8af-4e7b-bf8c-9b134f7f6209.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c1176a25-a8af-4e7b-bf8c-9b134f7f6209.png)
 我们的 VLLMHandler 实现(https://github.com/pytorch/serve/blob/master/ts/torch_handler/vllm_handler.py)使用户能够通过配置文件快速部署任何与 vLLM 兼容的模型，同时通过自定义处理程序提供相同级别的灵活性和可定制性。用户可以通过继承 VLLMHandler 并重写相应的类方法来添加自定义预处理(https://github.com/pytorch/serve/blob/ba8c268fe09cb9396749a9ae5d480ba252764d71/ts/torch_handler/vllm_handler.py#L108)或后处理(https://github.com/pytorch/serve/blob/ba8c268fe09cb9396749a9ae5d480ba252764d71/ts/torch_handler/vllm_handler.py#L160)步骤。
 
 我们还支持单节点、多 GPU 分布式推理(https://github.com/pytorch/serve/blob/master/examples/large_models/vllm/Readme.md#distributed-inference)，在这里我们配置 vLLM 使用张量并行分片模型，以增加较小模型的容量或启用不适合单个 GPU 的较大模型，如 70B Llama 变体。以前，TorchServe 只支持使用 torchrun 进行分布式推理，其中会启动多个后端工作进程来分片模型。vLLM 在内部管理这些进程的创建，因此我们为 TorchServe 引入了新的"custom"并行类型(https://github.com/pytorch/serve/blob/master/examples/large_models/vllm/Readme.md#distributed-inference)，它启动单个后端工作进程并提供分配的 GPU 列表。然后后端进程可以根据需要启动自己的子进程。

@@ -269,27 +269,27 @@ b = b * scales[None, :] - zeros[None, :]
 
 问一下 o1-preview-128k，如何理解这几行代码，并给我们一个详细的解释：
 
-![](https://files.mdnice.com/user/59/5093f5cb-d803-43f5-bb63-b534636ded63.png)
-![](https://files.mdnice.com/user/59/eaa3d918-5b7f-42e6-ba66-62e6463f1f7c.png)
-![](https://files.mdnice.com/user/59/9d8e4a0a-b37f-490f-8b0a-37451b6fd46b.png)
-![](https://files.mdnice.com/user/59/f93105b8-0c93-412f-9591-74fcf3862e47.png)
-![](https://files.mdnice.com/user/59/8441928f-de7f-4f9c-a02a-29780099d0d2.png)
-![](https://files.mdnice.com/user/59/a5b7b4ea-9c96-46f1-9275-569e5e2153d5.png)
-![](https://files.mdnice.com/user/59/95e86461-a81a-47ee-9ac1-e70d3ae949a9.png)
-![](https://files.mdnice.com/user/59/ffebd57c-f7ee-4801-8445-73af554f3208.png)
-![](https://files.mdnice.com/user/59/faee62ba-ccc7-44b1-a13b-34b53c41567e.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/5093f5cb-d803-43f5-bb63-b534636ded63.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/eaa3d918-5b7f-42e6-ba66-62e6463f1f7c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/9d8e4a0a-b37f-490f-8b0a-37451b6fd46b.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f93105b8-0c93-412f-9591-74fcf3862e47.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8441928f-de7f-4f9c-a02a-29780099d0d2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/a5b7b4ea-9c96-46f1-9275-569e5e2153d5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/95e86461-a81a-47ee-9ac1-e70d3ae949a9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/ffebd57c-f7ee-4801-8445-73af554f3208.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/faee62ba-ccc7-44b1-a13b-34b53c41567e.png)
 
 o1-preview-128k 对这几行代码完全理解了，并且可以正确还原背后的数学原理，非常棒。
 
 接下来我们看一下向量化读取的优化是否可以被 o1-preview-128k 正确理解:
 
-![](https://files.mdnice.com/user/59/606a148a-9c0e-41c5-9f45-6271627211bb.png)
-![](https://files.mdnice.com/user/59/152bb066-e54e-47e3-aefe-b3c809577a54.png)
-![](https://files.mdnice.com/user/59/5e43c64e-b1b9-4160-afe9-d0d7967731e8.png)
-![](https://files.mdnice.com/user/59/fe8f9dc9-0b33-4d49-9ab3-c5ffb096affd.png)
-![](https://files.mdnice.com/user/59/6ac94494-3ebc-40cb-9332-9f4ba5478711.png)
-![](https://files.mdnice.com/user/59/956c533f-00e4-4b7b-9532-e342cb5be018.png)
-![](https://files.mdnice.com/user/59/874a0e55-4988-4a59-9a0a-d836c97a495c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/606a148a-9c0e-41c5-9f45-6271627211bb.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/152bb066-e54e-47e3-aefe-b3c809577a54.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5e43c64e-b1b9-4160-afe9-d0d7967731e8.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/fe8f9dc9-0b33-4d49-9ab3-c5ffb096affd.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/6ac94494-3ebc-40cb-9332-9f4ba5478711.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/956c533f-00e4-4b7b-9532-e342cb5be018.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/874a0e55-4988-4a59-9a0a-d836c97a495c.png)
 
 o1-preview-128k 完全理解这个优化，并且还给我们举例，画图来说明向量化读取的原理，并指出可以简化地址计算等。
 

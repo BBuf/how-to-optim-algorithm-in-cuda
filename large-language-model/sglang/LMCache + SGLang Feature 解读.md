@@ -9,7 +9,7 @@
 
 在 32 K 上下文的多轮对话场景中，TTFT（首 Token 延迟）从 1.8 秒降至 0.4 秒，GPU 利用率下降 40%。
 
-![](https://files.mdnice.com/user/59/f6685648-2763-4ba8-90f3-d1ffddf5937c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f6685648-2763-4ba8-90f3-d1ffddf5937c.png)
 
 最近LMCache也支持了SGLang。虽然SGLang本身已经有HiCache这个拥有类似功能的组件了，LMCache对SGLang代码的修改部分也没有提交到SGLang仓库，但是了解这里的适配方式可以对LMCache的运行流程以及SGLang的KV Cache管理有更深入的理解。基于此，这篇博客将基于 https://github.com/LMCache/LMCache/pull/869 这个完整的端到端支持SGLang的PR 和 https://github.com/Oasis-Git/sglang/tree/lmcache/benchmark/benchmark_lmcache 这里对SGLang的改造来速览一下在LMCache中如何支持新的推理框架并让其拥有上面提到的跨层级存储、跨请求复用、分布式共享的feature。目前有个限制是LMCache适配的SGLang不支持Layer-by-Layer的KV Cache传输，而是把每一层的KV Cache concat到一个张量中进行传输。
 

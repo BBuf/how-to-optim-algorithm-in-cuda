@@ -11,13 +11,13 @@
 
 大概9月的时候我开始以做工程的角度切入LLM推理框架，首先研究的就是VLLM和SGLang，看这些框架本身还是比较痛苦，因为感觉没有触发感兴趣的点。直到后面接触到MoE模型中的Fused MoE算子实现调研优化，我才找到了我这一年以来的兴趣点。后面也从这一点出发成为了SGLang的开发者，并且在SGLang的开源贡献过程中收获了很多，不仅是技术，也包括从SGLang Team成员获得的情绪价值。认识了 @Lianmin Zheng @Yineng Zhang @Chenyang Zhao 等 SGLang Team 成员，特别是 @Yineng Zhang 在我做开源贡献时提供的专业技术帮助和情绪价值(hhh。我会在下面的0x2节聊一下我这几个月参与SGLang框架的从零开始的开源开发经历。
 
-![SGLang 贡献图，和大佬合影](https://files.mdnice.com/user/59/b34aa9bf-8b1b-48df-b579-7e58afdaabb0.png)
+![SGLang 贡献图，和大佬合影](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b34aa9bf-8b1b-48df-b579-7e58afdaabb0.png)
 
 此外，我也继续坚持在GiantPandaCV公众号创作了一年，原创文章大概保持了1个月2篇左右，频率这么低的原因是因为自己半开摆了。然后做了一些PyTorch Blog以及CUDA MODE课程的笔记，算是业余充电补充知识了（CUDA-MODE学习笔记我也是算子那个一个月2篇里面凑数的，看得出来是真的有点摆了，今年会在 GiantPandaCV 尽量多更一点笔记）。
 
 我的github的两个学习笔记仓库更新频率在2024后半年降到了很低，但是star数却一直在涨，感谢关注我的网友们。我也争取新年继续更新一下，特别是优质博客链接应该多更新一下。
 
-![](https://files.mdnice.com/user/59/5dd4ab80-439d-48a0-845e-79ac58487392.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5dd4ab80-439d-48a0-845e-79ac58487392.png)
 
 
 # 0x2. SGlang 几个月的开源开发经历
@@ -28,7 +28,7 @@
 
 首先是做了一些基础的bug修复，添加fused moe测试相关的工作，以及完善了一下fused moe triton算子的auto tuning脚本等，还有就是讨论了一下在低端GPU上如何恰当的使用chunked prefill的问题：
 
-![](https://files.mdnice.com/user/59/d354a126-1345-4f20-89a5-770e277a3131.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d354a126-1345-4f20-89a5-770e277a3131.png)
 
 接着做的贡献来自于我profile模型的一个发现，我发现VLLM和SGLang在离线推理一个相同的qwen2-7b模型时通过Nsight System拿到的结果显示sglang的rmsnorm是明显更快的。所以我在 https://github.com/sgl-project/sglang/pull/2486 这里基于Triton Benchmark写了一个rmsnorm kernel的micro benchmark对比脚本，可以证明在各个情况下SGLang使用的FlashInfer的rmsnorm总是比vllm的实现更快。我这个发现和benchmark脚本后续也被vllm采用了：https://github.com/vllm-project/vllm/pull/11241 。在此基础上继续做了一下 `write_req_to_token_pool_triton` 这个算子的 benchmark 和初步优化，然后就是在GTX 4090, h100 和 h200 上针对目前常用的 MoE 模型例如 Mixtral 8x7B/8x22B 和 Qwen2-57B-A14B 等跑了跑fused moe triton算子 Tuning，都是一些比较简单的零碎开源工作。
 
@@ -57,23 +57,23 @@
 
 这是VLLM/SGLang开源之初支持MoE模型的方案，直接使用了AnyScale开发的Triton Fused MoE算子，后面又在这个算子上做了一些优化包括开发Tuning策略，FP8 PerTensor, FP8 Blockwise，INT8 Fused MoE等等。目前处于功能丰富，但限制也明显，毕竟用Triton写的，相比于CutLass实现的Grouped GEMM会有性能上的削弱，并且由于Triton Grouped GEMM要求把每个expert的token数 padding到矩阵Tile config['M']的倍数引入的`moe_align_block_size` kernel也是一个开销无法忽略的算子，另外Triton Grouped GEMM1和silu等激活函数无法融合也持续增大了整个算子的overhead。关于这个Triton算子实现，硅基流动的zhuping在Triton中国做分享的时候做过一个Slides总结得比较好，我把这几页截图一下：
 
-![](https://files.mdnice.com/user/59/852be243-cf79-43f0-9395-a423f21634d2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/852be243-cf79-43f0-9395-a423f21634d2.png)
 
-![](https://files.mdnice.com/user/59/d132a6fd-7ead-4db5-9ad7-8e27564adb11.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d132a6fd-7ead-4db5-9ad7-8e27564adb11.png)
 
-![](https://files.mdnice.com/user/59/d2bc778a-28e6-4235-9e19-48d1dac9ab07.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d2bc778a-28e6-4235-9e19-48d1dac9ab07.png)
 
-![](https://files.mdnice.com/user/59/8898003b-9908-4de5-aaf8-7bfd8a220141.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8898003b-9908-4de5-aaf8-7bfd8a220141.png)
 
-![](https://files.mdnice.com/user/59/8aa7dc46-ce45-4006-8b3a-c61ca9cd000c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8aa7dc46-ce45-4006-8b3a-c61ca9cd000c.png)
 
-![](https://files.mdnice.com/user/59/61589d7f-03db-4b2d-ad26-da700b116d5a.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/61589d7f-03db-4b2d-ad26-da700b116d5a.png)
 
-![](https://files.mdnice.com/user/59/62129ff1-ae81-4622-afde-5c25c27eba4f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/62129ff1-ae81-4622-afde-5c25c27eba4f.png)
 
-![](https://files.mdnice.com/user/59/4f998aef-949b-45c6-953d-366767dae833.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4f998aef-949b-45c6-953d-366767dae833.png)
 
-![](https://files.mdnice.com/user/59/0b51bbea-ba89-4466-b7cc-c7551f8f8fab.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0b51bbea-ba89-4466-b7cc-c7551f8f8fab.png)
 
 
 ## 以Token为中心还是以Expert为中心
@@ -86,7 +86,7 @@
 
 我在SGLang中尝试过这个算子，为其新增了FP8的支持和Auto Tuning，但是在Qwen2-57B TP4 w8a8情况下没有看到明显的收益，如下图所示。https://github.com/sgl-project/sglang/pull/2334
 
-![](https://files.mdnice.com/user/59/59329fec-32d0-4455-aab3-5b803d16af9f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/59329fec-32d0-4455-aab3-5b803d16af9f.png)
 
 由于 SplitK GEMM 会引入`tl.atomic_add`，而Triton的`atomic_add`不支持BF16，如果要求用dtype为bf16来推理模型这里就会报错，这也是一个限制。
 

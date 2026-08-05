@@ -1,4 +1,4 @@
-![Serving DeepSeek-V4 on GB300 with SGLang](https://files.mdnice.com/user/59/57da5a7f-a794-4919-abb9-78949d12067c.png)
+![Serving DeepSeek-V4 on GB300 with SGLang](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/57da5a7f-a794-4919-abb9-78949d12067c.png)
 
 > 原文：Serving DeepSeek-V4 on GB300 with SGLang: 5x Higher Throughput at the Same Interactivity Since Day-0
 > 原文地址：PyTorch Blog（https://pytorch.org/blog/serving-deepseek-v4-on-gb300-with-sglang-5x-higher-throughput-at-the-same-interactivity-since-day-0/）
@@ -21,7 +21,7 @@
 
 ### 1.1 NVIDIA GB300 Disaggregated 8K/1K
 
-![DeepSeek V4 Pro on NVIDIA GB300](https://files.mdnice.com/user/59/f214afdf-f309-4573-9424-beac490e8b77.png)
+![DeepSeek V4 Pro on NVIDIA GB300](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f214afdf-f309-4573-9424-beac490e8b77.png)
 
 图 1：DeepSeek-V4 Pro 在 NVIDIA GB300 disaggregated lane 上的性能曲线。横轴是每用户 token 速度，纵轴是每 GPU 吞吐。
 
@@ -35,7 +35,7 @@ no-MTP 和 MTP 曲线共用同一套 DeepSeek-V4 serving stack。只要 prefill 
 
 ### 1.2 NVIDIA Blackwell Ultra Aggregated 8K/1K
 
-![DeepSeek-V4 Pro on NVIDIA Blackwell Ultra](https://files.mdnice.com/user/59/83ea5813-4c16-474a-bc39-340266de4bfc.png)
+![DeepSeek-V4 Pro on NVIDIA Blackwell Ultra](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/83ea5813-4c16-474a-bc39-340266de4bfc.png)
 
 图 2：DeepSeek-V4 Pro 在 NVIDIA Blackwell Ultra aggregated lane 上的性能曲线。
 

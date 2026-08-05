@@ -110,7 +110,7 @@ for i in range(1000):
 
 HF的比较好处理，只需要把transformers仓库中llama3的model和config实现文件复制到模型仓库中，然后使用automap指定从当前模型仓库中加载模型实现，最后`AutoModelForCausalLM.from_pretrained`初始化模型的时候指定`trust_remote_code=True`就可以用上当前模型仓库中的model实现了。然后修改一下代码：
 
-![](https://files.mdnice.com/user/59/47930b88-5276-43a7-9e21-9bf67093296c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/47930b88-5276-43a7-9e21-9bf67093296c.png)
 
 在SGLang的模型实现文件中也使用类似的代码记录每一次推理时prefill的lm head之前的hidden_states。需要注意2个点：
 - 禁用chunked prefill。
@@ -154,7 +154,7 @@ SGLang:
 
 对应的代码实现为：
 
-![](https://files.mdnice.com/user/59/2f9e5d24-24ae-45af-a1bf-0f9d7784a949.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/2f9e5d24-24ae-45af-a1bf-0f9d7784a949.png)
 
 那么，VLLM在输入为FP16时是否存在这个问题呢？我们可以使用下面的测试验证：
 

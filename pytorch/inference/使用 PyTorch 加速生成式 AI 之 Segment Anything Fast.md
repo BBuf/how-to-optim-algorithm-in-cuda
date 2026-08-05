@@ -13,13 +13,13 @@
 
 我们鼓励读者从我们在 Github 上的 SAM 实现(https://github.com/pytorch-labs/segment-anything-fast)中复制粘贴代码，并在 Github 上向我们提问。
 
-![快速一瞥使用我们新发布的 PyTorch 原生特性提高吞吐量和减少内存开销。基准测试在 p4d.24xlarge 实例 (8x A100s) 上运行。](https://files.mdnice.com/user/59/41d3ccfe-07eb-4b49-8d6d-18cdc8dd4699.png)
+![快速一瞥使用我们新发布的 PyTorch 原生特性提高吞吐量和减少内存开销。基准测试在 p4d.24xlarge 实例 (8x A100s) 上运行。](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/41d3ccfe-07eb-4b49-8d6d-18cdc8dd4699.png)
 
 # SegmentAnything 模型
 
 SAM 是一个用于生成可提示图像掩码的零样本视觉模型。
 
-![](https://files.mdnice.com/user/59/b9b480e2-961c-4a40-9452-44b67d5b9a6d.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b9b480e2-961c-4a40-9452-44b67d5b9a6d.jpg)
 
 SAM 架构[在其论文中描述(https://arxiv.org/abs/2304.02643)]包括基于 Transformer 架构的多个提示和图像编码器。在这其中，我们测量了最小和最大视觉变换器骨干网络的性能：ViT-B 和 ViT-H。为了简单起见，我们只展示 ViT-B 模型的追踪。
 
@@ -31,7 +31,7 @@ SAM 架构[在其论文中描述(https://arxiv.org/abs/2304.02643)]包括基于 
 
 我们的 SAM 基线是 Facebook Research 的未修改模型，使用 float32 数据类型和批量大小为 1。经过一些初始预热后，我们可以使用 PyTorch Profiler 查看kernel 追踪：
 
-![](https://files.mdnice.com/user/59/f83a0658-0355-42fc-bd06-e0ba48658919.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f83a0658-0355-42fc-bd06-e0ba48658919.png)
 
 我们注意到两个成熟的优化领域。
 
@@ -41,13 +41,13 @@ SAM 架构[在其论文中描述(https://arxiv.org/abs/2304.02643)]包括基于 
 
 我们可以从开箱即用的 SAM 测量吞吐量（img/s）和内存开销（GiB）来建立基线：
 
-![](https://files.mdnice.com/user/59/965b7f81-e87a-4e0a-951b-334d36a75091.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/965b7f81-e87a-4e0a-951b-334d36a75091.png)
 
 ## Bfloat16 半精度（+GPU 同步和批处理）
 
 为了解决在矩阵乘法上花费较少时间的第一个问题，我们可以转向 bfloat16。Bfloat16 是一种常用的半精度类型。通过降低每个参数和激活的精度，我们可以在计算中节省大量时间和内存。在降低参数精度时，验证端到端模型精度至关重要。
 
-![](https://files.mdnice.com/user/59/496022b4-f412-46fb-bee5-51af1eab027c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/496022b4-f412-46fb-bee5-51af1eab027c.png)
 
 这里显示了用半精度 bfloat16 替换填充数据类型的示例。代码在这里(https://github.com/pytorch-labs/segment-anything-fast/blame/main/segment_anything_fast/modeling/prompt_encoder.py#L86)。
 
@@ -55,7 +55,7 @@ SAM 架构[在其论文中描述(https://arxiv.org/abs/2304.02643)]包括基于 
 
 现在，为了移除 GPU 同步，我们需要审计导致它们的操作。我们可以通过在 GPU 追踪中搜索对 `cudaStreamSynchronize` 的调用来找到这些代码片段。事实上，我们找到了两个能够重写为无同步的位置。
 
-![](https://files.mdnice.com/user/59/7a9acc28-8c65-46ec-8b59-0a953361791c.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7a9acc28-8c65-46ec-8b59-0a953361791c.jpg)
 
 具体来说，我们看到在 SAM 的图像编码器中，有一些变量充当坐标缩放器，q_coords 和 k_coords。这些都在 CPU 上分配和处理。然而，一旦这些变量用于在 rel_pos_resized 中索引，索引操作就会自动将这些变量移动到 GPU。这种复制导致了我们上面观察到的 GPU 同步。我们注意到在 SAM 的提示编码器中对索引的第二次调用：我们可以使用 torch.where 重写，如上所示。
 
@@ -63,15 +63,15 @@ SAM 架构[在其论文中描述(https://arxiv.org/abs/2304.02643)]包括基于 
 
 应用这些更改后，我们开始看到各个kernel 调用之间有显著的时间间隔。这通常在小批量大小（这里是 1）下观察到，这是由于启动kernel 的 GPU 开销。为了更仔细地查看实际的优化领域，我们可以开始使用批量大小 8 来分析 SAM 推理：
 
-![](https://files.mdnice.com/user/59/47e36556-1212-4cf4-9d54-77f8ae565ce0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/47e36556-1212-4cf4-9d54-77f8ae565ce0.png)
 
 查看每个kernel 花费的时间，我们观察到 SAM 的大部分 GPU 时间花费在逐元素kernel 和 softmax 操作上。因此，我们现在看到矩阵乘法已经成为一个相对较小的开销。
 
-![](https://files.mdnice.com/user/59/003c375a-fce8-4f50-bb48-fed65d4d5c82.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/003c375a-fce8-4f50-bb48-fed65d4d5c82.png)
 
 综合 GPU 同步和 bfloat16 优化，我们现在已经将 SAM 性能提升了高达 3 倍
 
-![](https://files.mdnice.com/user/59/1e1353b9-4487-42c0-96d2-68dc0cca27e0.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/1e1353b9-4487-42c0-96d2-68dc0cca27e0.png)
 
 ## Torch.compile（+图中断和 CUDA 图）
 
@@ -93,21 +93,21 @@ predictor.model.image_encoder = \
 
 ### kernel 追踪
 
-![](https://files.mdnice.com/user/59/b2423571-bd3b-4b50-b0f9-e03d77a64ef7.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b2423571-bd3b-4b50-b0f9-e03d77a64ef7.jpg)
 
 torch.compile 工作得很好。我们启动一个单一的 CUDA 图，它在计时区域内占据了 GPU 时间的很大一部分。让我们再次运行性能分析并查看特定kernel 花费的 GPU 时间百分比：
 
-![](https://files.mdnice.com/user/59/05f590ab-6c31-4e87-89a9-45fbd2799b9f.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/05f590ab-6c31-4e87-89a9-45fbd2799b9f.jpg)
 
 我们现在看到 softmax 占据了大部分时间，其次是各种 GEMM 变体。总结我们观察到批量大小 8 和上述更改的以下测量结果。
 
-![](https://files.mdnice.com/user/59/4bbc6e30-613a-4c76-a34d-09cdabb214c7.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/4bbc6e30-613a-4c76-a34d-09cdabb214c7.png)
 
 ## SDPA：scaled_dot_product_attention
 
 接下来，我们可以解决变换器性能开销最常见的领域之一：注意力机制。朴素的注意力实现在时间和内存方面随序列长度呈二次缩放。PyTorch 的 scaled_dot_product_attention 操作建立在 Flash Attention、FlashAttentionV2 和 xFormer 的内存高效注意力的原理之上，可以显著加速 GPU 注意力。结合 torch.compile，这个操作允许我们表达并融合 MultiheadAttention 变体中的常见模式。经过一小组更改(https://github.com/facebookresearch/segment-anything/compare/50cb459d080bcd783a4b481d3bde4150d35ac497...7dc75fdf283693f73606f2fe7fdcb693afcb16b9)，我们可以调整模型以使用 scaled_dot_product_attention。
 
-![](https://files.mdnice.com/user/59/8bec9731-21e6-474a-b8e9-4c1405a880b9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/8bec9731-21e6-474a-b8e9-4c1405a880b9.png)
 
 PyTorch 原生注意力实现，查看代码(https://github.com/pytorch-labs/segment-anything-fast/blob/main/segment_anything_fast/modeling/image_encoder.py#L236)。
 
@@ -115,21 +115,21 @@ PyTorch 原生注意力实现，查看代码(https://github.com/pytorch-labs/seg
 
 我们现在可以看到，特别是内存高效注意力kernel 在 GPU 上占用了大量计算时间：
 
-![](https://files.mdnice.com/user/59/b0737707-88d1-4a2a-b986-c46c260982e2.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/b0737707-88d1-4a2a-b986-c46c260982e2.png)
 
 使用 PyTorch 的原生 scaled_dot_product_attention，我们可以显著增加批量大小。我们现在观察到批量大小 32 和上述更改的以下测量结果。
 
-![](https://files.mdnice.com/user/59/53121902-0fd3-4c89-b93b-be4ee0b3d686.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/53121902-0fd3-4c89-b93b-be4ee0b3d686.png)
 
 ## Triton：用于融合相对位置编码的自定义 SDPA
 
 暂时从推理吞吐量转移，我们开始分析整体 SAM 内存。在图像编码器中，我们看到了显著的内存分配峰值：
 
-![](https://files.mdnice.com/user/59/64e67ba9-a8b0-4d59-bfc8-015819704d49.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/64e67ba9-a8b0-4d59-bfc8-015819704d49.png)
 
 放大看，我们看到这个分配发生在 add_decomposed_rel_pos 中，在以下行(https://github.com/pytorch-labs/segment-anything-fast/blob/main/segment_anything_fast/modeling/image_encoder.py#L373)：
 
-![](https://files.mdnice.com/user/59/c535cc16-f847-4cf0-9cfc-a3b73f8ff032.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c535cc16-f847-4cf0-9cfc-a3b73f8ff032.png)
 
 这里的 attn 变量是两个较小张量的加法：形状为 (B, q_h, q_w, k_h, 1) 的 rel_h 和形状为 (B, q_h, q_w, 1, k_w) 的 rel_w。
 
@@ -141,11 +141,11 @@ PyTorch 原生注意力实现，查看代码(https://github.com/pytorch-labs/seg
 
 ### kernel 追踪
 
-![](https://files.mdnice.com/user/59/5f93a44f-b57c-4870-9b6e-172df86f5506.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5f93a44f-b57c-4870-9b6e-172df86f5506.jpg)
 
 使用我们自定义的位置 Triton kernel ，我们观察到批量大小 32 的以下测量结果。
 
-![](https://files.mdnice.com/user/59/d89a889f-0805-400f-9b22-da3a0ccc8344.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d89a889f-0805-400f-9b22-da3a0ccc8344.png)
 
 ## NT：NestedTensor 和批处理 predict_torch
 
@@ -159,15 +159,15 @@ torch.nested.nested_tensor(data, dtype=dtype, layout=torch.jagged)
 
 ### kernel 追踪
 
-![](https://files.mdnice.com/user/59/7d10b00f-944e-41cd-850a-f5fcc5629e81.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7d10b00f-944e-41cd-850a-f5fcc5629e81.png)
 
-![](https://files.mdnice.com/user/59/f99e260b-3f57-48a1-b14d-fde55767e011.jpg)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/f99e260b-3f57-48a1-b14d-fde55767e011.jpg)
 
 我们现在可以看到，我们可以比 GPU 处理更快地从 CPU 启动kernel ，并且它在我们的计时区域末尾花费了很长时间等待 GPU 完成（cudaDeviceSynchronize）。我们也不再看到 GPU 上kernel 之间的空闲时间（空白区域）。
 
 使用嵌套张量，我们观察到批量大小 32 和上述更改的以下测量结果。
 
-![](https://files.mdnice.com/user/59/5c002eaf-9333-4efd-a012-efbceb2e612f.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/5c002eaf-9333-4efd-a012-efbceb2e612f.png)
 
 ## int8：量化和近似矩阵乘法
 
@@ -179,7 +179,7 @@ torch.nested.nested_tensor(data, dtype=dtype, layout=torch.jagged)
 
 虽然在推理时量化模型时通常会看到一些精度回归，但 SAM 对低精度推理特别稳健，精度损失最小。添加量化后，我们现在观察到**批量大小 32**和上述更改的以下测量结果。
 
-![](https://files.mdnice.com/user/59/7bb0c2b4-9b32-4f4f-a50d-f297fe4d75b4.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/7bb0c2b4-9b32-4f4f-a50d-f297fe4d75b4.png)
 
 ## sparse：半结构化 (2:4) 稀疏性
 
@@ -187,7 +187,7 @@ torch.nested.nested_tensor(data, dtype=dtype, layout=torch.jagged)
 
 剪枝方法多种多样，从完全非结构化（其中权重被贪婪地剪枝）到高度结构化（其中张量的大子组件一次被剪枝）。方法的选择并非微不足道。虽然非结构化剪枝理论上对精度的影响可能最小，但 GPU 在乘以大的密集矩阵方面也非常高效，在稀疏情况下可能会遭受显著的性能下降。PyTorch 支持的一种最近的剪枝方法寻求取得平衡，称为半结构化（或 2:4）稀疏性。这种稀疏存储将原始张量减少了显著的 50%，同时产生可以利用高性能 2:4 GPU kernel 的密集张量输出。请参见以下图片进行说明。
 
-![](https://files.mdnice.com/user/59/553ec62c-1a6a-4cea-8a5c-a33b10a975de.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/553ec62c-1a6a-4cea-8a5c-a33b10a975de.png)
 
 来自 developer.nvidia.com/blog/exploiting-ampere-structured-sparsity-with-cusparselt
 
@@ -229,7 +229,7 @@ def apply_sparse(model):
 
 使用 2:4 稀疏性，我们在 vit_b 和批量大小 32 的 SAM 上观察到峰值性能：
 
-![](https://files.mdnice.com/user/59/0299ec8e-11e8-4686-8e98-65d8ce19968c.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0299ec8e-11e8-4686-8e98-65d8ce19968c.png)
 
 # 结论
 

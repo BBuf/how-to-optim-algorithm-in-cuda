@@ -73,7 +73,7 @@ Triton 向量加法kernel包含 `@triton.jit` 装饰器。Triton 编译器会编
 
 聚焦于编译过程,Triton 内核通过以下图中所示的一系列阶段被降级为设备特定的汇编代码。
 
-![](https://files.mdnice.com/user/59/44c05c30-e5f1-4684-8289-76f96c5674c9.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/44c05c30-e5f1-4684-8289-76f96c5674c9.png)
 
 内核编译首先通过遍历被装饰的Python函数的抽象语法树(AST)来创建Triton中间表示(Triton-IR)。Triton-IR是一个未优化的、与机器无关的中间表示。它引入了块级编程要求,并基于开源LLVM编译器项目。接下来,Triton编译器优化并将Triton-IR转换为Triton-GPU IR(Triton-TTGIR)阶段,然后转换为LLVM-IR。Triton-IR和Triton-GPUIR表示都是以MLIR Dialect的形式编写的,其中MLIR是LLVM的一个子项目,旨在改进异构硬件的编译。
 
@@ -107,7 +107,7 @@ module {
 
 注意到 Triton kernel 中的主要函数现在表示为:
 
-![](https://files.mdnice.com/user/59/091a0ac6-7215-4b87-b864-4cd3a86735cc.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/091a0ac6-7215-4b87-b864-4cd3a86735cc.png)
 
 在 Triton IR 阶段，`%arg0: !tt.ptr&lt;f32>` 和后续的张量引用表明中间表示已经按数据类型进行了专门化。
 

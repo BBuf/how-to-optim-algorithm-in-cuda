@@ -6,19 +6,19 @@
 
 在经历了 Codex + GPT5.4 Extra High 狂蹬 2 周做的事情之后，我觉得之前自己的学习基本失去意义，一些难理解的知识和一些总结的技巧，其实只是大模型在设置合适 context（SKILL）下的 Token 而已。Codex + GPT5.4 已经达到了非常强的能力，这和 2025 年的感觉完全不一样，真正的智能似乎已经出现了，至少在编程开发领域是这样。读者在 Codex 或者 Claude Code 中可以安装 SGLang 提供的一些 SKILLS，完成 kernel 编写、benchmark 和测试编写、kernel 迭代优化、模型编写、模型优化、CUDA Crash 自动 debug、自动二分坏掉的 commit 等等这些之前需要付出大量人力的工作。
 
-![](https://files.mdnice.com/user/59/82aa43fe-2b76-4f74-a119-bcdfb7c89471.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/82aa43fe-2b76-4f74-a119-bcdfb7c89471.png)
 
 大家感兴趣可以去看这些 SKILL。最近我基于 Codex 和这些 SKILL，让 SGLang Diffusion 的 Z-Image 单卡速度提升 40%，Qwen/Qwen-Image-2512 的单卡速度提升 20%+，并挖掘了一个 kernel fuse 的 pattern：https://github.com/sgl-project/sglang/pull/20395。然后如果用一些更适合 kernel 开发的 Agent 框架，例如 https://github.com/TongmingLAIC/AKO4ALL ，可以让已有的一些 kernel 更容易地获得提升，例如：
 
-![](https://files.mdnice.com/user/59/d0fab410-1beb-400e-b5ce-1256d495e096.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/d0fab410-1beb-400e-b5ce-1256d495e096.png)
 
 然后等待40分钟就让整个模型的端到端性能又提升了2个百分点。
 
-![](https://files.mdnice.com/user/59/c98b6880-41f3-4d28-929e-5d0f91c1c73d.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-3/c98b6880-41f3-4d28-929e-5d0f91c1c73d.png)
 
 这些足以证明当前阶段 Coding Agent 的高超能力。如果你觉得 Agent 还不行，那得思考一下你使用的方式，以及 context 是否给对了。当然，也有一些领域 Agent 还是无法和人类专家对比，但是可怕的是大模型还在进化，gap 只会变小。
 
-![](https://files.mdnice.com/user/59/380c2520-a63a-432b-b775-c5fd4b1edfad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/380c2520-a63a-432b-b775-c5fd4b1edfad.png)
 
 # 0x2. Agent 流程可以优化的地方
 
@@ -32,7 +32,7 @@
 
 不要让 Agent 挂在那里，然后完全不看它的开发流程，就把最后的结果拿来交付。目前实际使用中，Agent 还是会有一些偏离方向的修改，可能会造成破坏性的后果，需要警惕。
 
-![](https://files.mdnice.com/user/59/380c2520-a63a-432b-b775-c5fd4b1edfad.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/380c2520-a63a-432b-b775-c5fd4b1edfad.png)
 
 当这张梗图成为现实，世界将会彻底改变（笑）。
 

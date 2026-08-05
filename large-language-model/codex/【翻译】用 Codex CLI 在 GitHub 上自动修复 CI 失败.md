@@ -12,7 +12,7 @@
 下面是我们将要实现的流水线流程：
 
 
-![](https://files.mdnice.com/user/59/97749434-5fe8-477f-b4e5-c8c09597be16.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/97749434-5fe8-477f-b4e5-c8c09597be16.png)
 
 ## 前置条件
 
@@ -25,7 +25,7 @@
 - 你需要勾选相关设置，以允许 Actions 在你的 repo 中创建 PR，同时也要在你的组织中开启此设置：
 
 
-![](https://files.mdnice.com/user/59/49c74bbf-092a-4df1-85c1-bd72bee32f37.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/49c74bbf-092a-4df1-85c1-bd72bee32f37.png)
 
 ## 第 1 步：把 GitHub Action 加入你的 CI 流水线
 
@@ -107,17 +107,17 @@ jobs:
 
 你可以进入 Repo 下的 Actions 标签页，查看 Actions workflow 中失败的 job。
 
-![](https://files.mdnice.com/user/59/0096795a-2ca1-4c2e-a043-077a8de17502.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/0096795a-2ca1-4c2e-a043-077a8de17502.png)
 
 失败的 workflow 完成后，Codex workflow 应该会被触发。
 
 
-![](https://files.mdnice.com/user/59/88dc604e-ead5-4d76-bf44-8d0d4ac26059.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-2/88dc604e-ead5-4d76-bf44-8d0d4ac26059.png)
 
 ## 第 3 步：确认 Codex 已创建可供审查的 PR
 在 Codex workflow 执行完成后，它应该会从功能分支 `codex/auto-fix` 发起一个 pull request。检查一遍确认没有问题后，再将其合并。
 
-![](https://files.mdnice.com/user/59/19b298c7-a4de-4210-bb13-00fad96d05a5.png)
+![](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/mdnice-assets-2026-08-05-1/19b298c7-a4de-4210-bb13-00fad96d05a5.png)
 
 ## 总结
 
