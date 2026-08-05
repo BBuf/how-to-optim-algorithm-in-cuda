@@ -268,7 +268,7 @@ https://zhuanlan.zhihu.com/p/2067263583239533156
 
 PDL consumer 在源码和 PTX 中都先执行 `griddepcontrol.wait`，再通过 `ld.global.nc`（由 `__ldg()` 生成的非一致只读 load）读取 producer 输出；ptxas 生成 SASS 时，却可能把该 load 调度到 wait 之前。
 
-手工预取只适用于不依赖 producer 的数据，而这里被重排的是依赖数据。因此 PDL consumer 应谨慎使用 `__ldg()` 读取 producer 输出。对于影响正确性的 kernel，还需要检查 SASS，确认相关 load 没有越过 `griddepcontrol.wait`。本目录《SGLang 贴近硬件：用编译产物（PTX-SASS）评审》一文介绍了这种检查方法。
+手工预取只适用于不依赖 producer 的数据，而这里被重排的是依赖数据。因此 PDL consumer 应谨慎使用 `__ldg()` 读取 producer 输出。对于影响正确性的 kernel，还需要检查 SASS，确认相关 load 没有越过 `griddepcontrol.wait`。[**SGLang 贴近硬件：用编译产物（PTX/SASS）评审 PR #26588、DeepGEMM 与架构迁移**](https://mp.weixin.qq.com/s/NDtOu-tWzmfZf-sHbINnVw) 一文介绍了这种检查方法。
 
 ### profiler 中的 kernel duration
 
