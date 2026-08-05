@@ -4,7 +4,7 @@
 
 Kimi K3 是一个 2.8T 参数的混合注意力模型。decode 一个 token 需要经过 93 个注意力层（69 层 KDA + 24 层 MLA）和 92 层 latent-MoE。bs=1 时，单层的计算量很小，瓶颈主要来自 kernel 数量和 launch 延迟，而不是 FLOPs。模型刚接入时，一个 decode step 会启动数百个小 kernel。
 
-SGLang 后续通过 kernel 融合、替换 NVIDIA kernel 和通信融合等方式优化了这条路径。在推测解码介入前，day-0 版本的 decode 吞吐约为 113 tok/s（PR #32541 中的最新结果约为 118 tokens/s）。本文引用的内部数据来自另一套 GB300 多机 TP8 配置，不能与 day-0 博客中的绝对值直接比较。这些优化新增或改写了不少 kernel，其中多数接入了 PDL（Programmatic Dependent Launch），用于重叠相邻 kernel 的 launch 和 prolog。
+SGLang 后续通过 kernel 融合、替换 NVIDIA kernel 和通信融合等方式优化了这条路径。在推测解码介入前，day-0 版本的 decode 吞吐约为 113 tok/s（PR #32541 中的最新结果约为 118 tokens/s）。下文只引用已经公开的绝对性能数据，未公开的测试结果只保留定性结论。这些优化新增或改写了不少 kernel，其中多数接入了 PDL（Programmatic Dependent Launch），用于重叠相邻 kernel 的 launch 和 prolog。
 
 本文按调用链梳理 K3 中接入 PDL 的 kernel，记录相邻依赖关系、wait/trigger 的位置、能够重叠的工作和现有性能数据，最后整理实现中遇到的问题。主要代码来自两个 PR：
 
@@ -16,7 +16,7 @@ K3 独立 kernel 导出 PR #32890：
 
 https://github.com/sgl-project/sglang/pull/32890
 
-后者增加 27808 行，`PDL`/`griddepcontrol` 在 diff 中命中约 300 处。性能数据还包括 bs=1 开发记录中的测试结果。
+后者增加 27808 行，`PDL`/`griddepcontrol` 在 diff 中命中约 300 处。下文对这些实现的分析以代码 diff 和公开性能结果为准。
 
 PDL 的原理部分参考以下两篇文章：
 
@@ -118,30 +118,30 @@ https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
 
 ## 0x3. 计算链上的 PDL
 
-下表列出 #32890 导出的 K3 计算 kernel。“打包”表示该项收益包含在所在 PR 的整体 A/B 中，没有单独归因。
+下表列出 #32890 导出的 K3 计算 kernel。“整体 A/B”表示该项收益包含在所在 PR 的整体测试中，无法单独归因。
 
-| kernel | 链上位置（producer → consumer） | PDL 用法要点 | 性能数据 |
+| kernel | 链上位置（producer → consumer） | PDL 用法要点 | 性能结论 |
 |---|---|---|---|
-| `tiny_gemm`（n/k 两变体） | qkvg GEMM/norm → KDA 窄投影、router gate | 权重在 wait 前预取 | kernel 级 B200：bfa 2.11→1.23µs、forget 2.23→1.01µs、router 7.71→3.79µs |
-| `route_radix_v2` | fused-front GEMM → MoE 路由 | bias 在 wait 前预取；选完 topk 即 trigger | 6.10→3.01µs @M=1 |
-| `route_quant_fused` | fused-front GEMM → {路由 + FP8 量化} | 量化 CTA 自带独立 wait/trigger | e2e 112.3→114.5 tok/s |
-| `align_single_token` | route → grouped GEMM | 3 launch+memset 折成 1×32 线程 launch 并入链 | 与 topk_sum 合测 ITL 17.86→17.31ms |
-| `topk_sum` | marlin MoE 输出 → top-k 求和 | 入口 wait / 尾部 trigger | kernel 2.1µs vs torch.sum 6.7µs |
-| `add3` / `moe_tail_add` | up_proj + shared + prefix_sum 三路加 | **开头就 trigger**；可选 b/c 预取 | 打包（tail fusions 16.92→16.33ms） |
-| `situ_and_mul` 系 | gate_up GEMM → SiTU 激活 | 入口 wait / 尾部 trigger | 打包 |
-| `mla_output_gate` | MLA attn → x·sigmoid(g) | 入口 wait / 尾部 trigger | ~0.08 ms/step |
-| `attn_res_*`（score/combine/fused_tma） | o_proj/AR → 注意力残差链 | fused_tma 只对 prefix_sum 精确 wait | 打包 |
-| `set_mla_kv_concat_q` | q/kv 投影 → trtllm-gen fmha | 融合省 1 launch/层且不断链 | 8.66→8.57ms/step |
-| `kda_packed_decode` / `kda_fused_decode` | KDA 投影 → 状态更新 | 入口 wait，**所有出口分支都 trigger** | packed kernel 级 24.7→15.2µs（注明 PDL 污染） |
-| TGV bf16 GEMM（CuTe-DSL） | bs=1 skinny GEMM | `pdl=True`，trace 里 303 次/步 | e2e 71.0→73.0 tok/s |
+| `tiny_gemm`（n/k 两变体） | qkvg GEMM/norm → KDA 窄投影、router gate | 权重在 wait 前预取 | 微基准：开启预取后延迟下降 |
+| `route_radix_v2` | fused-front GEMM → MoE 路由 | bias 在 wait 前预取；选完 topk 即 trigger | 微基准：延迟下降 |
+| `route_quant_fused` | fused-front GEMM → {路由 + FP8 量化} | 量化 CTA 自带独立 wait/trigger | 整体 A/B：吞吐提升 |
+| `align_single_token` | route → grouped GEMM | 3 launch+memset 折成 1×32 线程 launch 并入链 | 与 `topk_sum` 合测：ITL 下降 |
+| `topk_sum` | marlin MoE 输出 → top-k 求和 | 入口 wait / 尾部 trigger | 微基准：快于通用 `torch.sum` |
+| `add3` / `moe_tail_add` | up_proj + shared + prefix_sum 三路加 | **开头就 trigger**；可选 b/c 预取 | 整体 A/B：ITL 下降 |
+| `situ_and_mul` 系 | gate_up GEMM → SiTU 激活 | 入口 wait / 尾部 trigger | 纳入整体 A/B |
+| `mla_output_gate` | MLA attn → x·sigmoid(g) | 入口 wait / 尾部 trigger | 纳入整体 A/B |
+| `attn_res_*`（score/combine/fused_tma） | o_proj/AR → 注意力残差链 | fused_tma 只对 prefix_sum 精确 wait | 纳入整体 A/B |
+| `set_mla_kv_concat_q` | q/kv 投影 → trtllm-gen fmha | 融合省 1 launch/层且不断链 | 整体 A/B：单 step 时间下降 |
+| `kda_packed_decode` / `kda_fused_decode` | KDA 投影 → 状态更新 | 入口 wait，**所有出口分支都 trigger** | 微基准：开启 PDL 后延迟下降 |
+| TGV bf16 GEMM（CuTe-DSL） | bs=1 skinny GEMM | `pdl=True` | 整体 A/B：吞吐提升 |
 
 下面看几个具体实现。
 
 ### 在 wait 前预取不依赖前驱的数据
 
-`tiny_gemm` 的注释写道：“Weight prefetch: address is input-independent, load before the PDL wait”。权重地址不依赖 producer 的输出，因此 HBM load 可以在 `griddepcontrol.wait` 前发出；激活 x 必须在 wait 后读取。对 bs=1 的 skinny GEMM，权重加载占据了主要时间。B200、T=1 的内部微基准中，bfa 投影从 2.11µs 降到 1.23µs，forget gate 从 2.23µs 降到 1.01µs，router gate 从 7.71µs 降到 3.79µs。
+`tiny_gemm` 的注释写道：“Weight prefetch: address is input-independent, load before the PDL wait”。权重地址不依赖 producer 的输出，因此 HBM load 可以在 `griddepcontrol.wait` 前发出；激活 x 必须在 wait 后读取。对 bs=1 的 skinny GEMM，权重加载占据了主要时间。微基准结果显示，bfa 投影、forget gate 和 router gate 三种形状的延迟都明显下降。
 
-`route_radix_v2` 在 wait 前预取 bias，耗时从 6.10µs 降到 3.01µs。CuTe-DSL 的 `kda_decode_mtp` 会提前发起状态 tile 的 TMA load，TGV GEMM 的 `pdl=True` 也用于提前加载权重。前提是被预取数据的地址和内容都不能依赖紧邻的 producer。
+`route_radix_v2` 在 wait 前预取 bias，微基准也能看到延迟下降。CuTe-DSL 的 `kda_decode_mtp` 会提前发起状态 tile 的 TMA load，TGV GEMM 的 `pdl=True` 也用于提前加载权重。前提是被预取数据的地址和内容都不能依赖紧邻的 producer。
 
 ### 提前放置 trigger
 
@@ -238,17 +238,17 @@ KDA 层：qkvg GEMM → tiny_gemm(权重预取) → kda_fused_decode(全出口 t
 
 ## 0x5. 现有性能数据
 
-目前没有一组完整的 e2e A/B 只切换 PDL 开关。多数改动同时包含 kernel 融合和 PDL，因此不能把全部收益单独归因于 PDL。下面分别列出 kernel 微基准、融合改动的 e2e 数据和一次 PDL 断链修复。
+目前没有一组完整的 e2e A/B 只切换 PDL 开关。多数改动同时包含 kernel 融合和 PDL，因此不能把全部收益单独归因于 PDL。本节只保留公开数据和可公开的定性结论，内部测试的绝对吞吐、ITL、单 kernel 延迟和 launch gap 均不展开。
 
-kernel 微基准可以直接观察 wait 前预取的收益。`tiny_gemm` 从 2.11µs 降到 1.23µs，`route_radix_v2` 从 6.10µs 降到 3.01µs。bs=1 的一个 step 中有数百个类似站点，但它们之间已经存在部分重叠，因此不能把每个站点节省的时间简单相加作为 e2e 收益。
+kernel 微基准可以直接观察 wait 前预取的收益。`tiny_gemm` 和 `route_radix_v2` 在开启预取后都能看到明显的延迟下降。bs=1 的一个 step 中有数百个类似站点，但它们之间已经存在部分重叠，因此不能把每个站点节省的时间简单相加作为 e2e 收益。
 
-内部 bs=1 记录中，tail fusions 与 align/topk_sum 将 ITL 从 17.86ms 降到 17.31ms；包含 `tiny_gemm` 的一组改动将吞吐从 64.1 tok/s 提高到 66.4 tok/s；TGV GEMM 将吞吐从 71.0 tok/s 提高到 73.0 tok/s。这些都是“融合 + PDL”的整体结果。day-0 博客中，包含 P15 的“重叠与 prolog 融合”一组增加了 10.4 tok/s。
+组合 A/B 中，tail fusions 与 align/topk_sum 降低了 ITL；包含 `tiny_gemm` 的一组改动和 TGV GEMM 都提高了吞吐。这些都是“融合 + PDL”的整体结果。公开的 day-0 博客中，包含 P15 的“重叠与 prolog 融合”一组增加了 10.4 tok/s。
 
-MLA decode 路径还出现过一次由 dtype copy 中断 PDL 链的问题。`seq_lens.to(int32)` 每层执行一次，一个 step 共触发 24 次小 copy。将它移出循环，并为 fmha 设置 `enable_pdl` 后，trace 中的 PDL 链恢复连续。该修复随 #32541 合入主线。
+MLA decode 路径还出现过一次由 dtype copy 中断 PDL 链的问题。`seq_lens.to(int32)` 原本在每层都会触发一次小 copy。将它移出循环，并为 fmha 设置 `enable_pdl` 后，trace 中的 PDL 链恢复连续。该修复随 #32541 合入主线。
 
-PDL 只能重叠 launch 边界附近的工作，不能消除 launch 本身携带的固定成本。K3 每个 step 有 187 次 all-reduce；每次之后的 gap 为 3.55µs，PDL 只能覆盖其中 0.42µs。剩余开销来自 ncclSymk 每次 launch 携带的 4KB 参数块，最终通过更换通信实现（custom AR v2）解决。
+PDL 只能重叠 launch 边界附近的工作，不能消除 launch 本身携带的固定成本。在 all-reduce 路径上，PDL 只能遮住每次通信后的一小部分 gap，其余开销来自通信实现的固定 launch 和参数传递成本，最终通过更换为 custom AR v2 解决。
 
-SGLang 主线的 custom allreduce v2 也在三个算法中使用 PDL，入口调用 `PDLWaitPrimary`，出口调用 `PDLTriggerSecondary`。eager 模式的输入输出拷贝则使用支持 PDL 的 memcpy kernel。具体实现见本目录《SGLang Custom AllReduce v1 与 v2 实现原理详解》的 0x7.5 节。
+SGLang 主线的 custom allreduce v2 也在三个算法中使用 PDL，入口调用 `PDLWaitPrimary`，出口调用 `PDLTriggerSecondary`。eager 模式的输入输出拷贝则使用支持 PDL 的 memcpy kernel。具体实现见[**SGLang Custom AllReduce v1 与 v2 实现原理详解**](https://zhuanlan.zhihu.com/p/2065205306540531895) 的 0x7.5 节。
 
 ## 0x6. 实现中遇到的问题
 
@@ -282,7 +282,7 @@ PDL consumer 在源码和 PTX 中都先执行 `griddepcontrol.wait`，再通过 
 
 https://yang-yifan.github.io/blogs/pdl/pdl_cn.html
 
-K3 开发记录中对此有多次备注：“both kernels' trace durations are PDL-polluted”、“per-kernel times under PDL untrustworthy — only e2e ITL and ncu cycles are real”、“ncu Duration for tiny 1-CTA kernels ~2× graphed time”。性能判断应以 e2e ITL（或 tok/s）和 NCU cycle 计数为准。trace 中的 kernel duration 更适合用来检查调用链，例如是否出现负 gap 或意外断链。
+K3 的调试记录也验证了这一点：启用 PDL 后，per-kernel duration 会混入 wait 时间，不能直接用来衡量单个 kernel 的收益。性能判断应以 e2e ITL（或 tok/s）和 NCU cycle 计数为准。trace 中的 kernel duration 更适合用来检查调用链，例如是否出现负 gap 或意外断链。
 
 ### 资源共驻限制
 
@@ -320,4 +320,4 @@ https://www.lmsys.org/blog/2026-07-27-kimi-k3-day0-support
 
 [**SGLang 和 Miles 为 Kimi K3 提供 Day-0 支持**](https://mp.weixin.qq.com/s/H6fstE6NmGnG7LhgQz_lVA)
 
-本目录《SGLang Custom AllReduce v1 与 v2 实现原理详解》0x7.5 节（主线 AR v2 的 PDL）
+[**SGLang Custom AllReduce v1 与 v2 实现原理详解**](https://zhuanlan.zhihu.com/p/2065205306540531895) 0x7.5 节（主线 AR v2 的 PDL）
