@@ -85,7 +85,7 @@ struct packed_t {
 对齐到 16 B 的数组类型让编译器把一次读写生成 `ld.global.128` / `st.global.128`，这是 GPU 单线程一条指令能搬的最大宽度，也是入场校验要求消息字节数是 16 的倍数、v2 进一步要求指针 16 B 对齐的原因。数据遍历是标准的 grid-stride 循环，线程 t 处理第 t、t+stride、t+2·stride… 个 packed 元素，stride = blocks × 512。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_v1_fig1_grid.png" width="98%" alt="v1 的 grid 配置与线程到数据的映射">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/article-assets-sglang-custom-allreduce-v1/custom_ar_v1_fig1_grid.png" width="98%" alt="v1 的 grid 配置与线程到数据的映射">
 </p>
 
 <p align="center">
@@ -118,7 +118,7 @@ DINLINE P* get_tmp_buf(Signal* sg) { return (P*)(((Signal*)sg) + 1); }
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_v1_fig2_signal.png" width="98%" alt="Signal 内存布局与 barrier 握手配对">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/article-assets-sglang-custom-allreduce-v1/custom_ar_v1_fig2_signal.png" width="98%" alt="Signal 内存布局与 barrier 握手配对">
 </p>
 
 <p align="center">
@@ -195,7 +195,7 @@ barrier 是 **per-block** 的。rank r 的 block b 只和所有 rank 的 block b
 `Signal` 里 `peer_counter` 的第一维是 2，源码注释解释了原因：peer 的 block 可能已经到达第二个同步点、开始写 counter+1，而本 rank 的 block 还在第一个同步点等 counter。展开成具体的执行序列更容易看清：
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_v1_fig3_phase.png" width="98%" alt="peer_counter 双相位的必要性">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/article-assets-sglang-custom-allreduce-v1/custom_ar_v1_fig3_phase.png" width="98%" alt="peer_counter 双相位的必要性">
 </p>
 
 <p align="center">
@@ -275,7 +275,7 @@ DINLINE P packed_reduce(const P* ptrs[], int idx) {
 流量上，1stage 每 rank 读 ws×N 字节（(ws−1)/ws 是远程）、写 N 字节本地，读放大 ws 倍。16 KB 消息 ws=8 也就 128 KB 读流量，NVLink 毫无压力；这个算法输在大消息，赢在只有两轮同步。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_v1_fig4_1stage_timeline.png" width="98%" alt="1stage 的一次执行时间线">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/article-assets-sglang-custom-allreduce-v1/custom_ar_v1_fig4_1stage_timeline.png" width="98%" alt="1stage 的一次执行时间线">
 </p>
 
 <p align="center">
@@ -339,7 +339,7 @@ __global__ void __launch_bounds__(512, 1) cross_device_reduce_2stage(
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/custom_ar_v1_fig5_2stage.png" width="98%" alt="2stage 的数据流">
+  <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/article-assets-sglang-custom-allreduce-v1/custom_ar_v1_fig5_2stage.png" width="98%" alt="2stage 的数据流">
 </p>
 
 <p align="center">
