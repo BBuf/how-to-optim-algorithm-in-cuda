@@ -29,4 +29,4 @@ Actively curated around CUDA kernels, LLM inference optimization, and AI infrast
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=BBuf/how-to-optim-algorithm-in-cuda&type=Date)](https://star-history.com/#BBuf/how-to-optim-algorithm-in-cuda&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=BBuf/how-to-optim-algorithm-in-cuda&type=Date)](https://star-history.dera.page/#BBuf/how-to-optim-algorithm-in-cuda&Date)
