@@ -1,17 +1,14 @@
-# SGLang Custom AllReduce v2 线程模型和工作原理细节
+> 纯人工手打，但大多数图还是用GPT画的。
 
-这是 custom allreduce 细节系列的第二篇。[上一篇](https://github.com/BBuf/how-to-optim-algorithm-in-cuda/blob/master/large-language-model/sglang/SGLang%20Custom%20AllReduce%20v1%20%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%92%8C%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E7%BB%86%E8%8A%82.md)把 v1 的 grid 配置、Signal 握手、双相位、内存序逐行拆完；更早的[《SGLang Custom AllReduce v1 与 v2 实现原理详解》](https://zhuanlan.zhihu.com/p/2065205306540531895)在 0x6/0x7 介绍过 v2 的结构划分和三个算法，但同样停在概念层。本文把 v2 拆到与 v1 篇相同的深度：kernel 起多少 block 多少线程、push 路径为什么一个跨 rank barrier 都没有、Semaphore 和 v1 的 Signal 在机制上差在哪、2shot 的中间 barrier 去哪了。读本文前建议先读完 v1 篇，两代的差异全部建立在 v1 的机制之上。
+# 回顾
 
-本文引用的代码来自 `python/sglang/kernels/jit/csrc/distributed/custom_all_reduce.cuh`（三算法 kernel 与 host 分发）、`python/sglang/kernels/jit/include/sgl_kernel/distributed/communicator.cuh`（`Counter` / `Semaphore` 原语与 `CommunicatorObj`）、`python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py`（Python 侧存储与算法选择）、`configs/custom_all_reduce_v2.py`（调优表）。分发链位置、graph 指针表的注册流程、调优表的完整数字见前篇的 0x8/0x9，这里只在涉及 kernel 行为时引用。
+在[SGLang Custom AllReduce v1 线程模型和工作原理细节](https://mp.weixin.qq.com/s/SJRg2ny63qVl1XI1Px1fZw) 里面，主要是了解了一下线程模型和怎么做跨rank同步。比如在Custom Allreduce V1中线程数固定512个，然后num blocks=min(36, packed 元素数 / 512 向上取整)，这里的packed元素也就是常说的cuda的vectorize。然后，barrier是纯自旋，每个block里面只有前world_size个线程参与，自旋的典型代码如`while (ld_flag_volatile(self_counter_ptr) != val); `所示，这里通过不断的查看self_counter_ptr里面的那个值，直到某个peer rank通过nvlink把val写进来，条件退出，barrier就解除了，`ld.volatile`绕过L1 cache，在L2 Cache上读才能看到nvlink写过来的数据，防止命中L1的旧的值产生dead lock。
 
-**TL;DR**
+然而，只有上面的自旋是不够的，因为self_counter是只发生在当前rank的，它只是本rank的一个记事本，记录"我这个block走到第几次barrier了"，用来决定这一轮要写出去的val是多少，别的rank既不会读它也不会写它；真正被自旋完全绑住的那个地址虽然叫`self_counter_ptr`，指的其实是自己Signal里的`peer_counter`槽位，这个才是对外开放的信箱——lane tx 一边把val通过nvlink写进rank tx的`peer_counter[val%2][blockIdx.x][rank]`，一边盯着自己的`peer_counter[val%2][blockIdx.x][tx]`等rank tx写进来，所以Signal里必须是这两个数组分工，一个对内记账、一个对外收信。这两个东西理解好之后Custom Allreduce V1就接近通了，这也是理解multi_gpu_barrier那个最重要的barrier机制的基础吧。
 
-- **v2 把 v1 的 grid 策略反了过来：v1 固定线程数、按消息定 block 数；v2 固定 block 数、按消息定线程数。** push 的 grid 恒等于 SM 数（B200 是 148），pull 恒 96（sm90 是 64），multicast 恒 32；block size 在 128 到 1024 之间随消息挑。grid 必须固定，因为 push 的相位计数器和 pull 的 Semaphore 都是按 block 分配的状态。
-- **1shot_push 没有任何跨 rank barrier。** 数据就绪由载荷本身的位型判定：+0.0 是"空槽"哨兵，push 前把真实的 +0.0 改写成数值等价的 -0.0，接收侧逐元素轮询到全部非零即到齐。关键路径 = 一次 NVLink 写 + 对端一次轮询命中。
-- **push 的双相位靠数据依赖自我限速。** 快 rank 的下一次 push 排在自己这次 poll 之后，而 poll 必须等齐所有人的数据——任何 rank 领先不会超过一个相位，两半 buffer 交替正好够，这是 v1 双相位推演的无 barrier 版本。
-- **pull 系的 Semaphore 把 v1 的"数值配对握手"换成"计数"。** 每个 lane 向所有 rank 的 flag 发一笔 `red.add.sys`（单向原子加，不回读），只有 lane == 本 rank 编号的那一个线程自旋等自家 flag 累计满 world_size。增量可交换、永不覆盖，所以不再需要 v1 的双相位槽位。
-- **2shot 把 all-gather 融合进了写回。** 每个 rank 归约完自己的分片后，直接写回全部 world_size 家 workspace 的同一位置——这次写就是 all-gather，v1 的 stage2 和中间 barrier 整段消失。graph 模式下 workspace 就是各 rank 的输入张量，out = in，真正的原地 all-reduce。
-- **内存序判据与 v1 完全一致：数据写和同步写是否在同一个 kernel 里。** pull 的入口恒 relaxed（数据写在 kernel 之前）；1shot 出口 relaxed（kernel 内只写本地输出）；2shot 出口 release/acquire（kernel 内写了 peer 的 workspace）；push 干脆不用 fence（就绪信息就在数据里）。
+至于barrier里面的volatile，release/acquire：volatile只保证这笔访存真的发生（绕过L1、落到L2这个一致性点上），但对它前后的其它内存操作不提供任何顺序保证；release/acquire才是真正在两张卡之间建立happens-before的那一对。所以要不要付release/acquire的开销，判据只有一条，就是数据写和flag写是不是在同一个kernel里。1stage的输入数据是kernel之前的`cudaMemcpyAsync`或者上游producer kernel写进去的，kernel边界本身就是一个系统级的同步点，flag这时候只承担"我到了"的计数功能，volatile就够用；2stage的中转缓冲是本kernel的stage1刚写进去的，紧接着就在中间barrier里写flag，中间没有任何kernel边界替它们排序，`st.volatile`完全可能越过还在写回路上的数据先到达对端，所以必须换成`st.release.sys`和`ld.acquire.sys`这一对：前者保证中转数据先于flag可见，后者保证barrier之后的读不被提前。
+
+# Custom Allreduce V2的改动
 
 ## 存算分离之后，kernel 拿到什么
 
@@ -45,9 +42,9 @@ all_reduce_kernel(const __grid_constant__ AllReduceParams<kWorldSize> params);
 
 模板参数也换了口味：v1 预编译 ngpus ∈ {2, 4, 6, 8} 四个实例进 sgl-kernel；v2 走 tvm-ffi JIT，按 (dtype, world_size, 是否 PDL) 惰性实例化，`kMaxWorldSize = 16`，world_size 2 到 16 连奇数都支持——GB200 NVL72 的 ws=16 就靠这个（多机 MNNVL 时 graph 零拷贝关闭，workspace 走 fabric 句柄，见 `can_use_custom_all_reduce_v2`）。
 
-## grid 策略：和 v1 反着来
+## grid 策略
 
-v1 的做法是 threads 固定 512、block 数随消息从 2 涨到 36 封顶。v2 完全反过来——**block 数固定、block size 随消息变**：
+- 第一点是Custom Allreduce V1固定了线程数量，然后根据要allreduce的tensor的大小来决定num blocks。V2不是这样，V2是根据allreduce的tensor的大小来决定线程数量，num blocks一直固定。
 
 ```c++
 // 来源：sglang/python/sglang/kernels/jit/csrc/distributed/custom_all_reduce.cuh
@@ -61,13 +58,31 @@ uint32_t choose_block_size(uint32_t num_threads) {
 }
 ```
 
-block 数从哪来？三个算法各有一个常数，全部出自调优表而不是消息尺寸：
+这个代码里面的`kNumSM`是多少？它不是一个写死的常量，而是运行时拿`cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, device)`查出来的当前卡的物理SM数，外面套了个`static const` + lambda，所以一个进程里只查一次：
 
-| 算法 | block 数（sm100 / sm90，ws=8） | 出处 |
+```c++
+// 来源：sglang/python/sglang/kernels/jit/csrc/distributed/custom_all_reduce.cuh
+static const uint32_t kNumSM = [] {
+  int device = 0, sm_count = 0;
+  host::RuntimeDeviceCheck(cudaGetDevice(&device));
+  host::RuntimeDeviceCheck(cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, device));
+  return static_cast<uint32_t>(sm_count);
+}();
+```
+
+B200上是148，H200上是132。所以`choose_block_size`上面code里面的循环的意思大概就是说：从128开始往上试，挑第一个能让grid塞进**一个wave**（也就是`div_ceil(num_threads, block_size) <= kNumSM`）的block size，128/256/512都塞不下就返回1024。注释也说了`the kernels are grid-stride so any choice is correct, this only tunes occupancy`——选哪个都算得对，这里实际上就是在调occupancy，消息越小挑的block越窄。
+
+block_size的选择知道了，那block数又从哪里来决定呢？num blocks不看消息大小，是从调优表`python/sglang/srt/distributed/device_communicators/configs/custom_all_reduce_v2.py`里按`(架构, world_size)`查出来的常数，这应该是根据性能去tune的：
+
+| 算法 | sm100（B200/GB200） | sm90（H100/H200） |
 |---|---|---|
-| 1shot_push | 148（= SM 数）/ 132 | `num_push_blocks`，注释标明 "not configurable (bound to the counter array)" |
-| 1shot_pull / 2shot_pull | 96 / 64 | `num_pull_blocks`（ws=2 时 sm100 用满 SM 数） |
-| 2shot·multicast | 32 / 16，固定 512 线程 | `num_mc_blocks`，源码注释 "too much traffic will degrade performance in multicast" |
+| 1shot_push | `num_push_blocks = num_sm`（148） | `num_sm`（132） |
+| 1shot_pull / 2shot_pull | `num_pull_blocks = 96`（ws=2时用满`num_sm`） | 64 |
+| 2shot·multicast | `{5:64, 6:48, 7:48, 8:32, 16:32}` | `128 // world_size`，ws<4直接关掉 |
+
+multicast那档还额外把线程数写死在512，并且取`std::min(num_blocks, max_blocks)`，源码注释给的理由是`too much traffic will degrade performance in multicast`——NVLS走交换机，塞太多并发流量反而更慢（可以看出这里也是tune的？）。
+
+除了上面两个问题，grid部分还有一个问题是这个num block数为什么**必须**是常数而不能像v1那样随消息而变化，launch处的注释已经明示了：`the grid is bound to the counter array and must stay constant`。push的相位计数器是按block分配的，pull的Semaphore同理，同步状态和grid绑死了，grid一变槽位就对不上。这其实和v1的`kMaxBlocks = 36`是同一类约束——那个36也不是调优出来的，而是`Signal`里`self_counter[36][8]`、`peer_counter[2][36][8]`就只开了这么多槽位——只是约束的方向反了：v1是同步状态给grid设了个上限，v2是同步状态要求grid恒定。
 
 <p align="center">
   <img src="https://github.com/BBuf/how-to-optim-algorithm-in-cuda/releases/download/article-assets-sglang-custom-allreduce-v2/custom_ar_v2_fig1_grid.png" width="98%" alt="v1 与 v2 的 grid 策略对比">
@@ -233,7 +248,7 @@ static SGL_DEVICE uint32_t sync_enter_pull(const AllReduceParams<kWorldSize>& pa
 
 **等的动作也变了**：v1 每 block 有 ws 个 lane 各自自旋比对自己槽位的值；v2 每 block 只有 lane == rank 的**一个**线程自旋，条件是 `flag - current < ws`——自基线起累计满 ws 个增量即全员到达。基线 `current` 来自进门时对自家 `m_counter` 的一次 `atomicAdd(2 × kWorldSize)`：一口气预留了本次调用进门 + 出门总共 2ws 个增量的配额，出门自旋直接用 `current + ws` 做基线。flag 单调累加永不清零，回绕由无符号减法自然处理。
 
-**为什么不再需要双相位**：v1 篇用整整一节推演了单槽位死锁——本质是"写数值"会**覆盖**，晚读的 rank 会错过自己在等的值。v2 的增量可交换：快 rank 出门 barrier 的 +1 和慢 rank 还在等的进门 +1 落在同一个 flag 上互不干扰。相邻 barrier 的增量混在同一个计数里不损坏语义，靠的是每次调用固定消耗 2ws 个增量、基线由 counter 预留精确对齐。**一个 flag 顶了 v1 的 2 × ws 个槽位。**
+**为什么不再需要双相位**：v1 篇用整整一节推演了单槽位死锁——本质是"写数值"会**覆盖**，晚读的 rank 会错过自己在等的值。v2 的增量可交换：快 rank 出门 barrier 的 +1 和慢 rank 还在等的进门 +1 落在同一个 flag 上互不干扰，慢 rank 的判断条件 `flag - current >= ws` 只会被"提前满足"吗？不会——出门的增量确实会提前累进 flag，但慢 rank 进门自旋的阈值恰好是 ws，而在它自己没 put 出门旗之前，flag 至多收到 ws（全员进门）+ (ws-1)（其他人出门）个增量，减去它的进门基线后 ≥ ws 恒成立时全员必已进门。相邻 barrier 的增量混在同一个计数里不损坏语义，靠的是每次调用固定消耗 2ws 个增量、基线由 counter 预留精确对齐。**一个 flag 顶了 v1 的 2 × ws 个槽位。**
 
 fence 的选择延续 v1 判据：进门恒 relaxed（数据写在 kernel 之前，kernel 边界已是系统级可见点）；1shot 出门 relaxed（kernel 内只写了本地输出）；2shot 出门 release/acquire（kernel 内写了 peer 的 workspace，见下节）。
 
@@ -305,20 +320,70 @@ v1 的 kernel 没有 PDL，自旋期间整条 stream 干等。v2 三个算法统
 
 ## 两代机制对照
 
-| 机制点 | v1 | v2 |
-|---|---|---|
-| grid 策略 | threads 固定 512，block 数 2..36 随消息 | block 数固定（push=SM 数 / pull=96 / mc=32），block size 128..1024 随消息 |
-| 小消息同步原语 | Signal 双相位数值握手，ws 个 lane 各自自旋 | push：零 barrier，pos_zero 哨兵 + 本地相位计数 |
-| pull 系 barrier | 每 block × 每 rank 一个槽位，写轮次号、比对相等 | 每 block 一个 128 B Semaphore，red.add 计数、单 lane 自旋 |
-| 防覆盖 | peer_counter[2] 双相位槽位 | push：数据依赖限速；pull：增量可交换，无需相位 |
-| fence 判据 | 同一 kernel 内写→读用 release/acquire | 同一判据；push 数据即旗标，判据退化 |
-| 2shot 结构 | reduce-scatter + 中间 fence barrier + all-gather | all-gather 融合进写回，中间 barrier 消失 |
-| 原地性 | 恒出参（result 独立分配） | graph 2shot 真原地（out = in） |
-| 分片余数 | 最后一个 rank 吃 | 前 rem 个 rank 各多一份 |
-| 读源顺序 | 2stage 轮转错峰 | 原序 0..ws-1 |
-| 硬件归约 | 无 | multimem.ld_reduce / multimem.st（NVLS） |
-| PDL | 无 | 三算法 + eager memcpy 全接，出口 trigger 先于自旋 |
-| 实例化 | 预编译 ngpus ∈ {2,4,6,8} | JIT per (dtype, ws, PDL)，ws 2..16 含奇数 |
+| 机制点
+| v1
+| v2
+|
+
+| grid 策略
+| threads 固定 512，block 数 2..36 随消息
+| block 数固定（push=SM 数 / pull=96 / mc=32），block size 128..1024 随消息
+|
+
+| 小消息同步原语
+| Signal 双相位数值握手，ws 个 lane 各自自旋
+| push：零 barrier，pos_zero 哨兵 + 本地相位计数
+|
+
+| pull 系 barrier
+| 每 block × 每 rank 一个槽位，写轮次号、比对相等
+| 每 block 一个 128 B Semaphore，red.add 计数、单 lane 自旋
+|
+
+| 防覆盖
+| peer_counter[2] 双相位槽位
+| push：数据依赖限速；pull：增量可交换，无需相位
+|
+
+| fence 判据
+| 同一 kernel 内写→读用 release/acquire
+| 同一判据；push 数据即旗标，判据退化
+|
+
+| 2shot 结构
+| reduce-scatter + 中间 fence barrier + all-gather
+| all-gather 融合进写回，中间 barrier 消失
+|
+
+| 原地性
+| 恒出参（result 独立分配）
+| graph 2shot 真原地（out = in）
+|
+
+| 分片余数
+| 最后一个 rank 吃
+| 前 rem 个 rank 各多一份
+|
+
+| 读源顺序
+| 2stage 轮转错峰
+| 原序 0..ws-1
+|
+
+| 硬件归约
+| 无
+| multimem.ld_reduce / multimem.st（NVLS）
+|
+
+| PDL
+| 无
+| 三算法 + eager memcpy 全接，出口 trigger 先于自旋
+|
+
+| 实例化
+| 预编译 ngpus ∈ {2,4,6,8}
+| JIT per (dtype, ws, PDL)，ws 2..16 含奇数
+|
 
 ## 小结
 
