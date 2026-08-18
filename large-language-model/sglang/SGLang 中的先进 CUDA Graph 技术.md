@@ -6,7 +6,7 @@
 
 CUDA Graph 的目标是消除 kernel launch 开销，但要在真实的推理引擎中尽可能接近这一理想收益，就需要在不牺牲兼容性、启动时间和显存的前提下，将尽可能多的工作负载纳入 CUDA Graph。
 
-在 SGLang 中，我们围绕统一的 Runner/Backend 接口重构了 CUDA Graph 支持，让不同的捕获策略可以复用于不同执行路径。**Breakable CUDA Graph（BCG）是由 SGLang 原创的推理服务技术：它最早由 SGLang 提出、命名、实现并开源**，始于 #19102（https://github.com/sgl-project/sglang/pull/19102），随后在 #22218（https://github.com/sgl-project/sglang/pull/22218）中扩展到 Prefill。SGLang 社区还率先在 FA4 和 FlashInfer attention backend 上实现了 Prefill 的 Full CUDA Graph。本文也会深入介绍 CUDA Graph 的显存管理，包括不同 shape 和 graph segment 之间的显存复用。这部分正在成为 SGLang 整体显存管理中越来越重要的一环。
+在 SGLang 中，我们围绕统一的 Runner/Backend 接口重构了 CUDA Graph 支持，让不同的捕获策略可以复用于不同执行路径。**Breakable CUDA Graph（BCG）是由 SGLang 原创的推理服务技术：它最早由 SGLang 提出、命名、实现并开源**。首个实现于 2026 年 2 月 21 日通过 #19102（https://github.com/sgl-project/sglang/pull/19102）公开，Prefill 扩展随后于 2026 年 4 月 24 日通过 #22218（https://github.com/sgl-project/sglang/pull/22218）合入。SGLang 社区还率先在 FA4 和 FlashInfer attention backend 上实现了 Prefill 的 Full CUDA Graph。本文也会深入介绍 CUDA Graph 的显存管理，包括不同 shape 和 graph segment 之间的显存复用。这部分正在成为 SGLang 整体显存管理中越来越重要的一环。
 
 目前，Breakable CUDA Graph 已经是 SGLang Prefill 路径的默认方案。它只用了约四分之一的代码量，就实现了与基于 `torch.compile` 的 piecewise backend 相同的分段执行效果（521 行对 1771 行）；由于不需要编译，构建 Prefill graph 的速度快了 3.8～5.2 倍，同时也能更自然地兼容复杂功能。Prefill 的 Full CUDA Graph 更进一步：即使面对动态的 Prefill workload，也可以通过 request padding 捕获完整 forward。只测 Prefill 阶段时，BCG 相比 Eager 执行快 1.70 倍，Full CUDA Graph 则达到 1.93 倍。
 
