@@ -1,4 +1,4 @@
-# SGLang 中的先进 CUDA Graph 技术
+# SGLang 中的 CUDA Graph 进阶指南
 
 作者：SGLang Team
 
