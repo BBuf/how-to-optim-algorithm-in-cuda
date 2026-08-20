@@ -53,7 +53,7 @@ video.
 
 | Mode                                   | 5 s median / speedup | 10 s median / speedup | 5 s mean SSIM | 10 s mean SSIM |
 | -------------------------------------- | --------------------:| ---------------------:| -------------:| --------------:|
-| Diffusers                              | 74.34 s / 1.00×      | 207.71 s / 1.00×      | 0.7842        | 0.7820         |
+| Diffusers                              | 74.34 s / 1.00×      | 207.71 s / 1.00×      | —             | —              |
 | SGLang lossless                        | 39.67 s / 1.87×      | 112.44 s / 1.85×      | 1.0000        | 1.0000         |
 | Cache-DiT conservative                 | 28.02 s / 2.65×      | 78.28 s / 2.65×       | 0.8986        | 0.9179         |
 | SubBlock 0.75                          | 30.90 s / 2.41×      | 77.12 s / 2.69×       | 0.8006        | 0.8301         |
@@ -67,7 +67,7 @@ video.
 
 | Mode                                   | 5 s median / speedup | 10 s median / speedup | 5 s mean SSIM | 10 s mean SSIM |
 | -------------------------------------- | --------------------:| ---------------------:| -------------:| --------------:|
-| Diffusers                              | 80.44 s / 1.00×      | 217.31 s / 1.00×      | 0.6859        | 0.7073         |
+| Diffusers                              | 80.44 s / 1.00×      | 217.31 s / 1.00×      | —             | —              |
 | SGLang lossless                        | 41.31 s / 1.95×      | 114.02 s / 1.91×      | 1.0000        | 1.0000         |
 | Cache-DiT conservative                 | 26.90 s / 2.99×      | 78.24 s / 2.78×       | 0.9389        | 0.9771         |
 | SubBlock 0.75                          | 31.27 s / 2.57×      | 76.95 s / 2.82×       | 0.8946        | 0.9385         |
@@ -82,9 +82,9 @@ video.
 
 - **SGLang's dense path is the first easy win.** It delivers a 1.85–1.95× speedup over
   Diffusers across both tasks and durations, with the workload held constant.
-- **SubBlock 0.75 + Cache-DiT stride is the balanced profile.** It keeps SSIM
-  close to or above the corresponding Diffusers row across the matrix, while
-  delivering 4.90–5.64× speedup at 5 seconds and 5.44–5.93× at 10 seconds.
+- **SubBlock 0.75 + Cache-DiT stride is the balanced profile.** It maintains
+  good output quality while delivering 4.90–5.64× speedup at 5 seconds and
+  5.44–5.93× at 10 seconds.
 - **Stride caching adds the largest throughput gain.** It reaches 3.99–4.46×
   on its own, compared with 2.65–2.99× for the conservative profile.
 - **FL2VA benefits slightly more from cache + sparse combinations.** The
