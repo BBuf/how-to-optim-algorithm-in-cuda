@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 430" width="940" role="img" aria-labelledby="title desc">
+<title id="title">MiniMax-H3 H200 fused-kernel speedup</title>
+<desc id="desc">Five MiniMax-H3 non-GEMM kernel sites compared with their eager compositions on the measured H200-class per-rank shapes.</desc>
+<rect width="940" height="430" rx="14" fill="#f0eee6"/>
+<text x="30.0" y="34.0" font-family="Arial, Helvetica, sans-serif" font-size="16.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">Fused kernel speedup over the eager composition (higher is better)</text>
+<text x="30.0" y="56.0" font-family="Arial, Helvetica, sans-serif" font-size="12.5px" font-weight="400" fill="#6b675f" text-anchor="start">MiniMax-H3 per-rank inference shapes · BF16 · median of 10 rounds × 20 calls</text>
+<text x="108.0" y="236.3" font-family="Arial, Helvetica, sans-serif" font-size="15.0px" font-weight="600" fill="#1f1e1d" text-anchor="middle">3.58×</text>
+<rect x="70.0" y="246.3" width="76.0" height="53.7" rx="4" fill="#d97757"><title>AdaLN modulation (indexed scale-shift): 3.58×</title></rect>
+<text x="108.0" y="322.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">AdaLN modulation</text>
+<text x="108.0" y="337.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">(indexed scale-shift)</text>
+<text x="284.0" y="260.0" font-family="Arial, Helvetica, sans-serif" font-size="15.0px" font-weight="600" fill="#1f1e1d" text-anchor="middle">2.00×</text>
+<rect x="246.0" y="270.0" width="76.0" height="30.0" rx="4" fill="#d97757"><title>AdaLN gated residual (indexed): 2.00×</title></rect>
+<text x="284.0" y="322.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">AdaLN gated residual</text>
+<text x="284.0" y="337.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">(indexed)</text>
+<text x="460.0" y="238.1" font-family="Arial, Helvetica, sans-serif" font-size="15.0px" font-weight="600" fill="#1f1e1d" text-anchor="middle">3.46×</text>
+<rect x="422.0" y="248.1" width="76.0" height="51.9" rx="4" fill="#d97757"><title>SwiGLU activation (in place): 3.46×</title></rect>
+<text x="460.0" y="322.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">SwiGLU activation</text>
+<text x="460.0" y="337.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">(in place)</text>
+<text x="636.0" y="224.8" font-family="Arial, Helvetica, sans-serif" font-size="15.0px" font-weight="600" fill="#1f1e1d" text-anchor="middle">4.35×</text>
+<rect x="598.0" y="234.8" width="76.0" height="65.2" rx="4" fill="#d97757"><title>QK RMSNorm: 4.35×</title></rect>
+<text x="636.0" y="322.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">QK RMSNorm</text>
+<text x="812.0" y="107.6" font-family="Arial, Helvetica, sans-serif" font-size="15.0px" font-weight="600" fill="#1f1e1d" text-anchor="middle">12.16×</text>
+<rect x="774.0" y="117.6" width="76.0" height="182.4" rx="4" fill="#d97757"><title>QK RMSNorm + 3D RoPE (one kernel): 12.16×</title></rect>
+<text x="812.0" y="322.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">QK RMSNorm + 3D RoPE</text>
+<text x="812.0" y="337.0" font-family="Arial, Helvetica, sans-serif" font-size="11.0px" font-weight="400" fill="#1f1e1d" text-anchor="middle">(one kernel)</text>
+</svg>

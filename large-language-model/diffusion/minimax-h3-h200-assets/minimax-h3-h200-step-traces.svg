@@ -1,0 +1,315 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 650" width="1180" role="img" aria-labelledby="title desc">
+<title id="title">MiniMax-H3 H200 49-step T2VA execution traces</title>
+<desc id="desc">Six real five-second T2VA traces show dense computation, Cache-DiT reuse, and SubBlock sparse-attention steps.</desc>
+<rect width="1180" height="650" rx="14" fill="#f0eee6"/>
+<text x="32.0" y="36.0" font-family="Arial, Helvetica, sans-serif" font-size="19.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">Real 49-step T2VA execution traces: computed, reused, and sparsified steps</text>
+<text x="32.0" y="60.0" font-family="Arial, Helvetica, sans-serif" font-size="12.0px" font-weight="400" fill="#6b675f" text-anchor="start">T2VA · 5 s · 49 denoising steps</text>
+<text x="32.0" y="86.0" font-family="Arial, Helvetica, sans-serif" font-size="13.5px" font-weight="600" fill="#1f1e1d" text-anchor="start">SGLang lossless (reference) · 49 computed · 0 reused · 37.78 s</text>
+<rect x="32.00" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 0: Dense computed step</title></rect>
+<rect x="54.82" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 1: Dense computed step</title></rect>
+<rect x="77.63" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 2: Dense computed step</title></rect>
+<rect x="100.45" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 3: Dense computed step</title></rect>
+<rect x="123.27" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 4: Dense computed step</title></rect>
+<rect x="146.08" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 5: Dense computed step</title></rect>
+<rect x="168.90" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 6: Dense computed step</title></rect>
+<rect x="191.71" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 7: Dense computed step</title></rect>
+<rect x="214.53" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 8: Dense computed step</title></rect>
+<rect x="237.35" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 9: Dense computed step</title></rect>
+<rect x="260.16" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 10: Dense computed step</title></rect>
+<rect x="282.98" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 11: Dense computed step</title></rect>
+<rect x="305.80" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 12: Dense computed step</title></rect>
+<rect x="328.61" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 13: Dense computed step</title></rect>
+<rect x="351.43" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 14: Dense computed step</title></rect>
+<rect x="374.24" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 15: Dense computed step</title></rect>
+<rect x="397.06" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 16: Dense computed step</title></rect>
+<rect x="419.88" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 17: Dense computed step</title></rect>
+<rect x="442.69" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 18: Dense computed step</title></rect>
+<rect x="465.51" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 19: Dense computed step</title></rect>
+<rect x="488.33" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 20: Dense computed step</title></rect>
+<rect x="511.14" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 21: Dense computed step</title></rect>
+<rect x="533.96" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 22: Dense computed step</title></rect>
+<rect x="556.78" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 23: Dense computed step</title></rect>
+<rect x="579.59" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 24: Dense computed step</title></rect>
+<rect x="602.41" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 25: Dense computed step</title></rect>
+<rect x="625.22" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 26: Dense computed step</title></rect>
+<rect x="648.04" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 27: Dense computed step</title></rect>
+<rect x="670.86" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 28: Dense computed step</title></rect>
+<rect x="693.67" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 29: Dense computed step</title></rect>
+<rect x="716.49" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 30: Dense computed step</title></rect>
+<rect x="739.31" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 31: Dense computed step</title></rect>
+<rect x="762.12" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 32: Dense computed step</title></rect>
+<rect x="784.94" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 33: Dense computed step</title></rect>
+<rect x="807.76" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 34: Dense computed step</title></rect>
+<rect x="830.57" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 35: Dense computed step</title></rect>
+<rect x="853.39" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 36: Dense computed step</title></rect>
+<rect x="876.20" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 37: Dense computed step</title></rect>
+<rect x="899.02" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 38: Dense computed step</title></rect>
+<rect x="921.84" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 39: Dense computed step</title></rect>
+<rect x="944.65" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 40: Dense computed step</title></rect>
+<rect x="967.47" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 41: Dense computed step</title></rect>
+<rect x="990.29" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 42: Dense computed step</title></rect>
+<rect x="1013.10" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 43: Dense computed step</title></rect>
+<rect x="1035.92" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 44: Dense computed step</title></rect>
+<rect x="1058.73" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 45: Dense computed step</title></rect>
+<rect x="1081.55" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 46: Dense computed step</title></rect>
+<rect x="1104.37" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 47: Dense computed step</title></rect>
+<rect x="1127.18" y="96.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 48: Dense computed step</title></rect>
+<text x="32.0" y="164.0" font-family="Arial, Helvetica, sans-serif" font-size="13.5px" font-weight="600" fill="#1f1e1d" text-anchor="start">+Cache-DiT conservative (4, 0.04, 1) · 34 computed · 15 reused · 26.82 s</text>
+<rect x="32.00" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 0: Dense computed step</title></rect>
+<rect x="54.82" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 1: Dense computed step</title></rect>
+<rect x="77.63" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 2: Dense computed step</title></rect>
+<rect x="100.45" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 3: Dense computed step</title></rect>
+<rect x="123.27" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 4: Dense computed step</title></rect>
+<rect x="146.08" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 5: Dense computed step</title></rect>
+<rect x="168.90" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 6: Dense computed step</title></rect>
+<rect x="191.71" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 7: Dense computed step</title></rect>
+<rect x="214.53" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 8: Cache-DiT reuse</title></rect>
+<rect x="237.35" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 9: Dense computed step</title></rect>
+<rect x="260.16" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 10: Cache-DiT reuse</title></rect>
+<rect x="282.98" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 11: Dense computed step</title></rect>
+<rect x="305.80" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 12: Cache-DiT reuse</title></rect>
+<rect x="328.61" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 13: Dense computed step</title></rect>
+<rect x="351.43" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 14: Cache-DiT reuse</title></rect>
+<rect x="374.24" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 15: Dense computed step</title></rect>
+<rect x="397.06" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 16: Cache-DiT reuse</title></rect>
+<rect x="419.88" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 17: Dense computed step</title></rect>
+<rect x="442.69" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 18: Cache-DiT reuse</title></rect>
+<rect x="465.51" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 19: Dense computed step</title></rect>
+<rect x="488.33" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 20: Cache-DiT reuse</title></rect>
+<rect x="511.14" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 21: Dense computed step</title></rect>
+<rect x="533.96" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 22: Cache-DiT reuse</title></rect>
+<rect x="556.78" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 23: Dense computed step</title></rect>
+<rect x="579.59" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 24: Cache-DiT reuse</title></rect>
+<rect x="602.41" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 25: Dense computed step</title></rect>
+<rect x="625.22" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 26: Cache-DiT reuse</title></rect>
+<rect x="648.04" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 27: Dense computed step</title></rect>
+<rect x="670.86" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 28: Cache-DiT reuse</title></rect>
+<rect x="693.67" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 29: Dense computed step</title></rect>
+<rect x="716.49" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 30: Cache-DiT reuse</title></rect>
+<rect x="739.31" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 31: Dense computed step</title></rect>
+<rect x="762.12" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 32: Cache-DiT reuse</title></rect>
+<rect x="784.94" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 33: Dense computed step</title></rect>
+<rect x="807.76" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 34: Cache-DiT reuse</title></rect>
+<rect x="830.57" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 35: Dense computed step</title></rect>
+<rect x="853.39" y="174.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 36: Cache-DiT reuse</title></rect>
+<rect x="876.20" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 37: Dense computed step</title></rect>
+<rect x="899.02" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 38: Dense computed step</title></rect>
+<rect x="921.84" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 39: Dense computed step</title></rect>
+<rect x="944.65" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 40: Dense computed step</title></rect>
+<rect x="967.47" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 41: Dense computed step</title></rect>
+<rect x="990.29" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 42: Dense computed step</title></rect>
+<rect x="1013.10" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 43: Dense computed step</title></rect>
+<rect x="1035.92" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 44: Dense computed step</title></rect>
+<rect x="1058.73" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 45: Dense computed step</title></rect>
+<rect x="1081.55" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 46: Dense computed step</title></rect>
+<rect x="1104.37" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 47: Dense computed step</title></rect>
+<rect x="1127.18" y="174.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 48: Dense computed step</title></rect>
+<text x="32.0" y="242.0" font-family="Arial, Helvetica, sans-serif" font-size="13.5px" font-weight="600" fill="#1f1e1d" text-anchor="start">SubBlock 0.75 · 49 computed (10 dense + 39 sparse) · 0 reused · 29.97 s</text>
+<rect x="32.00" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 0: Dense computed step</title></rect>
+<rect x="54.82" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 1: Dense computed step</title></rect>
+<rect x="77.63" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 2: Dense computed step</title></rect>
+<rect x="100.45" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 3: Dense computed step</title></rect>
+<rect x="123.27" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 4: Dense computed step</title></rect>
+<rect x="146.08" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 5: Dense computed step</title></rect>
+<rect x="168.90" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 6: Dense computed step</title></rect>
+<rect x="191.71" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 7: Dense computed step</title></rect>
+<rect x="214.53" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 8: Dense computed step</title></rect>
+<rect x="237.35" y="252.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 9: Dense computed step</title></rect>
+<rect x="260.16" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 10: Computed with SubBlock sparse attention</title></rect>
+<rect x="282.98" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 11: Computed with SubBlock sparse attention</title></rect>
+<rect x="305.80" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 12: Computed with SubBlock sparse attention</title></rect>
+<rect x="328.61" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 13: Computed with SubBlock sparse attention</title></rect>
+<rect x="351.43" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 14: Computed with SubBlock sparse attention</title></rect>
+<rect x="374.24" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 15: Computed with SubBlock sparse attention</title></rect>
+<rect x="397.06" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 16: Computed with SubBlock sparse attention</title></rect>
+<rect x="419.88" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 17: Computed with SubBlock sparse attention</title></rect>
+<rect x="442.69" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 18: Computed with SubBlock sparse attention</title></rect>
+<rect x="465.51" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 19: Computed with SubBlock sparse attention</title></rect>
+<rect x="488.33" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 20: Computed with SubBlock sparse attention</title></rect>
+<rect x="511.14" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 21: Computed with SubBlock sparse attention</title></rect>
+<rect x="533.96" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 22: Computed with SubBlock sparse attention</title></rect>
+<rect x="556.78" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 23: Computed with SubBlock sparse attention</title></rect>
+<rect x="579.59" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 24: Computed with SubBlock sparse attention</title></rect>
+<rect x="602.41" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 25: Computed with SubBlock sparse attention</title></rect>
+<rect x="625.22" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 26: Computed with SubBlock sparse attention</title></rect>
+<rect x="648.04" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 27: Computed with SubBlock sparse attention</title></rect>
+<rect x="670.86" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 28: Computed with SubBlock sparse attention</title></rect>
+<rect x="693.67" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 29: Computed with SubBlock sparse attention</title></rect>
+<rect x="716.49" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 30: Computed with SubBlock sparse attention</title></rect>
+<rect x="739.31" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 31: Computed with SubBlock sparse attention</title></rect>
+<rect x="762.12" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 32: Computed with SubBlock sparse attention</title></rect>
+<rect x="784.94" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 33: Computed with SubBlock sparse attention</title></rect>
+<rect x="807.76" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 34: Computed with SubBlock sparse attention</title></rect>
+<rect x="830.57" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 35: Computed with SubBlock sparse attention</title></rect>
+<rect x="853.39" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 36: Computed with SubBlock sparse attention</title></rect>
+<rect x="876.20" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 37: Computed with SubBlock sparse attention</title></rect>
+<rect x="899.02" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 38: Computed with SubBlock sparse attention</title></rect>
+<rect x="921.84" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 39: Computed with SubBlock sparse attention</title></rect>
+<rect x="944.65" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 40: Computed with SubBlock sparse attention</title></rect>
+<rect x="967.47" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 41: Computed with SubBlock sparse attention</title></rect>
+<rect x="990.29" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 42: Computed with SubBlock sparse attention</title></rect>
+<rect x="1013.10" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 43: Computed with SubBlock sparse attention</title></rect>
+<rect x="1035.92" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 44: Computed with SubBlock sparse attention</title></rect>
+<rect x="1058.73" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 45: Computed with SubBlock sparse attention</title></rect>
+<rect x="1081.55" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 46: Computed with SubBlock sparse attention</title></rect>
+<rect x="1104.37" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 47: Computed with SubBlock sparse attention</title></rect>
+<rect x="1127.18" y="252.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 48: Computed with SubBlock sparse attention</title></rect>
+<text x="32.0" y="320.0" font-family="Arial, Helvetica, sans-serif" font-size="13.5px" font-weight="600" fill="#1f1e1d" text-anchor="start">SubBlock 0.75 + Cache-DiT conservative (4, 0.04, 1) · 34 computed (9 dense + 25 sparse) · 15 reused · 22.18 s</text>
+<rect x="32.00" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 0: Dense computed step</title></rect>
+<rect x="54.82" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 1: Dense computed step</title></rect>
+<rect x="77.63" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 2: Dense computed step</title></rect>
+<rect x="100.45" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 3: Dense computed step</title></rect>
+<rect x="123.27" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 4: Dense computed step</title></rect>
+<rect x="146.08" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 5: Dense computed step</title></rect>
+<rect x="168.90" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 6: Dense computed step</title></rect>
+<rect x="191.71" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 7: Dense computed step</title></rect>
+<rect x="214.53" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 8: Cache-DiT reuse</title></rect>
+<rect x="237.35" y="330.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 9: Dense computed step</title></rect>
+<rect x="260.16" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 10: Computed with SubBlock sparse attention</title></rect>
+<rect x="282.98" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 11: Cache-DiT reuse</title></rect>
+<rect x="305.80" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 12: Computed with SubBlock sparse attention</title></rect>
+<rect x="328.61" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 13: Cache-DiT reuse</title></rect>
+<rect x="351.43" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 14: Computed with SubBlock sparse attention</title></rect>
+<rect x="374.24" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 15: Cache-DiT reuse</title></rect>
+<rect x="397.06" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 16: Computed with SubBlock sparse attention</title></rect>
+<rect x="419.88" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 17: Cache-DiT reuse</title></rect>
+<rect x="442.69" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 18: Computed with SubBlock sparse attention</title></rect>
+<rect x="465.51" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 19: Cache-DiT reuse</title></rect>
+<rect x="488.33" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 20: Computed with SubBlock sparse attention</title></rect>
+<rect x="511.14" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 21: Cache-DiT reuse</title></rect>
+<rect x="533.96" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 22: Computed with SubBlock sparse attention</title></rect>
+<rect x="556.78" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 23: Cache-DiT reuse</title></rect>
+<rect x="579.59" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 24: Computed with SubBlock sparse attention</title></rect>
+<rect x="602.41" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 25: Cache-DiT reuse</title></rect>
+<rect x="625.22" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 26: Computed with SubBlock sparse attention</title></rect>
+<rect x="648.04" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 27: Cache-DiT reuse</title></rect>
+<rect x="670.86" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 28: Computed with SubBlock sparse attention</title></rect>
+<rect x="693.67" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 29: Cache-DiT reuse</title></rect>
+<rect x="716.49" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 30: Computed with SubBlock sparse attention</title></rect>
+<rect x="739.31" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 31: Cache-DiT reuse</title></rect>
+<rect x="762.12" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 32: Computed with SubBlock sparse attention</title></rect>
+<rect x="784.94" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 33: Cache-DiT reuse</title></rect>
+<rect x="807.76" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 34: Computed with SubBlock sparse attention</title></rect>
+<rect x="830.57" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 35: Cache-DiT reuse</title></rect>
+<rect x="853.39" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 36: Computed with SubBlock sparse attention</title></rect>
+<rect x="876.20" y="330.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 37: Cache-DiT reuse</title></rect>
+<rect x="899.02" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 38: Computed with SubBlock sparse attention</title></rect>
+<rect x="921.84" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 39: Computed with SubBlock sparse attention</title></rect>
+<rect x="944.65" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 40: Computed with SubBlock sparse attention</title></rect>
+<rect x="967.47" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 41: Computed with SubBlock sparse attention</title></rect>
+<rect x="990.29" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 42: Computed with SubBlock sparse attention</title></rect>
+<rect x="1013.10" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 43: Computed with SubBlock sparse attention</title></rect>
+<rect x="1035.92" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 44: Computed with SubBlock sparse attention</title></rect>
+<rect x="1058.73" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 45: Computed with SubBlock sparse attention</title></rect>
+<rect x="1081.55" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 46: Computed with SubBlock sparse attention</title></rect>
+<rect x="1104.37" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 47: Computed with SubBlock sparse attention</title></rect>
+<rect x="1127.18" y="330.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 48: Computed with SubBlock sparse attention</title></rect>
+<text x="32.0" y="398.0" font-family="Arial, Helvetica, sans-serif" font-size="13.5px" font-weight="600" fill="#1f1e1d" text-anchor="start">+Cache-DiT stride (4, 0.08, 3) · 21 computed · 28 reused · 17.23 s</text>
+<rect x="32.00" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 0: Dense computed step</title></rect>
+<rect x="54.82" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 1: Dense computed step</title></rect>
+<rect x="77.63" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 2: Dense computed step</title></rect>
+<rect x="100.45" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 3: Dense computed step</title></rect>
+<rect x="123.27" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 4: Cache-DiT reuse</title></rect>
+<rect x="146.08" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 5: Dense computed step</title></rect>
+<rect x="168.90" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 6: Cache-DiT reuse</title></rect>
+<rect x="191.71" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 7: Dense computed step</title></rect>
+<rect x="214.53" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 8: Cache-DiT reuse</title></rect>
+<rect x="237.35" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 9: Cache-DiT reuse</title></rect>
+<rect x="260.16" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 10: Dense computed step</title></rect>
+<rect x="282.98" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 11: Cache-DiT reuse</title></rect>
+<rect x="305.80" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 12: Cache-DiT reuse</title></rect>
+<rect x="328.61" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 13: Dense computed step</title></rect>
+<rect x="351.43" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 14: Cache-DiT reuse</title></rect>
+<rect x="374.24" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 15: Cache-DiT reuse</title></rect>
+<rect x="397.06" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 16: Cache-DiT reuse</title></rect>
+<rect x="419.88" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 17: Dense computed step</title></rect>
+<rect x="442.69" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 18: Cache-DiT reuse</title></rect>
+<rect x="465.51" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 19: Cache-DiT reuse</title></rect>
+<rect x="488.33" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 20: Cache-DiT reuse</title></rect>
+<rect x="511.14" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 21: Dense computed step</title></rect>
+<rect x="533.96" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 22: Cache-DiT reuse</title></rect>
+<rect x="556.78" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 23: Cache-DiT reuse</title></rect>
+<rect x="579.59" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 24: Cache-DiT reuse</title></rect>
+<rect x="602.41" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 25: Dense computed step</title></rect>
+<rect x="625.22" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 26: Cache-DiT reuse</title></rect>
+<rect x="648.04" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 27: Cache-DiT reuse</title></rect>
+<rect x="670.86" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 28: Cache-DiT reuse</title></rect>
+<rect x="693.67" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 29: Dense computed step</title></rect>
+<rect x="716.49" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 30: Cache-DiT reuse</title></rect>
+<rect x="739.31" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 31: Cache-DiT reuse</title></rect>
+<rect x="762.12" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 32: Cache-DiT reuse</title></rect>
+<rect x="784.94" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 33: Dense computed step</title></rect>
+<rect x="807.76" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 34: Cache-DiT reuse</title></rect>
+<rect x="830.57" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 35: Cache-DiT reuse</title></rect>
+<rect x="853.39" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 36: Dense computed step</title></rect>
+<rect x="876.20" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 37: Cache-DiT reuse</title></rect>
+<rect x="899.02" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 38: Cache-DiT reuse</title></rect>
+<rect x="921.84" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 39: Dense computed step</title></rect>
+<rect x="944.65" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 40: Cache-DiT reuse</title></rect>
+<rect x="967.47" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 41: Dense computed step</title></rect>
+<rect x="990.29" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 42: Cache-DiT reuse</title></rect>
+<rect x="1013.10" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 43: Dense computed step</title></rect>
+<rect x="1035.92" y="408.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 44: Cache-DiT reuse</title></rect>
+<rect x="1058.73" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 45: Dense computed step</title></rect>
+<rect x="1081.55" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 46: Dense computed step</title></rect>
+<rect x="1104.37" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 47: Dense computed step</title></rect>
+<rect x="1127.18" y="408.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 48: Dense computed step</title></rect>
+<text x="32.0" y="476.0" font-family="Arial, Helvetica, sans-serif" font-size="13.5px" font-weight="600" fill="#1f1e1d" text-anchor="start">SubBlock 0.80 + Cache-DiT stride · 21 computed (6 dense + 15 sparse) · 28 reused · 14.34 s</text>
+<rect x="32.00" y="486.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 0: Dense computed step</title></rect>
+<rect x="54.82" y="486.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 1: Dense computed step</title></rect>
+<rect x="77.63" y="486.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 2: Dense computed step</title></rect>
+<rect x="100.45" y="486.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 3: Dense computed step</title></rect>
+<rect x="123.27" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 4: Cache-DiT reuse</title></rect>
+<rect x="146.08" y="486.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 5: Dense computed step</title></rect>
+<rect x="168.90" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 6: Cache-DiT reuse</title></rect>
+<rect x="191.71" y="486.0" width="20.82" height="31" rx="3" fill="#d97757" stroke="#f0eee6" stroke-width="1"><title>step 7: Dense computed step</title></rect>
+<rect x="214.53" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 8: Cache-DiT reuse</title></rect>
+<rect x="237.35" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 9: Cache-DiT reuse</title></rect>
+<rect x="260.16" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 10: Computed with SubBlock sparse attention</title></rect>
+<rect x="282.98" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 11: Cache-DiT reuse</title></rect>
+<rect x="305.80" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 12: Cache-DiT reuse</title></rect>
+<rect x="328.61" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 13: Computed with SubBlock sparse attention</title></rect>
+<rect x="351.43" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 14: Cache-DiT reuse</title></rect>
+<rect x="374.24" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 15: Cache-DiT reuse</title></rect>
+<rect x="397.06" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 16: Cache-DiT reuse</title></rect>
+<rect x="419.88" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 17: Computed with SubBlock sparse attention</title></rect>
+<rect x="442.69" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 18: Cache-DiT reuse</title></rect>
+<rect x="465.51" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 19: Cache-DiT reuse</title></rect>
+<rect x="488.33" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 20: Cache-DiT reuse</title></rect>
+<rect x="511.14" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 21: Computed with SubBlock sparse attention</title></rect>
+<rect x="533.96" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 22: Cache-DiT reuse</title></rect>
+<rect x="556.78" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 23: Cache-DiT reuse</title></rect>
+<rect x="579.59" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 24: Cache-DiT reuse</title></rect>
+<rect x="602.41" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 25: Computed with SubBlock sparse attention</title></rect>
+<rect x="625.22" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 26: Cache-DiT reuse</title></rect>
+<rect x="648.04" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 27: Cache-DiT reuse</title></rect>
+<rect x="670.86" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 28: Cache-DiT reuse</title></rect>
+<rect x="693.67" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 29: Computed with SubBlock sparse attention</title></rect>
+<rect x="716.49" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 30: Cache-DiT reuse</title></rect>
+<rect x="739.31" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 31: Cache-DiT reuse</title></rect>
+<rect x="762.12" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 32: Cache-DiT reuse</title></rect>
+<rect x="784.94" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 33: Computed with SubBlock sparse attention</title></rect>
+<rect x="807.76" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 34: Cache-DiT reuse</title></rect>
+<rect x="830.57" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 35: Cache-DiT reuse</title></rect>
+<rect x="853.39" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 36: Computed with SubBlock sparse attention</title></rect>
+<rect x="876.20" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 37: Cache-DiT reuse</title></rect>
+<rect x="899.02" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 38: Cache-DiT reuse</title></rect>
+<rect x="921.84" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 39: Computed with SubBlock sparse attention</title></rect>
+<rect x="944.65" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 40: Cache-DiT reuse</title></rect>
+<rect x="967.47" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 41: Computed with SubBlock sparse attention</title></rect>
+<rect x="990.29" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 42: Cache-DiT reuse</title></rect>
+<rect x="1013.10" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 43: Computed with SubBlock sparse attention</title></rect>
+<rect x="1035.92" y="486.0" width="20.82" height="31" rx="3" fill="#dedbd0" stroke="#f0eee6" stroke-width="1"><title>step 44: Cache-DiT reuse</title></rect>
+<rect x="1058.73" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 45: Computed with SubBlock sparse attention</title></rect>
+<rect x="1081.55" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 46: Computed with SubBlock sparse attention</title></rect>
+<rect x="1104.37" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 47: Computed with SubBlock sparse attention</title></rect>
+<rect x="1127.18" y="486.0" width="20.82" height="31" rx="3" fill="#4d87cf" stroke="#f0eee6" stroke-width="1"><title>step 48: Computed with SubBlock sparse attention</title></rect>
+<line x1="32.0" y1="548.0" x2="1148.0" y2="548.0" stroke="#ddd8cd" stroke-width="1"/>
+<rect x="32.0" y="568.0" width="14" height="14" rx="3" fill="#d97757"/>
+<text x="53.0" y="579.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">Full step: packed video + audio computed</text>
+<rect x="397.0" y="568.0" width="14" height="14" rx="3" fill="#4d87cf"/>
+<text x="418.0" y="579.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">SubBlock sparse step: fewer KV blocks</text>
+<rect x="762.0" y="568.0" width="14" height="14" rx="3" fill="#dedbd0"/>
+<text x="783.0" y="579.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">Cache-DiT reuse: packed block stack reused</text>
+<text x="32.0" y="638.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="start">T2VA · 5 s · 49 denoising steps</text>
+</svg>

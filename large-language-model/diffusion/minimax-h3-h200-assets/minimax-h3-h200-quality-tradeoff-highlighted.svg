@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" role="img" aria-labelledby="title desc">
+<title id="title">MiniMax-H3 H200 speed-quality tradeoff</title>
+<desc id="desc">Speed versus SSIM for T2VA and FL2VA. Six profiles are highlighted: lossless, Cache-DiT conservative and stride, SubBlock 0.75 plus conservative/stride Cache-DiT, and SubBlock 0.80 plus stride.</desc>
+<rect width="1200" height="760" rx="14" fill="#f0eee6"/>
+<text x="30.0" y="34.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">Speed–quality trade-off on 8×H200</text>
+<text x="30.0" y="58.0" font-family="Arial, Helvetica, sans-serif" font-size="12.0px" font-weight="400" fill="#6b675f" text-anchor="start">Highlighted profiles are the modes discussed in the text; other tested modes are muted.</text>
+<text x="30.0" y="102.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">T2VA</text>
+<text x="30.0" y="120.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">5s output · highlighted profiles</text>
+<line x1="104.3" y1="126.0" x2="104.3" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="104.3" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1×</text>
+<line x1="186.5" y1="126.0" x2="186.5" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="186.5" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2×</text>
+<line x1="268.6" y1="126.0" x2="268.6" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="268.6" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3×</text>
+<line x1="350.7" y1="126.0" x2="350.7" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="350.7" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4×</text>
+<line x1="432.9" y1="126.0" x2="432.9" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="432.9" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5×</text>
+<line x1="515.0" y1="126.0" x2="515.0" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="515.0" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6×</text>
+<line x1="92.0" y1="292.7" x2="552.0" y2="292.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="296.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.7</text>
+<line x1="92.0" y1="242.2" x2="552.0" y2="242.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="245.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.8</text>
+<line x1="92.0" y1="191.7" x2="552.0" y2="191.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="195.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.9</text>
+<line x1="92.0" y1="141.2" x2="552.0" y2="141.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="144.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">1.0</text>
+<line x1="92.0" y1="141.2" x2="552.0" y2="141.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
+<text x="322.0" y="354.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
+<text x="50.0" y="222.0" transform="rotate(-90 50.0 222.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
+<circle cx="104.3" cy="250.2" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.7842</title></circle>
+<circle cx="175.8" cy="141.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.87×, SSIM 1.0000</title></circle>
+<circle cx="239.9" cy="192.4" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.65×, SSIM 0.8986</title></circle>
+<circle cx="220.1" cy="241.9" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.41×, SSIM 0.8006</title></circle>
+<circle cx="307.2" cy="245.4" r="5.8" fill="#009E73" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT conservative: 3.47×, SSIM 0.7936</title></circle>
+<circle cx="359.0" cy="240.3" r="5.8" fill="#CC79A7" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT stride: 4.10×, SSIM 0.8037</title></circle>
+<circle cx="424.7" cy="256.7" r="5.8" fill="#56B4E9" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT stride: 4.90×, SSIM 0.7713</title></circle>
+<circle cx="229.2" cy="249.4" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.80: 2.52×, SSIM 0.7858</title></circle>
+<circle cx="437.8" cy="263.2" r="5.8" fill="#D55E00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.80 + Cache-DiT stride: 5.06×, SSIM 0.7584</title></circle>
+<text x="630.0" y="102.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">T2VA</text>
+<text x="630.0" y="120.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">10s output · highlighted profiles</text>
+<line x1="704.3" y1="126.0" x2="704.3" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="704.3" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1×</text>
+<line x1="786.5" y1="126.0" x2="786.5" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="786.5" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2×</text>
+<line x1="868.6" y1="126.0" x2="868.6" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="868.6" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3×</text>
+<line x1="950.8" y1="126.0" x2="950.8" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="950.8" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4×</text>
+<line x1="1032.9" y1="126.0" x2="1032.9" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="1032.9" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5×</text>
+<line x1="1115.0" y1="126.0" x2="1115.0" y2="318.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="1115.0" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6×</text>
+<line x1="692.0" y1="292.7" x2="1152.0" y2="292.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="296.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.7</text>
+<line x1="692.0" y1="242.2" x2="1152.0" y2="242.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="245.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.8</text>
+<line x1="692.0" y1="191.7" x2="1152.0" y2="191.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="195.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.9</text>
+<line x1="692.0" y1="141.2" x2="1152.0" y2="141.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="144.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">1.0</text>
+<line x1="692.0" y1="141.2" x2="1152.0" y2="141.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
+<text x="922.0" y="354.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
+<text x="650.0" y="222.0" transform="rotate(-90 650.0 222.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
+<circle cx="704.3" cy="251.3" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.7820</title></circle>
+<circle cx="774.1" cy="141.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.85×, SSIM 1.0000</title></circle>
+<circle cx="839.9" cy="182.6" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.65×, SSIM 0.9179</title></circle>
+<circle cx="843.1" cy="227.0" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.69×, SSIM 0.8301</title></circle>
+<circle cx="918.7" cy="227.7" r="5.8" fill="#009E73" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT conservative: 3.61×, SSIM 0.8288</title></circle>
+<circle cx="949.9" cy="238.3" r="5.8" fill="#CC79A7" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT stride: 3.99×, SSIM 0.8078</title></circle>
+<circle cx="1069.0" cy="250.6" r="5.8" fill="#56B4E9" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT stride: 5.44×, SSIM 0.7834</title></circle>
+<circle cx="856.3" cy="232.5" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.80: 2.85×, SSIM 0.8193</title></circle>
+<circle cx="1092.0" cy="254.1" r="5.8" fill="#D55E00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.80 + Cache-DiT stride: 5.72×, SSIM 0.7765</title></circle>
+<text x="30.0" y="410.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">FL2VA</text>
+<text x="30.0" y="428.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">5s output · highlighted profiles</text>
+<line x1="104.3" y1="434.0" x2="104.3" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="104.3" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1×</text>
+<line x1="186.5" y1="434.0" x2="186.5" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="186.5" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2×</text>
+<line x1="268.6" y1="434.0" x2="268.6" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="268.6" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3×</text>
+<line x1="350.7" y1="434.0" x2="350.7" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="350.7" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4×</text>
+<line x1="432.9" y1="434.0" x2="432.9" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="432.9" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5×</text>
+<line x1="515.0" y1="434.0" x2="515.0" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="515.0" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6×</text>
+<line x1="92.0" y1="600.7" x2="552.0" y2="600.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="604.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.7</text>
+<line x1="92.0" y1="550.2" x2="552.0" y2="550.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="553.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.8</text>
+<line x1="92.0" y1="499.7" x2="552.0" y2="499.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="503.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.9</text>
+<line x1="92.0" y1="449.2" x2="552.0" y2="449.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="84.0" y="452.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">1.0</text>
+<line x1="92.0" y1="449.2" x2="552.0" y2="449.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
+<text x="322.0" y="662.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
+<text x="50.0" y="530.0" transform="rotate(-90 50.0 530.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
+<circle cx="104.3" cy="607.9" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.6859</title></circle>
+<circle cx="182.4" cy="449.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.95×, SSIM 1.0000</title></circle>
+<circle cx="267.8" cy="480.0" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.99×, SSIM 0.9389</title></circle>
+<circle cx="233.3" cy="502.4" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.57×, SSIM 0.8946</title></circle>
+<circle cx="342.5" cy="503.5" r="5.8" fill="#009E73" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT conservative: 3.90×, SSIM 0.8924</title></circle>
+<circle cx="238.2" cy="508.4" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75 + SageAttention: 2.63×, SSIM 0.8827</title></circle>
+<circle cx="388.5" cy="504.6" r="5.8" fill="#CC79A7" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT stride: 4.46×, SSIM 0.8903</title></circle>
+<circle cx="485.5" cy="518.4" r="5.8" fill="#56B4E9" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT stride: 5.64×, SSIM 0.8629</title></circle>
+<circle cx="244.8" cy="507.9" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.80: 2.71×, SSIM 0.8837</title></circle>
+<circle cx="503.5" cy="525.0" r="5.8" fill="#D55E00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.80 + Cache-DiT stride: 5.86×, SSIM 0.8498</title></circle>
+<text x="630.0" y="410.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">FL2VA</text>
+<text x="630.0" y="428.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">10s output · highlighted profiles</text>
+<line x1="704.3" y1="434.0" x2="704.3" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="704.3" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1×</text>
+<line x1="786.5" y1="434.0" x2="786.5" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="786.5" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2×</text>
+<line x1="868.6" y1="434.0" x2="868.6" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="868.6" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3×</text>
+<line x1="950.8" y1="434.0" x2="950.8" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="950.8" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4×</text>
+<line x1="1032.9" y1="434.0" x2="1032.9" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="1032.9" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5×</text>
+<line x1="1115.0" y1="434.0" x2="1115.0" y2="626.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="1115.0" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6×</text>
+<line x1="692.0" y1="600.7" x2="1152.0" y2="600.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="604.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.7</text>
+<line x1="692.0" y1="550.2" x2="1152.0" y2="550.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="553.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.8</text>
+<line x1="692.0" y1="499.7" x2="1152.0" y2="499.7" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="503.2" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">0.9</text>
+<line x1="692.0" y1="449.2" x2="1152.0" y2="449.2" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="684.0" y="452.7" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="end">1.0</text>
+<line x1="692.0" y1="449.2" x2="1152.0" y2="449.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
+<text x="922.0" y="662.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
+<text x="650.0" y="530.0" transform="rotate(-90 650.0 530.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
+<circle cx="704.3" cy="597.0" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.7073</title></circle>
+<circle cx="779.1" cy="449.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.91×, SSIM 1.0000</title></circle>
+<circle cx="850.5" cy="460.7" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.78×, SSIM 0.9771</title></circle>
+<circle cx="853.8" cy="480.2" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.82×, SSIM 0.9385</title></circle>
+<circle cx="938.4" cy="478.8" r="5.8" fill="#009E73" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT conservative: 3.85×, SSIM 0.9414</title></circle>
+<circle cx="862.0" cy="488.6" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75 + SageAttention: 2.92×, SSIM 0.9219</title></circle>
+<circle cx="970.5" cy="487.2" r="5.8" fill="#CC79A7" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT stride: 4.24×, SSIM 0.9248</title></circle>
+<circle cx="1109.3" cy="489.5" r="5.8" fill="#56B4E9" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.75 + Cache-DiT stride: 5.93×, SSIM 0.9202</title></circle>
+<circle cx="868.6" cy="482.0" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.80: 3.00×, SSIM 0.9350</title></circle>
+<circle cx="1134.8" cy="492.4" r="5.8" fill="#D55E00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SubBlock 0.80 + Cache-DiT stride: 6.24×, SSIM 0.9144</title></circle>
+<text x="30.0" y="704.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="600" fill="#6b675f" text-anchor="start">Highlighted profiles</text>
+<circle cx="180.0" cy="700.0" r="5" fill="#0072B2"/>
+<text x="190.0" y="704.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">SGLang lossless</text>
+<circle cx="510.0" cy="700.0" r="5" fill="#E69F00"/>
+<text x="520.0" y="704.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">Cache-DiT conservative</text>
+<circle cx="840.0" cy="700.0" r="5" fill="#CC79A7"/>
+<text x="850.0" y="704.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">Cache-DiT stride</text>
+<circle cx="180.0" cy="724.0" r="5" fill="#56B4E9"/>
+<text x="190.0" y="728.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">SubBlock 0.75 + Cache-DiT stride</text>
+<circle cx="510.0" cy="724.0" r="5" fill="#009E73"/>
+<text x="520.0" y="728.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">SubBlock 0.75 + Cache-DiT conservative</text>
+<circle cx="840.0" cy="724.0" r="5" fill="#D55E00"/>
+<text x="850.0" y="728.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">SubBlock 0.80 + Cache-DiT stride</text>
+<text x="30.0" y="755.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="start">SSIM is measured against the matching SGLang lossless output.</text>
+</svg>

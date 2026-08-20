@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 760" width="1080" role="img" aria-labelledby="title desc">
+<title id="title">MiniMax-H3 H200 speedup comparison</title>
+<desc id="desc">Four panels compare speedup against the matching Diffusers case for T2VA and FL2VA at five and ten seconds on eight H200 GPUs.</desc>
+<rect width="1080" height="760" rx="14" fill="#f0eee6"/>
+<text x="30.0" y="35.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">Speedup versus the matching Diffusers case (higher is better)</text>
+<text x="30.0" y="59.0" font-family="Arial, Helvetica, sans-serif" font-size="12.0px" font-weight="400" fill="#6b675f" text-anchor="start">The orange-red bars are the Cache-DiT + SubBlock combinations; the fastest tested mode is 0.80 + Cache-DiT stride</text>
+<text x="30.0" y="97.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">T2VA</text>
+<text x="30.0" y="115.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">5s output · baseline = 1.00×</text>
+<line x1="314.8" y1="130.0" x2="314.8" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="314.8" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1.00×</text>
+<line x1="349.7" y1="130.0" x2="349.7" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="349.7" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2.00×</text>
+<line x1="384.5" y1="130.0" x2="384.5" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="384.5" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3.00×</text>
+<line x1="419.4" y1="130.0" x2="419.4" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="419.4" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4.00×</text>
+<line x1="454.2" y1="130.0" x2="454.2" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="454.2" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5.00×</text>
+<line x1="489.1" y1="130.0" x2="489.1" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="489.1" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6.00×</text>
+<text x="272.0" y="142.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Diffusers BF16 dense</text>
+<text x="272.0" y="152.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">+ Ulysses8</text>
+<rect x="280.0" y="132.0" width="34.8" height="23.0" rx="3" fill="#77736b"><title>Diffusers: 1.00×</title></rect>
+<text x="272.0" y="169.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SGLang lossless</text>
+<text x="272.0" y="179.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(reference)</text>
+<rect x="280.0" y="159.0" width="65.3" height="23.0" rx="3" fill="#4d7c9b"><title>SGLang lossless: 1.87×</title></rect>
+<text x="340.3" y="174.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">1.87×</text>
+<text x="272.0" y="196.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT conservative</text>
+<text x="272.0" y="206.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.04, 1)</text>
+<rect x="280.0" y="186.0" width="92.5" height="23.0" rx="3" fill="#d97757"><title>Cache-DiT conservative: 2.65×</title></rect>
+<text x="367.5" y="201.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.65×</text>
+<text x="272.0" y="228.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75</text>
+<rect x="280.0" y="213.0" width="83.8" height="23.0" rx="3" fill="#4f8a72"><title>SubBlock 0.75: 2.41×</title></rect>
+<text x="358.8" y="228.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.41×</text>
+<text x="272.0" y="250.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="272.0" y="260.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">conservative</text>
+<rect x="280.0" y="240.0" width="121.0" height="23.0" rx="3" fill="#ad6b49"><title>SubBlock 0.75 + Cache-DiT conservative: 3.47×</title></rect>
+<text x="396.0" y="255.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">3.47×</text>
+<text x="272.0" y="277.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT stride</text>
+<text x="272.0" y="287.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.08, 3)</text>
+<rect x="280.0" y="267.0" width="142.9" height="23.0" rx="3" fill="#c56b46"><title>Cache-DiT stride: 4.10×</title></rect>
+<text x="417.9" y="282.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">4.10×</text>
+<text x="272.0" y="304.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="272.0" y="314.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="280.0" y="294.0" width="170.8" height="23.0" rx="3" fill="#d05b42"><title>SubBlock 0.75 + Cache-DiT stride: 4.90×</title></rect>
+<text x="445.8" y="309.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">4.90×</text>
+<text x="272.0" y="336.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80</text>
+<rect x="280.0" y="321.0" width="87.8" height="23.0" rx="3" fill="#5b7eaa"><title>SubBlock 0.80: 2.52×</title></rect>
+<text x="362.8" y="336.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.52×</text>
+<text x="272.0" y="358.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80 + Cache-DiT</text>
+<text x="272.0" y="368.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="280.0" y="348.0" width="176.4" height="23.0" rx="3" fill="#c94e3d"><title>SubBlock 0.80 + Cache-DiT stride: 5.06×</title></rect>
+<text x="451.4" y="363.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">5.06×</text>
+<line x1="280.0" y1="373.0" x2="510.0" y2="373.0" stroke="#6b675f" stroke-width="1"/>
+<text x="395.0" y="405.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">×</text>
+<text x="550.0" y="97.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">T2VA</text>
+<text x="550.0" y="115.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">10s output · baseline = 1.00×</text>
+<line x1="834.8" y1="130.0" x2="834.8" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="834.8" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1.00×</text>
+<line x1="869.7" y1="130.0" x2="869.7" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="869.7" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2.00×</text>
+<line x1="904.5" y1="130.0" x2="904.5" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="904.5" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3.00×</text>
+<line x1="939.4" y1="130.0" x2="939.4" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="939.4" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4.00×</text>
+<line x1="974.2" y1="130.0" x2="974.2" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="974.2" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5.00×</text>
+<line x1="1009.1" y1="130.0" x2="1009.1" y2="373.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="1009.1" y="389.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6.00×</text>
+<text x="792.0" y="142.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Diffusers BF16 dense</text>
+<text x="792.0" y="152.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">+ Ulysses8</text>
+<rect x="800.0" y="132.0" width="34.8" height="23.0" rx="3" fill="#77736b"><title>Diffusers: 1.00×</title></rect>
+<text x="792.0" y="169.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SGLang lossless</text>
+<text x="792.0" y="179.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(reference)</text>
+<rect x="800.0" y="159.0" width="64.4" height="23.0" rx="3" fill="#4d7c9b"><title>SGLang lossless: 1.85×</title></rect>
+<text x="859.4" y="174.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">1.85×</text>
+<text x="792.0" y="196.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT conservative</text>
+<text x="792.0" y="206.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.04, 1)</text>
+<rect x="800.0" y="186.0" width="92.5" height="23.0" rx="3" fill="#d97757"><title>Cache-DiT conservative: 2.65×</title></rect>
+<text x="887.5" y="201.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.65×</text>
+<text x="792.0" y="228.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75</text>
+<rect x="800.0" y="213.0" width="93.9" height="23.0" rx="3" fill="#4f8a72"><title>SubBlock 0.75: 2.69×</title></rect>
+<text x="888.9" y="228.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.69×</text>
+<text x="792.0" y="250.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="792.0" y="260.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">conservative</text>
+<rect x="800.0" y="240.0" width="125.9" height="23.0" rx="3" fill="#ad6b49"><title>SubBlock 0.75 + Cache-DiT conservative: 3.61×</title></rect>
+<text x="920.9" y="255.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">3.61×</text>
+<text x="792.0" y="277.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT stride</text>
+<text x="792.0" y="287.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.08, 3)</text>
+<rect x="800.0" y="267.0" width="139.0" height="23.0" rx="3" fill="#c56b46"><title>Cache-DiT stride: 3.99×</title></rect>
+<text x="934.0" y="282.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">3.99×</text>
+<text x="792.0" y="304.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="792.0" y="314.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="800.0" y="294.0" width="189.4" height="23.0" rx="3" fill="#d05b42"><title>SubBlock 0.75 + Cache-DiT stride: 5.44×</title></rect>
+<text x="984.4" y="309.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">5.44×</text>
+<text x="792.0" y="336.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80</text>
+<rect x="800.0" y="321.0" width="99.4" height="23.0" rx="3" fill="#5b7eaa"><title>SubBlock 0.80: 2.85×</title></rect>
+<text x="894.4" y="336.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.85×</text>
+<text x="792.0" y="358.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80 + Cache-DiT</text>
+<text x="792.0" y="368.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="800.0" y="348.0" width="199.5" height="23.0" rx="3" fill="#c94e3d"><title>SubBlock 0.80 + Cache-DiT stride: 5.72×</title></rect>
+<text x="994.5" y="363.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">5.72×</text>
+<line x1="800.0" y1="373.0" x2="1030.0" y2="373.0" stroke="#6b675f" stroke-width="1"/>
+<text x="915.0" y="405.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">×</text>
+<text x="30.0" y="432.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">FL2VA</text>
+<text x="30.0" y="450.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">5s output · baseline = 1.00×</text>
+<line x1="314.8" y1="465.0" x2="314.8" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="314.8" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1.00×</text>
+<line x1="349.7" y1="465.0" x2="349.7" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="349.7" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2.00×</text>
+<line x1="384.5" y1="465.0" x2="384.5" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="384.5" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3.00×</text>
+<line x1="419.4" y1="465.0" x2="419.4" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="419.4" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4.00×</text>
+<line x1="454.2" y1="465.0" x2="454.2" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="454.2" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5.00×</text>
+<line x1="489.1" y1="465.0" x2="489.1" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="489.1" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6.00×</text>
+<text x="272.0" y="475.6" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Diffusers BF16 dense</text>
+<text x="272.0" y="485.6" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">+ Ulysses8</text>
+<rect x="280.0" y="467.0" width="34.8" height="20.3" rx="3" fill="#77736b"><title>Diffusers: 1.00×</title></rect>
+<text x="272.0" y="499.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SGLang lossless</text>
+<text x="272.0" y="509.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(reference)</text>
+<rect x="280.0" y="491.3" width="68.0" height="20.3" rx="3" fill="#4d7c9b"><title>SGLang lossless: 1.95×</title></rect>
+<text x="343.0" y="504.9" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">1.95×</text>
+<text x="272.0" y="524.2" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT conservative</text>
+<text x="272.0" y="534.2" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.04, 1)</text>
+<rect x="280.0" y="515.6" width="104.2" height="20.3" rx="3" fill="#d97757"><title>Cache-DiT conservative: 2.99×</title></rect>
+<text x="379.2" y="529.2" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.99×</text>
+<text x="272.0" y="553.5" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75</text>
+<rect x="280.0" y="539.9" width="89.6" height="20.3" rx="3" fill="#4f8a72"><title>SubBlock 0.75: 2.57×</title></rect>
+<text x="364.6" y="553.5" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.57×</text>
+<text x="272.0" y="572.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="272.0" y="582.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">conservative</text>
+<rect x="280.0" y="564.2" width="135.9" height="20.3" rx="3" fill="#ad6b49"><title>SubBlock 0.75 + Cache-DiT conservative: 3.90×</title></rect>
+<text x="410.9" y="577.9" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">3.90×</text>
+<text x="272.0" y="602.1" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + SageAttention</text>
+<rect x="280.0" y="588.5" width="91.7" height="20.3" rx="3" fill="#8b6aa9"><title>SubBlock 0.75 + SageAttention: 2.63×</title></rect>
+<text x="366.7" y="602.1" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.63×</text>
+<text x="272.0" y="621.5" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT stride</text>
+<text x="272.0" y="631.5" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.08, 3)</text>
+<rect x="280.0" y="612.8" width="155.4" height="20.3" rx="3" fill="#c56b46"><title>Cache-DiT stride: 4.46×</title></rect>
+<text x="430.4" y="626.5" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">4.46×</text>
+<text x="272.0" y="645.8" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="272.0" y="655.8" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="280.0" y="637.1" width="196.5" height="20.3" rx="3" fill="#d05b42"><title>SubBlock 0.75 + Cache-DiT stride: 5.64×</title></rect>
+<text x="471.5" y="650.8" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">5.64×</text>
+<text x="272.0" y="675.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80</text>
+<rect x="280.0" y="661.4" width="94.4" height="20.3" rx="3" fill="#5b7eaa"><title>SubBlock 0.80: 2.71×</title></rect>
+<text x="369.4" y="675.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.71×</text>
+<text x="272.0" y="694.4" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80 + Cache-DiT</text>
+<text x="272.0" y="704.4" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="280.0" y="685.7" width="204.2" height="20.3" rx="3" fill="#c94e3d"><title>SubBlock 0.80 + Cache-DiT stride: 5.86×</title></rect>
+<text x="479.2" y="699.4" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">5.86×</text>
+<line x1="280.0" y1="708.0" x2="510.0" y2="708.0" stroke="#6b675f" stroke-width="1"/>
+<text x="395.0" y="740.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">×</text>
+<text x="550.0" y="432.0" font-family="Arial, Helvetica, sans-serif" font-size="14.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">FL2VA</text>
+<text x="550.0" y="450.0" font-family="Arial, Helvetica, sans-serif" font-size="10.5px" font-weight="400" fill="#6b675f" text-anchor="start">10s output · baseline = 1.00×</text>
+<line x1="834.8" y1="465.0" x2="834.8" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="834.8" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">1.00×</text>
+<line x1="869.7" y1="465.0" x2="869.7" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="869.7" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">2.00×</text>
+<line x1="904.5" y1="465.0" x2="904.5" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="904.5" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">3.00×</text>
+<line x1="939.4" y1="465.0" x2="939.4" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="939.4" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">4.00×</text>
+<line x1="974.2" y1="465.0" x2="974.2" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="974.2" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">5.00×</text>
+<line x1="1009.1" y1="465.0" x2="1009.1" y2="708.0" stroke="#d9d5ca" stroke-width="0.8"/>
+<text x="1009.1" y="724.0" font-family="Arial, Helvetica, sans-serif" font-size="9.5px" font-weight="400" fill="#6b675f" text-anchor="middle">6.00×</text>
+<text x="792.0" y="475.6" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Diffusers BF16 dense</text>
+<text x="792.0" y="485.6" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">+ Ulysses8</text>
+<rect x="800.0" y="467.0" width="34.8" height="20.3" rx="3" fill="#77736b"><title>Diffusers: 1.00×</title></rect>
+<text x="792.0" y="499.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SGLang lossless</text>
+<text x="792.0" y="509.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(reference)</text>
+<rect x="800.0" y="491.3" width="66.6" height="20.3" rx="3" fill="#4d7c9b"><title>SGLang lossless: 1.91×</title></rect>
+<text x="861.6" y="504.9" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">1.91×</text>
+<text x="792.0" y="524.2" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT conservative</text>
+<text x="792.0" y="534.2" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.04, 1)</text>
+<rect x="800.0" y="515.6" width="96.9" height="20.3" rx="3" fill="#d97757"><title>Cache-DiT conservative: 2.78×</title></rect>
+<text x="891.9" y="529.2" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.78×</text>
+<text x="792.0" y="553.5" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75</text>
+<rect x="800.0" y="539.9" width="98.3" height="20.3" rx="3" fill="#4f8a72"><title>SubBlock 0.75: 2.82×</title></rect>
+<text x="893.3" y="553.5" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.82×</text>
+<text x="792.0" y="572.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="792.0" y="582.9" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">conservative</text>
+<rect x="800.0" y="564.2" width="134.2" height="20.3" rx="3" fill="#ad6b49"><title>SubBlock 0.75 + Cache-DiT conservative: 3.85×</title></rect>
+<text x="929.2" y="577.9" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">3.85×</text>
+<text x="792.0" y="602.1" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + SageAttention</text>
+<rect x="800.0" y="588.5" width="101.8" height="20.3" rx="3" fill="#8b6aa9"><title>SubBlock 0.75 + SageAttention: 2.92×</title></rect>
+<text x="896.8" y="602.1" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">2.92×</text>
+<text x="792.0" y="621.5" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">Cache-DiT stride</text>
+<text x="792.0" y="631.5" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">(4, 0.08, 3)</text>
+<rect x="800.0" y="612.8" width="147.8" height="20.3" rx="3" fill="#c56b46"><title>Cache-DiT stride: 4.24×</title></rect>
+<text x="942.8" y="626.5" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">4.24×</text>
+<text x="792.0" y="645.8" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.75 + Cache-DiT</text>
+<text x="792.0" y="655.8" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="800.0" y="637.1" width="206.7" height="20.3" rx="3" fill="#d05b42"><title>SubBlock 0.75 + Cache-DiT stride: 5.93×</title></rect>
+<text x="1001.7" y="650.8" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">5.93×</text>
+<text x="792.0" y="675.0" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80</text>
+<rect x="800.0" y="661.4" width="104.5" height="20.3" rx="3" fill="#5b7eaa"><title>SubBlock 0.80: 3.00×</title></rect>
+<text x="899.5" y="675.0" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">3.00×</text>
+<text x="792.0" y="694.4" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">SubBlock 0.80 + Cache-DiT</text>
+<text x="792.0" y="704.4" font-family="Arial, Helvetica, sans-serif" font-size="9.2px" font-weight="400" fill="#1f1e1d" text-anchor="end">stride</text>
+<rect x="800.0" y="685.7" width="217.5" height="20.3" rx="3" fill="#c94e3d"><title>SubBlock 0.80 + Cache-DiT stride: 6.24×</title></rect>
+<text x="1012.5" y="699.4" font-family="Arial, Helvetica, sans-serif" font-size="9.4px" font-weight="600" fill="#fffaf2" text-anchor="end">6.24×</text>
+<line x1="800.0" y1="708.0" x2="1030.0" y2="708.0" stroke="#6b675f" stroke-width="1"/>
+<text x="915.0" y="740.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">×</text>
+</svg>
