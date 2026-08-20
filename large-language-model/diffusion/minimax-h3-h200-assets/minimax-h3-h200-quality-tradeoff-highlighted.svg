@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" role="img" aria-labelledby="title desc">
 <title id="title">MiniMax-H3 H200 speed-quality tradeoff</title>
-<desc id="desc">Speed versus SSIM for T2VA and FL2VA. Six profiles are highlighted: lossless, Cache-DiT conservative and stride, SubBlock 0.75 plus conservative/stride Cache-DiT, and SubBlock 0.80 plus stride.</desc>
+<desc id="desc">Speed versus SSIM for the SGLang T2VA and FL2VA profiles. Six profiles are highlighted: lossless, Cache-DiT conservative and stride, SubBlock 0.75 plus conservative/stride Cache-DiT, and SubBlock 0.80 plus stride.</desc>
 <rect width="1200" height="760" rx="14" fill="#f0eee6"/>
 <text x="30.0" y="34.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0px" font-weight="600" fill="#1f1e1d" text-anchor="start">Speed–quality trade-off on 8×H200</text>
 <text x="30.0" y="58.0" font-family="Arial, Helvetica, sans-serif" font-size="12.0px" font-weight="400" fill="#6b675f" text-anchor="start">Highlighted profiles are the modes discussed in the text; other tested modes are muted.</text>
@@ -29,7 +29,6 @@
 <line x1="92.0" y1="141.2" x2="552.0" y2="141.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
 <text x="322.0" y="354.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
 <text x="50.0" y="222.0" transform="rotate(-90 50.0 222.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
-<circle cx="104.3" cy="250.2" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.7842</title></circle>
 <circle cx="175.8" cy="141.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.87×, SSIM 1.0000</title></circle>
 <circle cx="239.9" cy="192.4" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.65×, SSIM 0.8986</title></circle>
 <circle cx="220.1" cy="241.9" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.41×, SSIM 0.8006</title></circle>
@@ -63,7 +62,6 @@
 <line x1="692.0" y1="141.2" x2="1152.0" y2="141.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
 <text x="922.0" y="354.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
 <text x="650.0" y="222.0" transform="rotate(-90 650.0 222.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
-<circle cx="704.3" cy="251.3" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.7820</title></circle>
 <circle cx="774.1" cy="141.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.85×, SSIM 1.0000</title></circle>
 <circle cx="839.9" cy="182.6" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.65×, SSIM 0.9179</title></circle>
 <circle cx="843.1" cy="227.0" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.69×, SSIM 0.8301</title></circle>
@@ -97,7 +95,6 @@
 <line x1="92.0" y1="449.2" x2="552.0" y2="449.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
 <text x="322.0" y="662.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
 <text x="50.0" y="530.0" transform="rotate(-90 50.0 530.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
-<circle cx="104.3" cy="607.9" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.6859</title></circle>
 <circle cx="182.4" cy="449.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.95×, SSIM 1.0000</title></circle>
 <circle cx="267.8" cy="480.0" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.99×, SSIM 0.9389</title></circle>
 <circle cx="233.3" cy="502.4" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.57×, SSIM 0.8946</title></circle>
@@ -132,7 +129,6 @@
 <line x1="692.0" y1="449.2" x2="1152.0" y2="449.2" stroke="#9d978c" stroke-width="1.0" stroke-dasharray="4 3"/>
 <text x="922.0" y="662.0" font-family="Arial, Helvetica, sans-serif" font-size="10.0px" font-weight="400" fill="#6b675f" text-anchor="middle">speedup vs Diffusers</text>
 <text x="650.0" y="530.0" transform="rotate(-90 650.0 530.0)" font-family="Arial, Helvetica, sans-serif" font-size="10px" fill="#6b675f" text-anchor="middle">SSIM</text>
-<circle cx="704.3" cy="597.0" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>Diffusers: 1.00×, SSIM 0.7073</title></circle>
 <circle cx="779.1" cy="449.2" r="5.8" fill="#0072B2" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>SGLang lossless: 1.91×, SSIM 1.0000</title></circle>
 <circle cx="850.5" cy="460.7" r="5.8" fill="#E69F00" opacity="1.00" stroke="#fffaf2" stroke-width="1.4"><title>Cache-DiT conservative: 2.78×, SSIM 0.9771</title></circle>
 <circle cx="853.8" cy="480.2" r="3.3" fill="#b8b3aa" opacity="0.36" stroke="#fffaf2" stroke-width="0.8"><title>SubBlock 0.75: 2.82×, SSIM 0.9385</title></circle>
