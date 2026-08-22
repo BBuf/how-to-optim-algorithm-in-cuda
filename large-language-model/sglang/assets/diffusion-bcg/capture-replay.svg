@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="780" viewBox="0 0 1400 780">
+  <defs>
+    <linearGradient id="header" x1="0" x2="1">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title { font: 700 30px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 17px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #475569; }
+      .h { font: 700 21px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #0f172a; }
+      .t { font: 500 17px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #334155; }
+      .small { font: 500 15px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #475569; }
+      .mono { font: 600 15px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="780" rx="24" fill="#f8fafc"/>
+  <rect x="34" y="30" width="1332" height="84" rx="18" fill="url(#header)"/>
+  <text x="70" y="67" class="title" style="fill:#ffffff;font-size:26px">Diffusion BCG：warmup 建图，serving 只 replay 或 eager</text>
+  <text x="70" y="96" class="subtitle" style="fill:#ede9fe">capture signature = tensor shape/dtype + 容器结构 + 非 Tensor 控制值</text>
+
+  <g filter="url(#shadow)">
+    <rect x="50" y="160" width="330" height="230" rx="20" fill="#ffffff" stroke="#cbd5e1"/>
+    <rect x="535" y="160" width="330" height="230" rx="20" fill="#ffffff" stroke="#cbd5e1"/>
+    <rect x="1020" y="160" width="330" height="230" rx="20" fill="#ffffff" stroke="#cbd5e1"/>
+  </g>
+
+  <circle cx="88" cy="200" r="18" fill="#dbeafe"/>
+  <text x="82" y="207" class="h" fill="#2563eb">1</text>
+  <text x="120" y="207" class="h">请求 shape 归一化</text>
+  <text x="78" y="249" class="t">分辨率 / 帧数 / CFG</text>
+  <text x="78" y="281" class="t">prompt conditioning</text>
+  <text x="78" y="313" class="t">当前 Transformer / task</text>
+  <rect x="77" y="336" width="275" height="32" rx="8" fill="#eff6ff"/>
+  <text x="92" y="358" class="mono">text → bucket / native shape</text>
+
+  <path d="M390 275 H515" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <circle cx="573" cy="200" r="18" fill="#ede9fe"/>
+  <text x="567" y="207" class="h" fill="#7c3aed">2</text>
+  <text x="605" y="207" class="h">warmup 显式 capture</text>
+  <text x="563" y="249" class="t">每个声明分辨率</text>
+  <text x="563" y="281" class="t">× 每个有效 text bucket</text>
+  <text x="563" y="313" class="t">× 每条模型执行分支</text>
+  <rect x="562" y="336" width="275" height="32" rx="8" fill="#f5f3ff"/>
+  <text x="578" y="358" class="mono">entries[signature] = graph</text>
+
+  <path d="M875 275 H1000" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <circle cx="1058" cy="200" r="18" fill="#dcfce7"/>
+  <text x="1052" y="207" class="h" fill="#16a34a">3</text>
+  <text x="1090" y="207" class="h">server ready</text>
+  <text x="1048" y="249" class="t">命中 signature：graph replay</text>
+  <text x="1048" y="281" class="t">未命中：安全 eager</text>
+  <text x="1048" y="313" class="t">capture 失败：记入 blocked</text>
+  <rect x="1048" y="336" width="274" height="32" rx="8" fill="#f0fdf4"/>
+  <text x="1063" y="358" class="mono">serving capture count 不增长</text>
+
+  <text x="50" y="450" class="h">一次线上请求会走哪条路？</text>
+
+  <g filter="url(#shadow)">
+    <rect x="50" y="485" width="400" height="190" rx="18" fill="#ffffff" stroke="#86efac" stroke-width="2"/>
+    <rect x="500" y="485" width="400" height="190" rx="18" fill="#ffffff" stroke="#fdba74" stroke-width="2"/>
+    <rect x="950" y="485" width="400" height="190" rx="18" fill="#ffffff" stroke="#fca5a5" stroke-width="2"/>
+  </g>
+
+  <rect x="76" y="510" width="112" height="34" rx="17" fill="#dcfce7"/>
+  <text x="97" y="533" class="small" fill="#15803d">Graph replay</text>
+  <text x="76" y="575" class="t">固定 1024×1024</text>
+  <text x="76" y="607" class="t">prompt 152 → bucket 256</text>
+  <text x="76" y="639" class="small">复制实时输入到 static buffers 后 replay</text>
+
+  <rect x="526" y="510" width="126" height="34" rx="17" fill="#ffedd5"/>
+  <text x="548" y="533" class="small" fill="#c2410c">Eager fallback</text>
+  <text x="526" y="575" class="t">固定 1024×1024</text>
+  <text x="526" y="607" class="t">prompt 超过最大 bucket</text>
+  <text x="526" y="639" class="small">正确性优先，不在 serving 现场建图</text>
+
+  <rect x="976" y="510" width="126" height="34" rx="17" fill="#fee2e2"/>
+  <text x="998" y="533" class="small" fill="#b91c1c">Eager fallback</text>
+  <text x="976" y="575" class="t">请求 1280×768</text>
+  <text x="976" y="607" class="t">warmup 只捕获了 1024×1024</text>
+  <text x="976" y="639" class="small">resolution 是 exact signature，不做 padding</text>
+
+  <line x1="50" y1="720" x2="1350" y2="720" stroke="#cbd5e1"/>
+  <text x="50" y="752" class="small">验收重点：warmup 后 capture 累计数保持常量；signature miss 不等于错误，但意味着该请求没有吃到 BCG 加速。</text>
+</svg>

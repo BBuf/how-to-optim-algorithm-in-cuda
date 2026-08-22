@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="980" viewBox="0 0 1500 980">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .title { font: 700 30px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 17px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #475569; }
+      .h { font: 700 20px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #0f172a; }
+      .t { font: 500 16px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #334155; }
+      .small { font: 500 14px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #64748b; }
+      .mono { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="980" rx="24" fill="#f8fafc"/>
+  <text x="54" y="58" class="title">不同模型为什么不能共用一套 prompt padding</text>
+  <text x="54" y="91" class="subtitle">要稳定的不只是 embedding shape，还包括 mask、RoPE、packed-sequence metadata 和模型本身对 pad token 的语义。</text>
+
+  <g filter="url(#shadow)">
+    <rect x="50" y="130" width="440" height="230" rx="20" fill="#ffffff" stroke="#93c5fd"/>
+    <rect x="530" y="130" width="440" height="230" rx="20" fill="#ffffff" stroke="#c4b5fd"/>
+    <rect x="1010" y="130" width="440" height="230" rx="20" fill="#ffffff" stroke="#f9a8d4"/>
+    <rect x="50" y="400" width="440" height="230" rx="20" fill="#ffffff" stroke="#fdba74"/>
+    <rect x="530" y="400" width="440" height="230" rx="20" fill="#ffffff" stroke="#67e8f9"/>
+    <rect x="1010" y="400" width="440" height="230" rx="20" fill="#ffffff" stroke="#86efac"/>
+  </g>
+
+  <rect x="76" y="154" width="134" height="32" rx="16" fill="#dbeafe"/>
+  <text x="95" y="176" class="small" fill="#1d4ed8">Generic / SANA</text>
+  <text x="76" y="221" class="h">有显式 mask 才补齐</text>
+  <text x="76" y="257" class="t">embedding / ids / mask → text bucket</text>
+  <text x="76" y="287" class="t">dummy token 的 mask = 0</text>
+  <rect x="76" y="310" width="360" height="30" rx="7" fill="#eff6ff"/>
+  <text x="90" y="331" class="mono">19 tokens → [real ×19 | pad ×45]</text>
+
+  <rect x="556" y="154" width="118" height="32" rx="16" fill="#ede9fe"/>
+  <text x="579" y="176" class="small" fill="#6d28d9">Qwen-Image</text>
+  <text x="556" y="221" class="h">数据和位置编码一起补</text>
+  <text x="556" y="257" class="t">encoder states + mask + text RoPE</text>
+  <text x="556" y="287" class="t">txt_seq_lens 改为 bucket</text>
+  <rect x="556" y="310" width="360" height="30" rx="7" fill="#f5f3ff"/>
+  <text x="570" y="331" class="mono">shape 相同，真实长度留在 mask</text>
+
+  <rect x="1036" y="154" width="108" height="32" rx="16" fill="#fce7f3"/>
+  <text x="1057" y="176" class="small" fill="#be185d">Ideogram</text>
+  <text x="1036" y="221" class="h">联合 text + image 序列</text>
+  <text x="1036" y="257" class="t">目标长度 = text bucket + image tokens</text>
+  <text x="1036" y="287" class="t">segment=-1，动态重建 varlen meta</text>
+  <rect x="1036" y="310" width="360" height="30" rx="7" fill="#fdf2f8"/>
+  <text x="1050" y="331" class="mono">[text | image | ignored padding]</text>
+
+  <rect x="76" y="424" width="104" height="32" rx="16" fill="#ffedd5"/>
+  <text x="96" y="446" class="small" fill="#c2410c">Z-Image</text>
+  <text x="76" y="491" class="h">保留 native caption length</text>
+  <text x="76" y="527" class="t">learned pad token 会参与 attention</text>
+  <text x="76" y="557" class="t">再补到 bucket 会改变图像</text>
+  <rect x="76" y="580" width="360" height="30" rx="7" fill="#fff7ed"/>
+  <text x="90" y="601" class="mono">新 native length → eager miss</text>
+
+  <rect x="556" y="424" width="122" height="32" rx="16" fill="#cffafe"/>
+  <text x="574" y="446" class="small" fill="#0e7490">MiniMax-H3</text>
+  <text x="556" y="491" class="h">text bucket + 64-row group</text>
+  <text x="556" y="527" class="t">补 prompt/refiner metadata</text>
+  <text x="556" y="557" class="t">主 packed sequence 不扩充，保 bitwise</text>
+  <rect x="556" y="580" width="360" height="30" rx="7" fill="#ecfeff"/>
+  <text x="570" y="601" class="mono">跨 alignment group → eager miss</text>
+
+  <rect x="1036" y="424" width="270" height="32" rx="16" fill="#dcfce7"/>
+  <text x="1056" y="446" class="small" fill="#15803d">SANA-Video / LTX-2 / LongCat</text>
+  <text x="1036" y="491" class="h">Text stage 已固定长度</text>
+  <text x="1036" y="527" class="t">SANA-Video：默认 300</text>
+  <text x="1036" y="557" class="t">LTX-2：1024；LongCat：512</text>
+  <rect x="1036" y="580" width="360" height="30" rx="7" fill="#f0fdf4"/>
+  <text x="1050" y="601" class="mono">直接 pass-through，避免空 capture</text>
+
+  <text x="50" y="692" class="h">同一个 bucket，哪些东西仍然可能改变 signature？</text>
+  <g filter="url(#shadow)">
+    <rect x="50" y="725" width="1400" height="170" rx="20" fill="#ffffff" stroke="#cbd5e1"/>
+  </g>
+  <g>
+    <rect x="78" y="756" width="235" height="100" rx="14" fill="#f1f5f9"/>
+    <text x="100" y="789" class="h">空间与时间 shape</text>
+    <text x="100" y="822" class="small">分辨率、帧数、latent layout</text>
+
+    <rect x="340" y="756" width="235" height="100" rx="14" fill="#f1f5f9"/>
+    <text x="362" y="789" class="h">执行分支</text>
+    <text x="362" y="822" class="small">CFG、task、Transformer tower</text>
+
+    <rect x="602" y="756" width="235" height="100" rx="14" fill="#f1f5f9"/>
+    <text x="624" y="789" class="h">非 Tensor 常量</text>
+    <text x="624" y="822" class="small">bool/int/str 会被烘焙进 key</text>
+
+    <rect x="864" y="756" width="235" height="100" rx="14" fill="#f1f5f9"/>
+    <text x="886" y="789" class="h">运行时对象</text>
+    <text x="886" y="822" class="small">mutable object 按 identity 区分</text>
+
+    <rect x="1126" y="756" width="288" height="100" rx="14" fill="#fef2f2"/>
+    <text x="1148" y="789" class="h">未覆盖的组合</text>
+    <text x="1148" y="822" class="small">正确 eager，不在 serving 中 capture</text>
+  </g>
+
+  <text x="50" y="943" class="small">这里追求的是“相同语义共享 shape”，不是为了命中率盲目把所有输入填成同一个大 Tensor。</text>
+</svg>

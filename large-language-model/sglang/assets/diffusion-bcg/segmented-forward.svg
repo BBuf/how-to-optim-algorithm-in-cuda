@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="720" viewBox="0 0 1500 720">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#64748b"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .title { font: 700 30px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #0f172a; }
+      .h { font: 700 19px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #0f172a; }
+      .t { font: 500 16px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #334155; }
+      .small { font: 500 14px system-ui, -apple-system, "PingFang SC", sans-serif; fill: #64748b; }
+      .mono { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="720" rx="24" fill="#f8fafc"/>
+  <text x="54" y="58" class="title">一个 DiT forward 如何被拆成 graph segment 和 eager attention</text>
+
+  <text x="55" y="130" class="h">Capture</text>
+  <line x1="160" y1="124" x2="1430" y2="124" stroke="#cbd5e1" stroke-width="2"/>
+  <g filter="url(#shadow)">
+    <rect x="190" y="165" width="285" height="110" rx="18" fill="#eef2ff" stroke="#818cf8"/>
+    <rect x="565" y="165" width="300" height="110" rx="18" fill="#fff7ed" stroke="#fb923c"/>
+    <rect x="955" y="165" width="285" height="110" rx="18" fill="#eef2ff" stroke="#818cf8"/>
+  </g>
+  <text x="240" y="207" class="h">CUDA Graph segment 0</text>
+  <text x="228" y="242" class="small">QKV projection / norm / RoPE</text>
+  <text x="625" y="207" class="h">Eager break</text>
+  <text x="594" y="242" class="small">varlen attention / SP collective</text>
+  <text x="1005" y="207" class="h">CUDA Graph segment 1</text>
+  <text x="1000" y="242" class="small">output projection / residual / MLP</text>
+  <path d="M475 220 H545" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M865 220 H935" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="875" y="188" width="70" height="64" rx="12" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="890" y="214" class="small">bridge</text>
+  <text x="889" y="236" class="small">buffer</text>
+
+  <text x="55" y="355" class="h">Replay</text>
+  <line x1="160" y1="349" x2="1430" y2="349" stroke="#cbd5e1" stroke-width="2"/>
+  <g filter="url(#shadow)">
+    <rect x="190" y="390" width="285" height="110" rx="18" fill="#ecfdf5" stroke="#34d399"/>
+    <rect x="565" y="390" width="300" height="110" rx="18" fill="#fff7ed" stroke="#fb923c"/>
+    <rect x="955" y="390" width="285" height="110" rx="18" fill="#ecfdf5" stroke="#34d399"/>
+  </g>
+  <text x="252" y="432" class="h">segment 0 replay</text>
+  <text x="225" y="467" class="small">读取本次请求的 static input buffers</text>
+  <text x="641" y="432" class="h">真实 eager call</text>
+  <text x="597" y="467" class="small">每次 replay 都重新执行动态 attention</text>
+  <text x="1017" y="432" class="h">segment 1 replay</text>
+  <text x="994" y="467" class="small">继续读取 capture 时绑定的固定地址</text>
+  <path d="M475 445 H545" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M865 445 H935" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="875" y="413" width="70" height="64" rx="12" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="890" y="439" class="small">copy_</text>
+  <text x="887" y="461" class="small">in-place</text>
+
+  <path d="M910 275 V400" stroke="#f59e0b" stroke-width="3" stroke-dasharray="8 7" marker-end="url(#arrow)"/>
+  <text x="932" y="326" class="small">capture 后必须强引用这块地址</text>
+  <text x="932" y="348" class="small">weak-ref 会让后段 graph 读到已释放显存</text>
+
+  <g filter="url(#shadow)">
+    <rect x="110" y="570" width="1280" height="94" rx="18" fill="#ffffff" stroke="#cbd5e1"/>
+  </g>
+  <text x="140" y="606" class="mono">live tensors → copy_ → persistent static buffers → graph.replay()</text>
+  <text x="140" y="639" class="t">BCG 不 trace eager region；它只要求断点输出能够被原地复制回 capture 时的 bridge buffer，并保持地址稳定。</text>
+</svg>
