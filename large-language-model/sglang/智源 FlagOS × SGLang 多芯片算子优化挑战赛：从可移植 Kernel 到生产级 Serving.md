@@ -1,14 +1,16 @@
 # 智源 FlagOS × SGLang 多芯片算子优化挑战赛：从可移植 Kernel 到生产级 Serving
 
+作者：BBuf
+
 智源 FlagOS × SGLang 多芯片算子优化挑战赛使用来自 SGLang 真实工作负载的算子任务，要求参赛者先提供可移植实现，也允许针对不同芯片提交专用 fast path。这套 Slides 解释赛题背后的 SGLang Kernel 系统，以及一个竞赛实现如何从局部跑分走向上游和生产 Serving。
 
 文章主要回答三个问题：
 
 1. 为什么一个推理服务系统，本质上也是一个 kernel system；
 2. SGLang 如何把 kernel 做成可替换、可回退、可观测、可进入生产流量的系统组件；
-3. 当 KDA（Kernel Design Agent）开始参与 kernel 设计后，如何保存 provenance、约束 dispatch，并用端到端证据决定一个实现能否上线。
+3. 当 KDA（Kernel Design Agents）开始参与 kernel 设计后，如何保存 provenance、约束 dispatch，并用端到端证据决定一个实现能否上线。
 
-下面按最终版 16 页逐页展开。文中的性能数字来自对应 PR 的实验记录；它们只适用于页面标注的硬件、模型、shape、并发和软件版本，不应被外推成无条件的通用结论。
+下面按最终版 17 页逐页展开。文中的性能数字来自对应 PR 的实验记录；它们只适用于页面标注的硬件、模型、shape、并发和软件版本，不应被外推成无条件的通用结论。
 
 # 0x0. Slide 1：Serving is a Kernel System
 
@@ -47,7 +49,7 @@
 
 页面中的句子 “The end-to-end serving path is a composition of kernels, metadata, memory movement, and collectives” 特意使用 **end-to-end serving path**，而不是笼统地说 latency path。因为这里关心的不只是延迟，也包括吞吐、并发下的资源竞争和服务稳定性。
 
-TTFT、TPOT 和 throughput 都是组合结果。例如一个 GEMM kernel 的 persistent scale tensor 可能让它自己的访存更快，却挤掉 attention/SSM state 在 L2 中的位置；microbenchmark 变快，模型吞吐反而下降。第 10 页的 Qwen3.8-27B 实验正是这个反例。
+TTFT、TPOT 和 throughput 都是组合结果。例如一个 GEMM kernel 的 persistent scale tensor 可能让它自己的访存更快，却挤掉 attention/SSM state 在 L2 中的位置；microbenchmark 变快，模型吞吐反而下降。第 13 页的 Qwen3.8-27B 实验正是这个反例。
 
 # 0x3. Slide 4：SGLang 当前暴露了多大的 kernel surface
 
@@ -101,7 +103,7 @@ SGLANG_FORCE_FUSED_OP_BACKEND=torch
 
 JIT 的价值是根据运行环境专门化实现，同时保持上层 API 不变。但生产 JIT 最难的部分往往不是编译器调用，而是 cache 一致性和多进程安全。
 
-这一页把路径拆成：operator contract → build spec → 两级 cache → 安全发布 → TVM-FFI module。缓存 key 不只包含源文件和编译参数，还要覆盖 transitive dependency；否则头文件或被 include 的实现变了，旧二进制仍可能被错误复用。
+这一页把路径拆成：operator contract → build spec → 两级 cache → 安全发布 → TVM-FFI module。缓存 key 不只包含源文件和编译参数，还要覆盖 transitive dependency，也就是入口源码的间接构建依赖。例如 `kernel.cu` include `common.cuh`，`common.cuh` 又 include `sm120_utils.cuh`，那么最后这个头文件也必须进入 cache key。任意一层发生变化，都应该触发重新编译；否则 JIT 可能复用已经过期的二进制。
 
 并发启动时还需要 rank lock、staging 目录校验和 atomic rename。目标是任何进程都只能看到“完整且验证通过”的 artifact，不能读到另一个 rank 正在写的半成品。
 
@@ -157,34 +159,7 @@ Qwen-Image 的原始时间是 8.5406 秒降到 7.8657 秒。页面采用 `baseli
 
 另外，`quality=lossless` 仍保留参考路径。这是很重要的产品设计：优化路径可以前进，但高质量或未覆盖场景不需要跟着冒险。
 
-# 0x9. Slide 10：Qwen3.5 的收益，以及 Qwen3.8-27B 暴露的问题
-
-![Slide 10：Qwen3.5 E2E 收益与 Qwen3.8-27B cache trap](https://files.mdnice.com/user/59/e12fe486-eb3d-4f95-b796-7b203402a3fe.png)
-
-这一页经过重新设计，主角是 **Qwen3.5-4B 和 Qwen3.5-9B 的全链路收益**，右侧才是 Qwen3.8-27B 暴露的 dispatch 风险。
-
-在页面标注的 RTX PRO 6000 / SM120、FlashInfer 0.6.18 环境下，PR #36865 当前 head `05a433d4d6` 的实验结果为：
-
-| 模型 | 并发 | Throughput | TPOT | E2E latency |
-| --- | ---: | ---: | ---: | ---: |
-| Qwen3.5-4B | 1 | +8.73% | -8.31% | -8.03% |
-| Qwen3.5-4B | 2 | +6.84% | -6.91% | -6.51% |
-| Qwen3.5-4B | 4 | +7.12% | -7.19% | -6.72% |
-| Qwen3.5-4B | 8 | +6.52% | -6.63% | -6.10% |
-| Qwen3.5-9B | 1 | +3.18% | -3.19% | -3.08% |
-| Qwen3.5-9B | 2 | +2.78% | -2.86% | -2.74% |
-| Qwen3.5-9B | 4 | +2.82% | -2.91% | -2.77% |
-| Qwen3.5-9B | 8 | +2.70% | -2.78% | -2.62% |
-
-这些结果说明 NVFP4 GEMM 的收益没有被模型运行时、Attention 和调度开销完全吞掉，而且在并发 1/2/4/8 下保持同方向变化。页面用区间总结：4B throughput +6.52–8.73%，9B +2.70–3.18%。
-
-右侧的 Qwen3.8-27B 不是另一个加速 claim，而是一条负面证据。早期 broad dispatch 让 5.6–11 MiB 的 scale tensor 持续驻留，希望改善 GEMM；在完整模型中，它会挤压 Attention/SSM state 的 L2 空间，导致 E2E output throughput -0.76%。把 dispatch 收窄到真实获益的 `M=9, K=17408, N=5120` 后，其他 shape 回退，端到端结果转为 +0.98%。
-
-这里真正的结论不是“exact shape 永远更好”，而是：**microbenchmark-positive 只能成为候选证据，不能直接成为部署策略**。扩宽 dispatch 必须逐个 shape 证明不会引入 cache、graph 和模型级回归；目前这条 PR 的生产资格仍是 model-specific、exact-shape、opt-in。
-
-# 0xa. Slide 11：Humanize 管理优化循环，而不是生成 kernel
-
-![Slide 11：Humanize 的 evidence-gated loop](https://files.mdnice.com/user/59/29f10ad1-de2c-49ef-b715-54bce15c721f.png)
+# 0x9. Slide 10：Humanize 管理优化循环，而不是生成 kernel
 
 Humanize 在这套架构里的角色是治理长时间运行的开发循环。页面中的流程是：
 
@@ -204,9 +179,7 @@ task contract
 
 因此要区分三者：Humanize 管理开发循环，KDA 搜索 kernel 设计空间，SGLang 决定实现能否进入生产 dispatch。把 Humanize 叫作 kernel generator，或者把一次 agent 生成代码等同于自动上线，都会误解这页。
 
-# 0xb. Slide 12：KDA 的证据不是一个峰值数字，而是一组 portfolio
-
-![Slide 12：KDA kernel evidence portfolio](https://files.mdnice.com/user/59/4f50b742-3119-40a3-9ff9-c115f1cb4c45.png)
+# 0xa. Slide 11：KDA 的证据不是一个峰值数字，而是一组 portfolio
 
 这一页集中展示 KDA 已经积累的四类证据。
 
@@ -214,15 +187,58 @@ task contract
 
 第二类是四个已经合并的 diffusion kernel（#27392、#29281、#29361、#29708），kernel 层收益分布在 1.279×–5.84×，并各自带有 denoise 或 E2E 测量。它们不会因为后来加了 `KernelBackend.KDA` 就改变实现语言；新 backend 只是把来源统一标出来。
 
-第三类是 #36865 的 SM120 NVFP4 GEMM：kernel geomean 1.319×，并给出 16 个精确 production rows；真正重要的是第 10 页的 4B/9B E2E 收益，以及 Qwen3.8 broad dispatch -0.76%、exact dispatch +0.98% 这组正反证据。
+第三类是 #36865 的 SM120 NVFP4 GEMM：kernel geomean 1.319×，并给出 16 个精确 production rows；真正重要的是第 13 页的 4B/9B E2E 收益，以及 Qwen3.8 broad dispatch -0.76%、exact dispatch +0.98% 这组正反证据。
 
 第四类是 #37162 的 GB300 FLUX.2 FP8 路径：pixel-exact 的 E2E 1.0331×，denoise -3.246%，显存减少 438 MB，kernel 数量减少 19.9%，FP8 quant kernel 时间减少 83.4%，token-cat kernel 取得 1.77–2.60×。这类结果说明 KDA 不只可以追一个算子的峰值，也可以通过 fusion 减少 launch 和中间张量。
 
 整页要守住一句话：KDA 的候选只有在 dispatch、correctness、accuracy 和 E2E 都成立时，才形成可信的工程结论。
 
-# 0xc. Slide 13：为什么需要大写的 KDA backend
+# 0xb. Slide 12：Agent 写 kernel 时，reward hacking 从哪里来
 
-![Slide 13：KernelBackend.KDA](https://files.mdnice.com/user/59/de21d03a-350b-4567-9aab-f3af146bc2bd.png)
+这里的 reward hacking 不是说 Agent 在恶意作弊。更常见的情况是：我们给了一个不完整的 benchmark，Agent 就把这个 benchmark 优化得很好，最后得到的实现却不能进入生产路径。过去几个月里，我在 KDA-Pilot 和 SGLang 的公开工作中碰到过五类问题。
+
+第一类是优化了 host path，而不是 device kernel。KDA-Pilot #22 早期使用 overlay，把 SGLang 中带有 `@register_custom_op` 的公开入口替换成普通 Python dispatcher。约 1.22× 的表面收益里，混入了绕过 production wrapper 的 host-side 收益。#24 和 #25 把 baseline 与 candidate 放回相同 public op、相同 wrapper 和 in-tree arbiter 后，能归因到 device kernel 的结果约为 1.12×。这个差距不小，足以改变是否 promotion 的判断。
+
+第二类是数值捷径。candidate 单边打开 `--use_fast_math`、放松 tolerance、不检查 NaN/Inf，或者没有确认输出 tensor 确实被覆写，都可能让错误实现通过。KDA-Pilot 后来固定了 baseline/candidate 的编译参数和 ABI，加入 poison output，并在 LTX2 任务中进一步使用 production bitwise contract。#152、#157 和 #158 都属于这条线。
+
+第三类是挑 shape。看到结果后删掉变慢的 workload，或者只报一个 geomean，都能把退化藏起来。#40 的 baseline-vs-baseline A/A geomean 是 0.9992；#41 和 #43 冻结 production rows，并逐行记录结果、dispatch 与 fallback；#89 则明确接受 pure-speed no-go，只保留 correctness/safety 修复。一个正常的 kernel 优化流程必须允许某些 bucket 回退，不能逼 Agent 在每个 shape 上都宣布胜利。
+
+第四类是 stale state 或 wrong path。CUDA Graph replay、复用 workspace 和 device counter 都可能留下旧状态；silent fallback 则可能让 benchmark 实际测到 reference backend。KDA-Pilot #194 对 stateful kernel 使用 chained final-state checks；SGLang #36845 又做了 15/15 真实 replay 和 150,000 次连续 launch，确认每次 counter 都回到零。
+
+第五类是只优化 isolated kernel。microbenchmark 变快后，cache、metadata 或下游 kernel 仍可能变慢。下一页的 Qwen3.8-27B 就是现成例子：持久化 scale tensor 对单个 GEMM 有利，却挤占了 Attention/SSM state 的 L2 空间。
+
+所以这页把 promotion reward 写成四项乘积：
+
+```text
+semantic fidelity × executed path × frozen workload × serving E2E
+```
+
+任何一项不成立，这个 kernel 都不能晋级。对挑战赛也是一样：应该优化题目定义的 operator contract，而不是 benchmark 偶然留下的漏洞。
+
+# 0xc. Slide 13：Qwen3.5 的收益，以及 Qwen3.8-27B 暴露的问题
+
+这一页现在放在 KDA 和 reward contract 之后。前两页先讲 Agent 能生成什么，以及应该怎样约束它；这里再看一组真的进入完整 serving stack 的结果。
+
+在页面标注的 RTX PRO 6000 / SM120、FlashInfer 0.6.18 环境下，PR #36865 当前 head `05a433d4d6` 的实验结果为：
+
+| 模型 | 并发 | Throughput | TPOT | E2E latency |
+| --- | ---: | ---: | ---: | ---: |
+| Qwen3.5-4B | 1 | +8.73% | -8.31% | -8.03% |
+| Qwen3.5-4B | 2 | +6.84% | -6.85% | -6.41% |
+| Qwen3.5-4B | 4 | +7.12% | -7.02% | -6.65% |
+| Qwen3.5-4B | 8 | +6.52% | -6.63% | -6.10% |
+| Qwen3.5-9B | 1 | +3.18% | -3.19% | -3.08% |
+| Qwen3.5-9B | 2 | +2.78% | -2.82% | -2.71% |
+| Qwen3.5-9B | 4 | +2.82% | -2.81% | -2.74% |
+| Qwen3.5-9B | 8 | +2.70% | -2.78% | -2.62% |
+
+Qwen3.5-4B 的 throughput 在四个并发点提升 6.52%–8.73%，9B 提升 2.70%–3.18%；TPOT 和总 E2E latency 也在每个点改善。对应的 production dispatch 只覆盖已经验证的四组 `(K,N)` 与 `M={1,2,4,8}`，没有重新打开 broad gate。
+
+右侧的 Qwen3.8-27B 是负面证据。早期 broad dispatch 让每层 5.6–11 MiB 的 scale tensor 持续驻留，isolated GEMM 更快，但完整模型的 E2E output throughput 下降 0.76%。改成 one-pass streaming，并只放行 `(M,K,N)=(9,17408,5120)` 后，其他 shape 回退，端到端结果转为 +0.98%。
+
+这组数据把上一页的第五类 reward hacking 说清楚了：microbenchmark 可以决定一个候选值不值得继续测试，但生产 dispatch 必须由模型和 shape 级 E2E 结果决定。
+
+# 0xd. Slide 14：为什么需要大写的 KDA backend
 
 `KernelBackend.KDA` 解决的是 provenance 不可见的问题。
 
@@ -240,9 +256,7 @@ task contract
 
 另外，KDA 只代表来源，不替代 capability。一个 KDA kernel 仍然可能只支持 SM120、某个 dtype、某种 layout 或一组精确 shape。
 
-# 0xd. Slide 14：代码目录与 provenance 的边界
-
-![Slide 14：KDA provenance boundary](https://files.mdnice.com/user/59/49046d2f-e211-4793-9cbf-29dcd720dc48.png)
+# 0xe. Slide 15：代码目录与 provenance 的边界
 
 这一页回应一个实际的代码组织问题：agent 生成的 kernel 是否都应该放进单独的 `kda_kernels` 目录？
 
@@ -257,7 +271,7 @@ provenance 至少要记录：task/revision、workflow 或 candidate hash、硬�
 
 页面底部的总结是：**preserve machine history, serve qualified operators**。我们保存 agent 迭代的痕迹，但线上只服务已经通过资格审查的 operator。
 
-# 0xe. Slide 15：从竞赛提交到 SGLang 上游
+# 0xf. Slide 16：从竞赛提交到 SGLang 上游
 
 这一页把前面的架构压缩成四个可执行步骤：
 
@@ -270,7 +284,7 @@ SGLang 为竞赛提交提供稳定 API、backend registry、Torch reference、JI
 
 这套流程可以压缩成一句话：先在局部建立性能证据，再证明收益能安全地进入上游。
 
-# 0xf. Slide 16：下一代 kernel system 是 human-agent system
+# 0x10. Slide 17：下一代 kernel system 是 human-agent system
 
 最后一页把全场浓缩成四个节点：
 
@@ -287,21 +301,21 @@ stable contract
 
 最后一页重新落回挑战赛主线：`competition submission → qualified SGLang backend → production serving`。比赛给出真实算子和跨芯片目标，SGLang 则提供把候选实现送入生产环境所需的契约、验证和上游路径。
 
-# 0x10. 这套 Slides 的叙事结构
+# 0x11. 这套 Slides 的叙事结构
 
-回头看 16 页，它们可以分成四段：
+回头看 17 页，它们可以分成四段：
 
 - Slide 1–4：从挑战赛的多芯片任务进入 serving kernel system，并用源码审计限定讨论范围；
 - Slide 5–8：解释 stable operator、backend registry、JIT、Attention 和 collective 的系统抽象；
-- Slide 9–10：用 diffusion、Qwen3.5 和 Qwen3.8 的正反数据说明 E2E qualification；
-- Slide 11–16：把 Humanize、KDA、provenance、promotion 和竞赛提交的上游落地流程连接起来。
+- Slide 9：用 diffusion serving path 说明多个局部收益怎样合成模型加速；
+- Slide 10–17：依次讲 Humanize、KDA、reward contract、Qwen 资格验证、provenance 和竞赛提交的上游落地流程。
 
 其中最重要的两条边界也贯穿全篇：
 
 1. backend 描述实现来源和选择入口，capability 描述它在哪些条件下安全；
 2. microbenchmark 决定一个实现是否值得继续验证，端到端 serving 才决定它是否值得进入生产 dispatch。
 
-# 0x11. 参考链接
+# 0x12. 参考链接
 
 - 智源 FlagOS × SGLang 多芯片算子优化挑战赛：https://flagos.io/race-detail-season2?id=782kzq4m&lang=en
 - SGLang 源码：https://github.com/sgl-project/sglang
@@ -313,5 +327,9 @@ stable contract
 - KDA NVFP4 GEMM 与 Qwen3.5/Qwen3.8 E2E 数据：https://github.com/sgl-project/sglang/pull/36865
 - KDA FLUX.2 FP8 fusion：https://github.com/sgl-project/sglang/pull/37162
 - KDA backend 与 diffusion kernel 注册：https://github.com/sgl-project/sglang/pull/37385
+- KDA-Pilot overlay 假收益与 production integration parity：https://github.com/BBuf/KDA-Pilot/pull/22 · https://github.com/BBuf/KDA-Pilot/pull/24 · https://github.com/BBuf/KDA-Pilot/pull/25
+- KDA-Pilot benchmark contract、A/A、frozen rows 与 fallback/no-go：https://github.com/BBuf/KDA-Pilot/pull/40 · https://github.com/BBuf/KDA-Pilot/pull/41 · https://github.com/BBuf/KDA-Pilot/pull/43 · https://github.com/BBuf/KDA-Pilot/pull/79 · https://github.com/BBuf/KDA-Pilot/pull/89
+- KDA-Pilot bitwise contract 与 production oracle：https://github.com/BBuf/KDA-Pilot/pull/152 · https://github.com/BBuf/KDA-Pilot/pull/157 · https://github.com/BBuf/KDA-Pilot/pull/158
+- KDA-Pilot stateful kernel qualification：https://github.com/BBuf/KDA-Pilot/pull/194
 - Kernel Design Agents：https://github.com/mit-han-lab/kernel-design-agents
 - Humanize：https://github.com/PolyArch/humanize
