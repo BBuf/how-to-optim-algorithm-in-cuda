@@ -1,6 +1,6 @@
 # 从 Serving Kernel System 到 KDA：SGLang Kernels Slides 逐页技术解读
 
-这套 Slides 是我为 FlagOS × SGLang Multi-Chip Operator Optimization Challenge 的赛前直播准备的。它并不是一份“把 SGLang 里的 CUDA kernel 罗列一遍”的目录，也不是只展示几个漂亮的 microbenchmark 数字。我真正想回答的是三个问题：
+这套 Slides 围绕 SGLang kernels 的工程设计与生产验证展开。它不是一份“把 SGLang 里的 CUDA kernel 罗列一遍”的目录，也不打算只展示几个漂亮的 microbenchmark 数字。我主要想回答三个问题：
 
 1. 为什么一个推理服务系统，本质上也是一个 kernel system；
 2. SGLang 如何把 kernel 做成可替换、可回退、可观测、可进入生产流量的系统组件；
@@ -10,8 +10,6 @@
 
 # 0x0. Slide 1：Serving is a Kernel System
 
-![Slide 1：SGLang Kernels 封面](https://files.mdnice.com/user/59/a6f6ffc6-cc1a-4c2f-bc12-6dbdb73f2d16.png)
-
 封面的核心句是 **SERVING IS A KERNEL SYSTEM**。
 
 这里的 kernel system 不是说 serving 只剩下 CUDA kernel，而是说一次请求能否快速、稳定地完成，最终取决于一组 kernel 及其外围控制面的共同作用：计算 kernel、内存移动、KV Cache 布局、通信 collective、metadata 构造、dispatch、CUDA Graph 和 fallback。单个 kernel 再快，如果选错了调用时机、污染了 cache、破坏了 graph capture，或者只覆盖 benchmark 中的一个 shape，都不等于服务变快。
@@ -20,11 +18,9 @@
 
 # 0x1. Slide 2：可移植 kernel 只是起点
 
-![Slide 2：FlagOS Challenge 与生产约束](https://files.mdnice.com/user/59/7f332984-a068-49de-9c53-e9eefdd9e881.png)
+这一页讨论多芯片 kernel 如何进入 SGLang 的生产路径。
 
-这一页把 FlagOS 比赛和 SGLang 的生产需求接起来。
-
-比赛要求选手提供一个跨平台的 `[Kernel].py`，并允许为特定 GPU 提供 `[Kernel]_[gpu].py`。这个结构已经包含一个很重要的思想：上层 operator contract 保持一致，底层实现可以根据芯片特征专门化。SGLang 的 backend registry、capability gate 和 fallback 解决的也是同一类问题。
+一套常见的组织方式是先提供跨平台参考实现，再为特定 GPU 增加架构专用 fast path。上层 operator contract 保持一致，底层实现根据芯片特征专门化。SGLang 的 backend registry、capability gate 和 fallback 解决的正是这类问题。
 
 但线上服务比单题跑分多三层约束：
 
@@ -32,7 +28,7 @@
 - **Fallback**：不支持的 dtype、layout、shape 和 architecture 是否能安静地回到参考实现；
 - **E2E**：kernel 的局部收益能否穿过调度、同步、内存系统和其他算子，最终反映到 TTFT、TPOT 或 throughput。
 
-所以这页最后的结论是：真正需要优化的不是一个脱离上下文的函数，而是 **operator contract × architecture × workload**。FlagOS 提供大量来自 SGLang 的真实任务，SGLang 则提供把获胜实现送进真实服务路径的工程环境。
+这页最后的结论是：真正需要优化的不是一个脱离上下文的函数，而是 **operator contract × architecture × workload**。SGLang 通过真实模型路径、参考实现和端到端验证，把架构专用实现放进可控的服务环境。
 
 # 0x2. Slide 3：一次请求会穿过六类 kernel
 
@@ -259,9 +255,7 @@ provenance 至少要记录：task/revision、workflow 或 candidate hash、硬�
 
 页面底部的总结是：**preserve machine history, serve qualified operators**。我们保存 agent 迭代的痕迹，但线上只服务已经通过资格审查的 operator。
 
-# 0xe. Slide 15：给 FlagOS 参赛者的落地流程
-
-![Slide 15：从真实 shape 到上游证据](https://files.mdnice.com/user/59/c0271222-68ab-4c41-b979-88f7c5394136.png)
+# 0xe. Slide 15：从候选 kernel 到上游实现
 
 这一页把前面的架构压缩成四个可执行步骤：
 
@@ -270,13 +264,11 @@ provenance 至少要记录：task/revision、workflow 或 candidate hash、硬�
 3. **SPECIALIZE**：结合 compiler、memory hierarchy 和芯片原语做专门化；
 4. **PROVE**：按 correctness → profile → graph → model-level impact 建证据链。
 
-SGLang 能为参赛实现提供稳定 API、backend registry、Torch reference、JIT cache、trace 和 fallback。一个结果如果只赢了比赛 benchmark，还只是一个优秀候选；当它带着可复现证据进入上游，覆盖真实模型路径并通过 CI/review，才完成从“获胜代码”到“生产能力”的迁移。
+SGLang 为候选实现提供稳定 API、backend registry、Torch reference、JIT cache、trace 和 fallback。microbenchmark 领先只能说明这个实现值得继续验证。它还需要覆盖真实模型路径，并通过 CI、review 和端到端回归，才能进入生产 dispatch。
 
-所以页面上的口号不是单纯的 “win benchmark”，而是 **Win benchmark, upstream evidence**。
+这套流程可以压缩成一句话：先在局部建立性能证据，再证明收益能安全地进入上游。
 
 # 0xf. Slide 16：下一代 kernel system 是 human-agent system
-
-![Slide 16：The next kernel system is a human-agent system](https://files.mdnice.com/user/59/e8a48692-636b-4e90-a4fb-f4dbf54d7ede.png)
 
 最后一页把全场浓缩成四个节点：
 
@@ -298,7 +290,7 @@ stable contract
 - Slide 1–4：建立 serving kernel system 的问题空间，并用源码审计限定讨论范围；
 - Slide 5–8：解释 stable operator、backend registry、JIT、Attention 和 collective 的系统抽象；
 - Slide 9–10：用 diffusion、Qwen3.5 和 Qwen3.8 的正反数据说明 E2E qualification；
-- Slide 11–16：把 Humanize、KDA、provenance、promotion 和 FlagOS 参赛流程连接起来。
+- Slide 11–16：把 Humanize、KDA、provenance、promotion 和上游落地流程连接起来。
 
 其中最重要的两条边界也贯穿全篇：
 
@@ -308,7 +300,6 @@ stable contract
 # 0x11. 参考链接
 
 - SGLang 源码：https://github.com/sgl-project/sglang
-- FlagOS Challenge：https://flagos.io/race-detail-season2?id=782kzq4m&lang=en
 - SGLang kernels RFC：https://github.com/sgl-project/sglang/issues/29630
 - JIT kernel infrastructure：https://github.com/sgl-project/sglang/pull/34274
 - Custom AllReduce v2：https://github.com/sgl-project/sglang/pull/31049
