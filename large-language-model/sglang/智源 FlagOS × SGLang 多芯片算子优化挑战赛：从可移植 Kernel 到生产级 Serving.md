@@ -1,6 +1,8 @@
-# 从 Serving Kernel System 到 KDA：SGLang Kernels Slides 逐页技术解读
+# 智源 FlagOS × SGLang 多芯片算子优化挑战赛：从可移植 Kernel 到生产级 Serving
 
-这套 Slides 围绕 SGLang kernels 的工程设计与生产验证展开。它不是一份“把 SGLang 里的 CUDA kernel 罗列一遍”的目录，也不打算只展示几个漂亮的 microbenchmark 数字。我主要想回答三个问题：
+智源 FlagOS × SGLang 多芯片算子优化挑战赛使用来自 SGLang 真实工作负载的算子任务，要求参赛者先提供可移植实现，也允许针对不同芯片提交专用 fast path。这套 Slides 解释赛题背后的 SGLang Kernel 系统，以及一个竞赛实现如何从局部跑分走向上游和生产 Serving。
+
+文章主要回答三个问题：
 
 1. 为什么一个推理服务系统，本质上也是一个 kernel system；
 2. SGLang 如何把 kernel 做成可替换、可回退、可观测、可进入生产流量的系统组件；
@@ -10,17 +12,17 @@
 
 # 0x0. Slide 1：Serving is a Kernel System
 
-封面的核心句是 **SERVING IS A KERNEL SYSTEM**。
+封面直接写出 FlagOS × SGLang Multi-Chip Operator Optimization Challenge，并把主题改为 **SGLang Multi-Chip Operator Optimization**。核心判断仍然是 **SERVING IS A KERNEL SYSTEM**。
 
 这里的 kernel system 不是说 serving 只剩下 CUDA kernel，而是说一次请求能否快速、稳定地完成，最终取决于一组 kernel 及其外围控制面的共同作用：计算 kernel、内存移动、KV Cache 布局、通信 collective、metadata 构造、dispatch、CUDA Graph 和 fallback。单个 kernel 再快，如果选错了调用时机、污染了 cache、破坏了 graph capture，或者只覆盖 benchmark 中的一个 shape，都不等于服务变快。
 
-副标题 “From Hand-Tuned CUDA to Agent-Native Kernel Design” 给出了整场分享的时间线：前半段讲 SGLang 今天如何组织手写和 JIT kernel，后半段讲 KDA 生成的实现如何进入同一个生产体系。这里的 agent-native 不是让 agent 绕过工程约束直接写进热路径，而是让 agent 生成的候选实现从一开始就接受注册、验证、性能复现和 promotion contract 的约束。
+副标题改成了 “From Portable Competition Kernels to Production Serving”，整场分享也沿着这条路径展开：先解释竞赛提交的 portable contract 和芯片 specialization，再进入 SGLang 的 backend、JIT、fallback 和端到端验证。后半段继续讨论 Humanize 与 KDA，说明 agent 生成的候选实现如何接受相同的注册、性能复现和 promotion contract 约束。
 
-# 0x1. Slide 2：可移植 kernel 只是起点
+# 0x1. Slide 2：挑战赛中的可移植 kernel 只是起点
 
-这一页讨论多芯片 kernel 如何进入 SGLang 的生产路径。
+这一页说明挑战赛真正优化的对象是什么。可移植 kernel 是提交的起点，目标芯片上的 specialization 决定局部性能，SGLang 的 serving qualification 决定它能否进入真实模型路径。
 
-一套常见的组织方式是先提供跨平台参考实现，再为特定 GPU 增加架构专用 fast path。上层 operator contract 保持一致，底层实现根据芯片特征专门化。SGLang 的 backend registry、capability gate 和 fallback 解决的正是这类问题。
+挑战赛要求提供跨平台实现，并允许为特定 GPU 增加架构专用 fast path。上层 operator contract 保持一致，底层实现根据芯片特征专门化。SGLang 的 backend registry、capability gate 和 fallback 解决的正是这类问题。
 
 但线上服务比单题跑分多三层约束：
 
@@ -255,7 +257,7 @@ provenance 至少要记录：task/revision、workflow 或 candidate hash、硬�
 
 页面底部的总结是：**preserve machine history, serve qualified operators**。我们保存 agent 迭代的痕迹，但线上只服务已经通过资格审查的 operator。
 
-# 0xe. Slide 15：从候选 kernel 到上游实现
+# 0xe. Slide 15：从竞赛提交到 SGLang 上游
 
 这一页把前面的架构压缩成四个可执行步骤：
 
@@ -264,7 +266,7 @@ provenance 至少要记录：task/revision、workflow 或 candidate hash、硬�
 3. **SPECIALIZE**：结合 compiler、memory hierarchy 和芯片原语做专门化；
 4. **PROVE**：按 correctness → profile → graph → model-level impact 建证据链。
 
-SGLang 为候选实现提供稳定 API、backend registry、Torch reference、JIT cache、trace 和 fallback。microbenchmark 领先只能说明这个实现值得继续验证。它还需要覆盖真实模型路径，并通过 CI、review 和端到端回归，才能进入生产 dispatch。
+SGLang 为竞赛提交提供稳定 API、backend registry、Torch reference、JIT cache、trace 和 fallback。microbenchmark 领先只能说明这个实现值得继续验证。它还需要覆盖真实模型路径，并通过 CI、review 和端到端回归，才能进入生产 dispatch。
 
 这套流程可以压缩成一句话：先在局部建立性能证据，再证明收益能安全地进入上游。
 
@@ -283,14 +285,16 @@ stable contract
 
 这也是标题从 “hand-tuned CUDA” 走向 “agent-native kernel design” 的真正含义：变化的不只是代码由谁写，而是 kernel 从产生、验证、审查到上线的整个生命周期。
 
+最后一页重新落回挑战赛主线：`competition submission → qualified SGLang backend → production serving`。比赛给出真实算子和跨芯片目标，SGLang 则提供把候选实现送入生产环境所需的契约、验证和上游路径。
+
 # 0x10. 这套 Slides 的叙事结构
 
 回头看 16 页，它们可以分成四段：
 
-- Slide 1–4：建立 serving kernel system 的问题空间，并用源码审计限定讨论范围；
+- Slide 1–4：从挑战赛的多芯片任务进入 serving kernel system，并用源码审计限定讨论范围；
 - Slide 5–8：解释 stable operator、backend registry、JIT、Attention 和 collective 的系统抽象；
 - Slide 9–10：用 diffusion、Qwen3.5 和 Qwen3.8 的正反数据说明 E2E qualification；
-- Slide 11–16：把 Humanize、KDA、provenance、promotion 和上游落地流程连接起来。
+- Slide 11–16：把 Humanize、KDA、provenance、promotion 和竞赛提交的上游落地流程连接起来。
 
 其中最重要的两条边界也贯穿全篇：
 
@@ -299,6 +303,7 @@ stable contract
 
 # 0x11. 参考链接
 
+- 智源 FlagOS × SGLang 多芯片算子优化挑战赛：https://flagos.io/race-detail-season2?id=782kzq4m&lang=en
 - SGLang 源码：https://github.com/sgl-project/sglang
 - SGLang kernels RFC：https://github.com/sgl-project/sglang/issues/29630
 - JIT kernel infrastructure：https://github.com/sgl-project/sglang/pull/34274
