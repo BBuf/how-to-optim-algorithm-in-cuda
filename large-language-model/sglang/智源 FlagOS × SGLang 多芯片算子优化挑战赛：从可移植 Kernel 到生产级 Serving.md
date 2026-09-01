@@ -14,6 +14,8 @@
 
 # 0x0. Slide 1：Serving is a Kernel System
 
+![Slide 1：FlagOS × SGLang 多芯片算子优化挑战赛与 SGLang Kernel System](https://files.mdnice.com/user/59/1199447e-21b3-4563-b5b5-18fb6d1ae750.png)
+
 封面直接写出 FlagOS × SGLang Multi-Chip Operator Optimization Challenge，并把主题改为 **SGLang Multi-Chip Operator Optimization**。核心判断仍然是 **SERVING IS A KERNEL SYSTEM**。
 
 这里的 kernel system 不是说 serving 只剩下 CUDA kernel，而是说一次请求能否快速、稳定地完成，最终取决于一组 kernel 及其外围控制面的共同作用：计算 kernel、内存移动、KV Cache 布局、通信 collective、metadata 构造、dispatch、CUDA Graph 和 fallback。单个 kernel 再快，如果选错了调用时机、污染了 cache、破坏了 graph capture，或者只覆盖 benchmark 中的一个 shape，都不等于服务变快。
@@ -21,6 +23,8 @@
 副标题改成了 “From Portable Competition Kernels to Production Serving”，整场分享也沿着这条路径展开：先解释竞赛提交的 portable contract 和芯片 specialization，再进入 SGLang 的 backend、JIT、fallback 和端到端验证。后半段继续讨论 Humanize 与 KDA，说明 agent 生成的候选实现如何接受相同的注册、性能复现和 promotion contract 约束。
 
 # 0x1. Slide 2：挑战赛中的可移植 kernel 只是起点
+
+![Slide 2：从可移植竞赛 kernel 到生产 Serving](https://files.mdnice.com/user/59/144d753a-5414-4430-9a87-8e8ba40faca7.png)
 
 这一页说明挑战赛真正优化的对象是什么。可移植 kernel 是提交的起点，目标芯片上的 specialization 决定局部性能，SGLang 的 serving qualification 决定它能否进入真实模型路径。
 
@@ -36,7 +40,7 @@
 
 # 0x2. Slide 3：一次请求会穿过六类 kernel
 
-![Slide 3：一次请求跨越六类 kernel](https://files.mdnice.com/user/59/759e7784-6739-480a-af3e-dd80c1054054.png)
+![Slide 3：一次请求跨越六类 kernel](https://files.mdnice.com/user/59/18371f4f-ae78-4055-ba2d-61872186f087.png)
 
 这页回答“为什么标题里要用 system”。一条典型生成请求会连续经过至少六组算子：
 
@@ -53,7 +57,7 @@ TTFT、TPOT 和 throughput 都是组合结果。例如一个 GEMM kernel 的 per
 
 # 0x3. Slide 4：SGLang 当前暴露了多大的 kernel surface
 
-![Slide 4：SGLang kernel source audit](https://files.mdnice.com/user/59/b64a18d1-b93b-450a-aafd-f79dae338c19.png)
+![Slide 4：SGLang kernel source audit](https://files.mdnice.com/user/59/e681f3fb-27b0-4961-8162-13c0a0020439.png)
 
 这一页是对 2026 年 9 月 1 日 SGLang main（`8a191554`）的源码审计，而不是宣传口径。
 
@@ -69,7 +73,7 @@ TTFT、TPOT 和 throughput 都是组合结果。例如一个 GEMM kernel 的 per
 
 # 0x4. Slide 5：一个逻辑 operator，多种实现
 
-![Slide 5：统一 operator 与 backend registry](https://files.mdnice.com/user/59/c0063b9b-d8c4-43cc-a4fd-74aa6398cfdb.png)
+![Slide 5：统一 operator 与 backend registry](https://files.mdnice.com/user/59/7aaf302c-e464-486b-bc02-ebaf7165973b.png)
 
 这是整套 Slides 的架构中心。
 
@@ -99,7 +103,7 @@ SGLANG_FORCE_FUSED_OP_BACKEND=torch
 
 # 0x5. Slide 6：SGLang JIT kernel 的重点不只是“现场编译”
 
-![Slide 6：SGLang JIT kernel 构建与缓存](https://files.mdnice.com/user/59/68c0d1f0-f0d7-4e50-afc8-8dd5e9d1bc71.png)
+![Slide 6：SGLang JIT kernel 构建与缓存](https://files.mdnice.com/user/59/efab0e9f-18ec-43c4-b602-84d58f612517.png)
 
 JIT 的价值是根据运行环境专门化实现，同时保持上层 API 不变。但生产 JIT 最难的部分往往不是编译器调用，而是 cache 一致性和多进程安全。
 
@@ -111,7 +115,7 @@ JIT 的价值是根据运行环境专门化实现，同时保持上层 API 不�
 
 # 0x6. Slide 7：Attention 是 backend system，不是一个 kernel
 
-![Slide 7：Attention backend system](https://files.mdnice.com/user/59/20972512-967c-44d5-9082-6b78e8891904.png)
+![Slide 7：Attention backend system](https://files.mdnice.com/user/59/cfa263dc-31ab-4a4d-a596-4e10dc94ff48.png)
 
 Attention 常被画成一个公式，但在 serving 里它至少包含四层工作：
 
@@ -126,7 +130,7 @@ Attention 常被画成一个公式，但在 serving 里它至少包含四层工�
 
 # 0x7. Slide 8：Custom AllReduce v2 为什么重新组织存储与算法
 
-![Slide 8：Custom AllReduce v2](https://files.mdnice.com/user/59/f82511a6-7a99-41f0-b803-a4ff7f95c7de.png)
+![Slide 8：Custom AllReduce v2](https://files.mdnice.com/user/59/ebb6aba8-2ef5-4f6b-950c-154b0b6aa69d.png)
 
 Custom AllReduce v2 的关键变化是把 **storage plane** 和 **compute plane** 解耦。
 
@@ -145,7 +149,7 @@ Custom AllReduce v2 的关键变化是把 **storage plane** 和 **compute plane*
 
 # 0x8. Slide 9：单个 kernel 的收益如何累积成 diffusion 加速
 
-![Slide 9：Qwen-Image 与 Z-Image-Turbo serving path](https://files.mdnice.com/user/59/0432ff61-ecf7-4483-a54b-09baf4f64735.png)
+![Slide 9：Qwen-Image 与 Z-Image-Turbo serving path](https://files.mdnice.com/user/59/9546e8d2-daf4-4c50-9024-3d941d4c54d6.png)
 
 这一页用已经合并的 PR #36680 展示“组合收益”。页面列出三个局部优化：
 
@@ -160,6 +164,8 @@ Qwen-Image 的原始时间是 8.5406 秒降到 7.8657 秒。页面采用 `baseli
 另外，`quality=lossless` 仍保留参考路径。这是很重要的产品设计：优化路径可以前进，但高质量或未覆盖场景不需要跟着冒险。
 
 # 0x9. Slide 10：Humanize 管理优化循环，而不是生成 kernel
+
+![Slide 10：Humanize 管理 evidence-gated 长周期优化循环](https://files.mdnice.com/user/59/0c9cc313-6aa7-4462-a248-7949cb0fe972.png)
 
 Humanize 在这套架构里的角色是治理长时间运行的开发循环。页面中的流程是：
 
@@ -181,6 +187,8 @@ task contract
 
 # 0xa. Slide 11：KDA 的证据不是一个峰值数字，而是一组 portfolio
 
+![Slide 11：KDA kernel 在真实 Serving gate 下的证据组合](https://files.mdnice.com/user/59/5a45ce10-cd78-4d9d-b10f-28b8fa72778a.png)
+
 这一页集中展示 KDA 已经积累的四类证据。
 
 第一类是 Qwen3.8 QSA（#36845）：15/15 次真实 replay、150k stress launches、相对正确 Triton 实现 2.07× kernel geomean、真实 serving throughput +4.0–4.45%，GSM8K 保持 49/50。它说明 kernel speedup、长期状态稳定性、服务收益和模型准确性需要同时出现。
@@ -194,6 +202,8 @@ task contract
 整页要守住一句话：KDA 的候选只有在 dispatch、correctness、accuracy 和 E2E 都成立时，才形成可信的工程结论。
 
 # 0xb. Slide 12：Agent 写 kernel 时，reward hacking 从哪里来
+
+![Slide 12：Kernel reward hacking 与 production promotion gate](https://files.mdnice.com/user/59/49076515-7751-4d50-ae39-4ead606d2580.png)
 
 这里的 reward hacking 不是说 Agent 在恶意作弊。更常见的情况是：我们给了一个不完整的 benchmark，Agent 就把这个 benchmark 优化得很好，最后得到的实现却不能进入生产路径。过去几个月里，我在 KDA-Pilot 和 SGLang 的公开工作中碰到过五类问题。
 
@@ -216,6 +226,8 @@ semantic fidelity × executed path × frozen workload × serving E2E
 任何一项不成立，这个 kernel 都不能晋级。对挑战赛也是一样：应该优化题目定义的 operator contract，而不是 benchmark 偶然留下的漏洞。
 
 # 0xc. Slide 13：Qwen3.5 的收益，以及 Qwen3.8-27B 暴露的问题
+
+![Slide 13：Qwen3.5 Serving 加速与 Qwen3.8-27B cache 反例](https://files.mdnice.com/user/59/b4c1ba84-d572-4a88-8c35-c22aaa56c700.png)
 
 这一页现在放在 KDA 和 reward contract 之后。前两页先讲 Agent 能生成什么，以及应该怎样约束它；这里再看一组真的进入完整 serving stack 的结果。
 
@@ -240,6 +252,8 @@ Qwen3.5-4B 的 throughput 在四个并发点提升 6.52%–8.73%，9B 提升 2.7
 
 # 0xd. Slide 14：为什么需要大写的 KDA backend
 
+![Slide 14：KDA 成为一等 provenance backend](https://files.mdnice.com/user/59/fc09b792-f002-4b9f-8e9b-a86b5e0ceedd.png)
+
 `KernelBackend.KDA` 解决的是 provenance 不可见的问题。
 
 如果 KDA 生成的 CuTe DSL kernel 被登记为 `CUTE_DSL`，生成的 Triton kernel 被登记为 `TRITON`，运行时能知道“它用什么执行”，却不知道“它来自哪个设计和验证工作流”。大写 KDA backend 把这些实现放进统一 inventory，便于 forced selection、回退告警、测试覆盖和后续审计。
@@ -258,6 +272,8 @@ Qwen3.5-4B 的 throughput 在四个并发点提升 6.52%–8.73%，9B 提升 2.7
 
 # 0xe. Slide 15：代码目录与 provenance 的边界
 
+![Slide 15：Agent-native kernel 的 provenance boundary](https://files.mdnice.com/user/59/6eacd50c-101a-462c-8abb-2e5f16c550b2.png)
+
 这一页回应一个实际的代码组织问题：agent 生成的 kernel 是否都应该放进单独的 `kda_kernels` 目录？
 
 我的划分是：
@@ -273,6 +289,8 @@ provenance 至少要记录：task/revision、workflow 或 candidate hash、硬�
 
 # 0xf. Slide 16：从竞赛提交到 SGLang 上游
 
+![Slide 16：从 FlagOS × SGLang 竞赛提交到 SGLang upstream](https://files.mdnice.com/user/59/e6fd79ef-ed01-412a-819e-69ee14e48991.png)
+
 这一页把前面的架构压缩成四个可执行步骤：
 
 1. **TRACE**：先从真实服务中找到 shape 和频率，不凭直觉猜热点；
@@ -285,6 +303,8 @@ SGLang 为竞赛提交提供稳定 API、backend registry、Torch reference、JI
 这套流程可以压缩成一句话：先在局部建立性能证据，再证明收益能安全地进入上游。
 
 # 0x10. Slide 17：下一代 kernel system 是 human-agent system
+
+![Slide 17：下一代 Kernel System 是 human-agent system](https://files.mdnice.com/user/59/b61c9bdb-3901-4392-8d23-035e42afbc63.png)
 
 最后一页把全场浓缩成四个节点：
 
