@@ -59,7 +59,7 @@ SGLANG_FORCE_FUSED_OP_BACKEND=torch
 
 如果错误消失，问题大概率位于某个 fused backend；如果仍然存在，就应该继续检查模型或数据路径。这比逐个注释 kernel 快得多，也说明 registry 不只是“选最快实现”的性能组件，它还是调试和回归控制面。
 
-KDA 放进 backend 枚举时，表达的是实现来源，而不是新的编程语言。#37385 和 #36865 合入后，大写 `KernelBackend.KDA` 已经出现在 main 的 `spec.py`、`fused_op.py` 和默认优化优先级里。在 `73a24142` 这个基线上，`ops/diffusion/__init__.py` 有 8 个 KDA `KernelSpec`，`ops/gemm/__init__.py` 有 1 个，合计 9 个。其中 6 个指向 CUDA JIT 模块，2 个指向 Triton，1 个 Qwen3.x NVFP4 GEMM 由 CuTe DSL 承载。至于某个实现支持哪些 GPU、dtype、layout 和 shape，仍然由 capability 单独描述。
+KDA 放进 backend 枚举时，表达的是实现来源，而不是新的编程语言。大写 `KernelBackend.KDA` 已经出现在 main 的 `spec.py`、`fused_op.py` 和默认优化优先级里。在 `73a24142` 这个基线上，`ops/diffusion/__init__.py` 有 8 个 KDA `KernelSpec`，`ops/gemm/__init__.py` 有 1 个，合计 9 个。其中 6 个指向 CUDA JIT 模块，2 个指向 Triton，1 个 Qwen3.x NVFP4 GEMM 由 CuTe DSL 承载。至于某个实现支持哪些 GPU、dtype、layout 和 shape，仍然由 capability 单独描述。
 
 ## JIT 的难点是缓存一致性
 
@@ -96,7 +96,7 @@ PR #31049 在 8×B200 BF16 环境记录了下面的数据：
 
 ## 局部优化怎样穿过完整模型
 
-PR #36680 是一个很好的组合案例。QKV pack 从 47.73 μs 降到 21.10 μs，FA3 scheduler 从 159.40 μs 降到 147.06 μs，24 MiB collective 从 104.20 μs 降到 81.75 μs。三项优化分别作用于数据重排、Attention 调度和 TP 通信，并不属于同一种 kernel。
+main 上的 Qwen-Image 路径包含三项配套优化：QKV pack 从 47.73 μs 降到 21.10 μs，FA3 scheduler 从 159.40 μs 降到 147.06 μs，24 MiB collective 从 104.20 μs 降到 81.75 μs。它们分别作用于数据重排、Attention 调度和 TP 通信。
 
 它们组合后，Qwen-Image 在 TP2 + BCG、`quality=high` 下报告 8.58% denoise speedup，Z-Image-Turbo TP2 报告 5.05%。Qwen-Image 的时间从 8.5406 秒降到 7.8657 秒。这里使用 `baseline / candidate - 1` 得到 8.58%；如果按 `(baseline - candidate) / baseline` 计算 latency reduction，则是 7.90%。报告性能时需要写清口径，否则同一组数据会出现两个看似冲突的百分比。
 
@@ -115,7 +115,7 @@ KDA 的价值也不应该用一个峰值 speedup 概括。目前几组公开工�
 - SM120 NVFP4 GEMM（#36865）在 16 个精确 production rows 上得到 1.319× kernel geomean，后面还会看到 4B、9B 与 27B 三种不同的模型结果；
 - GB300 FLUX.2 FP8 路径（#37162）保持 pixel-exact，E2E 为 1.0331×，denoise latency 降低 3.246%，显存减少 438 MB，kernel 数量减少 19.9%。
 
-这些实验的共同点是同时报告执行路径、正确性和端到端结果。只留下“最快的一行”，反而会丢掉最有价值的信息。截至本文的 main 基线，这里提到的 #36865、#37162 和负责 KDA backend 登记的 #37385 都已经合入。
+这些实验的共同点是同时报告执行路径、正确性和端到端结果。只留下“最快的一行”，反而会丢掉最有价值的信息。这些实现和 KDA backend 登记现在都已经进入 main。
 
 ## 写 kernel 时常见的 reward hacking
 
@@ -143,7 +143,7 @@ semantic fidelity × executed path × frozen workload × serving E2E
 
 ## Qwen3.5 的收益和 Qwen3.8-27B 的反例
 
-PR #36865 已经以 `c593527f33` 合入 main。下面的端到端数据来自该 PR 合入前在 head `73d4809cf4` 上记录的 RTX PRO 6000 / SM120、FlashInfer 0.6.18 验证，不是合入后在 `73a24142` 上重跑的新结果：
+SM120 NVFP4 GEMM 已经进入 main。下面的端到端数据来自该功能合入前在 head `73d4809cf4` 上记录的 RTX PRO 6000 / SM120、FlashInfer 0.6.18 验证，不是合入后在 `73a24142` 上重跑的新结果：
 
 | 模型 | 并发 | Throughput | TPOT | E2E latency |
 | --- | ---: | ---: | ---: | ---: |
@@ -168,7 +168,7 @@ Qwen3.8-27B 给出了反方向的证据。早期 broad dispatch 让每层 5.6–
 
 大写 KDA 不会取代底层编译器，也不会绕过 capability。一个 KDA kernel 仍然可能只支持 SM120、某个 dtype、特定 layout 或少量精确 shape。backend 表示来源，target 与 capability 决定它如何运行、能在哪里运行。
 
-#37385 先建立了大写 KDA backend，并为已经合入的 diffusion 与 FLUX.2 实现补上登记，该 PR 最终以 `5993f91f84` 合入。#36865 随后以 `c593527f33` 合入，它不只增加了 SM120 上的 `gemm.qwen3x_nvfp4`，还将 Humanize2/KDA 生成或扩展的实现统一收敛到 `python/sglang/kernels/kda_kernels/`。所以最新 main 上的边界已经不是一个未决的设计选择，而是落地的所有权规则：
+main 已经有大写 KDA backend，也为 diffusion、FLUX.2 和 SM120 上的 `gemm.qwen3x_nvfp4` 建立了统一登记。Humanize2/KDA 生成或扩展的实现集中在 `python/sglang/kernels/kda_kernels/`。当前代码的所有权规则如下：
 
 ```text
 python/sglang/kernels/
