@@ -6,7 +6,7 @@
 
 不过，赢下单个算子的 benchmark 只是开始。一个实现要进入 SGLang，还得面对 backend dispatch、CUDA Graph、fallback、数值正确性以及模型端到端性能。过去几个月，我在 SGLang 和 KDA（Kernel Design Agents）相关工作里反复遇到同一个问题：microbenchmark 里的胜利，到了完整 Serving 系统中不一定还成立。
 
-这篇文章尝试把两件事接起来。一边是多芯片算子比赛，另一边是 SGLang 如何管理 kernel 的完整生命周期。文中的源码统计基于 2026 年 9 月 1 日的 SGLang main `8a191554`；性能数据只对应各 PR 标注的硬件、模型、shape、并发和软件版本。
+这篇文章尝试把两件事接起来。一边是多芯片算子比赛，另一边是 SGLang 如何管理 kernel 的完整生命周期。文中的源码统计基于 2026 年 9 月 2 日的 SGLang main `73a24142`；性能数据仍严格对应各 PR 记录的硬件、模型、shape、并发和软件版本，不会因为 PR 合入就被改写成“在最新 main 上重测”。
 
 ## 从可移植实现到生产路径
 
@@ -37,13 +37,11 @@ operator contract × architecture × workload
 
 所以我更愿意说 end-to-end serving path，而不是 latency path。Serving 关心的不只有延迟。吞吐、并发下的 cache 竞争、graph replay 和错误回退都由同一条执行链决定。
 
-对 SGLang main 的一次源码审计能直观看到这个范围：`python/sglang/kernels/ops/` 下有 21 个顶层 domain、507 个 Python 文件，Attention registry 中有 24 个名称，其中一个是兼容旧接口的 alias。507 不能解读成“507 个独立 kernel”，因为里面还包括 wrapper、backend adapter、metadata、注册代码和兼容层。它描述的是 kernel control surface 的大小。
+对 SGLang main 的一次源码审计能直观看到这个范围：`python/sglang/kernels/ops/` 下有 21 个顶层 domain、502 个 Python 文件，Attention registry 中有 24 个名称，其中一个是兼容旧接口的 alias。502 不能解读成“502 个独立 kernel”，因为里面还包括 wrapper、backend adapter、metadata、注册代码和兼容层。它描述的是 kernel control surface 的大小。
 
 按服务语义看，这个 surface 大致分成 Attention & KV、GEMM & Quant、MoE、Communication、Serving Primitives、Multimodal & Diffusion。这样的分类比按 CUDA、Triton 或 CuTe DSL 分组更有用。用户调用的是逻辑 operator，编程语言只是某个 backend 的实现属性。
 
 ## 稳定的 operator，允许多种 backend
-
-![SGLang 的统一 operator 与 backend registry](https://files.mdnice.com/user/59/7aaf302c-e464-486b-bc02-ebaf7165973b.png)
 
 SGLang kernels 目前的核心抽象，是让模型代码依赖稳定 namespace：
 
@@ -61,7 +59,7 @@ SGLANG_FORCE_FUSED_OP_BACKEND=torch
 
 如果错误消失，问题大概率位于某个 fused backend；如果仍然存在，就应该继续检查模型或数据路径。这比逐个注释 kernel 快得多，也说明 registry 不只是“选最快实现”的性能组件，它还是调试和回归控制面。
 
-KDA 放进 backend 枚举时，表达的是实现来源，而不是新的编程语言。KDA 生成的实现可以使用 CuTe DSL（#36865）、CUDA JIT（#37385），也可以是 JIT + Triton（#37162）。至于某个实现支持哪些 GPU、dtype、layout 和 shape，仍然由 capability 单独描述。
+KDA 放进 backend 枚举时，表达的是实现来源，而不是新的编程语言。#37385 和 #36865 合入后，大写 `KernelBackend.KDA` 已经出现在 main 的 `spec.py`、`fused_op.py` 和默认优化优先级里。在 `73a24142` 这个基线上，`ops/diffusion/__init__.py` 有 8 个 KDA `KernelSpec`，`ops/gemm/__init__.py` 有 1 个，合计 9 个。其中 6 个指向 CUDA JIT 模块，2 个指向 Triton，1 个 Qwen3.x NVFP4 GEMM 由 CuTe DSL 承载。至于某个实现支持哪些 GPU、dtype、layout 和 shape，仍然由 capability 单独描述。
 
 ## JIT 的难点是缓存一致性
 
@@ -112,14 +110,12 @@ Humanize 保存 task contract、实验记录、profile 证据和未解决风险�
 
 KDA 的价值也不应该用一个峰值 speedup 概括。目前几组公开工作覆盖了不同层次的证据：
 
-![KDA kernel 在真实 Serving gate 下的证据组合](https://files.mdnice.com/user/59/5a45ce10-cd78-4d9d-b10f-28b8fa72778a.png)
-
 - Qwen3.8 QSA（#36845）完成 15/15 次真实 replay 和 150k stress launches，kernel geomean 相对正确 Triton 实现为 2.07×，真实 Serving throughput 提升 4.0%–4.45%，GSM8K 保持 49/50；
 - 四个已经合并的 diffusion kernel（#27392、#29281、#29361、#29708）记录了 1.279×–5.84× 的 kernel 收益，并各自给出 denoise 或 E2E 测量；
 - SM120 NVFP4 GEMM（#36865）在 16 个精确 production rows 上得到 1.319× kernel geomean，后面还会看到 4B、9B 与 27B 三种不同的模型结果；
 - GB300 FLUX.2 FP8 路径（#37162）保持 pixel-exact，E2E 为 1.0331×，denoise latency 降低 3.246%，显存减少 438 MB，kernel 数量减少 19.9%。
 
-这些实验的共同点是同时报告执行路径、正确性和端到端结果。只留下“最快的一行”，反而会丢掉最有价值的信息。
+这些实验的共同点是同时报告执行路径、正确性和端到端结果。只留下“最快的一行”，反而会丢掉最有价值的信息。截至本文的 main 基线，这里提到的 #36865、#37162 和负责 KDA backend 登记的 #37385 都已经合入。
 
 ## 写 kernel 时常见的 reward hacking
 
@@ -147,9 +143,7 @@ semantic fidelity × executed path × frozen workload × serving E2E
 
 ## Qwen3.5 的收益和 Qwen3.8-27B 的反例
 
-![Qwen3.5 Serving 加速与 Qwen3.8-27B cache 反例](https://files.mdnice.com/user/59/b4c1ba84-d572-4a88-8c35-c22aaa56c700.png)
-
-PR #36865 当前 head `05a433d4d6` 在 RTX PRO 6000 / SM120、FlashInfer 0.6.18 环境下记录了如下结果：
+PR #36865 已经以 `c593527f33` 合入 main。下面的端到端数据来自该 PR 合入前在 head `73d4809cf4` 上记录的 RTX PRO 6000 / SM120、FlashInfer 0.6.18 验证，不是合入后在 `73a24142` 上重跑的新结果：
 
 | 模型 | 并发 | Throughput | TPOT | E2E latency |
 | --- | ---: | ---: | ---: | ---: |
@@ -170,17 +164,25 @@ Qwen3.8-27B 给出了反方向的证据。早期 broad dispatch 让每层 5.6–
 
 ## 为什么还需要大写的 KDA backend
 
-![KDA 作为一等 provenance backend](https://files.mdnice.com/user/59/fc09b792-f002-4b9f-8e9b-a86b5e0ceedd.png)
-
 如果 KDA 生成的 CuTe DSL kernel 只登记为 `CUTE_DSL`，Triton kernel 只登记为 `TRITON`，运行时能知道它们怎样执行，却不知道实现来自哪个设计和验证流程。`KernelBackend.KDA` 补上了这层 provenance，使 forced selection、回退告警、测试覆盖和 inventory 审计都有统一入口。
 
 大写 KDA 不会取代底层编译器，也不会绕过 capability。一个 KDA kernel 仍然可能只支持 SM120、某个 dtype、特定 layout 或少量精确 shape。backend 表示来源，target 与 capability 决定它如何运行、能在哪里运行。
 
-PR #36865 负责把新的 SM120 GEMM 接入 KDA backend；PR #37385 在此基础上注册此前已经合并的 diffusion kernel 和 FLUX.2 路径。PR 状态需要说清楚：在本文的 source baseline 上，#37385 仍然是 open。它负责注册已有实现，不能写成“#37385 合并了这些 kernel”。
+#37385 先建立了大写 KDA backend，并为已经合入的 diffusion 与 FLUX.2 实现补上登记，该 PR 最终以 `5993f91f84` 合入。#36865 随后以 `c593527f33` 合入，它不只增加了 SM120 上的 `gemm.qwen3x_nvfp4`，还将 Humanize2/KDA 生成或扩展的实现统一收敛到 `python/sglang/kernels/kda_kernels/`。所以最新 main 上的边界已经不是一个未决的设计选择，而是落地的所有权规则：
 
-代码目录也要保留这条边界。仍处于生成包、候选集或独立 artifact 阶段的代码，可以放进 `python/sglang/kernels/kda_kernels/<generated-package>/`，保存 task revision、candidate hash 和搜索历史。成熟后属于稳定业务 domain 的实现进入 `ops/<group>/`，但注册时继续保留 `backend=KDA`。
+```text
+python/sglang/kernels/
+├── ops/
+│   ├── diffusion/__init__.py   # registration / capability / fallback
+│   └── gemm/__init__.py
+└── kda_kernels/
+    ├── README.md               # PR and exact revision
+    ├── qwen3x_nvfp4_gemm*.py
+    ├── diffusion implementation modules
+    └── csrc/diffusion/*.cuh
+```
 
-provenance 至少要记录 task/revision、workflow 或 candidate hash、目标硬件与 shape、correctness/performance/E2E 证据，以及 fallback 和 CUDA Graph 行为。机器生成历史值得保留，生产路径只接收通过资格审查的 operator。
+模型和 runtime 只从 `sglang.kernels.ops` 这个稳定 facade 导入 operator。`ops` 负责注册、capability 和 fallback，`kda_kernels` 保存生成实现与 JIT CUDA 源码。该目录的 README 列出来源 PR 和 exact revision，例如 Qwen3.x NVFP4 GEMM 固定到 KDA-Pilot #195 的具体 commit。这样既能审计机器生成的历史，又不会让 production API 依赖某个具体搜索包。性能、端到端、fallback 和 CUDA Graph 证据仍然是进入默认 dispatch 前必须满足的 promotion contract。
 
 ## 从比赛提交走到 SGLang upstream
 
@@ -219,6 +221,7 @@ competition submission
 - KDA NVFP4 GEMM 与 Qwen3.5/Qwen3.8 E2E 数据：https://github.com/sgl-project/sglang/pull/36865
 - KDA FLUX.2 FP8 fusion：https://github.com/sgl-project/sglang/pull/37162
 - KDA backend 与 diffusion kernel 注册：https://github.com/sgl-project/sglang/pull/37385
+- KDA-Pilot Qwen3.x NVFP4 GEMM source revision：https://github.com/BBuf/KDA-Pilot/pull/195
 - KDA-Pilot overlay 假收益与 production integration parity：https://github.com/BBuf/KDA-Pilot/pull/22 · https://github.com/BBuf/KDA-Pilot/pull/24 · https://github.com/BBuf/KDA-Pilot/pull/25
 - KDA-Pilot benchmark contract、A/A、frozen rows 与 fallback/no-go：https://github.com/BBuf/KDA-Pilot/pull/40 · https://github.com/BBuf/KDA-Pilot/pull/41 · https://github.com/BBuf/KDA-Pilot/pull/43 · https://github.com/BBuf/KDA-Pilot/pull/79 · https://github.com/BBuf/KDA-Pilot/pull/89
 - KDA-Pilot bitwise contract 与 production oracle：https://github.com/BBuf/KDA-Pilot/pull/152 · https://github.com/BBuf/KDA-Pilot/pull/157 · https://github.com/BBuf/KDA-Pilot/pull/158
