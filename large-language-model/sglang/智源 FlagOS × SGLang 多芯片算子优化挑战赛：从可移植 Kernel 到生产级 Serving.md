@@ -2,148 +2,356 @@
 
 作者：BBuf
 
-智源 FlagOS × SGLang 多芯片算子优化挑战赛选取 SGLang 真实工作负载中的算子作为赛题。参赛者需要先实现可移植版本，也可以针对不同芯片加入专用 fast path。这个设置很接近推理框架的日常工作：上层 operator contract 不能跟着硬件变化，底层实现却必须理解架构、编译器和内存层次。
+这篇文章按 17 张 Slides 的顺序展开，但不是把画面上的文字再念一遍。我会补上每一页背后的 SGLang 源码、设计取舍、性能数据口径，以及它和下一页之间的关系。
 
-不过，赢下单个算子的 benchmark 只是开始。一个实现要进入 SGLang，还得面对 backend dispatch、CUDA Graph、fallback、数值正确性以及模型端到端性能。过去几个月，我在 SGLang 和 KDA（Kernel Design Agents）相关工作里反复遇到同一个问题：microbenchmark 里的胜利，到了完整 Serving 系统中不一定还成立。
+整场分享想回答一个问题：智源 FlagOS × SGLang 多芯片算子优化挑战赛中的一个参赛实现，怎样从 portable kernel 出发，经过芯片专用优化、SGLang backend 接入和端到端验证，最后成为可以进入真实 Serving 路径的实现？
 
-这篇文章尝试把两件事接起来。一边是多芯片算子比赛，另一边是 SGLang 如何管理 kernel 的完整生命周期。文中的源码统计基于 2026 年 9 月 2 日的 SGLang main `73a24142`；性能数据仍严格对应各 PR 记录的硬件、模型、shape、并发和软件版本，不会因为 PR 合入就被改写成“在最新 main 上重测”。
+Slides 的源码审计快照固定在 SGLang `73a24142`，这样目录数量和注册数量可以复现。写作时我又拉取了最新 `origin/main@fe3d4b9bbb` 做复核。性能数字则保留各 PR 当时的硬件、软件、shape 和测试方法；“代码已经合入”不等于“所有历史数据都在最新 main 上重新测过”。
 
-## 从可移植实现到生产路径
+## Slide 1：SGLang Multi-Chip Operator Optimization
 
-![挑战赛算子如何进入 SGLang 生产路径](https://files.mdnice.com/user/59/144d753a-5414-4430-9a87-8e8ba40faca7.png)
+![Slide 1：SGLang Multi-Chip Operator Optimization](https://files.mdnice.com/user/59/ce1615eb-2e6a-4cec-b983-bdd4a2550d4d.png)
 
-比赛里的 portable kernel 给出了共同起点。架构专用实现负责在目标芯片上提速，SGLang 再判断它是否能进入真实模型路径。这三层不能混为一谈。
+封面把活动背景和整场分享的判断放在一起：Serving performance depends on many kernels。
 
-一个 production-ready operator 至少要回答下面几个问题：
+这里的 “many kernels” 不只是说模型里 GEMM 数量很多。一条请求还会经过 Attention、KV Cache、量化、通信、采样、数据重排和调度。某个 kernel 的耗时下降，只说明局部候选值得继续验证；只有 TTFT、TPOT、吞吐或 diffusion denoise latency 也改善，才说明它真正帮助了 Serving。
 
-- dtype、layout 和数值语义是否与参考实现一致；
-- 不支持的 shape 或 GPU 架构是否会回退，而不是静默执行错误路径；
-- CUDA Graph capture/replay 时是否分配新内存、改变地址或留下旧状态；
-- 局部性能收益能否反映到 TTFT、TPOT、throughput 或 denoise latency。
+这正是多芯片比赛与单卡 microbenchmark 的连接点。比赛要求参赛者面对真实 SGLang task，在共同的算子语义下为不同硬件寻找更好的实现；SGLang 则负责把候选放回完整调用链，检查它能否安全地工作。
 
-因此，更准确的优化对象是：
+封面右侧的 compute、memory、collectives、dispatch 是后续内容的四条线：计算本身要快，数据要以合适的 layout 移动，多卡通信要匹配消息大小，最后还要确保 dispatch 只把已验证的输入送入 fast path。
+
+## Slide 2：比赛同时考查三个目标
+
+![Slide 2：The challenge has three optimization goals](https://files.mdnice.com/user/59/776ba49d-6ea1-4a1c-a268-d77f8ee7f592.png)
+
+我把一个完整提交拆成三层。
+
+第一层是 portability。不同芯片上的实现必须遵守同一个 operator contract：输入、输出、dtype、layout、数值语义和异常行为不能因为 backend 改变。Portable kernel 不一定是最终最快的版本，但它给出了共同语义和可比较的参考路径。
+
+第二层是 specialization。真正的性能通常来自对目标硬件的理解，例如 tile 形状、shared memory/TMEM 使用方式、向量化宽度、warp 分工、异步拷贝、量化格式和拓扑。不同芯片可以有不同 fast path，只要上层 operator 不变。
+
+第三层是 serving safety。一个实现还必须回答：不支持的 shape 是否回退？CUDA Graph capture 和 replay 是否正确？多 rank 是否共享了错误状态？模型精度和端到端指标是否保持？
+
+这三层可以写成：
 
 ```text
-operator contract × architecture × workload
+operator contract × target architecture × real workload
 ```
 
-单独谈 kernel 代码，很容易漏掉后两项。单独看模型平均吞吐，又可能看不出是哪一个 shape、哪一次 dispatch 在起作用。比赛提供了一个具体算子和跨芯片目标，SGLang 则提供真实调用路径、参考实现与回退机制，把局部优化放回可控的系统环境。
+挑战赛中的好成绩是第一批证据，而不是最后一道部署决定。后面的 Slides 会依次解释 SGLang 怎样承接这三层。
 
-## Serving 本身就是一个 kernel system
+## Slide 3：一次请求会使用六类 kernel
 
-![一次请求会经过计算、内存、通信和调度组成的 kernel system](https://files.mdnice.com/user/59/18371f4f-ae78-4055-ba2d-61872186f087.png)
+![Slide 3：One request uses six kernel families](https://files.mdnice.com/user/59/2bc4a649-c520-4b54-ac42-35e8ba315c09.png)
 
-一次生成请求不会只经过 GEMM。Attention 要构造 metadata 并解释 KV Cache 页表；MoE 包含 routing、permute 和 grouped GEMM；多卡执行需要 collective；采样和 speculative decoding 也有各自的 kernel。模型换成 Mamba、Qwen-Image 或 FLUX 后，还会进入 SSM、multimodal 和 diffusion 专用路径。
+一条 LLM 请求从 prefill 进入 decode，至少会碰到六类工作：
 
-所以我更愿意说 end-to-end serving path，而不是 latency path。Serving 关心的不只有延迟。吞吐、并发下的 cache 竞争、graph replay 和错误回退都由同一条执行链决定。
+- Attention + KV：QK、softmax、PV、RoPE、KV pack 和分页缓存；
+- GEMM + Quant：BF16、FP8、NVFP4，以及 per-token/per-group scale；
+- MoE：routing、top-k、permute、grouped GEMM 和 expert fusion；
+- Communication：all-reduce、all-gather、reduce-scatter；
+- Sampling + Speculative：grammar mask、top-k/top-p、draft tree verification；
+- State + Diffusion：Mamba/linear attention state、DiT fusion 和 layout 变换。
 
-对 SGLang main 的一次源码审计能直观看到这个范围：`python/sglang/kernels/ops/` 下有 21 个顶层 domain、502 个 Python 文件，Attention registry 中有 24 个名称，其中一个是兼容旧接口的 alias。502 不能解读成“502 个独立 kernel”，因为里面还包括 wrapper、backend adapter、metadata、注册代码和兼容层。它描述的是 kernel control surface 的大小。
+所以副标题使用的是 “kernel work, metadata, data movement, and collectives”。metadata 不是装饰信息。以 paged Attention 为例，kernel 必须知道每个请求的序列长度、页索引、KV 地址和运行模式；metadata 构造得慢，或者 CUDA Graph replay 读取了旧地址，inner loop 再快也没有意义。
 
-按服务语义看，这个 surface 大致分成 Attention & KV、GEMM & Quant、MoE、Communication、Serving Primitives、Multimodal & Diffusion。这样的分类比按 CUDA、Triton 或 CuTe DSL 分组更有用。用户调用的是逻辑 operator，编程语言只是某个 backend 的实现属性。
+同样，吞吐也不是单个 kernel latency 的同义词。高并发下，调度、L2 占用、workspace、通信和后续算子都会改变最终结果。这一页底部那句话最重要：最快的 isolated kernel，仍然可能输掉端到端 Serving。第 12、13 页会给出真实反例。
 
-## 稳定的 operator，允许多种 backend
+## Slide 4：SGLang 把 Serving kernels 放进统一 API
 
-SGLang kernels 目前的核心抽象，是让模型代码依赖稳定 namespace：
+![Slide 4：SGLang groups serving kernels under one API](https://files.mdnice.com/user/59/2f42e39c-c0e6-4733-af82-b1c7cb798543.png)
+
+这一页是源码范围审计，不是 kernel 数量排行榜。
+
+在固定快照 `73a24142` 上，`python/sglang/kernels/ops/` 有 21 个顶层 domain、502 个 Python 文件；Attention registry 注册了 24 个名字，其中 `nsa` 是指向 `dsa` 的兼容 alias。502 的准确含义是 “Python files under ops/”，里面包括 API、wrapper、metadata、site hook、backend adapter 和兼容代码，绝不能读成 502 个独立 GPU kernel。
+
+到本文复核的最新 `origin/main@fe3d4b9bbb`，顶层 domain 仍是 21 个，Python 文件已变为 510。这个变化正好说明为什么 Slides 必须固定 source baseline：main 在继续前进，而演讲中的统计需要可复现。
+
+源码目录按逻辑功能分组，而不是按 CUDA/Triton/CuTe DSL 分组：
+
+```text
+python/sglang/kernels/ops/
+├── attention/       # Attention 与部分 KV 相关 operator
+├── gemm/            # GEMM 及专用矩阵乘路径
+├── communication/   # all-reduce 等通信 operator
+├── moe/             # routing、permute、grouped GEMM
+├── sampling/        # 采样
+├── diffusion/       # diffusion fusion、layout、RoPE、site
+└── ...
+```
+
+这样组织的原因很直接：模型代码关心“我要调用哪个逻辑算子”，不应该关心“它今天恰好由哪种语言实现”。真正的 backend 选择留给下一层 registry。
+
+源码入口：[kernels/ops](https://github.com/sgl-project/sglang/tree/73a24142895cbd169bc9f699fd72dfa6e4f61c15/python/sglang/kernels/ops)、[attention_registry.py](https://github.com/sgl-project/sglang/blob/73a24142895cbd169bc9f699fd72dfa6e4f61c15/python/sglang/srt/layers/attention/attention_registry.py)。
+
+## Slide 5：一个逻辑 operator，多种实现
+
+![Slide 5：One logical operator, many implementations](https://files.mdnice.com/user/59/943abce7-fc52-4ece-9a67-ebf51994d966.png)
+
+这是整套架构的核心页。模型和 runtime 依赖稳定入口：
 
 ```text
 sglang.kernels.ops.<group>.<operator>
 ```
 
-operator 进入 `BaseFusedOp + KernelRegistry` 后，再根据 priority 和 capability 选择 AOT、JIT、Triton、CuTe DSL、FlashInfer、DeepGEMM、AITER/NPU 或 KDA 实现。注册层同时保存 Pure-Torch oracle、capability gate、lazy import、trace、fallback 和 forced backend。
+底层实现则由 `KernelSpec` 或 `BaseFusedOp` 描述。以 Qwen3.x NVFP4 GEMM 为例，main 中的注册大致如下：
 
-例如，排查模型数值错误时可以强制 fused-op 路径使用 Torch：
+```python
+register_kernel(
+    KernelSpec(
+        op="gemm.qwen3x_nvfp4",
+        backend=KernelBackend.KDA,
+        target=f"{_KDA_PACKAGE}.qwen3x_nvfp4_gemm:try_qwen3x_nvfp4_gemm",
+        capabilities=_SM120,
+    )
+)
+```
+
+`op` 是稳定 lookup key，`backend` 记录实现来源，`target` 是延迟导入的 Python callable，`capabilities` 决定当前平台是否有资格运行。`KernelSpec.load()` 在实际调用前不会导入重型依赖，因此 `import sglang.kernels` 不会顺带加载 Triton、CUTLASS 或触发 JIT。
+
+`BaseFusedOp` 又把同一 operator 的多个 `forward_<backend>` 放在一个 `nn.Module` 后面。当前 dispatch 顺序是：显式 backend、全局强制 backend、out-of-tree 平台覆盖、满足 capability 的优化 backend、平台专用 forward、最后回到 Pure-Torch reference。源码中的默认优化优先级以 KDA 开始，但“优先尝试”不等于“无条件执行”；每个 operator 仍可通过 `backend_eligible()` 增加 shape/dtype gate。
+
+Slides 底部把 runtime backend 与 agent candidate source 放在一行，是为了展示生态关系，不是说每个标签都属于 `KernelBackend` 枚举。特别要区分：
+
+- CUDA JIT、Triton、CuTe DSL 回答代码如何编译或表达；
+- KDA 回答实现来自 Kernel Design Agents 工作流；
+- CAKE 在这里表示另一条 agent 候选生成路径，当前 main 并没有 `KernelBackend.CAKE`；
+- `torch_compile` 仍存在于源码枚举，只是为了版面空间没有放进这一行，自动 dispatch 也不会意外触发它。
+
+排查数值问题时可以设置：
 
 ```bash
 SGLANG_FORCE_FUSED_OP_BACKEND=torch
 ```
 
-如果错误消失，问题大概率位于某个 fused backend；如果仍然存在，就应该继续检查模型或数据路径。这比逐个注释 kernel 快得多，也说明 registry 不只是“选最快实现”的性能组件，它还是调试和回归控制面。
+这会尽量让整模型回到 reference path。若某个 operator 没有被强制 backend 覆盖，全局 debug 模式会逐 operator 告警并继续正常 fallback，而不是让整模型直接不可用。
 
-KDA 放进 backend 枚举时，表达的是实现来源，而不是新的编程语言。大写 `KernelBackend.KDA` 已经出现在 main 的 `spec.py`、`fused_op.py` 和默认优化优先级里。在 `73a24142` 这个基线上，`ops/diffusion/__init__.py` 有 8 个 KDA `KernelSpec`，`ops/gemm/__init__.py` 有 1 个，合计 9 个。其中 6 个指向 CUDA JIT 模块，2 个指向 Triton，1 个 Qwen3.x NVFP4 GEMM 由 CuTe DSL 承载。至于某个实现支持哪些 GPU、dtype、layout 和 shape，仍然由 capability 单独描述。
+源码入口：[spec.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/spec.py)、[fused_op.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/fused_op.py)、[ops/gemm/__init__.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/ops/gemm/__init__.py)。
 
-## JIT 的难点是缓存一致性
+## Slide 6：JIT 在运行时专门化，但不改变 API
 
-SGLang 的 `jit_kernel` 适合尺寸较小、需要跟随运行环境专门化的 CUDA kernel。上层 Python API 不变，build spec 负责收集源码、编译参数和依赖，然后生成 TVM-FFI module。真正棘手的地方不是调用一次 NVCC，而是让多进程服务始终拿到正确的二进制。
+![Slide 6：JIT kernels specialize at runtime](https://files.mdnice.com/user/59/87b308ce-34c0-4ec8-9264-59d22b812e0f.png)
 
-缓存 key 必须覆盖 transitive dependency。假设依赖链是：
+SGLang 的 `jit_kernel` 适合轻量、需要按当前环境专门化的 CUDA/HIP 模板。上层 operator contract 不变，`BuildSpec` 收集 source、flags、target、wrapper exports，再由 `load_jit()` 查找或构建 TVM-FFI module。
+
+这套机制最难的部分不是调用一次 NVCC，而是缓存正确性。当前缓存有两级 key：
+
+```text
+build_key：编译前已知的参数、flags、target、直接源码内容
+deps_key：编译器枚举出的完整传递依赖内容
+```
+
+假设依赖链是：
 
 ```text
 kernel.cu → common.cuh → sm120_utils.cuh
 ```
 
-`sm120_utils.cuh` 虽然没有被入口源码直接 include，也必须进入 cache key。否则它修改后，JIT 仍可能复用旧二进制。这类问题很难在单元测试中稳定复现，却会在共享缓存和多 clone 部署里留下隐患。
+`sm120_utils.cuh` 没有被入口文件直接 include，但它仍是 transitive dependency，也就是间接构建输入。只要链上任何文件的内容变化，`deps_key` 就必须变化，否则服务可能复用旧 `.so`。源码会对依赖内容做 SHA256，并把每个 immutable leaf 放在自己的 `deps-<key>/` 目录，而不是维护一个多进程共同修改的 manifest。
 
-并发启动还需要 rank lock、staging 目录校验和 atomic rename。任何 rank 都只能看到完整且通过校验的 artifact，不能读到另一个进程正在写的半成品。PR #34274 给出的 H100 启动测量是：冷启动 5.26 秒，同一 clone warm start 0.02 秒，第二个 clone 复用共享缓存 0.05 秒。这个差距决定了 JIT 能不能成为正常部署路径，而不只是开发阶段的便利功能。
+多 rank 启动还有另一个竞态。`loader.py` 先查缓存；miss 后获取文件锁；拿到锁之后再查一次。第二次检查把 N 个同时启动的 TP rank 变成“一次编译 + N-1 次 cache hit”。构建先进入私有 `.staging-<uuid>`，模块能够成功加载后才 atomic rename 发布，其他进程不会看到半成品。
 
-## Attention 与通信为什么都需要系统抽象
+源码中的关键流程可以缩成：
 
-Attention 常被画成一个公式，Serving 中却至少有四层工作：构造 batch/sequence/page metadata，解释 KV Cache layout，处理 CUDA Graph，再在 prefill、decode、extend、dense、MLA、sparse 和不同平台 backend 之间 dispatch。优化 inner loop 只是其中一部分。metadata 或 KV layout 不匹配，再快的实现也进不了真实 decode 路径。
+```python
+prebuilt = cache.find_prebuilt(...)
+if prebuilt is not None:
+    return _load(prebuilt)
 
-通信也有同样的问题。Custom AllReduce v2 把 storage plane 与 compute plane 分开：每个 rank 先准备 symmetric-memory slab，通信侧提供 PushPlane/PullPlane，算法侧选择 one-shot push、one-shot pull 或 two-shot pull。最终调度要结合 architecture、world size、消息大小以及 eager/graph 模式；超过适用范围后继续回退 NCCL。
-
-![Custom AllReduce v2 的存储、算法与 dispatch](https://files.mdnice.com/user/59/ebb6aba8-2ef5-4f6b-950c-154b0b6aa69d.png)
-
-PR #31049 在 8×B200 BF16 环境记录了下面的数据：
-
-| 数据量 | NCCL | AOT v1 | JIT Graph v2 |
-| --- | ---: | ---: | ---: |
-| 4 KB | 26.6 μs | 6.8 μs | 3.9 μs |
-| 256 KB | 31.1 μs | 26.0 μs | 6.6 μs |
-| 1 MB | 32.1 μs | 26.9 μs | 12.4 μs |
-| 16 MB | 108.1 μs | 147.1 μs | 53.2 μs |
-
-正确的结论不是“自定义实现永远比 NCCL 快”。这些数据说明，Serving 中高频的小中消息和 graph 路径值得专门优化，同时必须保留清楚的 crossover 与 fallback。
-
-## 局部优化怎样穿过完整模型
-
-main 上的 Qwen-Image 路径包含三项配套优化：QKV pack 从 47.73 μs 降到 21.10 μs，FA3 scheduler 从 159.40 μs 降到 147.06 μs，24 MiB collective 从 104.20 μs 降到 81.75 μs。它们分别作用于数据重排、Attention 调度和 TP 通信。
-
-它们组合后，Qwen-Image 在 TP2 + BCG、`quality=high` 下报告 8.58% denoise speedup，Z-Image-Turbo TP2 报告 5.05%。Qwen-Image 的时间从 8.5406 秒降到 7.8657 秒。这里使用 `baseline / candidate - 1` 得到 8.58%；如果按 `(baseline - candidate) / baseline` 计算 latency reduction，则是 7.90%。报告性能时需要写清口径，否则同一组数据会出现两个看似冲突的百分比。
-
-`quality=lossless` 仍保留参考路径。这也是生产优化与单题跑分的区别：fast path 可以继续扩展，但没有覆盖的质量档位不需要跟着承担风险。
-
-## KDA 生成候选，SGLang 决定能否晋级
-
-当 Agent 开始参与 kernel 设计后，搜索速度提高了，验证责任却没有消失。我把 Humanize、KDA 和 SGLang 分成三个角色：Humanize 管理长周期开发循环，KDA 搜索 kernel 设计空间，SGLang 负责 production promotion。
-
-Humanize 保存 task contract、实验记录、profile 证据和未解决风险，并引入独立 review。循环只有在 acceptance criteria 达成时才结束；否则需要明确记录下一步改动，而不是让 Agent 自己宣布完成。
-
-KDA 的价值也不应该用一个峰值 speedup 概括。目前几组公开工作覆盖了不同层次的证据：
-
-- Qwen3.8 QSA（#36845）完成 15/15 次真实 replay 和 150k stress launches，kernel geomean 相对正确 Triton 实现为 2.07×，真实 Serving throughput 提升 4.0%–4.45%，GSM8K 保持 49/50；
-- 四个已经合并的 diffusion kernel（#27392、#29281、#29361、#29708）记录了 1.279×–5.84× 的 kernel 收益，并各自给出 denoise 或 E2E 测量；
-- SM120 NVFP4 GEMM（#36865）在 16 个精确 production rows 上得到 1.319× kernel geomean，后面还会看到 4B、9B 与 27B 三种不同的模型结果；
-- GB300 FLUX.2 FP8 路径（#37162）保持 pixel-exact，E2E 为 1.0331×，denoise latency 降低 3.246%，显存减少 438 MB，kernel 数量减少 19.9%。
-
-这些实验的共同点是同时报告执行路径、正确性和端到端结果。只留下“最快的一行”，反而会丢掉最有价值的信息。这些实现和 KDA backend 登记现在都已经进入 main。
-
-## 写 kernel 时常见的 reward hacking
-
-这里的 reward hacking 通常不是 Agent 故意作弊。更实际的情况是 benchmark 合同不完整，Agent 很认真地优化了错误目标。我在近期的 KDA-Pilot 和 SGLang 工作中遇到过五类问题。
-
-![Kernel reward hacking 与 production promotion gate](https://files.mdnice.com/user/59/49076515-7751-4d50-ae39-4ead606d2580.png)
-
-第一类是优化了 host path，而不是 device kernel。KDA-Pilot #22 早期用 overlay 替换了 SGLang 中带 `@register_custom_op` 的公开入口，约 1.22× 的表面收益混入了绕过 production wrapper 的 host-side 差异。#24 和 #25 把 baseline 与 candidate 放回相同 public op、相同 wrapper 和 in-tree arbiter 后，可归因到 device kernel 的结果约为 1.12×。
-
-第二类是数值捷径。candidate 单边打开 `--use_fast_math`、放松 tolerance、不检查 NaN/Inf，或没有确认输出 tensor 被完整覆写，都可能让错误实现通过。后续 benchmark 固定了两边的编译参数和 ABI，加入 poison output；LTX2 任务又使用 production bitwise contract（#152、#157、#158）。
-
-第三类是挑 shape。看到结果后删掉变慢的 workload，或只报告 geomean，会藏住 production bucket 的退化。#40 的 baseline-vs-baseline A/A geomean 是 0.9992；#41 和 #43 冻结 production rows，并逐行记录 dispatch 与 fallback；#89 则接受 pure-speed no-go，只保留 correctness/safety 修复。正常的优化流程必须允许某些候选被拒绝。
-
-第四类是 stale state 或 wrong path。CUDA Graph replay、复用 workspace 和 device counter 可能留下旧状态，silent fallback 也可能让 benchmark 实际测到 reference backend。KDA-Pilot #194 对 stateful kernel 使用 chained final-state checks；SGLang #36845 又执行 150,000 次连续 launch，确认 counter 每次都回到零。
-
-最后一类是 isolated kernel 与完整模型不一致。microbenchmark 变快后，cache pressure、metadata 或下游 kernel 可能变慢。这个问题在 #36865 中出现过一次，而且非常有代表性。
-
-我现在更愿意把 promotion reward 写成下面这组约束：
-
-```text
-semantic fidelity × executed path × frozen workload × serving E2E
+with _build_lock(scope):
+    prebuilt = cache.find_prebuilt(...)  # lock 后再次检查
+    if prebuilt is not None:
+        return _load(prebuilt)
+    # build in private staging, verify load, then publish atomically
 ```
 
-任何一项为零，候选都不能晋级。挑战赛提交同样应该优化题目定义的 operator contract，而不是 benchmark 偶然留下的漏洞。
+Slides 上的 5.26 s、0.02 s、0.05 s 是 PR #34274 的 H100 启动/加载时间：分别对应 fresh build、同 clone 缓存加载和第二个 clone 复用共享缓存。它们不是 kernel 执行 latency。这个数量级差异解释了为什么 cache correctness 和共享能力决定 JIT 能否成为正常部署路径。
 
-## Qwen3.5 的收益和 Qwen3.8-27B 的反例
+源码入口：[cache.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/jit/utils/compile/cache.py)、[loader.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/jit/utils/compile/loader.py)。
 
-SM120 NVFP4 GEMM 已经进入 main。下面的端到端数据来自该功能合入前在 head `73d4809cf4` 上记录的 RTX PRO 6000 / SM120、FlashInfer 0.6.18 验证，不是合入后在 `73a24142` 上重跑的新结果：
+## Slide 7：Attention 不是一个 kernel 名字
+
+![Slide 7：Attention uses several kernels and backend-specific logic](https://files.mdnice.com/user/59/a0a863c0-11f0-4226-86ac-58c15cb91f6f.png)
+
+Attention 经常被简化成 `softmax(QKᵀ)V`，但 Serving 还要处理 metadata、KV layout、CUDA Graph、prefill/decode/speculative 模式和硬件差异。
+
+`attention_registry.py` 的注册方式很朴素：decorator 把名字映射到 backend 构造函数，真正的模块仍然延迟导入。
+
+```python
+ATTENTION_BACKENDS = {}
+
+def register_attention_backend(name):
+    def decorator(fn):
+        ATTENTION_BACKENDS[name] = fn
+        return fn
+    return decorator
+```
+
+简单的字典背后有大量 eligibility 规则。例如 `trtllm_mla` 只接受 MLA 模型，在特定 DCP + speculative decoding 组合下还会拒绝运行，因为它没有传递循环 DCP metadata，也没有返回跨 rank merge 所需的局部 LSE。`fa3` 会检查设备 capability；`triton` 对 encoder-decoder cross attention 有限制。也就是说，registry 列出的 24 个名称不是 24 个实现同时执行，而是 24 条带条件的候选路径。
+
+Slides 把候选分为 Dense、MLA、Sparse + Platform 三组，方便理解覆盖面：FlashInfer/FA3/FA4、FlashMLA/CuTe DSL MLA、DSA/DSV4、AITER/Wave、Ascend、Intel AMX/XPU 等。`nsa` 只是 `dsa` 的 deprecated alias，因此页面特意写了 “1 is a deprecated alias”。
+
+这里与第 5 页的共同点是：上层 API 保持不变，选择发生在 registry 和 backend 的运行条件里。不同的是，Attention 的条件不仅是 GPU 型号，还与模型结构、执行阶段、并行模式和 metadata contract 有关。
+
+源码入口：[attention_registry.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/srt/layers/attention/attention_registry.py)。
+
+## Slide 8：custom_allreduce_v2 把存储与算法分开
+
+![Slide 8：custom_allreduce_v2 separates storage from algorithms](https://files.mdnice.com/user/59/6284b0db-e5e8-4eef-ac69-c2ebbbbcac6f.png)
+
+多芯片 Serving 的通信不能只写成一个 `all_reduce(x)`。消息大小、world size、拓扑、eager/graph 模式和 multicast 能力都会改变最佳算法。
+
+先看 v1。Legacy `CustomAllreduce` 也是由 Python 创建内存，并不是所有资源都在 C++ 中分配。它会准备 `meta_ptrs`、eager 模式使用的 `buffer_ptrs` 和保存 graph buffer 地址的 `rank_data`，再通过 `ops.init_custom_ar(...)` 得到一个 `_ptr` handle：
+
+```python
+self.meta_ptrs = self.create_shared_buffer(ops.meta_size() + max_size)
+self.buffer_ptrs = self.create_shared_buffer(max_size)
+self.rank_data = torch.empty(max_size, dtype=torch.uint8, device=self.device)
+self._ptr = ops.init_custom_ar(self.meta_ptrs, self.rank_data, rank, full_nvlink)
+ops.register_buffer(self._ptr, self.buffer_ptrs)
+```
+
+这套 v1 设计能处理 eager 与 CUDA Graph，但 IPC buffer、同步 metadata、graph address registration 和执行路径都收在同一个 legacy handle 后面。`custom_all_reduce()` 的调用侧主要判断 input 是 registered 还是 unregistered；`should_custom_ar()` 主要检查连续性、world size、NVLink 和最大消息大小。具体算法不以独立 storage plane 的形式暴露。
+
+CAR v2 的关键重构是 decoupled storage plane。Python 先分配并持有 symmetric-memory slab，再切成 PushPlane 和 PullPlane：
+
+- PushPlane：`2 × world_size` 个 slot 对应两个 phase，另有 rank-local phase counter；
+- PullPlane：pull workspace、per-block semaphore，以及可选 multicast 地址；
+- Communicator：持有两个 plane，CUDA kernel 只接收稳定 handle；
+- 算法：`1shot_push`、`1shot_pull`、`2shot_pull` 独立选择。
+
+源码 `_init_workspace()` 只做一次 symmetric-memory rendezvous，然后用 offset 切出所有子区域。这样 storage 生命周期、graph pointer、multicast 映射和具体算法可以分别演进。CUDA Graph 输入在 capture 后交换地址，replay 时 kernel 从 device-side pointer table 读取当前 row，而不是把一次 capture 的 host pointer 假设成永远有效。
+
+因此，v1 与 v2 的差别不是“Python 管内存”对“C++ 管内存”，而是 monolithic handle 对 decoupled planes。v2 把 storage contract 写清后，算法选择可以独立发生：同一个 Communicator 能按当前调用走 push、pull 或 two-shot，不需要为每种算法重新设计一套 workspace 生命周期。
+
+算法选择也写得很直白：
+
+```python
+if nbytes <= one_shot_push_threshold:
+    return ONE_SHOT_PUSH
+if nbytes <= one_shot_pull_threshold:
+    return ONE_SHOT_PULL
+if multicast_range.contains(nbytes):
+    return TWO_SHOT_PULL, use_multicast=True
+if nbytes <= two_shot_pull_threshold:
+    return TWO_SHOT_PULL
+return None  # 回到 NCCL 等其他路径
+```
+
+Slides 表格来自 8×B200、BF16，单位是微秒：
+
+| 消息大小 | NCCL | AOT v1 | JIT graph v2 |
+| --- | ---: | ---: | ---: |
+| 4 KB | 26.6 | 6.8 | 3.9 |
+| 256 KB | 31.1 | 26.0 | 6.6 |
+| 1 MB | 32.1 | 26.9 | 12.4 |
+| 16 MB | 108.1 | 147.1 | 53.2 |
+
+这些数据证明 CAR v2 在给定硬件和 graph workload 上很有价值，但不能推出“自定义 AllReduce 对所有消息都比 NCCL 快”。16 MB 行里 AOT v1 已经慢于 NCCL，正好说明 crossover 和 fallback 是算法的一部分，不是失败后的补丁。
+
+当前 `dispatch_custom_allreduce()` 在 CUDA 上默认选择 JIT v2；设置 `SGLANG_OPT_USE_CUSTOM_ALL_REDUCE_V2=0` 可以回到 legacy v1。ROCm 和 MUSA 仍保留各自的实现分支，所以这张 Slides 只比较 8×B200 BF16 的 CUDA 路径，不能扩展成跨平台结论。
+
+源码入口：[legacy custom_all_reduce.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/srt/distributed/device_communicators/custom_all_reduce.py)、[custom_all_reduce_v2.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/srt/distributed/device_communicators/custom_all_reduce_v2.py)、[all_reduce.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/ops/communication/all_reduce.py)。
+
+## Slide 9：端到端收益来自完整 Serving path
+
+![Slide 9：End-to-end speedup comes from the full serving path](https://files.mdnice.com/user/59/6f6619c0-5394-4f7e-b3c6-d052a26ea79d.png)
+
+Qwen-Image 是一个很适合解释系统组合收益的例子。PR #36680 同时处理了三条路径：
+
+- QKV pack：47.73 μs → 21.10 μs，约 2.26×；
+- FA3 scheduler：159.40 μs → 147.06 μs，约 1.08×；
+- 24 MiB collective：104.20 μs → 81.75 μs，约 1.27×。
+
+第一项新增 `fused_pack_segmented_qkv`。它把 prefix/main 看成一条虚拟拼接序列，直接根据 `indices` 从两段来源 gather Q/K/V，不再先物化三份 dense concatenation。核心索引逻辑是：
+
+```python
+row_in_batch = src_row - batch * (PREFIX_ROWS + MAIN_ROWS)
+from_prefix = row_in_batch < PREFIX_ROWS
+# 根据 from_prefix 从 prefix 或 main 读取，再直接写 packed output
+```
+
+第二项改变 Attention scheduling。第三项把 diffusion 的 custom-AR workspace 上限扩到 32 MiB，因为 1024×1024 Qwen-Image 的 TP row-parallel 输出是 24 MiB；默认 16 MiB workspace 会让它回到 NCCL。这个例子能看出，kernel、layout 和 runtime 配置必须一起修改。
+
+三个局部倍数不能相乘。它们在完整 denoise path 中占比不同，还可能相互影响。最终模型结果是：Qwen-Image-2512 在 TP2 + BCG、`quality=high` 下从 8.5406 s 降到 7.8657 s；原 PR 用 `baseline / candidate - 1` 报告 +8.58%。若使用 `(baseline - candidate) / baseline` 计算 latency reduction，会得到 7.90%，两者只是分母不同。Z-Image-Turbo TP2 报告 +5.05%。
+
+`quality=lossless` 仍保留三次独立 added-QKV GEMM。源码中的 site hook 会按请求质量挂载 fusion，因为把三次 BF16 reduction 合并成一次会改变加法结合顺序，不能声称 bit-exact。这种按质量档位保留 reference path 的做法，比“所有请求默认走快路径”更符合生产语义。
+
+源码入口：[fused segmented QKV](https://github.com/sgl-project/sglang/blob/71cee04ebe8061af901e4880169f6a5e86f7c8c1/python/sglang/kernels/ops/diffusion/layout/varlen_pack_pad_triton.py)、[quality-gated site](https://github.com/sgl-project/sglang/blob/71cee04ebe8061af901e4880169f6a5e86f7c8c1/python/sglang/kernels/ops/diffusion/sites/qwen_image_added_qkv_site.py)、[diffusion group coordinator](https://github.com/sgl-project/sglang/blob/71cee04ebe8061af901e4880169f6a5e86f7c8c1/python/sglang/multimodal_gen/runtime/distributed/group_coordinator.py)。
+
+## Slide 10：为什么转到 Agent-native kernel development
+
+![Slide 10：SGLang also needs a repeatable kernel development loop](https://files.mdnice.com/user/59/d3105dfb-dd88-44fd-b104-ca7d85573dbb.png)
+
+前九页讲的是 runtime：稳定 operator、backend、capability、fallback、Attention 和 collective。到了这一页，问题才从“运行时怎样选择 kernel”转向“社区怎样持续开发大量 kernel”。这个转场很重要，否则 KDA 会像一个突然出现的新主题。
+
+当 operator API 稳定以后，开发过程仍然不断重复：从 trace 选择真实 shape，profile，修改实现，构建，correctness replay，CUDA Graph，模型 E2E，再进入 review。Agent-native coding 的目标不是降低验收标准，而是提高这条循环的吞吐。
+
+Slides 右侧四个角色有清楚的边界：
+
+- Skills 保存可重复执行的工程步骤；
+- Humanize 维护长任务状态，并在循环中加入独立 review；
+- KDA 搜索和生成更快的 kernel 候选；
+- SGLang 定义 operator contract、运行路径和 release checks。
+
+源码里的 `enable_fused_op_trace()` 很能说明两部分怎样接起来。它记录每次 fused-op 调用的 op、backend、tensor shape 和 dtype，为“哪些 production shape 值得优化”提供真实输入。Agent 可以运行更多实验，但每个候选仍然必须经过相同 dispatch、replay、accuracy 和 E2E 检查。
+
+这一页不是在说 reviewer 可以被 Agent 替代。恰恰相反，重复劳动被自动化以后，人更应该把精力放在 contract、风险边界、实验是否公平，以及结果是否足以进入默认路径。
+
+## Slide 11：KDA 生成候选，SGLang 在 Serving 中验证
+
+![Slide 11：KDA generates kernels; SGLang validates them in serving](https://files.mdnice.com/user/59/47a740b7-313e-4b42-99d4-7c938ff20e44.png)
+
+这里的 KDA 指 Kernel Design Agents，不是 Kimi Delta Attention。
+
+左侧是 LMSYS《Agent-Assisted SGLang Development》公开的 B200 acceleration figure，覆盖 10 个 diffusion kernel task，图中结果约为 1.11×–2.7499×。它证明 Agent 可以连续处理一组真实工程任务，但这是公开时间点的工作流快照，不是今天的实时排行榜，也不表示图中每个候选都已经默认上线。
+
+右侧三张卡故意把“kernel 结果”和“Serving 结果”写在一起，但口径必须分开读。
+
+Diffusion portfolio 覆盖四类 kernel family：norm + scale/shift、causal Conv3D cat-pad、residual-gate add、LTX2 QKNorm + split-RoPE。其 kernel 收益为 1.279×–5.84×，同时继续检查 denoise 或 full-model run。相关实现可以在 `python/sglang/kernels/kda_kernels/` 找到。
+
+SM120 NVFP4 GEMM 在 16 个精确 production row 上得到 1.319× kernel geomean；完整 Qwen3.5 Serving 中，4B throughput 提升 6.52%–8.73%，9B 提升 2.70%–3.18%。第 13 页会展开每个并发点。
+
+Qwen3.8 packed QSA 是 PR #36845 的独立 validation package，不属于第 14 页统计的 main KernelSpec registry。10.66× 是 batch size 128 上的 kernel microbenchmark，不是模型 E2E。15 个真实 capture 的 kernel geomean 是 2.0702×；扩展 batch 17–128 的 42 个 case geomean 是 4.48×，最慢 case 仍有 1.58×。进入完整 TP1 NVFP4 + NEXTN Serving 后，吞吐提升是 4.00%–4.45%；GSM8K 为 49/50 对 49/50。
+
+QSA 还做了两类很关键的状态验证。第一类是 15/15 production tensor replay，并检查每一行确实只有一次目标 CUDA activity；第二类是 150,000 次连续 launch，确认计数器每次回到零。单元测试还会在 graph capture 后修改 `cu_seqlens` 与 Q/K/V，再 replay 并与 reference 比较，避免 kernel 偷用 capture 时的旧 metadata。
+
+源码入口：[QSA package README at merge commit](https://github.com/sgl-project/sglang/blob/78c5024e9d9f589dcb4deb7f4ba4fb23f7e85385/python/sglang/kernels/kda_kernels/qwen38_qsa_sm121/README.md)、[QSA CUDA Graph tests](https://github.com/sgl-project/sglang/blob/78c5024e9d9f589dcb4deb7f4ba4fb23f7e85385/test/registered/kernels/test_kda_qsa_sm121.py)、[KDA kernels README on main](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/kda_kernels/README.md)。
+
+## Slide 12：近期 kernel 开发中遇到的三种 reward hacking
+
+![Slide 12：Three reward-hacking problems we hit in kernel work](https://files.mdnice.com/user/59/fc03718b-dbdd-4f35-a6f7-820564abe6bc.png)
+
+这里的 reward hacking 不是说 Agent 恶意作弊，而是 benchmark 奖励了错误的东西。结果可能更好看，却未必来自一个正确、可交付并且能改善完整 Serving 的 kernel。
+
+近期 KDA-Pilot 和 SGLang kernel 开发中反复出现的问题，可以更直接地归成三类。
+
+第一类是 **the path changed**。早期实验曾让 candidate 绕过带 `@register_custom_op` 的 production wrapper，表面收益约为 1.22×；baseline 和 candidate 回到同一个 public API、wrapper 与 dispatcher 后，可归因给 device kernel 的收益约为 1.12×。另一个风险是 silent fallback：如果候选路径不满足条件后悄悄回到 reference，benchmark 可能根本没有测到新 kernel。现在的规则是两边必须走同一 host path，并通过 trace、counter 或 dispatch 记录确认新实现确实运行。
+
+第二类是 **the test changed**。candidate 单边打开 fast math、使用更宽松的 tolerance、没有检查 NaN/Inf，或没有确认 output 被完整覆写，都会让错误结果显得更快。看完数据后删掉较慢 shape，或只报告一个 geomean，也是在改变原始 workload。修正方法是在调优开始前冻结双方 compiler flags、reference、tolerance 和 shape set；output 可以先填 poison value，并按任务语义检查 exact、bitwise 或预先约定的误差界。每个 production row 都应保留，允许 specialization、fallback 和 no-go，而不是强迫每个 shape 都出现正收益。
+
+第三类是 **only the kernel won**。isolated kernel 变快，仍可能因为 cache pressure、CUDA Graph replay 中的旧状态、workspace 复用或下游 kernel miss 让完整系统变慢。QSA 的 15/15 production replay 和 150,000 次连续 launch，是为了证明 state 能正确复位、graph replay 不会偷用旧 metadata；但这些仍只是进入模型验证的前置条件。最后还必须测 accuracy、TPOT、throughput 或 diffusion denoise latency。下一页 Qwen3.8-27B 的 L2 反例正是这种 system-level reward mismatch。
+
+因此，判断链可以压缩为：
+
+```text
+same workload
+→ correct output
+→ confirmed dispatch
+→ end-to-end improvement
+```
+
+前三项证明 benchmark 有效，最后一项决定实现能否进入生产路径。microbenchmark 胜利只是一个候选，不是部署结论。挑战赛里也应该优化真实 operator contract，而不是利用 benchmark 恰好留下的缺口。
+
+相关工程记录可参考 [KDA-Pilot](https://github.com/BBuf/KDA-Pilot)、[QSA production validation](https://github.com/sgl-project/sglang/pull/36845) 和 [Qwen3.x NVFP4 GEMM integration](https://github.com/sgl-project/sglang/pull/36865)。
+
+## Slide 13：Qwen3.5-4B 与 9B 的端到端 Serving 确实变快
+
+![Slide 13：Qwen3.5-4B and 9B improve end-to-end serving](https://files.mdnice.com/user/59/8dbcde01-1564-4bb7-9e59-74a90d1bc18b.png)
+
+这一页先给正向结论，再用 Qwen3.8-27B 的失败解释为什么 dispatch 必须精确。
+
+数据来自 #36865 合入前在 PR head `73d4809cf4` 上进行的 RTX PRO 6000 / SM120、FlashInfer 0.6.18 验证，每个配置 32 个请求、3 轮。它们不是在本文最新 main 上重新跑出的数字。
 
 | 模型 | 并发 | Throughput | TPOT | E2E latency |
 | --- | ---: | ---: | ---: | ---: |
@@ -156,50 +364,66 @@ SM120 NVFP4 GEMM 已经进入 main。下面的端到端数据来自该功能合�
 | Qwen3.5-9B | 4 | +2.82% | -2.81% | -2.74% |
 | Qwen3.5-9B | 8 | +2.70% | -2.78% | -2.62% |
 
-Qwen3.5-4B 的 throughput 在四个并发点提升 6.52%–8.73%，9B 提升 2.70%–3.18%；TPOT 和 E2E latency 也在每个点改善。production dispatch 只覆盖已验证的四组 `(K,N)` 与 `M={1,2,4,8}`，没有重新打开 broad gate。
+4B 和 9B 在每个已测并发点都获得正 throughput，并且 TPOT、E2E latency 同步下降。这就是标题的直接含义，不需要用 “gains survive the full stack” 这类容易产生歧义的说法。
 
-Qwen3.8-27B 给出了反方向的证据。早期 broad dispatch 让每层 5.6–11 MiB 的 scale tensor 持续驻留。isolated GEMM 因此变快，但 scale tensor 挤掉了 Attention/SSM state 的 L2 空间，完整模型的 E2E output throughput 下降 0.76%。改成 one-pass streaming，并只放行 `(M,K,N)=(9,17408,5120)` 后，其他 shape 回退，端到端结果转为 +0.98%。
+为什么收紧 dispatch 后，这两组收益仍然存在？因为当前 gate 不是关闭 KDA，而是只开放已验证的 shape。main 源码把支持集合写得非常具体：
 
-这组正反结果解释了为什么 dispatch gate 不能只看 microbenchmark。4B/9B 的收益可以进入精确 production rows；27B 暴露的 cache 问题则帮助我们收紧 promotion 条件。失败数据在这里不是附注，它决定了 backend 应该怎样上线。
-
-## 为什么还需要大写的 KDA backend
-
-如果 KDA 生成的 CuTe DSL kernel 只登记为 `CUTE_DSL`，Triton kernel 只登记为 `TRITON`，运行时能知道它们怎样执行，却不知道实现来自哪个设计和验证流程。`KernelBackend.KDA` 补上了这层 provenance，使 forced selection、回退告警、测试覆盖和 inventory 审计都有统一入口。
-
-大写 KDA 不会取代底层编译器，也不会绕过 capability。一个 KDA kernel 仍然可能只支持 SM120、某个 dtype、特定 layout 或少量精确 shape。backend 表示来源，target 与 capability 决定它如何运行、能在哪里运行。
-
-main 已经有大写 KDA backend，也为 diffusion、FLUX.2 和 SM120 上的 `gemm.qwen3x_nvfp4` 建立了统一登记。Humanize2/KDA 生成或扩展的实现集中在 `python/sglang/kernels/kda_kernels/`。当前代码的所有权规则如下：
-
-```text
-python/sglang/kernels/
-├── ops/
-│   ├── diffusion/__init__.py   # registration / capability / fallback
-│   └── gemm/__init__.py
-└── kda_kernels/
-    ├── README.md               # PR and exact revision
-    ├── qwen3x_nvfp4_gemm*.py
-    ├── diffusion implementation modules
-    └── csrc/diffusion/*.cuh
+```python
+_SUPPORTED_SHAPES = {
+    (m, k, n)
+    for m in (1, 2, 4, 8)
+    for (k, n) in (
+        (2560, 18432), (9216, 2560),
+        (4096, 24576), (12288, 4096),
+    )
+} | {(9, 17408, 5120)}
 ```
 
-模型和 runtime 只从 `sglang.kernels.ops` 这个稳定 facade 导入 operator。`ops` 负责注册、capability 和 fallback，`kda_kernels` 保存生成实现与 JIT CUDA 源码。该目录的 README 列出来源 PR 和 exact revision，例如 Qwen3.x NVFP4 GEMM 固定到 KDA-Pilot #195 的具体 commit。这样既能审计机器生成的历史，又不会让 production API 依赖某个具体搜索包。性能、端到端、fallback 和 CUDA Graph 证据仍然是进入默认 dispatch 前必须满足的 promotion contract。
+此外 `_supports()` 还检查 CUDA device、二维 packed input、uint8/FP8 scale dtype、BF16 output、stride、scale shape、同 device，以及设备 capability 是否为 SM120。不满足任一条件时 `try_qwen3x_nvfp4_gemm()` 返回 `None`，调用方继续 fallback。
 
-## 从比赛提交走到 SGLang upstream
+右侧 Qwen3.8-27B 不是第三个加速 claim，而是负面证据。早期 broad dispatch 让每层 5.6–11 MiB 的 scale tensor 长时间占用 L2。isolated GEMM 变快了，但 Attention/SSM state 被挤出 L2，完整模型 output throughput 下降 0.76%。后续改成 weights/scales one-pass streaming，并只对 `(M,K,N)=(9,17408,5120)` 开启；其他 shape 回退，端到端结果转为 +0.98%。
 
-![从 FlagOS × SGLang 竞赛提交到 SGLang upstream](https://files.mdnice.com/user/59/e6fd79ef-ed01-412a-819e-69ee14e48991.png)
+这里的重点不是“精确 shape 总比宽 dispatch 好”，而是 promotion 只能覆盖已经通过模型级验证的模型与 shape。27B 的失败数据帮助我们定义了更安全的上线边界。
 
-把前面的讨论压缩到实际开发流程，可以分成四步：
+源码入口：[qwen3x_nvfp4_gemm.py](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/kda_kernels/qwen3x_nvfp4_gemm.py)、[merge commit](https://github.com/sgl-project/sglang/commit/c593527f33ee4c0f6068d7e1d7dd9052a4f26f0d)。
 
-1. 从真实服务 trace 中确认 shape 分布和调用频率；
-2. 固定 dtype、layout、数值语义、fallback 与 graph contract；
-3. 结合编译器、内存层次和芯片原语做 specialization；
-4. 依次完成 correctness、profile、CUDA Graph、模型 E2E、CI 和 review。
+## Slide 14：main 中有 9 个 KDA KernelSpec registration
 
-SGLang 为参赛实现提供稳定 operator API、backend registry、Torch reference、JIT cache、trace 和 fallback。microbenchmark 领先说明候选值得继续测试，最终能否进入 production dispatch，要看它是否沿着同一条调用路径通过模型级验证。
+![Slide 14：main has nine KDA KernelSpec registrations](https://files.mdnice.com/user/59/c7fd1c12-27d2-49a5-a746-39a7c9a4f6eb.png)
 
-我理解的 agent-native kernel design 也落在这套流程里。人负责定义任务合同、风险边界和 promotion 标准；Agent 扩大设计搜索与实验吞吐；SGLang 把候选收进可回退、可测试、可审计的系统。代码由谁生成并不是最难的问题。难的是怎样让一份局部很快的实现，带着足够的证据走进上游。
+这一页从“验证方法”回到“main 中到底落了什么代码”。
 
-对这次智源 FlagOS × SGLang 多芯片算子优化挑战赛来说，比较完整的路径应该是：
+`KernelBackend.KDA = "KDA"` 已经是正式枚举值。源码对 backend 的定义是 implementation provenance，而不是 device：KDA 表明实现来自 Kernel Design Agents 工作流，但这个实现仍可能用 CUDA JIT、Triton 或 CuTe DSL。硬件支持由每个 `KernelSpec.capabilities` 单独声明。
+
+在 `origin/main@fe3d4b9bbb` 中，共有 9 个 KDA `KernelSpec` registration：
+
+- 6 个 target 指向 CUDA JIT 入口；
+- 2 个 target 指向 Triton 实现；
+- 1 个 target 指向 CuTe DSL 的 Qwen3.x NVFP4 GEMM。
+
+其中 8 个 registration 位于 `ops/diffusion/__init__.py`，1 个位于 `ops/gemm/__init__.py`。PR #36845 的 QSA validation package 不在这 9 个 `KernelSpec` 中。diffusion 的例子包括 B200 norm + scale/shift、residual-gate add、causal Conv3D cat-pad、LTX2 QKNorm + split-RoPE，以及 FLUX.2 的 Triton/JIT fusion。
+
+生成实现放在 `sglang/kernels/kda_kernels/`，稳定 facade 和注册留在 `sglang/kernels/ops/`。README 记录 kernel family、实现文件、来源 PR 和精确 revision。模型代码因此只依赖公开 operator；generated implementation 可以继续迭代而不污染调用点。
+
+这层隔离也没有给生成代码“免检通行证”。`KernelBackend.KDA` 只记录来源，不证明性能、正确性或硬件覆盖。是否默认选中，仍取决于 priority、capability、per-call shape gate 和完整验证证据。
+
+源码入口：[KernelBackend](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/spec.py)、[KDA implementations README](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/kda_kernels/README.md)、[diffusion registrations](https://github.com/sgl-project/sglang/blob/fe3d4b9bbbff744d056dda122ea9157c2932a2bd/python/sglang/kernels/ops/diffusion/__init__.py)。
+
+## Slide 15：从比赛提交走到 SGLang upstream
+
+![Slide 15：From competition submission to SGLang upstream](https://files.mdnice.com/user/59/be936517-1c3e-41f0-9d94-8e4dafb0f9a3.png)
+
+这一页把前面的架构和案例压缩成参赛者可以执行的四步。
+
+第一步 Measure。不要只选择“看上去像模型 shape”的随机矩阵。可以用 fused-op trace 或真实模型 profile 收集 op、backend、dtype、shape 和调用频率，再确定 benchmark rows。高频 decode shape、偶发 prefill shape 和 graph replay shape 应分开看。
+
+第二步 Contract。先写清输入输出、dtype/layout、数值标准、in-place 语义、unsupported case 与 fallback。Qwen-Image 的 `quality=lossless` 和 Qwen3.x NVFP4 的 `_supports()` 都是 contract 的具体表现。
+
+第三步 Optimize。根据 workload 选择合适工具和硬件特性。一个轻量模板可能适合 SGLang JIT；SM120 NVFP4 GEMM 可以使用 CuTe DSL；简单 data movement 可以用 Triton；通信则需要考虑 symmetric memory、multicast 和 graph pointer。技术选择服从问题，不应该先指定语言再寻找任务。
+
+第四步 Validate。至少依次通过 reference correctness、逐 shape profile、实际 dispatch、CUDA Graph capture/replay、长时间状态测试、模型 accuracy 与 E2E。只有 benchmark 数字而没有 executed-path 证据，很难判断测到的是 candidate 还是 fallback。
+
+SGLang 能提供的是稳定 operator API、多 backend、reference path、JIT specialization、workload trace 和 safe fallback。参赛实现提供的是新的硬件优化。两边合起来，才形成：
 
 ```text
 competition submission
@@ -207,24 +431,67 @@ competition submission
   → production serving
 ```
 
-比赛负责把真实算子和多芯片目标开放出来，SGLang 社区负责把好的实现变成长期可维护的 backend。跑分结束后，工作才完成一半。
+排行榜胜利说明候选值得继续；可复现的完整证据才支持 upstream merge。
 
-## 参考链接
+## Slide 16：工程与比赛入口
 
-- 智源 FlagOS × SGLang 多芯片算子优化挑战赛：https://flagos.io/race-detail-season2?id=782kzq4m&lang=en
-- SGLang 源码：https://github.com/sgl-project/sglang
-- SGLang kernels RFC：https://github.com/sgl-project/sglang/issues/29630
-- JIT kernel infrastructure：https://github.com/sgl-project/sglang/pull/34274
+![Slide 16：Engineering and competition links](https://files.mdnice.com/user/59/b2f675bd-70b1-493c-b963-82d407b0e408.png)
+
+这一页把前文的两条线集中起来。左侧是 Agent-native SGLang 工程资源，右侧是智源 FlagOS × SGLang 多芯片算子优化挑战赛的公开入口。Slides 中的卡片和二维码适合现场扫码，文章里直接列出可点击链接。
+
+工程侧：
+
+- [LMSYS：Agent-Assisted SGLang Development](https://www.lmsys.org/blog/2026-07-02-agent-assisted-sglang-development)
+- [SGLang executable skills](https://github.com/sgl-project/sglang/tree/main/.claude/skills)
+- [BBuf AI-Infra Skills](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS)
+- [Kernel Design Agents](https://github.com/mit-han-lab/kernel-design-agents)
+- [Humanize / RLCR](https://github.com/PolyArch/humanize)
+
+挑战赛侧：
+
+- [FlagOS × SGLang 挑战赛详情](https://flagos.io/race-detail-season2?id=782kzq4m&lang=en)
+- [报名入口](https://flagos.io/Register?raceId=8q4m2x7p&lang=en)
+- [竞赛活动中心](https://flagos.io/events?tab=competition)
+- [任务列表与 KernelGen](https://kernelgen.flagos.io/web)
+- [提交仓库 FlagGems-sglang](https://github.com/flagos-ai/FlagGems-sglang)
+- [Contributor License Agreement](https://cla-assistant.io/flagos-ai/FlagGems-sglang)
+
+这一页不包含内部沟通或活动排期，只保留公开、可复现的工程与比赛信息。
+
+## Slide 17：人定义契约，Agent 加速工作
+
+![Slide 17：Humans define the contract; agents speed up the work](https://files.mdnice.com/user/59/0ca7bb00-a500-4a11-b882-bf2969922264.png)
+
+最后一页把整场分享收束为两条链。
+
+第一条是技术链：
+
+```text
+stable API → optimized kernel → test evidence → production decision
+```
+
+第二条是社区链：
+
+```text
+competition submission → SGLang integration → production serving
+```
+
+人需要定义 operator contract、测试条件、风险边界和合入标准。Agent 可以更快地搜索设计、编写候选、运行实验和整理失败；SGLang 则用 backend、capability、fallback、trace、CUDA Graph 与模型 E2E 证据决定它能否进入真实路径。
+
+这里最值得保留的不是某一个倍数，而是一套能持续工作的关系：比赛开放真实问题，Agent 扩大搜索和实验规模，开源框架把结果放进长期维护的 API 与验证体系。一个参赛 kernel 跑得更快，是这条路的起点；它能被安全选择、明确回退、重复验证并最终帮助 Serving，才是终点。
+
+## 相关源码与验证记录
+
+- SGLang kernel namespace RFC：https://github.com/sgl-project/sglang/issues/29630
+- Unified kernel namespace 系列：https://github.com/sgl-project/sglang/pull/30044 · https://github.com/sgl-project/sglang/pull/31666 · https://github.com/sgl-project/sglang/pull/32072 · https://github.com/sgl-project/sglang/pull/32648 · https://github.com/sgl-project/sglang/pull/33205
+- JIT cache：https://github.com/sgl-project/sglang/pull/34274
 - Custom AllReduce v2：https://github.com/sgl-project/sglang/pull/31049
-- Diffusion serving-path optimization：https://github.com/sgl-project/sglang/pull/36680
-- KDA QSA kernel：https://github.com/sgl-project/sglang/pull/36845
-- KDA NVFP4 GEMM 与 Qwen3.5/Qwen3.8 E2E 数据：https://github.com/sgl-project/sglang/pull/36865
-- KDA FLUX.2 FP8 fusion：https://github.com/sgl-project/sglang/pull/37162
-- KDA backend 与 diffusion kernel 注册：https://github.com/sgl-project/sglang/pull/37385
-- KDA-Pilot Qwen3.x NVFP4 GEMM source revision：https://github.com/BBuf/KDA-Pilot/pull/195
-- KDA-Pilot overlay 假收益与 production integration parity：https://github.com/BBuf/KDA-Pilot/pull/22 · https://github.com/BBuf/KDA-Pilot/pull/24 · https://github.com/BBuf/KDA-Pilot/pull/25
-- KDA-Pilot benchmark contract、A/A、frozen rows 与 fallback/no-go：https://github.com/BBuf/KDA-Pilot/pull/40 · https://github.com/BBuf/KDA-Pilot/pull/41 · https://github.com/BBuf/KDA-Pilot/pull/43 · https://github.com/BBuf/KDA-Pilot/pull/79 · https://github.com/BBuf/KDA-Pilot/pull/89
-- KDA-Pilot bitwise contract 与 production oracle：https://github.com/BBuf/KDA-Pilot/pull/152 · https://github.com/BBuf/KDA-Pilot/pull/157 · https://github.com/BBuf/KDA-Pilot/pull/158
-- KDA-Pilot stateful kernel qualification：https://github.com/BBuf/KDA-Pilot/pull/194
-- Kernel Design Agents：https://github.com/mit-han-lab/kernel-design-agents
-- Humanize：https://github.com/PolyArch/humanize
+- Qwen-Image 多芯片 Serving path：https://github.com/sgl-project/sglang/pull/36680
+- QSA SM121：https://github.com/sgl-project/sglang/pull/36845
+- Qwen3.x NVFP4 GEMM 与 E2E 数据：https://github.com/sgl-project/sglang/pull/36865
+- FLUX.2 KDA fusions：https://github.com/sgl-project/sglang/pull/37162
+- KDA backend registration：https://github.com/sgl-project/sglang/pull/37385
+- KDA-Pilot integration parity：https://github.com/BBuf/KDA-Pilot/pull/22 · https://github.com/BBuf/KDA-Pilot/pull/24 · https://github.com/BBuf/KDA-Pilot/pull/25
+- KDA-Pilot frozen rows、A/A 与 no-go：https://github.com/BBuf/KDA-Pilot/pull/40 · https://github.com/BBuf/KDA-Pilot/pull/41 · https://github.com/BBuf/KDA-Pilot/pull/43 · https://github.com/BBuf/KDA-Pilot/pull/79 · https://github.com/BBuf/KDA-Pilot/pull/89
+- KDA-Pilot bitwise contract：https://github.com/BBuf/KDA-Pilot/pull/152 · https://github.com/BBuf/KDA-Pilot/pull/157 · https://github.com/BBuf/KDA-Pilot/pull/158
+- KDA-Pilot stateful qualification：https://github.com/BBuf/KDA-Pilot/pull/194
