@@ -118,4 +118,17 @@ GPU 编号和模型路径按实际环境修改。启动后调用 `POST /freeze_g
 
 吞吐单位为 tokens/s，均不包含完整 prefill 耗时。Accept length 表示每轮 verify 平均提交的 token 数，包含目标模型补出的 token，因此 block size 5 时上限为 6。重复文本较易预测，这里的接受长度和吞吐对应这组输入，不能直接代表真实聊天或推理负载。
 
-模型原理见 [V4.1 技术报告](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf)。实现细节可以直接看 [mHC](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/layernorm/mhc.py)、[candidate mask](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py) 和 [MoE / all-reduce](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh)。
+## 0x5. 相关链接
+
+- [LMSYS：SGLang and Miles Add Day-0 Support for DeepSeek-V4.1](https://www.lmsys.org/blog/2026-09-10-deepseek-v41)：团队的完整 Day 0 支持介绍，涵盖推理和 RL 训练。
+- [SGLang DeepSeek-V4.1 部署指南](https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1)：启动配置、硬件支持和调优说明。
+- [SGLang DeepSeek-V4.1 代码](https://github.com/sgl-project/sglang/tree/dsv4.1)。
+- [Miles DeepSeek-V4.1 Flash 训练指南](https://miles.radixark.com/docs/models/deepseek/deepseek-v4-1-flash)：训练环境、checkpoint 准备和 RL 启动配置。
+- [Miles GitHub 仓库](https://github.com/radixark/miles)。
+- [DeepSeek-V4.1 技术报告](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf)。
+
+Kernel 实现细节可以直接看 [mHC](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/layernorm/mhc.py)、[candidate mask](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py) 和 [MoE / all-reduce](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh)。
+
+## 0x6. 致谢
+
+感谢 DeepSeek 团队开源 DeepSeek-V4.1，也感谢 SGLang 和 Miles 团队及社区参与模型适配、kernel 优化、测试和 review 的所有同学。
