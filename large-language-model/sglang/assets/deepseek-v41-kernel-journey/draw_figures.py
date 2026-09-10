@@ -76,7 +76,7 @@ for top,ht,key,color,lim,ticks,label in [
         ax.annotate(text,(i+1,n),textcoords='offset points',xytext=(0,11 if i%2==0 else -20),
                     ha='center',fontsize=10.8,color=color)
 labels=['Baseline','MXFP8 GEMM','RoPE + FP4 融合','mHC 行 tile','Reduce + Sinkhorn',
-        '共享 scratch','C2 池化融合','mHC 计算重叠','默认路径整理','GEMV / norm / Engram',
+        '共享 scratch','C2 池化融合','mHC 计算重叠','默认启用优化','GEMV / norm / Engram',
         '启用 DSpark','Verify mHC / WO-A','Verify kernel / mask','MoE router / 量化重叠','MoE finalize / 通信融合']
 for i,label in enumerate(labels):
     col,row=divmod(i,5);x=48+col*307;y=732+row*35

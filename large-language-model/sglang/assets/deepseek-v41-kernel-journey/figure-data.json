@@ -9,7 +9,7 @@
       "共享\nscratch",
       "C2\n池化",
       "mHC\n重叠",
-      "默认路径\n整理",
+      "默认启用\n优化",
       "GEMV / norm\nEngram gate",
       "启用\nDSpark",
       "Verify mHC\nWO-A 布局",

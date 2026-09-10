@@ -4,7 +4,7 @@
 
 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化由 SGLang 团队共同完成。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s，接入 DSpark 并继续优化后，**4×B300、TP4 / EP4 下达到 BS=1 764 tokens/s、BS=64 13,473 tokens/s**。这里介绍模型结构变化，以及这些kernel性能提升是怎么做的。
 
-![DeepSeek-V4.1 的吞吐优化曲线](https://files.mdnice.com/user/59/073d0b32-5356-4a38-befb-f54b3783be1e.png)
+![DeepSeek-V4.1 的吞吐优化曲线](https://files.mdnice.com/user/59/72feb96b-e242-4bc3-a06e-f2192efa7f46.png)
 
 *四卡 Blackwell 下各项优化后的代表吞吐，最终结果在 4×B300 上测得。BS=1 是单请求输出速度，BS=64 是并发总输出吞吐；复现负载见文末。*
 
@@ -20,7 +20,7 @@ V4.1 Flash 的 backbone 比 V4 Flash 更大，但处理输入时激活的参数�
 | 全局注意力 | CSA / HCA | CSA2，跨层共享 KV 和索引 |
 | 全局 KV / token | 3514 bytes | 890 bytes |
 
-数据来自[官方模型配置与技术报告](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash)。
+数据来自官方模型配置与技术报告（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash）。
 
 **CED 减少了 prefill 计算量。** 后 20 层需要的全局 KV 从 encoder 最终输出生成，所以长 prompt 主要经过前 20 层。Decoder 的局部窗口通过最近 128 个 token 的 bounded replay 补齐，主干的 prefill 工作量接近减半。生成新 token 时，仍然经过完整的 40 层。
 
@@ -87,7 +87,7 @@ BS=64 的主要收益来自 verify 和候选处理。一些 logits buffer 按最
 
 ## 0x4. 如何复现
 
-使用 [SGLang 的 dsv4.1 分支](https://github.com/sgl-project/sglang/tree/dsv4.1)和官方 checkpoint，测试环境为 4×B300、TP4 / EP4。依赖版本：PyTorch 2.13.0+cu130、FlashInfer 0.6.18、Triton 3.7.1、sglang-kernel 0.4.6.post1、sgl-deep-gemm 0.1.7、CUTLASS DSL 4.6.2。
+使用 SGLang 的 dsv4.1 分支（https://github.com/sgl-project/sglang/tree/dsv4.1）和官方 checkpoint，测试环境为 4×B300、TP4 / EP4。依赖版本：PyTorch 2.13.0+cu130、FlashInfer 0.6.18、Triton 3.7.1、sglang-kernel 0.4.6.post1、sgl-deep-gemm 0.1.7、CUTLASS DSL 4.6.2。
 
 ```bash
 MODEL_PATH=/path/to/DeepSeek-V4.1
@@ -120,15 +120,17 @@ GPU 编号和模型路径按实际环境修改。启动后调用 `POST /freeze_g
 
 ## 0x5. 相关链接
 
-- [LMSYS：SGLang and Miles Add Day-0 Support for DeepSeek-V4.1](https://www.lmsys.org/blog/2026-09-10-deepseek-v41)：团队的完整 Day 0 支持介绍，涵盖推理和 RL 训练。
-- [SGLang DeepSeek-V4.1 部署指南](https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1)：启动配置、硬件支持和调优说明。
-- [SGLang DeepSeek-V4.1 代码](https://github.com/sgl-project/sglang/tree/dsv4.1)。
-- [Miles DeepSeek-V4.1 Flash 训练指南](https://miles.radixark.com/docs/models/deepseek/deepseek-v4-1-flash)：训练环境、checkpoint 准备和 RL 启动配置。
-- [Miles GitHub 仓库](https://github.com/radixark/miles)。
-- [DeepSeek-V4.1 技术报告](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf)。
+- LMSYS：SGLang and Miles Add Day-0 Support for DeepSeek-V4.1（https://www.lmsys.org/blog/2026-09-10-deepseek-v41）：团队的完整 Day 0 支持介绍，涵盖推理和 RL 训练。
+- SGLang DeepSeek-V4.1 部署指南（https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1）：启动配置、硬件支持和调优说明。
+- SGLang DeepSeek-V4.1 代码（https://github.com/sgl-project/sglang/tree/dsv4.1）。
+- Miles DeepSeek-V4.1 Flash 训练指南（https://miles.radixark.com/docs/models/deepseek/deepseek-v4-1-flash）：训练环境、checkpoint 准备和 RL 启动配置。
+- Miles GitHub 仓库（https://github.com/radixark/miles）。
+- DeepSeek-V4.1 技术报告（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf）。
 
-Kernel 实现细节可以直接看 [mHC](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/layernorm/mhc.py)、[candidate mask](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py) 和 [MoE / all-reduce](https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh)。
+Kernel 实现细节可以直接看 mHC（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/layernorm/mhc.py）、candidate mask（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py） 和 MoE / all-reduce（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh）。
 
 ## 0x6. 致谢
 
 感谢 DeepSeek 团队开源 DeepSeek-V4.1，也感谢 SGLang 和 Miles 团队及社区参与模型适配、kernel 优化、测试和 review 的所有同学。
+
+部分 kernel 的开发也使用了 KDA 0.5 框架，感谢 Humanize（https://github.com/PolyArch/humanize）和 Kernel Design Agents（https://github.com/NVlabs/kda）提供的工具与工作流。
