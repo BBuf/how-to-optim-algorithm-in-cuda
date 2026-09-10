@@ -131,6 +131,6 @@ Kernel 实现细节可以直接看 mHC（https://github.com/sgl-project/sglang/b
 
 ## 0x6. 致谢
 
-感谢 DeepSeek 团队开源 DeepSeek-V4.1，也感谢 SGLang 和 Miles 团队及社区参与模型适配、kernel 优化、测试和 review 的所有同学。
+感谢 DeepSeek 团队开源 DeepSeek-V4.1，也感谢 SGLang 和 Miles 团队及社区参与模型适配、kernel 优化、测试和 review 的所有人。
 
 部分 kernel 的开发也使用了 KDA 0.5 框架，感谢 Humanize（https://github.com/PolyArch/humanize）和 Kernel Design Agents（https://github.com/NVlabs/kda）提供的工具与工作流。
