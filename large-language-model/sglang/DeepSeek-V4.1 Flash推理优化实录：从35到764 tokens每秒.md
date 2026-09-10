@@ -2,7 +2,7 @@
 
 ## 0x0. 前言
 
-DeepSeek-V4.1 的 Day 0 适配和 kernel 优化由 SGLang 团队共同完成。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s，接入 DSpark 并继续优化后，**4×B300、TP4 / EP4 下达到 BS=1 764 tokens/s、BS=64 13,473 tokens/s**。这里介绍模型结构变化，以及这些性能提升是怎么来的。
+DeepSeek-V4.1 的 Day 0 适配和 kernel 优化由 SGLang 团队共同完成。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s，接入 DSpark 并继续优化后，**4×B300、TP4 / EP4 下达到 BS=1 764 tokens/s、BS=64 13,473 tokens/s**。这里介绍模型结构变化，以及这些kernel性能提升是怎么做的。
 
 ![DeepSeek-V4.1 的吞吐优化曲线](https://files.mdnice.com/user/59/073d0b32-5356-4a38-befb-f54b3783be1e.png)
 
