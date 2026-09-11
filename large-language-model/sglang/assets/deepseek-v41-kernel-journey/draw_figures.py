@@ -61,37 +61,31 @@ def save(fig,name):
     svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines())+'\n')
     plt.close(fig);figures.append(name)
 
-# Plot the representative measurements shown in the article.
+# Three measured DSpark configurations on the same fixed GSM8K prompt.
 data=json.loads((OUT/'figure-data.json').read_text())
-values=data['displayed_journey']
-latest=data.get('latest', {'bs1_median_tps':values['bs1'][-1]})
-npoints=len(values['bs1'])
-height=800
-fig,base=page(f"从 35 到 {latest['bs1_median_tps']:.0f} tokens/s",'DeepSeek-V4.1 Flash · 4×B300 · TP4 / EP4',h=height)
-top,ht=165,280
-txt(base,75,top-33,'BS = 1 · 输出 tokens/s',15,color=ORANGE)
-ax=fig.add_axes([.08,1-(top+ht)/height,.86,ht/height])
+points=data['gsm8k']['dspark_points']
+height=610
+fig,base=page('DSpark 的 kernel 优化','DeepSeek-V4.1 Flash · 4×GB300 · TP4 / EP4 · BS=1',h=height)
+txt(base,45,130,f"{points[0]['output_tps_median']:.0f} → {points[-1]['output_tps_median']:.0f} tokens/s",25,color=ORANGE)
+ax=fig.add_axes([.10,.32,.80,.36])
 for spine in ax.spines.values():spine.set_visible(False)
-ax.set_axisbelow(True);ax.grid(axis='y',color=LINE,lw=.65)
-ax.set_ylim(0,900);ax.set_yticks([0,200,400,600,800]);ax.set_xlim(.8,npoints+.2)
-ax.yaxis.set_major_formatter(FuncFormatter(lambda x,_:f'{x:,.0f}'))
-ax.set_xticks(range(1,npoints+1));ax.tick_params(length=0,labelsize=10.8,pad=8)
-v=values['bs1'];xx=np.arange(1,npoints+1)
-ax.plot(xx,v,lw=2,color=ORANGE,marker='o',ms=4.3,mfc=BG,mew=1.4)
-ax.scatter([npoints],[v[-1]],s=36,color=ORANGE,zorder=5)
+ax.set_axisbelow(True);ax.grid(axis='y',color=LINE,lw=.7)
+v=[p['output_tps_median'] for p in points]
+ax.set_ylim(0,900);ax.set_yticks([0,200,400,600,800]);ax.set_xlim(-.22,2.22)
+ax.tick_params(axis='y',length=0,labelsize=11,pad=8)
+ax.set_xticks([])
+ax.plot(range(3),v,lw=2.4,color=ORANGE,marker='o',ms=7,mfc=BG,mew=2)
 for i,n in enumerate(v):
-    ax.annotate(f'{n:.1f}',(i+1,n),textcoords='offset points',xytext=(0,11 if i%2==0 else -20),
-                ha='center',fontsize=10.8,color=ORANGE)
-labels=['Baseline','MXFP8 GEMM','RoPE + FP4 融合','mHC 行 tile','Reduce + Sinkhorn',
-        '共享 scratch','C2 池化融合','mHC 计算重叠','默认启用优化','GEMV / norm / Engram',
-        '启用 DSpark','Verify mHC / WO-A','Verify kernel / mask','MoE router / 量化重叠','MoE finalize / 通信融合','小 batch 投影 / mHC 融合']
-for i,label in enumerate(labels):
-    col,row=divmod(i,6);x=48+col*307;y=500+row*35
-    txt(base,x,y,f'{i+1:02d}',11.5,color=ORANGE)
-    txt(base,x+34,y,label,11.5)
-base.plot([45,950],[716,716],c=LINE,lw=.8)
-txt(base,45,744,'4×B300 · TP4 / EP4',13,color=MUTED)
-txt(base,950,741,f"BS=1  {latest['bs1_median_tps']:.0f} tokens/s",17,color=ORANGE,ha='right')
+    ax.annotate(f'{n:.1f}',(i,n),textcoords='offset points',xytext=(0,13),
+                ha='center',fontsize=17,color=ORANGE)
+labels=['DSpark 基线','Verify / MoE 融合','小 batch 投影 / mHC']
+for i,p in enumerate(points):
+    x=100+800*(i+.22)/2.44
+    txt(base,x,438,labels[i],13.5,ha='center')
+    txt(base,x,474,f"accept length  {p['accept_length_median']:.3f}",12,ha='center',color=LILAC)
+base.plot([45,955],[520,520],c=LINE,lw=.8)
+txt(base,45,545,'GSM8K 第 273 行 · 76 tokens 输入 / 固定 122 tokens 输出',13,color=MUTED)
+txt(base,45,578,'真实接受结果 · 预热后取多轮中位数 · 单题吞吐',11.5,color=MUTED)
 save(fig,'01-throughput-journey')
 
 # Combine CED and KV ownership so the article needs only one architecture figure.

@@ -1,47 +1,53 @@
 {
-  "displayed_journey": {
-    "labels": [
-      "Baseline",
-      "MXFP8\nGEMM",
-      "RoPE +\nFP4",
-      "mHC\n行 tile",
-      "Reduce +\nSinkhorn",
-      "共享\nscratch",
-      "C2\n池化",
-      "mHC\n重叠",
-      "默认启用\n优化",
-      "GEMV / norm\nEngram gate",
-      "启用\nDSpark",
-      "Verify mHC\nWO-A 布局",
-      "Verify kernel\n候选 mask",
-      "MoE router\n量化重叠",
-      "MoE finalize\n通信融合",
-      "小 batch 投影\nmHC 融合"
+  "gsm8k": {
+    "source": "gsm8k-dspark/results.json",
+    "row_index": 272,
+    "input_tokens": 76,
+    "output_tokens": 122,
+    "dspark_points": [
+      {
+        "configuration": "base",
+        "runs": 6,
+        "independent_startups": 1,
+        "output_tps_median": 524.6764926895273,
+        "output_tps_min": 522.1433237564551,
+        "output_tps_max": 525.5643307705287,
+        "accept_length_median": 5.083333333333333,
+        "accept_length_min": 5.083333333333333,
+        "accept_length_max": 5.083333333333333
+      },
+      {
+        "configuration": "middle",
+        "runs": 12,
+        "independent_startups": 2,
+        "output_tps_median": 669.0149953916282,
+        "output_tps_min": 466.828026102106,
+        "output_tps_max": 683.0874915518406,
+        "accept_length_median": 5.083333333333333,
+        "accept_length_min": 5.083333333333333,
+        "accept_length_max": 5.083333333333333
+      },
+      {
+        "configuration": "final",
+        "runs": 12,
+        "independent_startups": 2,
+        "output_tps_median": 787.0403762411853,
+        "output_tps_min": 772.7132498081316,
+        "output_tps_max": 805.4113525221641,
+        "accept_length_median": 5.545454545454546,
+        "accept_length_min": 5.545454545454546,
+        "accept_length_max": 5.545454545454546
+      }
     ],
-    "bs1": [
-      35.24,
-      117.76,
-      133.49,
-      141.1,
-      146.53,
-      148.4,
-      152.1,
-      186.4,
-      186.6,
-      203.3,
-      565.94,
-      663.23,
-      699.1,
-      733.9,
-      764.2947009859918,
-      803.247294739994
-    ]
-  },
-  "latest": {
-    "bs1_median_tps": 803.247294739994,
-    "bs1_median_accept_length": 5.818181818181818,
-    "candidate_commit": "0669e3d946",
-    "baseline_commit": "824bb45e1bf7486e49034bfa4bcad59aba799540",
-    "bs1_measured_repetitions": 20
+    "no_dspark": {
+      "runs": 6,
+      "independent_startups": 1,
+      "output_tps_median": 249.46720485170846,
+      "output_tps_min": 249.3197131338937,
+      "output_tps_max": 249.52364337821487,
+      "accept_length_median": null,
+      "accept_length_min": null,
+      "accept_length_max": null
+    }
   }
 }
