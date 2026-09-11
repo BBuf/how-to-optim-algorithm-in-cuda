@@ -1,12 +1,14 @@
 # SGLang 的 DeepSeek-V4.1 Flash Day 0 优化实录：4×B300 上 BS=1 达到 803 tokens/s
 
+![SGLang DeepSeek-V4.1 Day 0 封面](https://files.mdnice.com/user/59/3e9ee04f-2dae-40c8-bc4a-2415ed8e8f2d.png)
+
 ## 0x0. 前言
 
-本文提到的 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化由 SGLang 团队共同完成。最终在 **4×B300、TP4 / EP4** 配置下，配合 DSpark 达到 **BS=1 803 tokens/s、BS=64 13,328 tokens/s**。优化从普通 decode 的 BS=1 35 tokens/s 开始，先提升到 203 tokens/s，再接入 DSpark 继续优化。这里介绍模型结构变化，以及这些 kernel 性能提升是怎么做的。基于DS V4.1的技术报告和DeepGEMM, FlashMLA等给Deepseek V4.1开源的新kernel，SGLang的性能还会在开发分支继续提升。
+本文提到的 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化由 SGLang 团队共同完成。最终在 **4×B300、TP4 / EP4** 配置下，配合 DSpark 达到 **BS=1 803 tokens/s**。优化从普通 decode 的 BS=1 35 tokens/s 开始，先提升到 203 tokens/s，再接入 DSpark 继续优化。这里介绍模型结构变化，以及这些 kernel 性能提升是怎么做的。基于DS V4.1的技术报告和DeepGEMM, FlashMLA等给Deepseek V4.1开源的新kernel，SGLang的性能还会在开发分支继续提升。
 
-![DeepSeek-V4.1 的吞吐优化曲线](https://files.mdnice.com/user/59/2fd2aa3b-350d-47fc-8a42-7f86dee0470a.png)
+![DeepSeek-V4.1 的吞吐优化曲线](https://files.mdnice.com/user/59/b2cda21f-d60d-4294-a05f-523e983ca6ad.png)
 
-*四卡 Blackwell 下各项优化后的代表吞吐，最终结果在 4×B300 上测得。BS=1 是单请求输出速度，BS=64 是并发总输出吞吐；复现负载见文末。*
+*4×B300、TP4 / EP4 下的 BS=1 输出速度，复现负载见文末。*
 
 ## 0x1. 架构变化与 KV cache 压缩
 
@@ -42,7 +44,7 @@ CSA2 还通过分层候选筛选缩小后续 indexer 的搜索范围，最终只
 
 模型的一些 dense 权重已经是 FP8，但量化块和 scale 布局没有适配对应后端，计算进入了较慢的 fallback。我们在加载阶段整理 scale 布局，让它直接进入 Blackwell 的 MXFP8 GEMM 实现。
 
-这一项就把 BS=1 从 **35.2 提升到 117.8**，BS=64 从 **2880 提升到 4054 tokens/s**。新模型适配时，确认 GEMM 实际调用了哪个 kernel，往往比先调 tile 更有用。
+这一项就把 BS=1 从 **35.2 提升到 117.8 tokens/s**。新模型适配时，确认 GEMM 实际调用了哪个 kernel，往往比先调 tile 更有用。
 
 ### 小算子融合与 GEMV
 
@@ -62,29 +64,27 @@ mHC 保留四条残差流，需要计算混合系数，并通过 Sinkhorn 归一
 
 ![Single-Pass mHC 的并行计算](https://files.mdnice.com/user/59/61bba574-cff4-4824-8cd7-629be1584cc9.png)
 
-V4.1 的 Single-Pass mHC 使用前一个 sublayer 产生的输入混合系数。当前 attention / MoE 因此可以和当前残差的统计量计算并行，等 post 混合时再汇合。我们用多 stream 实现这一重叠，并结合 compressor / indexer 的融合与重叠，把 BS=1 从约 **152 提升到 186 tokens/s**，BS=64 提升到 **5227 tokens/s**。
+V4.1 的 Single-Pass mHC 使用前一个 sublayer 产生的输入混合系数。当前 attention / MoE 因此可以和当前残差的统计量计算并行，等 post 混合时再汇合。我们用多 stream 实现这一重叠，并结合 compressor / indexer 的融合与重叠，把 BS=1 从约 **152 提升到 186 tokens/s**。
 
 ## 0x3. DSpark 适配与优化
 
 DSpark 的权重就在官方 checkpoint 中，包括三个轻量 draft block。它利用主模型后几层的 hidden state，一次为多个位置计算 logits，再用 Markov head 处理 draft token 之间的依赖，最后交给目标模型批量验证。
 
-![DSpark 与 verify 的实际输入行数](https://files.mdnice.com/user/59/83c99479-af02-4729-8bd1-23b13ead88b2.png)
+![DSpark 与 verify 的实际输入行数](https://files.mdnice.com/user/59/e9496fa6-9bad-490c-b3a9-3f156d65c55c.png)
 
-本次使用固定 block size 5，统计真实接受结果。加上锚点，一个请求的 target verify 最多处理 6 行；BS=64 时就是 384 行。普通 decode 中针对 M=1 或 M≤64 写的优化，不能直接覆盖这些形状。这也是开启 DSpark 后还需要继续适配 kernel 的原因。
+本次使用固定 block size 5，统计真实接受结果。加上锚点，一个请求的 target verify 最多处理 6 行。普通 decode 是每个请求处理一行，DSpark 改变了 kernel 的输入形状，原先针对 M=1 的快速路径也需要继续适配。
 
 | 优化 | 主要改动 | 吞吐变化（tokens/s） |
 |---|---|---|
 | mHC 与 WO-A | 重叠接入 verify / draft；投影直接写入后续需要的布局 | BS=1：566 → 663 |
-| Verify kernel 与 candidate mask | 扩大适用形状；融合有效长度判断与候选处理，减少大 buffer 的重复扫描 | BS=1：663 → 699；BS=64：6615 → 13747 |
+| Verify kernel 与 candidate mask | 扩大适用形状；融合有效长度判断与候选处理，减少大 buffer 的重复扫描 | BS=1：663 → 699 |
 | MoE 前处理 | Router 直接输出所需布局，输入量化与 routing 重叠 | BS=1：699 → 734 |
 | MoE finalize / all-reduce | 专家带权归约、shared expert 加法与通信融合，减少中间结果写回 | BS=1：734 → 764 |
 | 小 batch 投影与 mHC | WO-A split-K、combine/RMSNorm 融合，draft KV 投影接入 MXFP8 | BS=1：764 → 803 |
 
 最后这一步继续处理小 batch 下的开销。WO-A 把 K 维分成 8 份，让更多线程块同时计算，最后用 FP32 归约并写出 BF16 结果。mHC 把四条残差流的混合与 RMSNorm 合成一个 kernel；先完成这段短计算，再启动统计量投影，避免二者争用 GPU。Draft 的多组 KV 投影虽然已经堆叠，却仍走旧的 FP8 路径，我们让它复用加载时整理好的 MXFP8 权重和 scale。
 
-这组改动的同配置对照为 **762.41 → 803.25 tokens/s**，提升约 **5.4%**。结果来自两次独立服务启动、共 20 轮测量的中位数；两次启动各自的中位数也都超过 800。BS=64 仍在 1.3 万 tokens/s 左右，这一步的收益主要体现在 BS=1。
-
-BS=64 的主要收益来自 verify 和候选处理。一些 logits buffer 按最大容量分配，通用 mask 操作会重复扫描大量无效区域；融合后省掉了这些读写。BS=1 则更受益于 mHC 重叠和 MoE 融合。
+这组改动的同配置对照为 **762.41 → 803.25 tokens/s**，提升约 **5.4%**。结果来自两次独立服务启动、共 20 轮测量的中位数；两次启动各自的中位数也都超过 800。
 
 我们还把接受判断、结果整理和部分 KV 更新放进 CUDA Graph，减少图外的小算子和 CPU 发射间隔。最终 target verify 的 GPU 耗时从 **9.049 ms 降到 6.568 ms**，每次 graph 的 kernel 数从 **2209 减少到 1926**。
 
@@ -135,24 +135,17 @@ def make_input(text):
     return prefix + (unit * ((n + len(unit) - 1) // len(unit)))[:n] + suffix
 
 input_ids = make_input("Read these notes and summarize them.\n")
-bs64_inputs = [
-    make_input(f"Notebook {i:03d}. Read these notes and summarize them.\n")
-    for i in range(64)
-]
 assert len(input_ids) == 4096
-assert all(len(ids) == 4096 for ids in bs64_inputs)
 ```
 
-构造好的 `input_ids` 直接发给 `/generate`，不套 chat template。两种 batch 都设置 `temperature=0`、`ignore_eos=True`。BS=1 生成 1024 tokens，设置 `stream_interval=1` 并开启 `stream=True`；BS=64 同时提交 64 个带不同 Notebook 编号的请求，每个生成 2048 tokens。每轮前清空请求缓存，DSpark 使用真实接受结果。
+构造好的 `input_ids` 直接发给 `/generate`，不套 chat template。设置 `temperature=0`、`ignore_eos=True`、`max_new_tokens=1024`、`stream_interval=1`，并开启 `stream=True`。每轮前清空请求缓存，DSpark 使用真实接受结果。
 
-两边各独立启动服务两次。每次启动先预热，再测 10 轮 BS=1 和 3 轮 BS=64，表中分别取 20 轮和 6 轮的中位数。BS=1 的吞吐按“首个流式事件之后新增的 token 数 / 剩余耗时”计算；BS=64 取服务日志中连续保持 64 个请求、使用 CUDA Graph 的 decode 区间，排除 prefill 和请求逐步结束的阶段。
+两边各独立启动服务两次，每次先预热，再测 10 轮 BS=1，表中取 20 轮测量的中位数。吞吐按“首个流式事件之后新增的 token 数 / 剩余耗时”计算。
 
 | 负载与指标 | 小 batch kernel 优化前 | 优化后 |
 |---|---:|---:|
 | BS=1，输入 4096 / 输出 1024，首个流式事件之后的输出速度 | 762.41 | **803.25** |
-| BS=64，输入 4096 / 输出 2048，稳定 decode 总输出吞吐 | 13346.69 | **13327.61** |
 | BS=1，accept length | 5.802 | **5.818** |
-| BS=64，accept length | 5.387 | **5.335** |
 
 吞吐单位为 tokens/s，均不包含完整 prefill 耗时。Accept length 表示每轮 verify 平均提交的 token 数，包含目标模型补出的 token，因此 block size 5 时上限为 6。重复文本较易预测，这里的接受长度和吞吐对应这组输入，不能直接代表真实聊天或推理负载。
 
@@ -166,8 +159,6 @@ assert all(len(ids) == 4096 for ids in bs64_inputs)
 - DeepSeek-V4.1 技术报告（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf）。
 
 Kernel 实现细节可以直接看 mHC（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/layernorm/mhc.py）、candidate mask（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py） 和 MoE / all-reduce（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh）。
-
-小 batch 的实现可看 WO-A split-K（https://github.com/BBuf/sglang/blob/0669e3d946/python/sglang/kernels/ops/attention/dsv4/wo_a_bf16_small_batch.py）与 mHC combine/RMSNorm（https://github.com/BBuf/sglang/blob/0669e3d946/python/sglang/kernels/ops/layernorm/hc_combine_norm.py）。
 
 ## 0x6. 致谢
 

@@ -1,5 +1,6 @@
 {
   "figures": [
+    "00-cover",
     "01-throughput-journey",
     "02-architecture-cache-ownership",
     "03-kv-bytes",
@@ -10,15 +11,17 @@
   ],
   "generated_from": "draw_figures.py",
   "hosting": {
-    "01-throughput-journey": "https://files.mdnice.com/user/59/2fd2aa3b-350d-47fc-8a42-7f86dee0470a.png",
+    "01-throughput-journey": "https://files.mdnice.com/user/59/b2cda21f-d60d-4294-a05f-523e983ca6ad.png",
     "02-architecture-cache-ownership": "https://files.mdnice.com/user/59/be0a830a-e594-42af-9f56-ae6a0af08d24.png",
     "03-kv-bytes": "https://files.mdnice.com/user/59/1260fc32-c393-40ac-9254-242d8948fcad.png",
     "04-mhc-overlap": "https://files.mdnice.com/user/59/61bba574-cff4-4824-8cd7-629be1584cc9.png",
-    "05-dspark-shapes": "https://files.mdnice.com/user/59/83c99479-af02-4729-8bd1-23b13ead88b2.png",
+    "05-dspark-shapes": "https://files.mdnice.com/user/59/e9496fa6-9bad-490c-b3a9-3f156d65c55c.png",
     "06-moe-fusion": "https://files.mdnice.com/user/59/2442f510-3a6d-4ff4-9525-b2d105641739.png",
-    "07-profile-evidence": "https://files.mdnice.com/user/59/5cba8d32-a4fe-4327-be6a-8bd3456174fc.png"
+    "07-profile-evidence": "https://files.mdnice.com/user/59/5cba8d32-a4fe-4327-be6a-8bd3456174fc.png",
+    "00-cover": "https://files.mdnice.com/user/59/3e9ee04f-2dae-40c8-bc4a-2415ed8e8f2d.png"
   },
   "article_figures": [
+    "00-cover",
     "01-throughput-journey",
     "02-architecture-cache-ownership",
     "04-mhc-overlap",
@@ -33,5 +36,8 @@
     ],
     "reference": "https://www.anthropic.com/engineering/multi-agent-research-system",
     "layout": "1000 px nominal width, 2x PNG; serif titles, sans-serif labels"
-  }
+  },
+  "static_figures": [
+    "00-cover"
+  ]
 }

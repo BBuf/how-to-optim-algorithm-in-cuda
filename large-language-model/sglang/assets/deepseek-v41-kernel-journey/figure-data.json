@@ -35,34 +35,13 @@
       733.9,
       764.2947009859918,
       803.247294739994
-    ],
-    "bs64": [
-      2880.5,
-      4054.1,
-      4349.1,
-      4403.7,
-      4426.5,
-      4450,
-      4507,
-      5227.4,
-      5320,
-      5375,
-      6617.92,
-      6614.81,
-      13746.56,
-      13702.1,
-      13472.51,
-      13327.615
     ]
   },
   "latest": {
     "bs1_median_tps": 803.247294739994,
-    "bs64_median_tps": 13327.615,
     "bs1_median_accept_length": 5.818181818181818,
-    "bs64_median_accept_length": 5.3348317899814965,
     "candidate_commit": "0669e3d946",
     "baseline_commit": "824bb45e1bf7486e49034bfa4bcad59aba799540",
-    "bs1_measured_repetitions": 20,
-    "bs64_measured_repetitions": 6
+    "bs1_measured_repetitions": 20
   }
 }

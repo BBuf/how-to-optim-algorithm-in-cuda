@@ -64,38 +64,34 @@ def save(fig,name):
 # Plot the representative measurements shown in the article.
 data=json.loads((OUT/'figure-data.json').read_text())
 values=data['displayed_journey']
-latest=data.get('latest', {'bs1_median_tps':values['bs1'][-1], 'bs64_median_tps':values['bs64'][-1]})
+latest=data.get('latest', {'bs1_median_tps':values['bs1'][-1]})
 npoints=len(values['bs1'])
-height=1060
-fig,base=page(f"从 35 到 {latest['bs1_median_tps']:.0f} tokens/s",'DeepSeek-V4.1 Flash · 四卡 Blackwell · TP4 / EP4',h=height)
-for top,ht,key,color,lim,ticks,label in [
-    (155,225,'bs1',ORANGE,900,[0,200,400,600,800],'BS = 1 · 输出 tokens/s'),
-    (455,225,'bs64',LILAC,16000,[0,4000,8000,12000,16000],'BS = 64 · 总输出 tokens/s')]:
-    txt(base,75,top-33,label,15,color=color)
-    ax=fig.add_axes([.08,1-(top+ht)/height,.86,ht/height])
-    for spine in ax.spines.values():spine.set_visible(False)
-    ax.set_axisbelow(True);ax.grid(axis='y',color=LINE,lw=.65)
-    ax.set_ylim(0,lim);ax.set_yticks(ticks);ax.set_xlim(.8,npoints+.2)
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda x,_:f'{x:,.0f}'))
-    ax.set_xticks(range(1,npoints+1));ax.tick_params(length=0,labelsize=10.8,pad=8)
-    v=values[key];xx=np.arange(1,npoints+1)
-    ax.plot(xx,v,lw=2,color=color,marker='o',ms=4.3,mfc=BG,mew=1.4)
-    ax.scatter([npoints],[v[-1]],s=36,color=color,zorder=5)
-    for i,n in enumerate(v):
-        text=f'{n:.1f}' if key=='bs1' else f'{n:,.0f}'
-        ax.annotate(text,(i+1,n),textcoords='offset points',xytext=(0,11 if i%2==0 else -20),
-                    ha='center',fontsize=10.8,color=color)
+height=800
+fig,base=page(f"从 35 到 {latest['bs1_median_tps']:.0f} tokens/s",'DeepSeek-V4.1 Flash · 4×B300 · TP4 / EP4',h=height)
+top,ht=165,280
+txt(base,75,top-33,'BS = 1 · 输出 tokens/s',15,color=ORANGE)
+ax=fig.add_axes([.08,1-(top+ht)/height,.86,ht/height])
+for spine in ax.spines.values():spine.set_visible(False)
+ax.set_axisbelow(True);ax.grid(axis='y',color=LINE,lw=.65)
+ax.set_ylim(0,900);ax.set_yticks([0,200,400,600,800]);ax.set_xlim(.8,npoints+.2)
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x,_:f'{x:,.0f}'))
+ax.set_xticks(range(1,npoints+1));ax.tick_params(length=0,labelsize=10.8,pad=8)
+v=values['bs1'];xx=np.arange(1,npoints+1)
+ax.plot(xx,v,lw=2,color=ORANGE,marker='o',ms=4.3,mfc=BG,mew=1.4)
+ax.scatter([npoints],[v[-1]],s=36,color=ORANGE,zorder=5)
+for i,n in enumerate(v):
+    ax.annotate(f'{n:.1f}',(i+1,n),textcoords='offset points',xytext=(0,11 if i%2==0 else -20),
+                ha='center',fontsize=10.8,color=ORANGE)
 labels=['Baseline','MXFP8 GEMM','RoPE + FP4 融合','mHC 行 tile','Reduce + Sinkhorn',
         '共享 scratch','C2 池化融合','mHC 计算重叠','默认启用优化','GEMV / norm / Engram',
         '启用 DSpark','Verify mHC / WO-A','Verify kernel / mask','MoE router / 量化重叠','MoE finalize / 通信融合','小 batch 投影 / mHC 融合']
 for i,label in enumerate(labels):
-    col,row=divmod(i,6);x=48+col*307;y=732+row*35
+    col,row=divmod(i,6);x=48+col*307;y=500+row*35
     txt(base,x,y,f'{i+1:02d}',11.5,color=ORANGE)
     txt(base,x+34,y,label,11.5)
-base.plot([45,950],[966,966],c=LINE,lw=.8)
-txt(base,45,989,'最终 4×B300',13,color=MUTED)
-txt(base,255,986,f"BS=1  {latest['bs1_median_tps']:.0f} tokens/s",17,color=ORANGE)
-txt(base,585,986,f"BS=64  {latest['bs64_median_tps']:,.0f} tokens/s",17,color=LILAC)
+base.plot([45,950],[716,716],c=LINE,lw=.8)
+txt(base,45,744,'4×B300 · TP4 / EP4',13,color=MUTED)
+txt(base,950,741,f"BS=1  {latest['bs1_median_tps']:.0f} tokens/s",17,color=ORANGE,ha='right')
 save(fig,'01-throughput-journey')
 
 # Combine CED and KV ownership so the article needs only one architecture figure.
@@ -146,8 +142,7 @@ arrow(ax,292,216,362,216);arrow(ax,639,216,709,216)
 for i in range(6):
     box(ax,126+i*128,326,108,56,'锚点' if i==0 else f'draft {i}',fc=SAND if i==0 else PALE_LILAC)
 txt(ax,500,403,'verify 的 token 行数 ≠ 请求 batch size',15,ha='center')
-box(ax,45,453,425,65,'BS = 1 → M ≤ 6',fc=PALE_ORANGE)
-box(ax,530,453,425,65,'BS = 64 → M ≤ 384',fc=PALE_ORANGE)
+box(ax,245,453,510,65,'1 个请求（BS = 1）→ verify 最多处理 6 行',fc=PALE_ORANGE)
 save(fig,'05-dspark-shapes')
 
 fig,ax=page('MoE finalize 与通信融合','减少专家结果的中间写回和独立 kernel launch。',h=500)
@@ -173,8 +168,8 @@ save(fig,'07-profile-evidence')
 
 manifest_path=OUT/'figure-manifest.json'
 manifest=json.loads(manifest_path.read_text())
-manifest.update(figures=figures,generated_from='draw_figures.py',article_figures=[
-    '01-throughput-journey','02-architecture-cache-ownership','04-mhc-overlap','05-dspark-shapes'],
+manifest.update(figures=['00-cover',*figures],generated_from='draw_figures.py',static_figures=['00-cover'],article_figures=[
+    '00-cover','01-throughput-journey','02-architecture-cache-ownership','04-mhc-overlap','05-dspark-shapes'],
     style={'background':BG,'ink':INK,'accents':[ORANGE,LILAC],
            'reference':'https://www.anthropic.com/engineering/multi-agent-research-system',
            'layout':'1000 px nominal width, 2x PNG; serif titles, sans-serif labels'})
