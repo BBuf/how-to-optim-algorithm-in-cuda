@@ -61,9 +61,9 @@ def save(fig,name):
     svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines())+'\n')
     plt.close(fig);figures.append(name)
 
-# Three measured DSpark configurations on the same fixed GSM8K prompt.
+# Three measured DSpark configurations on identical random4k/1k input, simulated acceptance target5.5.
 data=json.loads((OUT/'figure-data.json').read_text())
-points=data['gsm8k']['dspark_points']
+points=data['random']['dspark_points']
 height=610
 fig,base=page('DSpark 的 kernel 优化','DeepSeek-V4.1 Flash · 4×GB300 · TP4 / EP4 · BS=1',h=height)
 txt(base,45,130,f"{points[0]['output_tps_median']:.0f} → {points[-1]['output_tps_median']:.0f} tokens/s",25,color=ORANGE)
@@ -71,7 +71,8 @@ ax=fig.add_axes([.10,.32,.80,.36])
 for spine in ax.spines.values():spine.set_visible(False)
 ax.set_axisbelow(True);ax.grid(axis='y',color=LINE,lw=.7)
 v=[p['output_tps_median'] for p in points]
-ax.set_ylim(0,900);ax.set_yticks([0,200,400,600,800]);ax.set_xlim(-.22,2.22)
+upper=float(np.ceil(max(v)*1.15/100)*100)
+ax.set_ylim(0,upper);ax.set_yticks(np.arange(0,upper+1,200));ax.set_xlim(-.22,2.22)
 ax.tick_params(axis='y',length=0,labelsize=11,pad=8)
 ax.set_xticks([])
 ax.plot(range(3),v,lw=2.4,color=ORANGE,marker='o',ms=7,mfc=BG,mew=2)
@@ -84,8 +85,8 @@ for i,p in enumerate(points):
     txt(base,x,438,labels[i],13.5,ha='center')
     txt(base,x,474,f"accept length  {p['accept_length_median']:.3f}",12,ha='center',color=LILAC)
 base.plot([45,955],[520,520],c=LINE,lw=.8)
-txt(base,45,545,'GSM8K 第 273 行 · 76 tokens 输入 / 固定 122 tokens 输出',13,color=MUTED)
-txt(base,45,578,'真实接受结果 · 预热后取多轮中位数 · 单题吞吐',11.5,color=MUTED)
+txt(base,45,545,'Random · 4096 tokens 输入 / 1024 tokens 输出 · seed 42',13,color=MUTED)
+txt(base,45,578,'模拟 accept length 目标 5.5 · 图中标注实测值 · 预热后取多轮中位数',11.5,color=MUTED)
 save(fig,'01-throughput-journey')
 
 # Combine CED and KV ownership so the article needs only one architecture figure.
@@ -128,7 +129,7 @@ txt(ax,520,274,'两个 stream 并行，在 post 前汇合',12.5,ha='center',colo
 txt(ax,45,464,'小 batch 先完成融合的 pre 混合 / RMSNorm，再启动统计量，减少短算子之间的争用。',12.5,color=MUTED)
 save(fig,'04-mhc-overlap')
 
-fig,ax=page('DSpark：一次验证多个 token','官方 checkpoint 自带 draft 权重；本文固定 block size 5，使用真实接受结果。',h=565)
+fig,ax=page('DSpark：一次验证多个 token','官方 checkpoint 自带 draft 权重；测量固定 block size 5、模拟 accept length 5.5。',h=565)
 box(ax,45,145,247,142,'主模型隐藏状态','来自后面几层',SAND)
 box(ax,362,145,277,142,'3 个 draft block','并行预测 5 个位置\nMarkov head 处理依赖',PALE_LILAC)
 box(ax,709,145,246,142,'Target verify','批量验证\n提交可接受前缀',PALE_ORANGE)
@@ -147,18 +148,6 @@ for a,b in [(250,295),(475,520),(705,750)]:arrow(ax,a,227,b,227)
 txt(ax,45,313,'融合后',15,color=ORANGE)
 box(ax,45,354,910,91,'带权归约 → Shared add → 直接写入通信缓冲区 → 跨卡归约',fc=PALE_ORANGE)
 save(fig,'06-moe-fusion')
-
-fig,ax=page('DSpark 的 GPU 耗时','4×B300 · BS=1 · 同条件下的优化前后对比',h=460)
-labels=['Target verify','Draft','完整 GPU 周期'];before=[9.049,.833,10.050];after=[6.927,.719,7.810]
-for i,label in enumerate(labels):
-    x=45+i*310
-    panel(ax,x,145,290,242,SAND)
-    txt(ax,x+145,171,label,15,ha='center')
-    txt(ax,x+145,222,f'{before[i]:.3f} ms',18,ha='center',color=MUTED)
-    txt(ax,x+145,270,'↓',19,ha='center',color=MUTED)
-    txt(ax,x+145,318,f'{after[i]:.3f} ms',24,ha='center',color=ORANGE)
-txt(ax,45,416,'Target graph 的 kernel 数：2209 → 1965',13,color=MUTED)
-save(fig,'07-profile-evidence')
 
 manifest_path=OUT/'figure-manifest.json'
 manifest=json.loads(manifest_path.read_text())

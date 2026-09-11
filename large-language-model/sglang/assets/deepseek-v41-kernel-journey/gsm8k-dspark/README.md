@@ -1,3 +1,5 @@
+> 历史 GSM8K 单题测量（122 tokens 输出）。本文当前数据已改为 Random 4k/1k、模拟接受长度 5.5，复现请使用 random-dspark（https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/large-language-model/sglang/assets/deepseek-v41-kernel-journey/random-dspark）。本目录保留原始记录。
+
 # GSM8K 单题 DSpark benchmark
 
 这里保存博客使用的原始问题、精确输入 token、测试脚本和逐轮数据。测试为 BS=1，使用真实 DSpark 接受判断，不使用 simulated acceptance；没有运行准确率评测。

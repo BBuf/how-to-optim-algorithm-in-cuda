@@ -1,14 +1,14 @@
-# SGLang 的 DeepSeek-V4.1 Flash Day 0 优化实录：4×GB300 上 BS=1 达到 787 tokens/s
+# SGLang 的 DeepSeek-V4.1 Flash Day 0 优化实录：4×GB300 上 BS=1 达到 762 tokens/s
 
-![SGLang DeepSeek-V4.1 Day 0 封面](https://files.mdnice.com/user/59/02752be9-a583-44f7-a73a-3bb76be64832.png)
+![SGLang DeepSeek-V4.1 Day 0 封面](https://files.mdnice.com/user/59/357852b3-a8fb-445b-a405-7aa7e81248b9.png)
 
 ## 0x0. 前言
 
-SGLang 团队共同完成了 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s；接入 DSpark 后，我们继续优化 verify、MoE 和小 batch 投影。在 **4×GB300、TP4 / EP4** 上，本文选用的 GSM8K 单题达到 **BS=1 787 tokens/s**，真实 accept length 为 **5.545**。这里介绍模型结构变化，以及这些 kernel 优化是怎么做的。
+SGLang 团队共同完成了 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s；接入 DSpark 后，我们继续优化 verify、MoE 和小 batch 投影。在 **4×GB300、TP4 / EP4** 上，使用 **4096 tokens 随机输入、1024 tokens 输出，模拟 accept length 固定设为 5.5**，输出速度达到 **BS=1 762 tokens/s**。这里介绍模型结构变化，以及这些 kernel 优化是怎么做的。
 
-![GSM8K 单题上的 DSpark kernel 优化](https://files.mdnice.com/user/59/b1833bf5-2dd0-4146-a47e-cf31a681f96d.png)
+![随机 4k/1k、模拟接受长度 5.5 下的 DSpark kernel 优化](https://files.mdnice.com/user/59/d9a716ea-008d-409d-b55d-178c2c7bcfe8.png)
 
-*同一条 GSM8K prompt，76 tokens 输入、固定 122 tokens 输出；各点为实测中位数。它是按较高接受长度挑选的单题，不是 GSM8K 全集的平均吞吐。*
+*各配置使用同一份随机 4k/1k 输入，模拟接受长度目标均为 5.5，吞吐取多轮中位数。这是控制接受长度后的性能测试。*
 
 ## 0x1. 架构变化与 KV cache 压缩
 
@@ -40,7 +40,7 @@ CSA2 还通过分层候选筛选缩小后续 indexer 的搜索范围，最终只
 
 ## 0x2. 普通 decode 的 kernel 优化
 
-先回顾普通 decode 从 35 到 203 tokens/s 的优化。下面保留这组测量结果，DSpark 部分使用文末的 GSM8K 单题负载。
+先回顾普通 decode 从 35 到 203 tokens/s 的优化。下面保留这组测量结果，DSpark 部分使用文末的随机 4k/1k 负载。
 
 ### FP8 GEMM：35 → 118 tokens/s
 
@@ -72,21 +72,21 @@ V4.1 的 Single-Pass mHC 使用前一个 sublayer 产生的输入混合系数。
 
 DSpark 的权重就在官方 checkpoint 中，包括三个轻量 draft block。它利用主模型后几层的 hidden state，一次为多个位置计算 logits，再用 Markov head 处理 draft token 之间的依赖，最后交给目标模型批量验证。
 
-![DSpark 与 verify 的实际输入行数](https://files.mdnice.com/user/59/e9496fa6-9bad-490c-b3a9-3f156d65c55c.png)
+![DSpark 与 verify 的实际输入行数](https://files.mdnice.com/user/59/876a5cb4-012b-4e4f-ab73-37dc8f68c5e1.png)
 
-本次固定 block size 5，统计真实接受结果。加上锚点，一个请求的 target verify 最多处理 6 行。普通 decode 每个请求只处理一行，原先针对 M=1 的快速路径需要适配这些小 batch。
+本次固定 block size 5，模拟接受长度目标为 5.5。加上锚点，一个请求的 target verify 最多处理 6 行。普通 decode 每个请求只处理一行，原先针对 M=1 的快速路径需要适配这些小 batch。
 
 **第一组优化集中在 verify 和 MoE。** mHC 的计算重叠接入 verify / draft，WO-A 投影直接写入后续需要的布局；candidate mask 融合有效长度判断和候选处理，减少大 buffer 的扫描。MoE router 直接输出所需布局，输入量化与 routing 重叠，最后把专家带权归约、shared expert 加法和 all-reduce 合在一起，减少中间结果写回。
 
-**接着处理小 batch 的投影和归一化。** WO-A 使用 split-K，让更多线程块同时计算；mHC 把四条残差流的混合与 RMSNorm 融合。Draft 的多组 KV 投影复用 MXFP8 权重和 scale，替换原来的 FP8 路径。我们也把接受判断、结果整理和部分 KV 更新放进 CUDA Graph，减少图外的小算子和 CPU 发射间隔。
+**接着处理小 batch 的投影和归一化。** WO-A 使用 split-K，让更多线程块同时计算；mHC 把四条残差流的混合与 RMSNorm 融合。Draft 的多组 KV 投影复用 MXFP8 权重和 scale，替换原来的 FP8 路径。
 
-| 配置 | BS=1 输出速度（tokens/s） | Accept length |
+| 配置 | BS=1 输出速度（tokens/s） | 实测 accept length |
 |---|---:|---:|
-| DSpark，优化前 | 524.68 | 5.083 |
-| 加入 verify / MoE 融合与重叠 | 669.01 | 5.083 |
-| 再加入小 batch 投影 / mHC 融合 | **787.04** | **5.545** |
+| DSpark，优化前 | 558.24 | 5.505 |
+| 加入 verify / MoE 融合与重叠 | 718.75 | 5.505 |
+| 再加入小 batch 投影 / mHC 融合 | **761.71** | **5.505** |
 
-这条输入上的速度从 **524.68 提升到 787.04 tokens/s**，提升约 **50.0%**。表里同时列出各版本实际的接受长度。
+随机 4k/1k、模拟接受长度目标为 5.5 时，输出速度从 **558.24 提升到 761.71 tokens/s**，提升约 **36.4%**。
 
 **本文这些结果还没有接入 DeepSeek 随 V4.1 发布的那批新 kernel。**
 
@@ -96,6 +96,9 @@ DSpark 的权重就在官方 checkpoint 中，包括三个轻量 draft block。�
 
 ```bash
 export MODEL_PATH=/path/to/DeepSeek-V4.1-Flash
+export SGLANG_RAGGED_VERIFY_MODE=static
+export SGLANG_SIMULATE_ACC_LEN=5.5
+export SGLANG_SIMULATE_ACC_METHOD=match-expected
 CUDA_VISIBLE_DEVICES=0,1,2,3 PYTHONPATH="$PWD/python" MAX_JOBS=16 \
 python -m sglang.launch_server \
   --model-path "$MODEL_PATH" \
@@ -111,31 +114,33 @@ python -m sglang.launch_server \
   --host 127.0.0.1 --port 30021
 ```
 
-这次使用 GSM8K test.jsonl 的第 273 行（从 0 开始的索引为 272），是一道购物找零问题。原始问题不改写，不加 few-shot 示例。经过官方聊天编码后输入为 76 tokens，prompt 文件已保存完整的 `input_ids`，可以直接复用。
+输入由固定随机种子 `42` 生成：从模型词表中排除特殊 token，再均匀抽取 4096 个 token ID。直接提交这组 ID，不套聊天模板。所有配置复用同一份输入。
 
-- Prompt 下载（https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/deepseek-v41-kernel-journey/gsm8k-dspark/prompt.json）。
-- 测试脚本、逐轮结果和优化版本构造方式（https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/large-language-model/sglang/assets/deepseek-v41-kernel-journey/gsm8k-dspark）。
+- 随机输入下载（https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/deepseek-v41-kernel-journey/random-dspark/prompt.json）。
+- 输入构造脚本、测试脚本和逐轮结果（https://github.com/BBuf/how-to-optim-algorithm-in-cuda/tree/master/large-language-model/sglang/assets/deepseek-v41-kernel-journey/random-dspark）。
 
 另开终端运行：
 
 ```bash
-ASSET_URL=https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/deepseek-v41-kernel-journey/gsm8k-dspark
+ASSET_URL=https://raw.githubusercontent.com/BBuf/how-to-optim-algorithm-in-cuda/master/large-language-model/sglang/assets/deepseek-v41-kernel-journey/random-dspark
 curl -fL "$ASSET_URL/prompt.json" -o prompt.json
 curl -fL "$ASSET_URL/benchmark.py" -o benchmark.py
 python -m pip install requests
-python benchmark.py bench --prompt prompt.json --out result --repeat 6
+python benchmark.py bench --prompt prompt.json --max-tokens 1024 --out result --repeat 6
 ```
 
-脚本使用 `temperature=0`、`ignore_eos=True`，固定生成 **122 tokens**，与这条问题筛选时的自然输出长度一致。输入通过 `/generate` 提交，使用真实接受判断。脚本会先调用 `/freeze_gc`，每轮前清空缓存，并排除一次预热。每次启动测 6 轮；中间版本和最终配置各独立启动两次，合并全部 12 轮取中位数。
+脚本使用 `temperature=0`、`ignore_eos=True`，每轮检查实际输入为 **4096 tokens**、输出为 **1024 tokens**。输入通过 `/generate` 提交，启动后调用 `/freeze_gc`，每轮前清空缓存，并排除一次预热。各配置测 6 轮，最终配置独立启动两次，共取 12 轮的中位数。
 
-吞吐按“首个流式事件之后新增的 token 数 / 从首个事件到最后事件的耗时”计算，不包含完整 prefill。Accept length 是每轮 verify 平均提交的 token 数，包含目标模型补出的 token，block size 5 时上限为 6。输出长度会影响这个值，因此复现时需要同时保持 prompt 和输出长度一致。
+`match-expected` 在每轮接受 5 或 6 个 token，使期望接受长度为 **5.5**。有限轮次和最后一步截断会让统计值略有波动，表中保留实际值。这里的接受结果是模拟的，生成文本不用于评价模型回答质量；模拟模式也会关闭图内接受判断路径。
 
-同一份最终代码关闭 DSpark，使用相同输入、输出长度和计时方式，结果如下：
+吞吐按“首个流式事件之后新增的 token 数 / 从首个事件到最后事件的耗时”计算，不包含完整 prefill。Accept length 包含目标模型补出的 token，block size 5 时上限为 6。
+
+同一份最终代码关闭 DSpark（同时取消上述模拟接受环境变量），使用相同随机输入、输出长度和计时方式，结果如下：
 
 | 负载与指标 | DSpark 启用前 | DSpark 启用后 |
 |---|---:|---:|
-| BS=1，输出速度（tokens/s） | 249.47 | **787.04** |
-| BS=1，accept length | | **5.545** |
+| BS=1，输出速度（tokens/s） | 229.89 | **761.71** |
+| BS=1，实测 accept length（模拟目标 5.5） | | **5.505** |
 
 ## 0x5. 相关链接
 
@@ -146,7 +151,7 @@ python benchmark.py bench --prompt prompt.json --out result --repeat 6
 - Miles GitHub 仓库（https://github.com/radixark/miles）。
 - DeepSeek-V4.1 技术报告（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf）。
 
-Kernel 实现细节可以直接看 mHC（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/layernorm/mhc.py）、candidate mask（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py） 和 MoE / all-reduce（https://github.com/sgl-project/sglang/blob/1b742acd2a49ebd7acd017032875552099d12391/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh）。
+Kernel 实现细节可以直接看 mHC（https://github.com/sgl-project/sglang/blob/3b709e55c0f7599f90bdd400e1fe758c5a942cb6/python/sglang/kernels/ops/layernorm/mhc.py）、candidate mask（https://github.com/sgl-project/sglang/blob/3b709e55c0f7599f90bdd400e1fe758c5a942cb6/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py） 和 MoE / all-reduce（https://github.com/sgl-project/sglang/blob/3b709e55c0f7599f90bdd400e1fe758c5a942cb6/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh）。
 
 ## 0x6. 致谢
 

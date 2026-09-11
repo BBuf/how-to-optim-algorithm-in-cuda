@@ -6,19 +6,17 @@
     "03-kv-bytes",
     "04-mhc-overlap",
     "05-dspark-shapes",
-    "06-moe-fusion",
-    "07-profile-evidence"
+    "06-moe-fusion"
   ],
   "generated_from": "draw_figures.py",
   "hosting": {
-    "01-throughput-journey": "https://files.mdnice.com/user/59/b1833bf5-2dd0-4146-a47e-cf31a681f96d.png",
+    "01-throughput-journey": "https://files.mdnice.com/user/59/d9a716ea-008d-409d-b55d-178c2c7bcfe8.png",
     "02-architecture-cache-ownership": "https://files.mdnice.com/user/59/be0a830a-e594-42af-9f56-ae6a0af08d24.png",
     "03-kv-bytes": "https://files.mdnice.com/user/59/1260fc32-c393-40ac-9254-242d8948fcad.png",
     "04-mhc-overlap": "https://files.mdnice.com/user/59/61bba574-cff4-4824-8cd7-629be1584cc9.png",
-    "05-dspark-shapes": "https://files.mdnice.com/user/59/e9496fa6-9bad-490c-b3a9-3f156d65c55c.png",
+    "05-dspark-shapes": "https://files.mdnice.com/user/59/876a5cb4-012b-4e4f-ab73-37dc8f68c5e1.png",
     "06-moe-fusion": "https://files.mdnice.com/user/59/2442f510-3a6d-4ff4-9525-b2d105641739.png",
-    "07-profile-evidence": "https://files.mdnice.com/user/59/5cba8d32-a4fe-4327-be6a-8bd3456174fc.png",
-    "00-cover": "https://files.mdnice.com/user/59/02752be9-a583-44f7-a73a-3bb76be64832.png"
+    "00-cover": "https://files.mdnice.com/user/59/357852b3-a8fb-445b-a405-7aa7e81248b9.png"
   },
   "article_figures": [
     "00-cover",
@@ -41,6 +39,14 @@
     "00-cover"
   ],
   "benchmark_sources": {
-    "01-throughput-journey": "gsm8k-dspark/results.json"
-  }
+    "01-throughput-journey": "random-dspark/results.json"
+  },
+  "archived_figures": {
+    "07-profile-evidence": {
+      "path": "archive/07-profile-evidence.png",
+      "original_hosting": "https://files.mdnice.com/user/59/5cba8d32-a4fe-4327-be6a-8bd3456174fc.png",
+      "note": "Previous workload; excluded from the current GSM8K benchmark and figure generation."
+    }
+  },
+  "benchmark_description": "BS1 random4096/1024, simulated acceptance target5.5, match-expected, static verify"
 }
