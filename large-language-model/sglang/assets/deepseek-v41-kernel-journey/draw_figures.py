@@ -67,8 +67,8 @@ ordinary=data['ordinary_decode']['points']
 points=data['random']['dspark_points']
 card_rows=(len(points)+2)//3
 height=1080+(card_rows-1)*265
-fig,base=page(f"从 35 到 {points[-1]['output_tps_median']:.0f} tokens/s：kernel 优化历程",
-              'SGLang · DeepSeek-V4.1 Flash · 4×GB300 · TP4 / EP4 · BS=1',h=height)
+fig,base=page(f"从 35 到 {int(points[-1]['output_tps_median'])} tokens/s：kernel 优化历程",
+              'SGLang · DeepSeek-V4.1 Flash · 4×GB300 · BS=1 · Attention TP4',h=height)
 top,ht=155,250
 txt(base,80,125,'输出 tokens/s',12,color=MUTED)
 ax=fig.add_axes([.08,1-(top+ht)/height,.86,ht/height])
@@ -84,9 +84,11 @@ ax.plot([10,11],v[9:11],lw=1.5,color=MUTED,ls=(0,(3,3)))
 ax.plot(range(11,last+1),v[10:],lw=2.4,color=ORANGE,marker='o',ms=6,mfc=BG,mew=1.8)
 for i,n in enumerate(v):
     offset=12 if i>=10 or i%2==0 else -20
+    if i == last-2:
+        offset=-23  # Separate the close C2-verify and TP4 labels.
     ax.annotate(f'{n:.1f}',(i+1,n),textcoords='offset points',xytext=(0,offset),
                 ha='center',fontsize=12 if i>=10 else 11.2,color=ORANGE if i>=10 else LILAC)
-ax.text(1.1,720,'普通 decode → DSpark → Kernel 融合',fontsize=12.5,color=INK)
+ax.text(1.1,720,'普通 decode → DSpark → Kernel 融合 → MoE TP4',fontsize=12.5,color=INK)
 ax.text(1.1,605,'DSpark：随机 4k/1k，模拟 accept length = 5.5',fontsize=12,color=MUTED)
 
 txt(base,45,463,'01—10  普通 decode',17,color=LILAC,font=TITLE)
@@ -107,7 +109,7 @@ for i,p in enumerate(points):
     txt(base,x+128,835+y,'tokens/s',11,color=MUTED)
     txt(base,x+17,875+y,'\n'.join(p['methods']),11.5,color=MUTED)
 
-txt(base,45,height-50,f'01—10 保留普通 decode 测量；11—{last} 为随机 4096/1024、固定模拟接受长度的测量。',11,color=MUTED)
+txt(base,45,height-50,f'01—10 保留普通 decode 测量；11—{last} 为随机 4096/1024；11—15 MoE EP4，16 MoE TP4。',10.5,color=MUTED)
 txt(base,45,height-24,'DSpark 实测 accept length 中位数：'+
     ' / '.join(f"{p['accept_length_median']:.3f}" for p in points)+'。',11,color=MUTED)
 save(fig,'01-throughput-journey')

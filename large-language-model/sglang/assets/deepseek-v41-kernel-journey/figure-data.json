@@ -118,6 +118,29 @@
           "池化 + RMSNorm + RoPE",
           "量化 + 主 KV 写入"
         ]
+      },
+      {
+        "runs": 12,
+        "simulated_acceptance_target": 5.5,
+        "requested_output_tokens": 1024,
+        "actual_output_token_counts": [
+          1024
+        ],
+        "independent_startups": 2,
+        "output_tps_median": 873.6314343697543,
+        "output_tps_min": 767.0732889397136,
+        "output_tps_max": 895.2004372016205,
+        "accept_length_median": 5.505376344086022,
+        "accept_length_min": 5.446808510638298,
+        "accept_length_max": 5.535135135135135,
+        "configuration": "tp4_padding",
+        "label": "MoE TP4 + padding",
+        "methods": [
+          "保留前述全部融合",
+          "专家中间维度按 TP4 切分",
+          "每卡 576 → 640 补齐",
+          "减少 rank 间等待"
+        ]
       }
     ],
     "no_dspark": {

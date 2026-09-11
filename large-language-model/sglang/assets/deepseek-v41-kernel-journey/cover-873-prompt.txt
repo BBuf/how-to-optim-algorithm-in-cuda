@@ -1,0 +1,5 @@
+Source image: 00-cover.png at blog commit 171dd1ae743294144d6bbeb280e1a62243985991.
+Tool: imagegen (reference-image edit).
+Final asset: 00-cover.png.
+
+Edit this existing wide WeChat blog cover with only two text updates. Keep its exact wide aspect ratio, composition, cream paper background, prominent SGLang wordmark, existing large black DeepSeek-V4.1 Flash and Day 0 推理优化 text, orange and lilac illustration and colors, and font sizes. Replace the big orange number 853 with 873, keeping tokens/s unchanged. Replace the bottom-left hardware/configuration line with exactly: 4×GB300 · TP4 · BS=1 · DSpark. Keep the orange small caption exactly Random 4k/1k · 模拟 AL=5.5. Preserve every other existing element. Render clean, readable, accurate lettering with no spelling errors. No new text or symbols.

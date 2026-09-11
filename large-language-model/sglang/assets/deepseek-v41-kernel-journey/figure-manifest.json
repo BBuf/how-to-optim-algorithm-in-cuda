@@ -10,13 +10,13 @@
   ],
   "generated_from": "draw_figures.py",
   "hosting": {
-    "01-throughput-journey": "https://files.mdnice.com/user/59/17e924b4-4c0a-4d6d-8f6a-84c041f68663.png",
+    "01-throughput-journey": "https://files.mdnice.com/user/59/b27224ec-a296-4d62-ab3a-9a7ccf42c9fb.png",
     "02-architecture-cache-ownership": "https://files.mdnice.com/user/59/be0a830a-e594-42af-9f56-ae6a0af08d24.png",
     "03-kv-bytes": "https://files.mdnice.com/user/59/1260fc32-c393-40ac-9254-242d8948fcad.png",
     "04-mhc-overlap": "https://files.mdnice.com/user/59/61bba574-cff4-4824-8cd7-629be1584cc9.png",
     "05-dspark-shapes": "https://files.mdnice.com/user/59/876a5cb4-012b-4e4f-ab73-37dc8f68c5e1.png",
     "06-moe-fusion": "https://files.mdnice.com/user/59/2442f510-3a6d-4ff4-9525-b2d105641739.png",
-    "00-cover": "https://files.mdnice.com/user/59/833c2c44-1194-48db-b8b7-0572485b23d6.png"
+    "00-cover": "https://files.mdnice.com/user/59/e48eedf2-117a-4a36-b6ae-466edd0c6330.png"
   },
   "article_figures": [
     "00-cover",
@@ -51,5 +51,11 @@
       "note": "Previous workload; excluded from the random4k/1k simulated-acceptance benchmark and current article."
     }
   },
-  "benchmark_description": "Ordinary decode: original cumulative BS1 measurements; DSpark: BS1 random4096/1024, simulated acceptance target5.5, match-expected, static verify."
+  "benchmark_description": "Ordinary decode: original cumulative BS1 measurements; DSpark: BS1 random4096/1024, simulated acceptance target5.5, match-expected, static verify. Points 11–15: MoE EP4. Point 16: MoE TP4 + padding (EP1), all previous optimizations retained. Attention TP4 throughout.",
+  "cover_generation": {
+    "prompt_file": "cover-873-prompt.txt",
+    "headline_tokens_per_second": 873,
+    "measurement_median": 873.6314343697543,
+    "configuration": "tp4_padding"
+  }
 }
