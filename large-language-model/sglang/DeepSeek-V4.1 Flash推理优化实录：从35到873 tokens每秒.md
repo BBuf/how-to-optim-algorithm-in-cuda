@@ -151,12 +151,12 @@ python benchmark.py bench --prompt prompt.json --max-tokens 1024 --out result --
 
 吞吐按“首个流式事件之后新增的 token 数 / 从首个事件到最后事件的耗时”计算，不包含完整 prefill。Accept length 包含目标模型补出的 token，block size 5 时上限为 6。
 
-此前在 **attention TP4 / MoE EP4** 下，用同一份代码比较 DSpark 开关，使用相同随机输入、输出长度和计时方式，结果如下。这组对照保留 EP4 配置；上面的 873.63 是新增的 MoE TP4 数据点。
+下面汇总 DSpark 开关及 MoE TP4 + padding 的结果。各项使用同一份代码、相同随机输入、输出长度和计时方式，**attention 均为 TP4**；表头的 EP4 / TP4 指 MoE 配置。
 
-| 负载与指标 | DSpark 启用前 | DSpark 启用后 |
-|---|---:|---:|
-| BS=1，输出速度（tokens/s） | 223.50 | **853.49** |
-| BS=1，实测 accept length（模拟目标 5.5） | | **5.520** |
+| 负载与指标 | DSpark 启用前 · EP4 | DSpark 启用后 · EP4 | DSpark 启用后 · TP4 + padding |
+|---|---:|---:|---:|
+| BS=1，输出速度（tokens/s） | 223.50 | 853.49 | **873.63** |
+| BS=1，实测 accept length（模拟目标 5.5） | | 5.520 | **5.505** |
 
 ## 0x5. 相关链接
 
