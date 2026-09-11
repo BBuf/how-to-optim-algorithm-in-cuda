@@ -1,5 +1,6 @@
 """Original diagrams with a shared editorial theme; measured data stay unchanged."""
 from pathlib import Path
+import argparse
 import json
 import matplotlib
 matplotlib.use('Agg')
@@ -18,6 +19,9 @@ TITLE=fm.FontProperties(fname='/System/Library/Fonts/Supplemental/Songti.ttc')
 plt.rcParams.update({'font.family':'Arial Unicode MS','font.size':13,'text.color':INK,
     'axes.unicode_minus':False,'figure.facecolor':BG,'axes.facecolor':BG,
     'axes.labelcolor':MUTED,'xtick.color':MUTED,'ytick.color':MUTED,'svg.fonttype':'path'})
+parser=argparse.ArgumentParser()
+parser.add_argument('--only', nargs='*', help='Regenerate only the named figures.')
+args=parser.parse_args()
 figures=[]
 
 def page(title,subtitle,h=650):
@@ -48,6 +52,9 @@ def arrow(ax,x1,y1,x2,y2,c=MUTED,rad=0):
         color=c,mutation_scale=15,shrinkA=4,shrinkB=4,connectionstyle=f'arc3,rad={rad}'))
 
 def save(fig,name):
+    if args.only is not None and name not in args.only:
+        plt.close(fig);figures.append(name)
+        return
     fig.savefig(OUT/f'{name}.png',dpi=200,facecolor=BG)
     svg = OUT/f'{name}.svg'
     fig.savefig(svg,facecolor=BG)
@@ -57,35 +64,38 @@ def save(fig,name):
 # Plot the representative measurements shown in the article.
 data=json.loads((OUT/'figure-data.json').read_text())
 values=data['displayed_journey']
-fig,base=page('从 35 到 764 tokens/s','DeepSeek-V4.1 Flash · 四卡 Blackwell · TP4 / EP4',h=1020)
+latest=data.get('latest', {'bs1_median_tps':values['bs1'][-1], 'bs64_median_tps':values['bs64'][-1]})
+npoints=len(values['bs1'])
+height=1060
+fig,base=page(f"从 35 到 {latest['bs1_median_tps']:.0f} tokens/s",'DeepSeek-V4.1 Flash · 四卡 Blackwell · TP4 / EP4',h=height)
 for top,ht,key,color,lim,ticks,label in [
     (155,225,'bs1',ORANGE,900,[0,200,400,600,800],'BS = 1 · 输出 tokens/s'),
     (455,225,'bs64',LILAC,16000,[0,4000,8000,12000,16000],'BS = 64 · 总输出 tokens/s')]:
     txt(base,75,top-33,label,15,color=color)
-    ax=fig.add_axes([.08,1-(top+ht)/1020,.86,ht/1020])
+    ax=fig.add_axes([.08,1-(top+ht)/height,.86,ht/height])
     for spine in ax.spines.values():spine.set_visible(False)
     ax.set_axisbelow(True);ax.grid(axis='y',color=LINE,lw=.65)
-    ax.set_ylim(0,lim);ax.set_yticks(ticks);ax.set_xlim(.8,15.2)
+    ax.set_ylim(0,lim);ax.set_yticks(ticks);ax.set_xlim(.8,npoints+.2)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x,_:f'{x:,.0f}'))
-    ax.set_xticks(range(1,16));ax.tick_params(length=0,labelsize=10.8,pad=8)
-    v=values[key];xx=np.arange(1,16)
+    ax.set_xticks(range(1,npoints+1));ax.tick_params(length=0,labelsize=10.8,pad=8)
+    v=values[key];xx=np.arange(1,npoints+1)
     ax.plot(xx,v,lw=2,color=color,marker='o',ms=4.3,mfc=BG,mew=1.4)
-    ax.scatter([15],[v[-1]],s=36,color=color,zorder=5)
+    ax.scatter([npoints],[v[-1]],s=36,color=color,zorder=5)
     for i,n in enumerate(v):
         text=f'{n:.1f}' if key=='bs1' else f'{n:,.0f}'
         ax.annotate(text,(i+1,n),textcoords='offset points',xytext=(0,11 if i%2==0 else -20),
                     ha='center',fontsize=10.8,color=color)
 labels=['Baseline','MXFP8 GEMM','RoPE + FP4 融合','mHC 行 tile','Reduce + Sinkhorn',
         '共享 scratch','C2 池化融合','mHC 计算重叠','默认启用优化','GEMV / norm / Engram',
-        '启用 DSpark','Verify mHC / WO-A','Verify kernel / mask','MoE router / 量化重叠','MoE finalize / 通信融合']
+        '启用 DSpark','Verify mHC / WO-A','Verify kernel / mask','MoE router / 量化重叠','MoE finalize / 通信融合','小 batch 投影 / mHC 融合']
 for i,label in enumerate(labels):
-    col,row=divmod(i,5);x=48+col*307;y=732+row*35
+    col,row=divmod(i,6);x=48+col*307;y=732+row*35
     txt(base,x,y,f'{i+1:02d}',11.5,color=ORANGE)
     txt(base,x+34,y,label,11.5)
-base.plot([45,950],[926,926],c=LINE,lw=.8)
-txt(base,45,945,'最终 4×B300',13,color=MUTED)
-txt(base,255,942,'BS=1  764 tokens/s',17,color=ORANGE)
-txt(base,585,942,'BS=64  13,473 tokens/s',17,color=LILAC)
+base.plot([45,950],[966,966],c=LINE,lw=.8)
+txt(base,45,989,'最终 4×B300',13,color=MUTED)
+txt(base,255,986,f"BS=1  {latest['bs1_median_tps']:.0f} tokens/s",17,color=ORANGE)
+txt(base,585,986,f"BS=64  {latest['bs64_median_tps']:,.0f} tokens/s",17,color=LILAC)
 save(fig,'01-throughput-journey')
 
 # Combine CED and KV ownership so the article needs only one architecture figure.
@@ -116,16 +126,16 @@ for y,label,v,c in [(460,'V4 Flash',3514,'#bebcb3'),(510,'V4.1 Flash',890,ORANGE
     txt(ax,230+v/3514*595,y,f'{v:,} B',13,va='center',color=c if v==890 else INK)
 save(fig,'03-kv-bytes')
 
-fig,ax=page('Single-Pass mHC 的计算重叠','输入混合使用前一个 sublayer 的系数，当前统计量可以并行计算。',h=510)
+fig,ax=page('Single-Pass mHC 的计算重叠','输入混合使用前一个 sublayer 的系数，统计量与 Attention / MoE 重叠。',h=510)
 box(ax,45,232,150,95,'四条残差流\n当前输入',fc=SAND)
-box(ax,267,149,235,96,'pre 混合','使用前一次 pre 系数',PALE_LILAC)
+box(ax,267,149,235,96,'pre 混合 + RMSNorm','使用前一次 pre 系数',PALE_LILAC)
 box(ax,570,149,217,96,'Attention / MoE',fc=PALE_LILAC)
 box(ax,267,333,520,96,'统计量 + Sinkhorn','计算本次 post / comb 和下一次 pre',PALE_ORANGE)
 box(ax,843,232,112,95,'post 混合',fc=SAND)
 arrow(ax,195,262,267,197);arrow(ax,502,197,570,197);arrow(ax,787,197,843,258)
 arrow(ax,195,296,267,381);arrow(ax,787,381,843,303)
 txt(ax,520,274,'两个 stream 并行，在 post 前汇合',12.5,ha='center',color=MUTED)
-txt(ax,45,464,'减少关键路径上的等待；同样适用于普通 decode、target verify 和 draft。',12.5,color=MUTED)
+txt(ax,45,464,'小 batch 先完成融合的 pre 混合 / RMSNorm，再启动统计量，减少短算子之间的争用。',12.5,color=MUTED)
 save(fig,'04-mhc-overlap')
 
 fig,ax=page('DSpark：一次验证多个 token','官方 checkpoint 自带 draft 权重；本文固定 block size 5，使用真实接受结果。',h=565)
@@ -169,4 +179,4 @@ manifest.update(figures=figures,generated_from='draw_figures.py',article_figures
            'reference':'https://www.anthropic.com/engineering/multi-agent-research-system',
            'layout':'1000 px nominal width, 2x PNG; serif titles, sans-serif labels'})
 manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
-print('Regenerated 7 figures; article uses 4.')
+print('Regenerated figures:', ', '.join(args.only or figures))
