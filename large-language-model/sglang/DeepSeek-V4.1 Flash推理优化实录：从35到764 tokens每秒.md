@@ -1,14 +1,14 @@
-# SGLang 的 DeepSeek-V4.1 Flash Day 0 优化实录：4×GB300 上 BS=1 达到 762 tokens/s
+# SGLang 的 DeepSeek-V4.1 Flash Day 0 优化实录：4×GB300 上 BS=1 达到 853 tokens/s
 
-![SGLang DeepSeek-V4.1 Day 0 封面](https://files.mdnice.com/user/59/357852b3-a8fb-445b-a405-7aa7e81248b9.png)
+![SGLang DeepSeek-V4.1 Day 0 封面](https://files.mdnice.com/user/59/833c2c44-1194-48db-b8b7-0572485b23d6.png)
 
 ## 0x0. 前言
 
-SGLang 团队共同完成了 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s；接入 DSpark 后，我们继续优化 verify、MoE 和小 batch 投影。在 **4×GB300、TP4 / EP4** 上，使用 **4096 tokens 随机输入、1024 tokens 输出，模拟 accept length 固定设为 5.5**，输出速度达到 **BS=1 762 tokens/s**。这里介绍模型结构变化，以及这些 kernel 优化是怎么做的。
+SGLang 团队共同完成了 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s；接入 DSpark 后，我们继续优化 verify、MoE 和小 batch 投影。在 **4×GB300、TP4 / EP4** 上，使用 **4096 tokens 随机输入、1024 tokens 输出，模拟 accept length 固定设为 5.5**，输出速度达到 **BS=1 853 tokens/s**。这里介绍模型结构变化，以及这些 kernel 优化是怎么做的。
 
-![普通 decode 与 DSpark 的完整 kernel 优化历程](https://files.mdnice.com/user/59/3b672ff0-c9ad-4218-a18a-6ccacb45acca.png)
+![普通 decode 与 DSpark 的完整 kernel 优化历程](https://files.mdnice.com/user/59/17e924b4-4c0a-4d6d-8f6a-84c041f68663.png)
 
-*01–10 为普通 decode 的累计优化结果；11–13 使用同一份随机 4k/1k 输入，模拟 accept length 固定设为 5.5，吞吐取多轮中位数。图下方列出各节点的优化手段。*
+*01–10 为普通 decode 的累计优化结果；11–15 使用同一份随机 4k/1k 输入，模拟 accept length 固定设为 5.5，吞吐取多轮中位数。图下方列出各节点的优化手段。*
 
 ## 0x1. 架构变化与 KV cache 压缩
 
@@ -80,21 +80,27 @@ DSpark 的权重就在官方 checkpoint 中，包括三个轻量 draft block。�
 
 **接着处理小 batch 的投影和归一化。** WO-A 使用 split-K，让更多线程块同时计算；mHC 把四条残差流的混合与 RMSNorm 融合。Draft 的多组 KV 投影复用 MXFP8 权重和 scale，替换原来的 FP8 路径。
 
+**索引后处理与投影继续融合。** Top-K 之后的分数检查、无效位置过滤、KV 页地址转换合在一起；候选块选完后，直接展开成 token mask。Q 的 RoPE 与 attention buffer 写入合并，WO-A 的 split-K 归约直接完成后续 MXFP8 量化，省去中间张量读写。
+
+**再处理 L2、L8、L14 的 verify 压缩（层号从 0 开始）。** 这三层原先要用一串小算子寻找前一个 token、处理 mask，再做池化和缓存写入。Verify 的位置连续，同一请求内直接读取前一行，只有首行需要读取 ring buffer。我们将 pair pooling、RMSNorm、RoPE、量化和主 KV 写入合成一个 kernel，随后复用 index-K 的融合写入。
+
 | 配置 | BS=1 输出速度（tokens/s） | 实测 accept length |
 |---|---:|---:|
 | DSpark，优化前 | 558.24 | 5.505 |
 | 加入 verify / MoE 融合与重叠 | 718.75 | 5.505 |
-| 再加入小 batch 投影 / mHC 融合 | **761.71** | **5.505** |
+| 再加入小 batch 投影 / mHC 融合 | 761.71 | 5.505 |
+| 再融合索引后处理 / Q RoPE / WO-A 量化 | 802.38 | 5.505 |
+| 再融合 C2 verify 压缩 | **853.49** | **5.520** |
 
-随机 4k/1k、模拟接受长度目标为 5.5 时，输出速度从 **558.24 提升到 761.71 tokens/s**，提升约 **36.4%**。
+随机 4k/1k、模拟接受长度目标为 5.5 时，输出速度从 **558.24 提升到 853.49 tokens/s**，提升约 **52.9%**。其中 C2 verify 融合将 **802.38 提升到 853.49 tokens/s**，提升约 **6.37%**。
 
 **本文这些结果还没有接入 DeepSeek 随 V4.1 发布的那批新 kernel。**
 
 ## 0x4. 如何复现：Random 4k/1k，固定模拟 accept length=5.5
 
-本节复现图中 11–13 的 DSpark 数据：**随机输入 4096 tokens，固定输出 1024 tokens，模拟 accept length 目标为 5.5**。接受长度由服务端配置控制，各版本使用相同输入。
+本节复现图中 11–15 的 DSpark 数据：**随机输入 4096 tokens，固定输出 1024 tokens，模拟 accept length 目标为 5.5**。接受长度由服务端配置控制，各版本使用相同输入。
 
-使用 SGLang 代码（https://github.com/sgl-project/sglang/tree/3b709e55c0f7599f90bdd400e1fe758c5a942cb6）和官方 checkpoint（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/tree/dba1be0a40aa45a94ad051997016db3960a90277），环境为 4×GB300、TP4 / EP4。依赖版本：PyTorch 2.13.0+cu130、FlashInfer 0.6.18、Triton 3.7.1、sglang-kernel 0.4.6.post1、sgl-deep-gemm 0.1.7、CUTLASS DSL 4.6.2。
+使用 SGLang 代码（https://github.com/BBuf/sglang/tree/835c39094ad017c2f54f8ea598002e669e6fa30d）和官方 checkpoint（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/tree/dba1be0a40aa45a94ad051997016db3960a90277），环境为 4×GB300、TP4 / EP4。依赖版本：PyTorch 2.13.0+cu130、FlashInfer 0.6.18、Triton 3.7.1、sglang-kernel 0.4.6.post1、sgl-deep-gemm 0.1.7、CUTLASS DSL 4.6.2。
 
 ```bash
 export MODEL_PATH=/path/to/DeepSeek-V4.1-Flash
@@ -131,7 +137,7 @@ python -m pip install requests
 python benchmark.py bench --prompt prompt.json --max-tokens 1024 --out result --repeat 6
 ```
 
-脚本使用 `temperature=0`、`ignore_eos=True`，每轮检查实际输入为 **4096 tokens**、输出为 **1024 tokens**。输入通过 `/generate` 提交，启动后调用 `/freeze_gc`，每轮前清空缓存，并排除一次预热。各配置测 6 轮，最终配置独立启动两次，共取 12 轮的中位数。
+脚本使用 `temperature=0`、`ignore_eos=True`，每轮检查实际输入为 **4096 tokens**、输出为 **1024 tokens**。输入通过 `/generate` 提交，启动后调用 `/freeze_gc`，每轮前清空缓存，并排除一次预热。每次启动测 6 轮；小 batch 投影、索引后处理 / 投影融合及最终配置均独立启动两次，各取 12 轮的中位数。
 
 `match-expected` 在每轮接受 5 或 6 个 token，使期望接受长度为 **5.5**。有限轮次和最后一步截断会让统计值略有波动，表中保留实际值。这里的接受结果是模拟的，生成文本不用于评价模型回答质量；模拟模式也会关闭图内接受判断路径。
 
@@ -141,8 +147,8 @@ python benchmark.py bench --prompt prompt.json --max-tokens 1024 --out result --
 
 | 负载与指标 | DSpark 启用前 | DSpark 启用后 |
 |---|---:|---:|
-| BS=1，输出速度（tokens/s） | 229.89 | **761.71** |
-| BS=1，实测 accept length（模拟目标 5.5） | | **5.505** |
+| BS=1，输出速度（tokens/s） | 223.50 | **853.49** |
+| BS=1，实测 accept length（模拟目标 5.5） | | **5.520** |
 
 ## 0x5. 相关链接
 
@@ -153,7 +159,7 @@ python benchmark.py bench --prompt prompt.json --max-tokens 1024 --out result --
 - Miles GitHub 仓库（https://github.com/radixark/miles）。
 - DeepSeek-V4.1 技术报告（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf）。
 
-Kernel 实现细节可以直接看 mHC（https://github.com/sgl-project/sglang/blob/3b709e55c0f7599f90bdd400e1fe758c5a942cb6/python/sglang/kernels/ops/layernorm/mhc.py）、candidate mask（https://github.com/sgl-project/sglang/blob/3b709e55c0f7599f90bdd400e1fe758c5a942cb6/python/sglang/kernels/ops/attention/dsv4/candidate_blocks.py） 和 MoE / all-reduce（https://github.com/sgl-project/sglang/blob/3b709e55c0f7599f90bdd400e1fe758c5a942cb6/python/sglang/kernels/jit/csrc/distributed/all_reduce_fusion.cuh）。
+Kernel 实现可以直接看 C2 verify 压缩（https://github.com/BBuf/sglang/blob/835c39094ad017c2f54f8ea598002e669e6fa30d/python/sglang/kernels/ops/attention/dsv4/c2.py）、索引后处理（https://github.com/BBuf/sglang/blob/835c39094ad017c2f54f8ea598002e669e6fa30d/python/sglang/kernels/ops/attention/dsv4/indexer_postprocess.py）、Q RoPE / store（https://github.com/BBuf/sglang/blob/835c39094ad017c2f54f8ea598002e669e6fa30d/python/sglang/kernels/ops/attention/dsv4/q_rope_store.py）和 WO-A / MXFP8（https://github.com/BBuf/sglang/blob/835c39094ad017c2f54f8ea598002e669e6fa30d/python/sglang/kernels/ops/attention/dsv4/wo_a_bf16_small_batch.py）。
 
 ## 0x6. 致谢
 

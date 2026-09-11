@@ -65,7 +65,8 @@ def save(fig,name):
 data=json.loads((OUT/'figure-data.json').read_text())
 ordinary=data['ordinary_decode']['points']
 points=data['random']['dspark_points']
-height=1080
+card_rows=(len(points)+2)//3
+height=1080+(card_rows-1)*265
 fig,base=page(f"从 35 到 {points[-1]['output_tps_median']:.0f} tokens/s：kernel 优化历程",
               'SGLang · DeepSeek-V4.1 Flash · 4×GB300 · TP4 / EP4 · BS=1',h=height)
 top,ht=155,250
@@ -74,17 +75,18 @@ ax=fig.add_axes([.08,1-(top+ht)/height,.86,ht/height])
 for spine in ax.spines.values():spine.set_visible(False)
 ax.set_axisbelow(True);ax.grid(axis='y',color=LINE,lw=.65)
 v=[p['output_tps'] for p in ordinary]+[p['output_tps_median'] for p in points]
-ax.set_ylim(0,880);ax.set_yticks([0,200,400,600,800]);ax.set_xlim(.6,13.4)
-ax.set_xticks(range(1,14),[f'{i:02d}' for i in range(1,14)])
+last=len(v)
+ax.set_ylim(0,max(880,max(v)+85));ax.set_yticks([0,200,400,600,800]);ax.set_xlim(.6,last+.4)
+ax.set_xticks(range(1,last+1),[f'{i:02d}' for i in range(1,last+1)])
 ax.tick_params(length=0,labelsize=11,pad=9)
 ax.plot(range(1,11),v[:10],lw=2.2,color=LILAC,marker='o',ms=5,mfc=BG,mew=1.6)
 ax.plot([10,11],v[9:11],lw=1.5,color=MUTED,ls=(0,(3,3)))
-ax.plot(range(11,14),v[10:],lw=2.4,color=ORANGE,marker='o',ms=6,mfc=BG,mew=1.8)
+ax.plot(range(11,last+1),v[10:],lw=2.4,color=ORANGE,marker='o',ms=6,mfc=BG,mew=1.8)
 for i,n in enumerate(v):
     offset=12 if i>=10 or i%2==0 else -20
     ax.annotate(f'{n:.1f}',(i+1,n),textcoords='offset points',xytext=(0,offset),
                 ha='center',fontsize=12 if i>=10 else 11.2,color=ORANGE if i>=10 else LILAC)
-ax.text(1.1,720,'普通 decode → DSpark → Verify / MoE → 小 batch 融合',fontsize=12.5,color=INK)
+ax.text(1.1,720,'普通 decode → DSpark → Kernel 融合',fontsize=12.5,color=INK)
 ax.text(1.1,605,'DSpark：随机 4k/1k，模拟 accept length = 5.5',fontsize=12,color=MUTED)
 
 txt(base,45,463,'01—10  普通 decode',17,color=LILAC,font=TITLE)
@@ -95,18 +97,19 @@ for i,p in enumerate(ordinary):
     txt(base,x+36,y,p['label'],12.5)
     txt(base,x+425,y,f"{p['output_tps']:.1f}",12.5,ha='right',color=LILAC)
 
-txt(base,45,716,'11—13  DSpark',17,color=ORANGE,font=TITLE)
+txt(base,45,716,f'11—{last}  DSpark',17,color=ORANGE,font=TITLE)
 txt(base,955,722,'相同随机输入 · 模拟 accept length 目标 5.5',11.5,color=MUTED,ha='right')
 for i,p in enumerate(points):
-    x=45+i*310
-    panel(base,x,763,290,244,PALE_ORANGE if i!=1 else SAND)
-    txt(base,x+17,781,f"{i+11:02d}  {p['label']}",14)
-    txt(base,x+17,818,f"{p['output_tps_median']:.1f}",25,color=ORANGE)
-    txt(base,x+128,835,'tokens/s',11,color=MUTED)
-    txt(base,x+17,875,'\n'.join(p['methods']),11.5,color=MUTED)
+    x=45+(i%3)*310;y=(i//3)*265
+    panel(base,x,763+y,290,244,PALE_ORANGE if i%2==0 else SAND)
+    txt(base,x+17,781+y,f"{i+11:02d}  {p['label']}",14)
+    txt(base,x+17,818+y,f"{p['output_tps_median']:.1f}",25,color=ORANGE)
+    txt(base,x+128,835+y,'tokens/s',11,color=MUTED)
+    txt(base,x+17,875+y,'\n'.join(p['methods']),11.5,color=MUTED)
 
-txt(base,45,1030,'01—10 保留普通 decode 测量；11—13 为随机 4096/1024、固定模拟接受长度的测量。',11,color=MUTED)
-txt(base,45,1056,'DSpark 三组实测 accept length 中位数均为 5.505。',11,color=MUTED)
+txt(base,45,height-50,f'01—10 保留普通 decode 测量；11—{last} 为随机 4096/1024、固定模拟接受长度的测量。',11,color=MUTED)
+txt(base,45,height-24,'DSpark 实测 accept length 中位数：'+
+    ' / '.join(f"{p['accept_length_median']:.3f}" for p in points)+'。',11,color=MUTED)
 save(fig,'01-throughput-journey')
 
 # Combine CED and KV ownership so the article needs only one architecture figure.

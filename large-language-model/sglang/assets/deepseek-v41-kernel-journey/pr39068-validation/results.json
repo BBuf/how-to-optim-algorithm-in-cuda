@@ -1,0 +1,131 @@
+{
+  "candidate_commit": "835c39094ad017c2f54f8ea598002e669e6fa30d",
+  "candidate_hardware": "4x NVIDIA GB300, TP4/EP4",
+  "model_revision": "dba1be0a40aa45a94ad051997016db3960a90277",
+  "simulated_acceptance": false,
+  "source_and_packages_unchanged_during_validation": true,
+  "comparison": "Reuse recorded accuracy, no new baseline run. Hardware and source revisions differ; not a fresh paired A/B.",
+  "historical_commit": "0669e3d9464c734df1415d47c263cd7d3140cd64",
+  "historical_hardware": "4x NVIDIA B300, TP4/EP4",
+  "lanes": {
+    "gsm-serial1314": {
+      "current": {
+        "count": 1314,
+        "correct": 1282,
+        "errors": 0,
+        "truncated": 0,
+        "dataset_sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
+        "score": 0.9756468797564688,
+        "empty": 0,
+        "threads": 1,
+        "num_shots": 5,
+        "temperature": 0,
+        "top_p": 1,
+        "seed": 0,
+        "max_tokens": 4096,
+        "held_out_indices": [
+          5,
+          1318
+        ]
+      },
+      "historical": {
+        "count": 1314,
+        "correct": 1271,
+        "errors": 0,
+        "truncated": 0,
+        "score": 0.967275494672755
+      }
+    },
+    "gsm-concurrent1314": {
+      "current": {
+        "count": 1314,
+        "correct": 1276,
+        "errors": 0,
+        "truncated": 1,
+        "dataset_sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
+        "score": 0.9710806697108066,
+        "empty": 0,
+        "threads": 64,
+        "num_shots": 5,
+        "temperature": 0,
+        "top_p": 1,
+        "seed": 0,
+        "max_tokens": 4096,
+        "held_out_indices": [
+          5,
+          1318
+        ]
+      },
+      "historical": null
+    },
+    "aime-serial30": {
+      "current": {
+        "count": 30,
+        "correct": 28,
+        "errors": 0,
+        "truncated": 2,
+        "dataset_sha256": "6a43e48d55eb7736003f53074fef041a3da2b78d902d3fcd0b1974b2523221fc",
+        "score": 0.9333333333333333,
+        "prompt_sha256": "12d8c6381b0191d2e8f6b1ecd39a65229f35af6f7aff21716bb951d456133afb",
+        "generation": {
+          "chat_template_kwargs": {
+            "thinking": true
+          },
+          "extra_body": null,
+          "max_tokens": 65536,
+          "min_p": 0.0,
+          "reasoning_effort": "max",
+          "repetition_penalty": 1.0,
+          "seed": 0,
+          "system_message": null,
+          "temperature": 0.0,
+          "top_p": 0.95
+        },
+        "threads": 1,
+        "repeats": 1
+      },
+      "historical": {
+        "count": 30,
+        "correct": 27,
+        "errors": 0,
+        "truncated": 3,
+        "score": 0.9
+      }
+    },
+    "aime-repeat16": {
+      "current": {
+        "count": 480,
+        "correct": 469,
+        "errors": 0,
+        "truncated": 8,
+        "dataset_sha256": "6a43e48d55eb7736003f53074fef041a3da2b78d902d3fcd0b1974b2523221fc",
+        "score": 0.9770833333333333,
+        "prompt_sha256": "12d8c6381b0191d2e8f6b1ecd39a65229f35af6f7aff21716bb951d456133afb",
+        "generation": {
+          "chat_template_kwargs": {
+            "thinking": true
+          },
+          "extra_body": null,
+          "max_tokens": 65536,
+          "min_p": 0.0,
+          "reasoning_effort": "max",
+          "repetition_penalty": 1.0,
+          "seed": null,
+          "system_message": null,
+          "temperature": 1.0,
+          "top_p": 0.95
+        },
+        "threads": 64,
+        "repeats": 16
+      },
+      "historical": {
+        "count": 480,
+        "correct": 451,
+        "errors": 0,
+        "truncated": 15,
+        "score": 0.9395833333333333
+      }
+    }
+  },
+  "record_hash_definition": "SHA256 of each original JSONL record encoded as UTF-8, excluding the trailing newline."
+}

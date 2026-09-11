@@ -53,7 +53,7 @@
         ]
       },
       {
-        "configuration": "final",
+        "configuration": "small_batch",
         "runs": 12,
         "simulated_acceptance_target": 5.5,
         "requested_output_tokens": 1024,
@@ -73,6 +73,51 @@
           "mHC 混合 + RMSNorm",
           "Draft KV 的 MXFP8 投影"
         ]
+      },
+      {
+        "runs": 12,
+        "simulated_acceptance_target": 5.5,
+        "requested_output_tokens": 1024,
+        "actual_output_token_counts": [
+          1024
+        ],
+        "independent_startups": 2,
+        "output_tps_median": 802.3754987578976,
+        "output_tps_min": 694.4493099119977,
+        "output_tps_max": 811.4480628390136,
+        "accept_length_median": 5.505376344086022,
+        "accept_length_min": 5.475935828877005,
+        "accept_length_max": 5.535135135135135,
+        "configuration": "index_projection",
+        "label": "索引后处理 / 投影融合",
+        "methods": [
+          "Top-K 后处理 / 候选 mask",
+          "Q RoPE + buffer 写入",
+          "WO-A 归约 + MXFP8 量化"
+        ]
+      },
+      {
+        "runs": 12,
+        "simulated_acceptance_target": 5.5,
+        "requested_output_tokens": 1024,
+        "actual_output_token_counts": [
+          1024
+        ],
+        "independent_startups": 2,
+        "output_tps_median": 853.4877420013745,
+        "output_tps_min": 813.7662411999478,
+        "output_tps_max": 863.9632399384337,
+        "accept_length_median": 5.520255739610579,
+        "accept_length_min": 5.446808510638298,
+        "accept_length_max": 5.535135135135135,
+        "configuration": "final",
+        "label": "C2 verify 压缩融合",
+        "methods": [
+          "L2 / L8 / L14",
+          "相邻输入配对 / 首行读取 ring",
+          "池化 + RMSNorm + RoPE",
+          "量化 + 主 KV 写入"
+        ]
       }
     ],
     "no_dspark": {
@@ -83,9 +128,9 @@
         1024
       ],
       "independent_startups": 1,
-      "output_tps_median": 229.8855975350964,
-      "output_tps_min": 227.02484617074978,
-      "output_tps_max": 230.25921269029172,
+      "output_tps_median": 223.4962469826138,
+      "output_tps_min": 223.40742967107786,
+      "output_tps_max": 223.66396695516826,
       "accept_length_median": null,
       "accept_length_min": null,
       "accept_length_max": null
