@@ -6,9 +6,9 @@
 
 SGLang 团队共同完成了 DeepSeek-V4.1 的 Day 0 适配和 kernel 优化。普通 decode 的 BS=1 从 35 tokens/s 提升到 203 tokens/s；接入 DSpark 后，我们继续优化 verify、MoE 和小 batch 投影。在 **4×GB300、TP4 / EP4** 上，使用 **4096 tokens 随机输入、1024 tokens 输出，模拟 accept length 固定设为 5.5**，输出速度达到 **BS=1 762 tokens/s**。这里介绍模型结构变化，以及这些 kernel 优化是怎么做的。
 
-![随机 4k/1k、模拟接受长度 5.5 下的 DSpark kernel 优化](https://files.mdnice.com/user/59/d9a716ea-008d-409d-b55d-178c2c7bcfe8.png)
+![普通 decode 与 DSpark 的完整 kernel 优化历程](https://files.mdnice.com/user/59/3b672ff0-c9ad-4218-a18a-6ccacb45acca.png)
 
-*各配置使用同一份随机 4k/1k 输入，模拟接受长度目标均为 5.5，吞吐取多轮中位数。这是控制接受长度后的性能测试。*
+*01–10 为普通 decode 的累计优化结果；11–13 使用同一份随机 4k/1k 输入，模拟 accept length 固定设为 5.5，吞吐取多轮中位数。图下方列出各节点的优化手段。*
 
 ## 0x1. 架构变化与 KV cache 压缩
 
@@ -58,7 +58,7 @@ CSA2 还通过分层候选筛选缩小后续 indexer 的搜索范围，最终只
 | C2 压缩器 | 融合相邻 token 的归一化、池化和状态写入 | 148.4 → 152.1 |
 | WO-A、norm、Engram gate | 单行投影使用 GEMV，小尺寸归一化和门控使用融合 kernel | 186.6 → 203.3 |
 
-每步的 request 索引和 scratch 也改为跨层共享，减少重复的转换和初始化。
+每步的 request 索引和 scratch 也改为跨层共享，减少重复的转换和初始化，BS=1 从 **146.5 提升到 148.4 tokens/s**。随后将验证过的快速路径设为默认。
 
 ### mHC：归约融合与计算重叠
 
@@ -90,7 +90,9 @@ DSpark 的权重就在官方 checkpoint 中，包括三个轻量 draft block。�
 
 **本文这些结果还没有接入 DeepSeek 随 V4.1 发布的那批新 kernel。**
 
-## 0x4. 如何复现
+## 0x4. 如何复现：Random 4k/1k，固定模拟 accept length=5.5
+
+本节复现图中 11–13 的 DSpark 数据：**随机输入 4096 tokens，固定输出 1024 tokens，模拟 accept length 目标为 5.5**。接受长度由服务端配置控制，各版本使用相同输入。
 
 使用 SGLang 代码（https://github.com/sgl-project/sglang/tree/3b709e55c0f7599f90bdd400e1fe758c5a942cb6）和官方 checkpoint（https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/tree/dba1be0a40aa45a94ad051997016db3960a90277），环境为 4×GB300、TP4 / EP4。依赖版本：PyTorch 2.13.0+cu130、FlashInfer 0.6.18、Triton 3.7.1、sglang-kernel 0.4.6.post1、sgl-deep-gemm 0.1.7、CUTLASS DSL 4.6.2。
 

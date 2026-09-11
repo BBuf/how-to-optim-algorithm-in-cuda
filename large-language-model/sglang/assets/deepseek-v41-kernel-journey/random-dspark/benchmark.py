@@ -9,8 +9,6 @@ from pathlib import Path
 
 import requests
 
-DATA_SHA='3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14'
-
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -30,14 +28,6 @@ class Client:
             time.sleep(3)
         else:raise TimeoutError('Server not ready')
         self.post('/freeze_gc')
-    def render(self,question):
-        messages=[{'role':'user','content':question}]
-        body={'model':'deepseek-ai/DeepSeek-V4.1-Flash','messages':messages,
-              'reasoning_effort':'high','chat_template_kwargs':{'enable_thinking':True}}
-        data=self.post('/v1/tokenize',body).json()
-        ids=data['tokens'];assert len(ids)==data['count'] and all(isinstance(i,int) for i in ids)
-        return {'messages':messages,'tokenize_request':body,'input_ids':ids,
-                'input_ids_sha256':sha(json.dumps(ids,separators=(',',':')).encode())}
     def run(self,prompt,max_tokens=2048):
         self.post('/flush_cache?timeout=30')
         body={'input_ids':prompt['input_ids'],'sampling_params':{

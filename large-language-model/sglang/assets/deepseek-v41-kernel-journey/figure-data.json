@@ -20,7 +20,13 @@
         "output_tps_max": 564.2299210791027,
         "accept_length_median": 5.505376344086022,
         "accept_length_min": 5.475935828877005,
-        "accept_length_max": 5.535135135135135
+        "accept_length_max": 5.535135135135135,
+        "label": "启用 DSpark",
+        "methods": [
+          "3 个 draft block",
+          "并行预测 5 个 token",
+          "Target verify 最多 6 行"
+        ]
       },
       {
         "configuration": "middle",
@@ -36,7 +42,15 @@
         "output_tps_max": 723.1672109412502,
         "accept_length_median": 5.505376344086022,
         "accept_length_min": 5.475935828877005,
-        "accept_length_max": 5.535135135135135
+        "accept_length_max": 5.535135135135135,
+        "label": "Verify / MoE 融合",
+        "methods": [
+          "mHC 重叠 / WO-A 输出布局",
+          "Verify 快速路径 / candidate mask",
+          "MoE 路由 / 输入量化重叠",
+          "Finalize + shared add",
+          "+ all-reduce 融合"
+        ]
       },
       {
         "configuration": "final",
@@ -52,7 +66,13 @@
         "output_tps_max": 772.2198913868427,
         "accept_length_median": 5.505376344086022,
         "accept_length_min": 5.475935828877005,
-        "accept_length_max": 5.535135135135135
+        "accept_length_max": 5.535135135135135,
+        "label": "小 batch 投影 / mHC",
+        "methods": [
+          "WO-A split-K",
+          "mHC 混合 + RMSNorm",
+          "Draft KV 的 MXFP8 投影"
+        ]
       }
     ],
     "no_dspark": {
@@ -70,5 +90,53 @@
       "accept_length_min": null,
       "accept_length_max": null
     }
+  },
+  "ordinary_decode": {
+    "metric": "steady-state server decode logs",
+    "hardware": "4x GB300",
+    "batch_size": 1,
+    "note": "Original cumulative ordinary-decode measurements, retained independently of the random4k/1k simulated-acceptance DSpark measurements.",
+    "points": [
+      {
+        "label": "Baseline",
+        "output_tps": 35.24
+      },
+      {
+        "label": "MXFP8 GEMM",
+        "output_tps": 117.76
+      },
+      {
+        "label": "RoPE + FP4 融合",
+        "output_tps": 133.49
+      },
+      {
+        "label": "mHC 行 tile 自适应",
+        "output_tps": 141.1
+      },
+      {
+        "label": "Reduce + Sinkhorn 融合",
+        "output_tps": 146.53
+      },
+      {
+        "label": "跨层共享 scratch",
+        "output_tps": 148.4
+      },
+      {
+        "label": "C2 池化融合",
+        "output_tps": 152.1
+      },
+      {
+        "label": "mHC 统计量重叠",
+        "output_tps": 186.4
+      },
+      {
+        "label": "默认启用快速路径",
+        "output_tps": 186.6
+      },
+      {
+        "label": "GEMV / norm / Engram gate",
+        "output_tps": 203.3
+      }
+    ]
   }
 }

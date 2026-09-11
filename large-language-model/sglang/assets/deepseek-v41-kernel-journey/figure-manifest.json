@@ -10,7 +10,7 @@
   ],
   "generated_from": "draw_figures.py",
   "hosting": {
-    "01-throughput-journey": "https://files.mdnice.com/user/59/d9a716ea-008d-409d-b55d-178c2c7bcfe8.png",
+    "01-throughput-journey": "https://files.mdnice.com/user/59/3b672ff0-c9ad-4218-a18a-6ccacb45acca.png",
     "02-architecture-cache-ownership": "https://files.mdnice.com/user/59/be0a830a-e594-42af-9f56-ae6a0af08d24.png",
     "03-kv-bytes": "https://files.mdnice.com/user/59/1260fc32-c393-40ac-9254-242d8948fcad.png",
     "04-mhc-overlap": "https://files.mdnice.com/user/59/61bba574-cff4-4824-8cd7-629be1584cc9.png",
@@ -39,14 +39,17 @@
     "00-cover"
   ],
   "benchmark_sources": {
-    "01-throughput-journey": "random-dspark/results.json"
+    "01-throughput-journey": [
+      "figure-data.json:ordinary_decode",
+      "random-dspark/results.json"
+    ]
   },
   "archived_figures": {
     "07-profile-evidence": {
       "path": "archive/07-profile-evidence.png",
       "original_hosting": "https://files.mdnice.com/user/59/5cba8d32-a4fe-4327-be6a-8bd3456174fc.png",
-      "note": "Previous workload; excluded from the current GSM8K benchmark and figure generation."
+      "note": "Previous workload; excluded from the random4k/1k simulated-acceptance benchmark and current article."
     }
   },
-  "benchmark_description": "BS1 random4096/1024, simulated acceptance target5.5, match-expected, static verify"
+  "benchmark_description": "Ordinary decode: original cumulative BS1 measurements; DSpark: BS1 random4096/1024, simulated acceptance target5.5, match-expected, static verify."
 }
