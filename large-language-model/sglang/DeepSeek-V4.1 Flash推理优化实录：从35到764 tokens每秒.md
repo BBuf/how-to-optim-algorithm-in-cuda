@@ -95,7 +95,7 @@ BS=64 的主要收益来自 verify 和候选处理。一些 logits buffer 按最
 使用本文对应的 SGLang 代码（https://github.com/BBuf/sglang/tree/0669e3d946）和官方 checkpoint，测试环境为 4×B300、TP4 / EP4。依赖版本：PyTorch 2.13.0+cu130、FlashInfer 0.6.18、Triton 3.7.1、sglang-kernel 0.4.6.post1、sgl-deep-gemm 0.1.7、CUTLASS DSL 4.6.2。
 
 ```bash
-MODEL_PATH=/path/to/DeepSeek-V4.1
+export MODEL_PATH=/path/to/DeepSeek-V4.1
 CUDA_VISIBLE_DEVICES=0,1,2,3 PYTHONPATH="$PWD/python" MAX_JOBS=16 \
 python -m sglang.launch_server \
   --model-path "$MODEL_PATH" \
@@ -112,14 +112,47 @@ python -m sglang.launch_server \
 
 GPU 编号和模型路径按实际环境修改。启动后调用 `POST /freeze_gc`，benchmark 前清空请求缓存。完整 benchmark 脚本与对照结果（https://github.com/sgl-project/sglang/pull/38976）。
 
-吞吐测试使用脚本构造的英文摘要任务：重复一段气象观测记录，填充到 4096 tokens，再要求模型总结。BS=64 为每个请求加上不同的 Notebook 编号。优化前后使用相同的输入 token，设置 `temperature=0`、`ignore_eos=True`，分别生成 1024 / 2048 tokens。DSpark 使用真实接受结果，起始数据取六次测量的中位数；当前组合的 BS=1 取两次独立启动、共 20 轮测量的中位数，BS=64 取六轮中位数。
+803 tokens/s 对应的是一组英文摘要任务。下面的代码把任务说明、气象观测记录和摘要要求分别分词，只重复和截断中间的观测记录，将输入填充到 4096 个 token：
 
-| 负载与指标 | DSpark kernel 优化前 | 当前组合 |
+```python
+import os
+from tokenizers import Tokenizer
+
+tok = Tokenizer.from_file(os.path.join(os.environ["MODEL_PATH"], "tokenizer.json"))
+
+def encode(text):
+    return tok.encode(text, add_special_tokens=False).ids
+
+unit = encode(
+    "The observatory records the temperature, wind, and rainfall each day. "
+    "Researchers compare the measurements across seasons.\n"
+)
+suffix = encode("\nWrite a detailed summary of the notes above.\n")
+
+def make_input(text):
+    prefix = encode(text)
+    n = 4096 - len(prefix) - len(suffix)
+    return prefix + (unit * ((n + len(unit) - 1) // len(unit)))[:n] + suffix
+
+input_ids = make_input("Read these notes and summarize them.\n")
+bs64_inputs = [
+    make_input(f"Notebook {i:03d}. Read these notes and summarize them.\n")
+    for i in range(64)
+]
+assert len(input_ids) == 4096
+assert all(len(ids) == 4096 for ids in bs64_inputs)
+```
+
+构造好的 `input_ids` 直接发给 `/generate`，不套 chat template。两种 batch 都设置 `temperature=0`、`ignore_eos=True`。BS=1 生成 1024 tokens，设置 `stream_interval=1` 并开启 `stream=True`；BS=64 同时提交 64 个带不同 Notebook 编号的请求，每个生成 2048 tokens。每轮前清空请求缓存，DSpark 使用真实接受结果。
+
+两边各独立启动服务两次。每次启动先预热，再测 10 轮 BS=1 和 3 轮 BS=64，表中分别取 20 轮和 6 轮的中位数。BS=1 的吞吐按“首个流式事件之后新增的 token 数 / 剩余耗时”计算；BS=64 取服务日志中连续保持 64 个请求、使用 CUDA Graph 的 decode 区间，排除 prefill 和请求逐步结束的阶段。
+
+| 负载与指标 | 小 batch kernel 优化前 | 优化后 |
 |---|---:|---:|
-| BS=1，输入 4096 / 输出 1024，首个流式事件之后的输出速度 | 569.88 | **803.25** |
-| BS=64，输入 4096 / 输出 2048，稳定 decode 总输出吞吐 | 6555.95 | **13327.61** |
-| BS=1，平均 accept length | 5.658 | **5.818** |
-| BS=64，平均 accept length | 5.407 | **5.335** |
+| BS=1，输入 4096 / 输出 1024，首个流式事件之后的输出速度 | 762.41 | **803.25** |
+| BS=64，输入 4096 / 输出 2048，稳定 decode 总输出吞吐 | 13346.69 | **13327.61** |
+| BS=1，accept length | 5.802 | **5.818** |
+| BS=64，accept length | 5.387 | **5.335** |
 
 吞吐单位为 tokens/s，均不包含完整 prefill 耗时。Accept length 表示每轮 verify 平均提交的 token 数，包含目标模型补出的 token，因此 block size 5 时上限为 6。重复文本较易预测，这里的接受长度和吞吐对应这组输入，不能直接代表真实聊天或推理负载。
 
