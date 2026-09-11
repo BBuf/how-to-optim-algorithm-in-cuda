@@ -147,7 +147,7 @@ DSpark 独立启动服务两次，每次先预热，再测 10 轮 BS=1，取 20 
 | 负载与指标 | DSpark 启用前 | DSpark 启用后 |
 |---|---:|---:|
 | BS=1，输出速度 | 203.3 | **803.25** |
-| BS=1，accept length | | **5.818** |
+| BS=1，accept length | --- | **5.818** |
 
 吞吐单位为 tokens/s，均不包含完整 prefill 耗时。Accept length 表示每轮 verify 平均提交的 token 数，包含目标模型补出的 token，因此 block size 5 时上限为 6。重复文本较易预测，这里的接受长度和吞吐对应这组输入，不能直接代表真实聊天或推理负载。
 
