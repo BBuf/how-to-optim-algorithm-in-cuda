@@ -2,62 +2,60 @@
 
 ## 0x0 先看这张超难受的profiler图
 
-最近优化 DeepSeek-V4.1 Flash，打开 torch profiler 现在是这样的：**往下一层走，主计算就换到新的 stream，整个 trace 看起来像楼梯。** 想把相邻几层的执行过程连起来看，需要一直往下翻。层数多了之后根本无法正常阅读。
+最近优化 DeepSeek-V4.1 Flash，打开 torch profiler 就是下面这样。一个 decode layer 跑完，下一层就换到另一条 stream，想看相邻两层的 kernel 都得往下翻。40 层排下来，基本没法看了。
 
-下面是实际 trace，在 Firefox 的 Perfetto 里只展开了其中 12 条轨道。整份 TP0 trace 有 **143 条执行 kernel 的 stream，计入 copy 则是 144 条**。
+我数了一下，这份 TP0 trace 有 143 条执行 kernel 的 stream，算上 copy 是 144 条。下面在 Firefox 的 Perfetto 里只展开了其中 12 条。
 
 ![原始 trace：每层主计算不断切换 stream](https://files.mdnice.com/user/59/930cc0ee-f7a2-4c12-86ea-a3e241a470dd.png)
 
-这份数据来自 PR #39370 的 `f0f2d12b5e`：4×GB300、TP4 / EP1、DSpark、BS=1、随机 4K 输入 / 1K 输出、模拟 acceptance length 5.5。后面的整理前后对比都用它，没有重新跑性能测试。
+这份 trace 来自 PR #39370 的 `f0f2d12b5e`：4×GB300、TP4 / EP1、DSpark、BS=1、随机 4K 输入 / 1K 输出、模拟 acceptance length 5.5。后面处理 profiler 的几张图也用这份文件。
 
-这种现象与模型的多 stream 分叉、汇合以及 CUDA Graph replay 有关，其他 LLM 走到类似路径也可能遇到。不过，**不是所有模型都必现，也不是严格“每层只新增一条”**。这里用 V4.1 和 PR #39420(https://github.com/sgl-project/sglang/pull/39420) 作为案例。
+模型用了多 stream，并且在 CUDA Graph 中反复分叉、汇合，就可能碰到这种情况，具体还得看代码和运行环境。有的 layer 会多出好几条 stream。PR #39420(https://github.com/sgl-project/sglang/pull/39420) 正好在修 V4.1 的这个问题。
 
 ## 0x1 为什么 capture 时没那么多 stream，replay 却爆炸了？
 
-CUDA Graph 保存的是节点和依赖关系，replay 时不保证照搬 capture 时的 stream 分配。V4.1 这里有两组比较典型的分支：mHC 的 mix-stats 与 attention / FFN 并行，MoE 的 routed MXFP8 pre-quant 与 router top-k 并行。
+CUDA Graph 保存的是节点和依赖关系，replay 时可能重新分配 stream。V4.1 的 mHC 会把 mix-stats 放到 side stream，和 attention / FFN 一起跑；MoE 的 routed MXFP8 pre-quant 也在 side stream 上，和 router top-k 一起跑。
 
-PR 在当前环境观察到：**汇合节点倾向沿着“先录制的父分支”所在的执行轨道继续。** 原来 side-stream 的计算录得早，汇合之后，主计算也跟着被带到了新的 stream；一层层重复，就铺开了一大堆cuda stream轨道。
+PR 作者测试后发现，在他的环境里，两个分支 join 之后，后续节点会沿着先录制的那个父分支所在的 stream 继续执行。原来的代码先录了 side stream 上的计算，join 后主计算也换到了那条 stream。每层都来这么几次，最后就有了一百多条。
 
-这是本次实验观察到的调度行为，不是 CUDA 对所有版本的接口保证。NVIDIA 也介绍过 CUDA Graph 节点创建顺序会影响调度(https://developer.nvidia.com/blog/constant-time-launch-for-straight-line-cuda-graphs-and-other-performance-enhancements)。因此，不能仅凭截图中的 stream 行数，反推出 Python 每层创建了多少个 `torch.cuda.Stream()`。
+这个规律是作者在当前环境测出来的，CUDA 没有保证所有版本都这样调度。NVIDIA 也写过节点创建顺序对调度的影响：https://developer.nvidia.com/blog/constant-time-launch-for-straight-line-cuda-graphs-and-other-performance-enhancements 。图里的一百多条 stream，也就不能直接理解成 Python 创建了一百多个 `torch.cuda.Stream()`。
 
-这个 PR 的改法很巧：把 `_hc_mix_and_combine` 拆开，**先录 attention / FFN，再录 side-stream 的 stats，紧接着 join**。MoE 的 pre-quant 也移到 router top-k 后面录制。
+PR 把 `_hc_mix_and_combine` 拆成了两个函数，先录 attention / FFN，再录 side stream 上的 stats，录完马上 join。MoE 那边也一样，把 pre-quant 移到 router top-k 后面录。
 
-![PR 的关键 diff：改变录制顺序，保留 fork 位置](https://files.mdnice.com/user/59/bea6931e-47c9-420f-9130-8b553405bcc3.png)
+![PR 中调整录制顺序的代码](https://files.mdnice.com/user/59/bea6931e-47c9-420f-9130-8b553405bcc3.png)
 
-重点看右边：fork 的 `wait_stream` 仍在原来的位置。以 tiny 分支为例，依赖还是 `combine → {attention, stats} → hc_post`。虽然 stats 的 Python 调用写到后面了，Graph 中并没有因此新增 `attention → stats` 这条依赖，原来的 overlap 仍然有机会保留。
+图右边的 `wait_stream` 没挪位置。tiny 分支仍然是 `combine → {attention, stats} → hc_post`，stats 只需要等 combine。把它的 Python 调用写到 attention 后面，不会让 Graph 中的 stats 也等 attention 跑完，所以 replay 时两者仍然可以 overlap。
 
 ![PR 报告的 stream 数与 overlap 结果](https://files.mdnice.com/user/59/963143e3-8d36-4dfc-81a1-933cd9340e05.png)
 
-上图是 **PR 的 TP4 / EP4、64K context 实验**：144 → 19 条，mix-stats 的重叠比例仍是 62%。其实可以理解为这个修改对overlap以及速度的影响几乎可以忽略，但是可以较大的缓解stream爆炸的问题。
+PR 作者用 TP4 / EP4、64K context 测到 stream 从 144 条降到了 19 条，mix-stats 的重叠比例还是 62%。这组测试里 overlap 保住了，单次 cycle 耗时是 6.36 → 6.41 ms，作者认为是测量波动。至少从这份结果看，stream 少了很多，速度没什么变化。
 
-但是SGLang支持的模型很多，不可避免的经常发生这种问题，我们能不做一个skill来直接把已经stream爆炸的torch profiler结果换成可读性非常好的profile图呢？同时我们再加一个layer层数id的滑轨那就更好看了。。
+SGLang 支持的模型多，其他模型也可能碰到类似问题。我就想先把已有的 profiler 文件处理一下，少显示几行，再加上 layer id，找 kernel 的时候方便一点。
 
+## 0x2 用 skill 处理一下 profiler 文件
 
-## 0x2 不改模型代码，也能把已经stream爆炸的 trace 看清楚
+之前做的 [torch-profiler-layer-track skill](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/skills/torch-profiler-layer-track) 已经能给时间线加 layer id，这次又加了个功能，把 GPU kernel 和 copy 排到最多 10 行里显示。
 
-我做了一个 [torch-profiler-layer-track skill](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/skills/torch-profiler-layer-track)，给 GPU 时间线加层号导航。现在它还可以把零散的 GPU 活动整理到 10 条以内的显示轨道。
+处理完是下面这样。这份 trace 只需要 6 行，上面从 L0 标到 L39，一屏就能看完一次 target verify。
 
-同一份 trace 处理之后是这样：**6 条 GPU lane，加一条 L0–L39 导航，就能看完一次 target verify。**
+![处理后的 trace，上面一行是 layer id](https://files.mdnice.com/user/59/22bafcf6-104b-47f6-a96a-03cd21a84067.png)
 
-![同一份 trace：六条显示轨道加层号导航](https://files.mdnice.com/user/59/22bafcf6-104b-47f6-a96a-03cd21a84067.png)
+layer id 是靠 anchor kernel 标出来的。找一个每个 target layer 恰好执行一次的 kernel，按时间排好，再对照模型配置和源码确认哪一个是 L0。这次用的是 `_q_rope_store`，40 层跑了 20 次 target verify，共 800 个。draft 用的是另一套 RoPE，统计时要排除。L39 的结束位置也单独找了对应的 kernel，免得这条 layer 标记一直画到 draft 里面。
 
-先说层号怎么来的。脚本找一个每个 target layer 恰好出现一次的 anchor kernel，按时间排序，再结合模型配置和源码确定 L0。这次使用 `_q_rope_store`，40 层、20 次 target verify，共 800 个 anchor；draft 走不同的 RoPE 路径，要单独排除。最后一层再用确认过的结束 kernel 收尾，避免把 draft 或下一轮等待也算进去。
+L0 要查源码确认，光看 kernel 数量能被 40 整除还不够。换了模型或者 kernel 实现，anchor 也要重新选。
 
-**能被 40 整除，只能帮助检查，不能证明第一个 anchor 就是 L0。** 换模型、换 kernel 实现后，这一步需要重做。
+减少显示行数用的是最小堆。脚本先按 GPU PID / device 分组，把 kernel、memcpy 按开始时间排序，再用堆记录每一行最后一个事件的结束时间。如果最早空出来的那一行能放下当前事件，就放进去，否则另开一行。超过 10 行就报错，同时发生的事件必须分开放，不能为了少几行把 overlap 藏掉。
 
-再说压缩轨道。它按 GPU PID / device 分组，把 kernel、memcpy 等时间区间排序，用最小堆保存各条 lane 的结束时间：最早结束的 lane 已经空闲，就复用；否则新开一条。需要超过 10 条同时重叠的轨道时，直接报错，不会移动 kernel 来硬凑数量。
+![最小堆的实现和这次处理后的检查结果](https://files.mdnice.com/user/59/fe8724d4-fcc9-4c05-ba75-893fe56ed766.png)
 
-![轨道整理的实际代码与本次校验结果](https://files.mdnice.com/user/59/fe8724d4-fcc9-4c05-ba75-893fe56ed766.png)
+文件里改的是显示用的 `pid / tid`，原来的值记在 `_compact_gpu_track` 里。`name / ts / dur / args.stream` 都没改，GPU flow 连线跟着换位置，CPU scope 不动。我也把处理后的事件按记录恢复回去，和原文件逐个比较，结果一致，31,416 个 kernel 一个没少。重新导入 Perfetto 后，每一行也没有因为事件重叠再撑出额外的行。
 
-原始 `name / ts / dur / args.stream` 都保留，展示用的 `pid / tid` 会重映射，原身份放进 `_compact_gpu_track`；关联的 GPU flow 端点也一起处理，CPU scope 保持原样。这次验证了 **31,416 个 kernel 全部保留，原始事件数组可以完整还原**，并实际导入 Perfetto 检查每条 lane 没有堆叠出额外行。
+图里的 GPU lane 是脚本重新排的显示行。模型运行时用了多少 stream、每个 kernel 跑了多久，都和处理前一样。
 
-所以，**6 条 synthetic lane 是显示结果，不代表运行时只用了 6 个 CUDA stream，更不代表模型变快了。** PR #39420 和这个 skill 解决的是不同层面的问题。
+下面这张放大图还能看到原来的 stream id。
 
-还有一个容易踩的坑，放大看下面这张图。
+![C2 kernel 的原始 stream id 仍然保存在 args 中](https://files.mdnice.com/user/59/6c8b86c9-9ab8-4137-840e-52a452030610.png)
 
-![选中的 C2 kernel：显示 lane 与原始 stream 身份](https://files.mdnice.com/user/59/6c8b86c9-9ab8-4137-840e-52a452030610.png)
+选中的 C2 kernel 被排到了 lane 2，`args.stream` 还是 1736。它虽然在 L13 的标记下面，查代码和 C2 source layer 的顺序后，对应的却是 L14 的 compressor，因为它在 L14 的 Q-store 之前就跑了。
 
-选中的 C2 kernel 显示在 lane 2，下面 `args.stream` 仍是 **1736**。它落在 L13 导航条下面，但结合源码和 C2 source layer 顺序核对，属于 **L14 的 compressor**：它在 L14 的 Q-store anchor 之前就执行了。
-
-这也是为什么我把它叫“层号导航”：**anchor 到下一个 anchor 的区间，不等于完整 layer 边界，更不等于这段时间里所有 kernel 的归属。** 看 overlap、统计某层耗时时，仍然要回到真实依赖和源码。
-
+脚本从 Q-store 开始画 L14，所以前面的 compressor 落到了 L13 那段里。层号条用来找位置很方便，真要统计一整层的耗时，还得把 anchor 前后的算子对照代码查清楚。
