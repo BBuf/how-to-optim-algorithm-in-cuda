@@ -1,0 +1,27 @@
+{
+  "model": "black-forest-labs/FLUX.1-dev",
+  "recipe": "1024x1024,50 steps,embedded guidance3.5,true CFG off,max T5 length512,BF16 resident,untiled VAE,no autocast,uncached text",
+  "sglang_source": "dab108b9f386b5b991ee070c7e4784f35df03f93",
+  "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+  "comparisons": [
+    {
+      "eager_s": 3.3163239780114964,
+      "bcg_s": 2.6317929179640487,
+      "omni_compile_s": 3.1974941439693794,
+      "own_reduction_pct": 20.641260159928642,
+      "vs_omni_reduction_pct": 17.69201757796083
+    },
+    {
+      "eager_s": 3.284611837938428,
+      "bcg_s": 2.631021815002896,
+      "omni_compile_s": 3.1952743380097672,
+      "own_reduction_pct": 19.89854677457885,
+      "vs_omni_reduction_pct": 17.658969569364924
+    }
+  ],
+  "sglang_images_bit_identical": 96,
+  "all_images_verified": 144,
+  "sigma_note": "Native schedules have identical formula and settings, with at most1 float32 ULP rounding; each native formula was independently reproduced exactly.",
+  "new_production_changes": false,
+  "solution": "Existing enable_breakable_cuda_graph=True on current clean main; no new optimization PR necessary."
+}

@@ -1,0 +1,169 @@
+{
+  "created_at": "2026-10-11T09:09:09.834193+00:00",
+  "status": "complete",
+  "gpu": "One GB300",
+  "measurement": "Native SDK complete CPU image/video+audio; includes text encoding, denoise,VAE and CPU output; excludes file persistence; no cross-request conditioning cache",
+  "per_cell": {
+    "warmup": 9,
+    "measured": 15,
+    "prompts": 3,
+    "independent_control_rounds": 2
+  },
+  "models": [
+    {
+      "model": "FLUX.1-dev",
+      "mode": "eager + existing BCG",
+      "recipe": "1024x1024;50 steps",
+      "pairs": [
+        {
+          "sglang_s": 2.6317929179640487,
+          "omni_compile_s": 3.1974941439693794,
+          "latency_reduction_pct": 17.69201757796083
+        },
+        {
+          "sglang_s": 2.631021815002896,
+          "omni_compile_s": 3.1952743380097672,
+          "latency_reduction_pct": 17.658969569364924
+        }
+      ],
+      "new_pr": null,
+      "checkpoint": "black-forest-labs/FLUX.1-dev",
+      "checkpoint_revision": "3de623fc3c33e44ffbe2bad470d0f45bccf2eb21",
+      "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+      "sglang_base_source": "dab108b9f386b5b991ee070c7e4784f35df03f93"
+    },
+    {
+      "model": "Qwen-Image-2.1",
+      "mode": "eager",
+      "recipe": "1024x1024;50 steps",
+      "pairs": [
+        {
+          "sglang_s": 2.3583742739865556,
+          "omni_compile_s": 2.56242066109553,
+          "latency_reduction_pct": 7.963032386014901
+        },
+        {
+          "sglang_s": 2.3507587659405544,
+          "omni_compile_s": 2.5650066359667107,
+          "latency_reduction_pct": 8.352721861298795
+        }
+      ],
+      "new_pr": null,
+      "checkpoint": "Qwen/Qwen-Image-2.1",
+      "checkpoint_revision": "d26bb61231c349cf6b7896fa83353113880e1ba3",
+      "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+      "sglang_base_source": "dab108b9f386b5b991ee070c7e4784f35df03f93"
+    },
+    {
+      "model": "Z-Image-Turbo",
+      "mode": "eager",
+      "recipe": "1024x1024;9 steps",
+      "pairs": [
+        {
+          "sglang_s": 0.44356365595012903,
+          "omni_compile_s": 0.5202429740456864,
+          "latency_reduction_pct": 14.739135734839081
+        },
+        {
+          "sglang_s": 0.4438772570574656,
+          "omni_compile_s": 0.5234302240423858,
+          "latency_reduction_pct": 15.198390030010621
+        }
+      ],
+      "new_pr": null,
+      "checkpoint": "Tongyi-MAI/Z-Image-Turbo",
+      "checkpoint_revision": "f332072aa78be7aecdf3ee76d5c247082da564a6",
+      "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+      "sglang_base_source": "dab108b9f386b5b991ee070c7e4784f35df03f93"
+    },
+    {
+      "model": "Cosmos3-Nano T2I",
+      "mode": "eager + BCG with PR",
+      "recipe": "1024x1024;35 steps",
+      "pairs": [
+        {
+          "sglang_s": 1.3832548529608175,
+          "omni_compile_s": 1.549142458010465,
+          "sglang_stock_s": 1.4925614090170711,
+          "latency_reduction_pct": 10.708350558198099,
+          "own_latency_reduction_pct": 7.323421026156485
+        },
+        {
+          "sglang_s": 1.3439849159913138,
+          "omni_compile_s": 1.5458419900387526,
+          "sglang_stock_s": 1.476868896977976,
+          "latency_reduction_pct": 13.05806643552091,
+          "own_latency_reduction_pct": 8.997682953346386
+        }
+      ],
+      "new_pr": "https://github.com/sgl-project/sglang/pull/43644",
+      "checkpoint": "nvidia/Cosmos3-Nano",
+      "checkpoint_revision": "e59a53c25979a090fa8706c9acc0c254a6e89b92",
+      "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+      "sglang_base_source": "33d2ef17566685f596b82512e8264456716527f7",
+      "candidate_commit": "1910100a9effcc01036c93b2935a4ce68d3f34ab"
+    },
+    {
+      "model": "LTX-2 two-stage",
+      "mode": "eager + BCG with PR",
+      "recipe": "1536x1024x121 frames;24fps;40+3 steps;audio included",
+      "pairs": [
+        {
+          "sglang_s": 26.161072778049856,
+          "omni_compile_s": 26.220578226959333,
+          "sglang_stock_s": 29.984386428026482,
+          "latency_reduction_pct": 0.22694178745568117,
+          "own_latency_reduction_pct": 12.75101512967084
+        },
+        {
+          "sglang_s": 26.185223374981433,
+          "omni_compile_s": 26.242101226001978,
+          "sglang_stock_s": 29.863548293011263,
+          "latency_reduction_pct": 0.21674274682008665,
+          "own_latency_reduction_pct": 12.317106065023896
+        }
+      ],
+      "new_pr": "https://github.com/sgl-project/sglang/pull/43667",
+      "checkpoint": "Lightricks/LTX-2",
+      "checkpoint_revision": "dfcc2108383fe1aaa0584bdf55d368a4bdadd90c",
+      "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+      "sglang_base_source": "33d2ef17566685f596b82512e8264456716527f7",
+      "candidate_commit": "3ae4bfefcc461690327cfc2336b78e71938ae0f0"
+    }
+  ],
+  "limitations": [
+    "Framework-supported PyTorch versions differ (SGLang2.14.1 vsOmni2.13.0,CUDA13.0).",
+    "FLUX and Qwen use mathematically equivalent native schedules with tiny proven floating-point rounding differences; no production schedule override.",
+    "Qwen Omni has small cross-process RGBA variation; within-process outputs are exact and independent PSNR/SSIM evidence is retained.",
+    "Z-Image native default sigma grids differ. Final controls keep SG native nine-point sigmas and pass the identical grid through Omni public sampling API; original unmatched controls are excluded.",
+    "LTX advantage over Omni is only about0.22%, within normal measurement variability; the robust result is12.3-12.8%lower latency than stock SGLang.",
+    "All claims are for the pinned model revisions,source versions and fixed tested workloads; cross-framework output identity is not claimed."
+  ],
+  "cleanup": [
+    {
+      "model": "Tongyi-MAI/Z-Image-Turbo",
+      "residual_weight_files": 0,
+      "last_cleanup_bytes": 32900534594
+    },
+    {
+      "model": "black-forest-labs/FLUX.1-dev",
+      "residual_weight_files": 0,
+      "last_cleanup_bytes": 33746402173
+    },
+    {
+      "model": "Qwen/Qwen-Image-2.1",
+      "residual_weight_files": 0,
+      "last_cleanup_bytes": 33136345666
+    },
+    {
+      "model": "nvidia/Cosmos3-Nano",
+      "residual_weight_files": 0,
+      "last_cleanup_bytes": 34985774651
+    },
+    {
+      "model": "Lightricks/LTX-2",
+      "residual_weight_files": 0,
+      "last_cleanup_bytes": 100750921397
+    }
+  ]
+}

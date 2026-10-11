@@ -1,0 +1,225 @@
+{
+  "model": "black-forest-labs/FLUX.1-dev",
+  "hf_revision": "3de623fc3c33e44ffbe2bad470d0f45bccf2eb21",
+  "source": "https://modelscope.cn/models/black-forest-labs/FLUX.1-dev",
+  "files": [
+    {
+      "path": "LICENSE.md",
+      "size": 18621,
+      "ms_revision": "7a2a78fe44f3a51c8ab95f1b6de4de8148def560",
+      "sha256": "6f7b3d94ddd94380a4dc2d1211ed57883d320dea96f4393b34d4a454041029e1",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "763a44c31c02064a8388981040487ce8731ddc86",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "model_index.json",
+      "size": 536,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "24946df21ff25e210486b5f6b14208983a90c9c73f8d48cfa724c0e4e03f7201",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "f2dcd899e03be059304cc980a87bb9389008ba2f",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "scheduler/scheduler_config.json",
+      "size": 273,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "63b6d2fa93579e383a308009bfd5ae12e61f8950017dd749302f8d54bb3520b6",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "a64d1e8763bef5828984682680673fb97829734b",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "text_encoder/config.json",
+      "size": 613,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "d79d5c8c6ce85112a923d621a5412886ddbbb0636210fc0f72f450582e675542",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "5ebd923ce51522c605f64ab3d26ea024672777b6",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "text_encoder/model.safetensors",
+      "size": 246144352,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "893d67a23f4693ed42cdab4cbad7fe3e727cf59609c40da28a46b5470f9ed082",
+      "hf_lfs_sha256": "893d67a23f4693ed42cdab4cbad7fe3e727cf59609c40da28a46b5470f9ed082",
+      "hf_git_blob": "40a62c5746d88a2483eb10db5ef38d12c5b6b893",
+      "equivalence": "LFS SHA256 and size agree"
+    },
+    {
+      "path": "text_encoder_2/config.json",
+      "size": 782,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "9001e5a8ae0571a362f806b87b6105dd1a15c33dca237b606d2561164109beeb",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "b00a8a6908682a2091f1194b81f220fd2b67c41c",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "text_encoder_2/model-00001-of-00002.safetensors",
+      "size": 4994582224,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "ec87bffd1923e8b2774a6d240c922a41f6143081d52cf83b8fe39e9d838c893e",
+      "hf_lfs_sha256": "ec87bffd1923e8b2774a6d240c922a41f6143081d52cf83b8fe39e9d838c893e",
+      "hf_git_blob": "fb543745ed2f4aa1105e3a8f97ff89a6ff7b5662",
+      "equivalence": "LFS SHA256 and size agree"
+    },
+    {
+      "path": "text_encoder_2/model-00002-of-00002.safetensors",
+      "size": 4530066360,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "a5640855b301fcdbceddfa90ae8066cd9414aff020552a201a255ecf2059da00",
+      "hf_lfs_sha256": "a5640855b301fcdbceddfa90ae8066cd9414aff020552a201a255ecf2059da00",
+      "hf_git_blob": "c1596ab4886c9962503f01891b16715d1469fbe5",
+      "equivalence": "LFS SHA256 and size agree"
+    },
+    {
+      "path": "text_encoder_2/model.safetensors.index.json",
+      "size": 19885,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "3bacec0f0cf392399d4a385908f67dd73df99c9e9cfee669f148858ba9fbdb0a",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "c8728bc3dca59d2616a2a594cbac3ddb9eb77d5b",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "tokenizer/merges.txt",
+      "size": 524619,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "76e821f1b6f0a9709293c3b6b51ed90980b3166b",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "tokenizer/special_tokens_map.json",
+      "size": 588,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "2cdb3b8331a60c92fc1e55a13e9fd61fd2293c5a51275fdcccd62b780052530e",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "cf0682d6de72c1547f41b4f6d7c59f62deffef94",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "tokenizer/tokenizer_config.json",
+      "size": 705,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "6bdcee9ccce2a16ca2b4c0c5ed00b42c50ea225f4472a8c4c1e963a2902c2881",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "180a4e1be2a7d0b38a44108d6f24f585f35147b1",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "tokenizer/vocab.json",
+      "size": 1059962,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "e089ad92ba36837a0d31433e555c8f45fe601ab5c221d4f607ded32d9f7a4349",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "469be27c5c010538f845f518c4f5e8574c78f7c8",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "tokenizer_2/special_tokens_map.json",
+      "size": 2543,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "7a1985a994c41886db38c719d2a3d2f40606663cc19d7c5d6a85d349320e06d2",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "17ade346a1042cbe0c1436f5bedcbd85c099d582",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "tokenizer_2/spiece.model",
+      "size": 791656,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "d60acb128cf7b7f2536e8f38a5b18a05535c9e14c7a355904270e15b0945ea86",
+      "hf_lfs_sha256": "d60acb128cf7b7f2536e8f38a5b18a05535c9e14c7a355904270e15b0945ea86",
+      "hf_git_blob": "317a5ccbde45300f5d1d970d4d449af2108b147e",
+      "equivalence": "LFS SHA256 and size agree"
+    },
+    {
+      "path": "tokenizer_2/tokenizer.json",
+      "size": 2424235,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "f5dfec163765e18e270537fe896c49f5fad74db1525641d9b255a3008b999596",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "21ed409afa3df5a822caa0fd5da30d13941f90b5",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "tokenizer_2/tokenizer_config.json",
+      "size": 20817,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "1a3d2db64215ed77854dd4208aac5f8361c1b5471cabd19c0ef1472d1a895eb0",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "b336fa236135e6c87e246485e4d69e415cc57da0",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "transformer/config.json",
+      "size": 378,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "4f601e115ed85ab891646f03d17dca39d61278eca4b618e8c642cad71495fee8",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "dbb93438161bb7fbfdcbd8fabf2b67654a38be38",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model-00001-of-00003.safetensors",
+      "size": 9983040304,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "d86a3038eacaa720682cb9b1da3c49fecf8a3ded605af4def6061eaa18903eb8",
+      "hf_lfs_sha256": "d86a3038eacaa720682cb9b1da3c49fecf8a3ded605af4def6061eaa18903eb8",
+      "hf_git_blob": "37ee84ace56bb050bad891c48650aea020dcbdc2",
+      "equivalence": "LFS SHA256 and size agree"
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model-00002-of-00003.safetensors",
+      "size": 9949328904,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "5e830704a83aa938dfaf23da308100a1c44b83fa084283abf1d163ea727e5f7a",
+      "hf_lfs_sha256": "5e830704a83aa938dfaf23da308100a1c44b83fa084283abf1d163ea727e5f7a",
+      "hf_git_blob": "a8bcfc3795dd2a456307c46da96e83c149aaef5c",
+      "equivalence": "LFS SHA256 and size agree"
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model-00003-of-00003.safetensors",
+      "size": 3870584832,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "0d9c7c663217d1c3d44a6deed4e1cf1ac09fbc2c4137c47de1e3d74c959833de",
+      "hf_lfs_sha256": "0d9c7c663217d1c3d44a6deed4e1cf1ac09fbc2c4137c47de1e3d74c959833de",
+      "hf_git_blob": "0b3719be111db908f942c1b8a4568c70a5d3888c",
+      "equivalence": "LFS SHA256 and size agree"
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model.safetensors.index.json",
+      "size": 121262,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "780ee2abafdd8abcb64d97be0154f1481f51e3cce1899fbad98723e4fb6c15e0",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "a7b03767f2395865d98ad50c6e8234f3726af8c0",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "vae/config.json",
+      "size": 820,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "ad6f0acb584ceb3d136d1e32b684dec65db24bffe9223df2bac0b45539d4e6b5",
+      "hf_lfs_sha256": null,
+      "hf_git_blob": "4f7c628fc8e59fc842c9846ed74414249052ba0b",
+      "equivalence": "Downloaded bytes reproduce pinned HF Git blob"
+    },
+    {
+      "path": "vae/diffusion_pytorch_model.safetensors",
+      "size": 167666902,
+      "ms_revision": "7f9644d9a7add4e8e7a1b9bf28a044d987e9a59a",
+      "sha256": "f5b59a26851551b67ae1fe58d32e76486e1e812def4696a4bea97f16604d40a3",
+      "hf_lfs_sha256": "f5b59a26851551b67ae1fe58d32e76486e1e812def4696a4bea97f16604d40a3",
+      "hf_git_blob": "3557b83a132d75a1f71bde9963021e667b1a0d2d",
+      "equivalence": "LFS SHA256 and size agree"
+    }
+  ],
+  "total_bytes": 33746402173,
+  "status": "All required file metadata or bytes equivalent to pinned HF revision; large blobs still require post-download SHA256 verification"
+}

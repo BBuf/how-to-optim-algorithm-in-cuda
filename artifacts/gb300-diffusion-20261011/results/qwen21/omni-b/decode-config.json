@@ -1,0 +1,17 @@
+{
+  "model": "qwen21",
+  "framework": "vllm",
+  "vae_class": "DistributedAutoencoderKLQwenImage21",
+  "input_dtype": "torch.bfloat16",
+  "input_shape": [
+    1,
+    64,
+    1,
+    64,
+    64
+  ],
+  "parameter_dtype": "torch.bfloat16",
+  "autocast_active": false,
+  "use_tiling": false,
+  "use_slicing": false
+}

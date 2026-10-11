@@ -1,0 +1,8 @@
+{
+  "framework": "sglang",
+  "bcg": true,
+  "conditioning_cache": "disabled",
+  "metric": "native SDK complete CPU video and audio; file saving excluded",
+  "requests": 15,
+  "median_s": 26.185223374981433
+}

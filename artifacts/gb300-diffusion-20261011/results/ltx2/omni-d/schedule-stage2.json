@@ -1,0 +1,39 @@
+{
+  "phase": "stage2",
+  "sigmas": [
+    0.909375011920929,
+    0.7250000238418579,
+    0.421875,
+    0.0
+  ],
+  "steps": 3,
+  "width": 1536,
+  "height": 1024,
+  "num_frames": 121,
+  "guidance": {
+    "video": {
+      "cfg_scale": 1.0,
+      "stg_scale": 0.0,
+      "modality_scale": 1.0,
+      "rescale_scale": 0.0,
+      "stg_blocks": []
+    },
+    "audio": {
+      "cfg_scale": 1.0,
+      "stg_scale": 0.0,
+      "modality_scale": 1.0,
+      "rescale_scale": 0.0,
+      "stg_blocks": []
+    }
+  },
+  "cpu_affinity": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ]
+}

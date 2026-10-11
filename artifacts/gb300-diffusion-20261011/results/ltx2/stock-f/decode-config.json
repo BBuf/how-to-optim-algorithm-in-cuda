@@ -1,0 +1,15 @@
+{
+  "disable_autocast": true,
+  "autocast_active": false,
+  "input_dtype": "torch.bfloat16",
+  "input_shape": [
+    1,
+    128,
+    16,
+    32,
+    48
+  ],
+  "parameter_dtype": "torch.bfloat16",
+  "use_tiling": false,
+  "use_framewise_decoding": false
+}

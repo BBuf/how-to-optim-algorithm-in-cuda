@@ -1,0 +1,70 @@
+{
+  "framework": "sglang",
+  "torch": "2.14.1+cu130",
+  "cpu_affinity": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "recipe": {
+    "model": "Lightricks/LTX-2",
+    "revision": "dfcc2108383fe1aaa0584bdf55d368a4bdadd90c",
+    "pipeline": "LTX2TwoStagePipeline",
+    "gpu_count": 1,
+    "dtype": "bfloat16",
+    "cpu_offload": false,
+    "layerwise_offload": false,
+    "final_shape": [
+      1536,
+      1024,
+      121
+    ],
+    "stage1_shape": [
+      768,
+      512,
+      121
+    ],
+    "fps": 24,
+    "steps": [
+      40,
+      3
+    ],
+    "generator_device": "cpu",
+    "conditioning_cache": "disabled",
+    "stage1_guidance": {
+      "video_cfg_scale": 3.0,
+      "video_stg_scale": 1.0,
+      "video_rescale_scale": 0.7,
+      "video_modality_scale": 3.0,
+      "video_skip_step": 0,
+      "video_stg_blocks": [
+        29
+      ],
+      "audio_cfg_scale": 7.0,
+      "audio_stg_scale": 1.0,
+      "audio_rescale_scale": 0.7,
+      "audio_modality_scale": 3.0,
+      "audio_skip_step": 0,
+      "audio_stg_blocks": [
+        29
+      ]
+    },
+    "distilled_lora_strength": [
+      0.0,
+      1.0
+    ],
+    "stage2_guidance": "positive_only",
+    "audio_output_phase": 0,
+    "video_output_phase": 1,
+    "schedule_alignment": "Use actual SGLang stage1 scheduler values (including terminal zero) as explicit vLLM stage_1_sigmas; both use the same fixed stage2 distilled schedule. Verify schedule hashes before interpreting latency.",
+    "status": "v2 matched full-volume BF16 decode; earlier defaults mixed tiling/autocast",
+    "decode_tiling": false,
+    "sglang_disable_autocast": true
+  },
+  "gpu": "uuid, name\nGPU-e18ec434-76b1-0ac0-395c-1c7ded82c53b, NVIDIA GB300\n"
+}

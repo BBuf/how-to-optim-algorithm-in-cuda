@@ -1,0 +1,29 @@
+{
+  "frames": {
+    "total": 2,
+    "ok": 2
+  },
+  "unimplemented": {
+    "Custom metaclass with __getattribute__\n  Explanation: Dynamo does not trace attribute access on classes whose metaclass overrides __getattribute__\n  Hint: It may be possible to write Dynamo tracing rules for this code. Please report an issue to PyTorch if you encounter this graph break often and it is causing performance issues.\n\n  Developer debug context: type(<class 'torch.nn.attention._SDPBackend'>) = <class 'pybind11_builtins.pybind11_type'>\n\n For more details about this graph break, please visit: https://meta-pytorch.github.io/compile-graph-break-site/gb/gb5458.html": 3
+  },
+  "stats": {
+    "calls_captured": 387,
+    "unique_graphs": 2
+  },
+  "aot_autograd": {
+    "total": 3,
+    "autograd_cache_bypass": 3,
+    "ok": 2
+  },
+  "inductor": {
+    "pattern_matcher_count": 31,
+    "pattern_matcher_nodes": 33,
+    "triton_bundler_load_static_autotuner": 14,
+    "async_compile_cache_miss": 36,
+    "async_compile_cache_hit": 14,
+    "extern_calls": 17,
+    "fxgraph_cache_hit": 2,
+    "benchmarking.InductorBenchmarker.benchmark": 2,
+    "benchmarking.InductorBenchmarker.benchmark_gpu": 2
+  }
+}

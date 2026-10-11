@@ -1,0 +1,8 @@
+{
+  "framework": "vllm",
+  "bcg": false,
+  "conditioning_cache": "disabled",
+  "metric": "native SDK complete CPU video and audio; file saving excluded",
+  "requests": 15,
+  "median_s": 26.242101226001978
+}

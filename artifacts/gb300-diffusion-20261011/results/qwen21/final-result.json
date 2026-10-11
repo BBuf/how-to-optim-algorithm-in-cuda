@@ -1,0 +1,119 @@
+{
+  "model": "Qwen/Qwen-Image-2.1",
+  "revision": "d26bb61231c349cf6b7896fa83353113880e1ba3",
+  "status": "complete",
+  "mode": "eager",
+  "conditioning_cache": false,
+  "shape": [
+    1024,
+    1024
+  ],
+  "requested_steps": 50,
+  "actual_steps": 50,
+  "comparisons": [
+    {
+      "sglang_eager_s": 2.3583742739865556,
+      "omni_compile_s": 2.56242066109553,
+      "latency_reduction_pct": 7.963032386014901,
+      "sglang_per_prompt": {
+        "0": 2.355403471039608,
+        "1": 2.361306580947712,
+        "2": 2.3583742739865556
+      },
+      "omni_per_prompt": {
+        "0": 2.5627148339990526,
+        "1": 2.5640872879885137,
+        "2": 2.56119850394316
+      }
+    },
+    {
+      "sglang_eager_s": 2.3507587659405544,
+      "omni_compile_s": 2.5650066359667107,
+      "latency_reduction_pct": 8.352721861298795,
+      "sglang_per_prompt": {
+        "0": 2.3492551730014384,
+        "1": 2.3529689229326323,
+        "2": 2.3507587659405544
+      },
+      "omni_per_prompt": {
+        "0": 2.563816388952546,
+        "1": 2.566631030989811,
+        "2": 2.5635686749592423
+      }
+    }
+  ],
+  "all_images_verified": 96,
+  "sglang_source": "dab108b9f386b5b991ee070c7e4784f35df03f93",
+  "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+  "new_production_changes": false,
+  "solution": "Current native eager already beats Omni regional torch.compile for both repeated controls; no new optimization PR required.",
+  "caveats": [
+    "Single GPU, batch1,1024 square,three prompts and three fixed seeds; no claim for other workloads.",
+    "Framework-supported environments use different PyTorch versions:SG2.14.1,Omni2.13.0,bothCUDA13.0.",
+    "Cross-framework pixel identity is not required; verify own-framework repetitions separately.",
+    "Native scheduler rounding is independently reproduced. Omni is bit-exact within each process but has small RGBA differences across processes; retained PSNR/SSIM measurements qualify those differences. The original strict audit exit1 is preserved, with the explicit follow-up audit passing."
+  ],
+  "original_matrix_exit": 1,
+  "native_schedule_rounding": {
+    "sg_formula_matches_observed": true,
+    "omni_formula_matches_observed": true,
+    "mu_sg": 0.6935483870967741,
+    "mu_omni": 0.6935483870967742,
+    "sg_exponential_dtype": "float64",
+    "omni_exponential_dtype": "float32",
+    "sg_pre_terminal_cast": "torch.float32 on CPU",
+    "max_abs_diff": 5.960464477539063e-08,
+    "max_float32_ulps": 2,
+    "scheduler_config": {
+      "_class_name": "FlowMatchEulerDiscreteScheduler",
+      "_diffusers_version": "0.37.0.dev0",
+      "base_image_seq_len": 256,
+      "base_shift": 0.5,
+      "invert_sigmas": false,
+      "max_image_seq_len": 8192,
+      "max_shift": 0.9,
+      "num_train_timesteps": 1000,
+      "shift": 1.0,
+      "shift_terminal": 0.02,
+      "stochastic_sampling": false,
+      "time_shift_type": "exponential",
+      "use_beta_sigmas": false,
+      "use_dynamic_shifting": true,
+      "use_exponential_sigmas": false,
+      "use_karras_sigmas": false
+    }
+  },
+  "omni_process_image_comparisons": [
+    {
+      "prompt_id": 0,
+      "rgba_identical": false,
+      "rgba_psnr_db": 41.33113290448175,
+      "rgba_ssim": 0.9934430885399919,
+      "rgb_psnr_db": 40.083575164833135,
+      "max_rgba_difference": 106.0,
+      "mean_rgba_difference": 0.8420631885528564,
+      "max_alpha_difference": 4.0
+    },
+    {
+      "prompt_id": 1,
+      "rgba_identical": false,
+      "rgba_psnr_db": 47.41853782196365,
+      "rgba_ssim": 0.9974612736995401,
+      "rgb_psnr_db": 46.189309748849645,
+      "max_rgba_difference": 73.0,
+      "mean_rgba_difference": 0.4207723140716553,
+      "max_alpha_difference": 2.0
+    },
+    {
+      "prompt_id": 2,
+      "rgba_identical": false,
+      "rgba_psnr_db": 49.70478051611198,
+      "rgba_ssim": 0.9974701071615761,
+      "rgb_psnr_db": 48.561453612719,
+      "max_rgba_difference": 42.0,
+      "mean_rgba_difference": 0.4020230770111084,
+      "max_alpha_difference": 1.0
+    }
+  ],
+  "sglang_repeats_bit_identical": true
+}

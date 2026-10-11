@@ -1,0 +1,26 @@
+{
+  "framework": "sglang",
+  "bcg": false,
+  "conditioning_cache": "disabled",
+  "metric": "native SDK complete CPU image; PNG save excluded",
+  "warmup": 9,
+  "requests": 15,
+  "gpu": "uuid, name, pci.bus_id\nGPU-e18ec434-76b1-0ac0-395c-1c7ded82c53b, NVIDIA GB300, 00000008:06:00.0\n",
+  "sigmas_before_shift": [
+    1.0,
+    0.8888888888888888,
+    0.7777777777777778,
+    0.6666666666666667,
+    0.5555555555555556,
+    0.4444444444444444,
+    0.33333333333333337,
+    0.22222222222222232,
+    0.1111111111111111
+  ],
+  "median_s": 0.4438772570574656,
+  "per_prompt": {
+    "0": 0.44299734791275114,
+    "1": 0.44465876498725265,
+    "2": 0.4441026020795107
+  }
+}

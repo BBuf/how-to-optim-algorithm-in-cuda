@@ -1,0 +1,15 @@
+{
+  "framework": "sglang",
+  "bcg": false,
+  "conditioning_cache": "disabled",
+  "metric": "native SDK complete CPU image; PNG save excluded",
+  "warmup": 9,
+  "requests": 15,
+  "gpu": "uuid, name, pci.bus_id\nGPU-e18ec434-76b1-0ac0-395c-1c7ded82c53b, NVIDIA GB300, 00000008:06:00.0\n",
+  "median_s": 2.3583742739865556,
+  "per_prompt": {
+    "0": 2.355403471039608,
+    "1": 2.361306580947712,
+    "2": 2.3583742739865556
+  }
+}

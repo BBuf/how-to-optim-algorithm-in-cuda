@@ -1,0 +1,68 @@
+{
+  "model": "Tongyi-MAI/Z-Image-Turbo",
+  "revision": "f332072aa78be7aecdf3ee76d5c247082da564a6",
+  "status": "complete",
+  "mode": "eager",
+  "conditioning_cache": false,
+  "shape": [
+    1024,
+    1024
+  ],
+  "requested_steps": 9,
+  "actual_steps": 9,
+  "comparisons": [
+    {
+      "sglang_eager_s": 0.44356365595012903,
+      "omni_compile_s": 0.5202429740456864,
+      "latency_reduction_pct": 14.739135734839081,
+      "sglang_per_prompt": {
+        "0": 0.44356365595012903,
+        "1": 0.4438361049396917,
+        "2": 0.4430024379398674
+      },
+      "omni_per_prompt": {
+        "0": 0.5195280269253999,
+        "1": 0.5202715820632875,
+        "2": 0.5202429740456864
+      }
+    },
+    {
+      "sglang_eager_s": 0.4438772570574656,
+      "omni_compile_s": 0.5234302240423858,
+      "latency_reduction_pct": 15.198390030010621,
+      "sglang_per_prompt": {
+        "0": 0.44299734791275114,
+        "1": 0.44465876498725265,
+        "2": 0.4441026020795107
+      },
+      "omni_per_prompt": {
+        "0": 0.523490032996051,
+        "1": 0.522695949068293,
+        "2": 0.5234302240423858
+      }
+    }
+  ],
+  "all_images_verified": 96,
+  "sglang_source": "dab108b9f386b5b991ee070c7e4784f35df03f93",
+  "omni_source": "194b936637f4e7356cc998c2796c67d14d52d854",
+  "new_production_changes": false,
+  "solution": "Current native eager already beats Omni regional torch.compile for both repeated controls; no new optimization PR required.",
+  "caveats": [
+    "Single GPU, batch1,1024 square,three prompts and three fixed seeds; no claim for other workloads.",
+    "Framework-supported environments use different PyTorch versions:SG2.14.1,Omni2.13.0,bothCUDA13.0.",
+    "Cross-framework pixel identity is not required; verify own-framework repetitions separately.",
+    "Native default sigma grids differ. Final controls retain SG native linspace(1,1/9,9) and pass those identical unshifted sigmas through Omni public sampling API. All observed shifted sigmas must be exactly equal."
+  ],
+  "original_matrix_exit": 0,
+  "sigmas_before_shift": [
+    1.0,
+    0.8888888888888888,
+    0.7777777777777778,
+    0.6666666666666667,
+    0.5555555555555556,
+    0.4444444444444444,
+    0.33333333333333337,
+    0.22222222222222232,
+    0.1111111111111111
+  ]
+}
