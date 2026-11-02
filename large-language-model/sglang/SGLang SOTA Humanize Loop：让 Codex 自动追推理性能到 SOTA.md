@@ -19,7 +19,6 @@ mkdir -p "$SKILL_DIR"
 
 ln -s "$PWD/skills/llm-serving-auto-benchmark" "$SKILL_DIR/llm-serving-auto-benchmark"
 ln -s "$PWD/skills/llm-torch-profiler-analysis" "$SKILL_DIR/llm-torch-profiler-analysis"
-ln -s "$PWD/skills/sglang-humanize-review" "$SKILL_DIR/sglang-humanize-review"
 ln -s "$PWD/skills/sglang-sota-humanize-loop" "$SKILL_DIR/sglang-sota-humanize-loop"
 ln -s "$PWD/skills/sglang-prod-incident-triage" "$SKILL_DIR/sglang-prod-incident-triage"
 ln -s "$PWD/skills/model-architecture-diagram" "$SKILL_DIR/model-architecture-diagram"

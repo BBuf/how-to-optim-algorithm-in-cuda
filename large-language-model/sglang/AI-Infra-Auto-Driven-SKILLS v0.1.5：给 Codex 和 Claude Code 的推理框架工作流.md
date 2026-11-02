@@ -17,7 +17,7 @@ v0.1.5 Release：AI-Infra-Auto-Driven-SKILLS v0.1.5(https://github.com/BBuf/AI-I
 
 # 0x1. Core Skills
 
-当前仍然是 10 个任务 skill。相比 v0.1.0，删除了两个 SOTA loop，新增了两个更具体的工具：
+当前仍然是 9 个任务 skill。相比 v0.1.0，删除了两个 SOTA loop，新增了两个更具体的工具：
 
 | Skill | 解决的问题 |
 | --- | --- |
@@ -28,7 +28,6 @@ v0.1.5 Release：AI-Infra-Auto-Driven-SKILLS v0.1.5(https://github.com/BBuf/AI-I
 | `torch-profiler-layer-track`（新增） | 给已有 trace 添加 L0/L1/... 层导航标记，并整理 GPU 显示轨道。 |
 | `model-compute-simulation` | 根据模型结构估算算子形状、FLOPs 和 MFU，再与实际 kernel 对照。 |
 | `sglang-model-day0-support`（新增） | 整理新模型接入 SGLang 的支持范围、实现缺口、PR 依赖和验证要求。 |
-| `sglang-humanize-review` | 参考公开的2015年前的 SGLang 人类 review 语料，检查正确性、测试、性能和维护性问题。 |
 | `sglang-prod-incident-triage` | 从 replay 和运行证据入手，排查 timeout、wrong output、crash、hang 等 serving 问题。 |
 | `model-architecture-diagram` | 查找模型的公开原始架构图，辅助理解 LLM、VLM、MoE、OCR 和 diffusion 结构。 |
 
@@ -78,7 +77,7 @@ DeepSeek-V4.1 相关的优化经验也重新整理了。可复用的判断原则
 
 模型 PR 历史目前有 118 份中英双语档案，其中 SGLang 45 份、vLLM 44 份、TensorRT-LLM 15 份、TokenSpeed 14 份。准备修改一个模型时，可以先查已有实现、历史优化和 open PR。自动生成的条目提供检索线索，具体结论还需要回到完整 diff 和当前源码确认。
 
-`sglang-humanize-review` 的公开 review 人类语料也从早期的 2024–2025 范围更新到了 2026-07-27（为啥是这个时间就不说了），包括 inline review、PR 评论和多轮讨论。Serving 排障工具则更新了日志和状态字段的解析。这些改动都比较具体，目的是让 Agent 拿到的证据更准确，少在过时接口和错误分析口径上浪费时间。
+Serving 排障工具则更新了日志和状态字段的解析。这些改动都比较具体，目的是让 Agent 拿到的证据更准确，少在过时接口和错误分析口径上浪费时间。
 
 # 0x5. 安装和使用
 

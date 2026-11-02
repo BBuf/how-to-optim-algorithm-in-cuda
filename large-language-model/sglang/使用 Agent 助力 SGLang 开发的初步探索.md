@@ -10,7 +10,7 @@ SGLang 开发越来越不像一次孤立的代码修改。一个仓库里同时�
 
 - [SGLang `.claude/skills`](https://github.com/sgl-project/sglang/tree/main/.claude/skills) 维护在 SGLang 仓库里，覆盖 CUDA crash debug、kernel 接入、测试、CI、profiling、生产排障和源码树约定等 repo-level 开发流程。
 - [SGLang diffusion `.claude/skills`](https://github.com/sgl-project/sglang/tree/main/python/sglang/multimodal_gen/.claude/skills) 聚焦 diffusion 相关流程，包括添加 diffusion 模型、benchmark/profile denoise path、调性能参数和验证量化 pipeline。
-- [BBuf/AI-Infra-Auto-Driven-SKILLS](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS) 覆盖跨框架 serving benchmark、capacity planning、profile/pipeline analysis、model compute simulation、SGLang human-style review、production incident triage、面向 SGLang 和其它开源推理框架的 SOTA loop，以及 model PR history。
+- [BBuf/AI-Infra-Auto-Driven-SKILLS](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS) 覆盖跨框架 serving benchmark、capacity planning、profile/pipeline analysis、model compute simulation、production incident triage、面向 SGLang 和其它开源推理框架的 SOTA loop，以及 model PR history。
 - [kernel-design-agents](https://github.com/mit-han-lab/kernel-design-agents) 是 KDA 项目，也是 MLSys 2026 FlashInfer Kernel Contest 的获胜方案。
 - [BBuf/KDA-Pilot](https://github.com/BBuf/KDA-Pilot) 把 KDA 风格的 Agent kernel workflow 用到 SGLang。它公开的 B200 diffusion summary 目前跟踪 10 个 SGLang kernel task。大部分行来自 KDA-Pilot 的公开 benchmark ledger；`residual_gate_add` 使用的是原 task baseline 变化后，合入 SGLang 的集成 PR 里报告的 B200 speedup。目前 KDA-Pilot 派生的工作已经有 3 个 SGLang integration PR 落地。
 
@@ -50,7 +50,7 @@ SGLang 是面向 LLM 和多模态模型的高性能 serving framework。模型�
 | 怎么判断 | 输出表格、失败模式、优先级、risk 分类、fallback 条件 |
 | 怎么交付 | artifact 目录、结果 schema、PR 描述、复现命令、审查要求 |
 
-SGLang 相关 skills 覆盖不同层级。有些贴近源码修改，比如 debug、test、diffusion model 添加和 benchmark/profile workflow；另一些面向跨框架 benchmark、capacity planning、compute simulation、production incident triage、PR 优化知识库、SGLang human-style review，以及 Humanize/RLCR 这类更上层的 workflow。
+SGLang 相关 skills 覆盖不同层级。有些贴近源码修改，比如 debug、test、diffusion model 添加和 benchmark/profile workflow；另一些面向跨框架 benchmark、capacity planning、compute simulation、production incident triage、PR 优化知识库，以及 Humanize/RLCR 这类更上层的 workflow。
 
 ### 3.1 当前 Skill 栈
 
@@ -68,7 +68,7 @@ SGLang 相关 skills 覆盖不同层级。有些贴近源码修改，比如 debu
 | Add diffusion model | [`sglang-diffusion-add-model`](https://github.com/sgl-project/sglang/tree/main/python/sglang/multimodal_gen/.claude/skills/sglang-diffusion-add-model) | 从 Diffusers/reference pipeline 出发，把新 diffusion 模型接入 SGLang 的 pipeline/stage/model/config 结构 |
 | Diffusion performance tuning | [`sglang-diffusion-performance`](https://github.com/sgl-project/sglang/tree/main/python/sglang/multimodal_gen/.claude/skills/sglang-diffusion-performance) | 选择 `torch.compile`、warmup、SP/CFG parallelism、offload、attention backend、quantization 等性能参数 |
 | Production triage | [`sglang-prod-incident-triage`](https://github.com/sgl-project/sglang/tree/main/.claude/skills/sglang-prod-incident-triage) | 从 live server 收集 bundle、保存 failing request、replay，再路由到 crash/hang/profile 等专项工具 |
-| SGLang review / PR history | [`sglang-humanize-review`](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/skills/sglang-humanize-review) 和 [`model-pr-history-knowledge`](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/model-pr-optimization-history) | 用真实 maintainer discussion pattern 审查 SGLang patch，并把 PR-driven model evolution histories 放在离源码修改更近的位置 |
+| PR history | [`model-pr-history-knowledge`](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/model-pr-optimization-history) | 把 PR-driven model evolution histories 放在离源码修改更近的位置 |
 | SGLang SOTA Performance Loop (Loop Engineering) | [`sglang-sota-humanize-loop`](https://github.com/BBuf/AI-Infra-Auto-Driven-SKILLS/tree/main/skills/sglang-sota-humanize-loop) | 先公平比较 SGLang 和指定开源推理框架，再把 gap decision、profile、patch 和 revalidation 放进 Humanize/RLCR loop |
 
 这些条目不是在堆工具名，而是在把容易遗漏的步骤写成可执行协议，让 workflow 能运行、能恢复，也能被人审查。
